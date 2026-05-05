@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LinkStatus {
+  ACTIVE
+  DISABLED
+  EXPIRED
+}
+
+enum CaseStatus {
+  NEW
+  IN_DISCUSSION
+  VALIDATED
+  REFUSED
+  CLOSED
+}
+
+enum SenderType {
+  OWNER
+  CANDIDATE
+  SYSTEM
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("OWNER")
+  createdAt DateTime @default(now())
+
+  links GLink[]
+  cases RelationCase[] @relation("OwnerCases")
+}
+
+model GLink {
+  id          String     @id @default(cuid())
+  ownerId     String
+  slug        String     @unique
+  title       String
+  city        String?
+  description String?
+  rules       Json?
+  status      LinkStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  expiresAt   DateTime?
+
+  owner User @relation(fields: [ownerId], references: [id])
+  cases RelationCase[]
+}
+
+model RelationCase {
+  id             String     @id @default(cuid())
+  gLinkId         String
+  ownerId         String
+  candidateName   String
+  candidateEmail  String
+  status          CaseStatus @default(NEW)
+  createdAt       DateTime   @default(now())
+  closedAt        DateTime?
+
+  gLink     GLink @relation(fields: [gLinkId], references: [id])
+  owner     User  @relation("OwnerCases", fields: [ownerId], references: [id])
+  messages  Message[]
+  documents Document[]
+  auditLogs AuditLog[]
+}
+
+model Message {
+  id          String     @id @default(cuid())
+  caseId      String
+  senderType  SenderType
+  senderEmail String
+  body        String
+  createdAt   DateTime   @default(now())
+
+  relationCase RelationCase @relation(fields: [caseId], references: [id])
+}
+
+model Document {
+  id              String   @id @default(cuid())
+  caseId           String
+  uploadedByEmail  String
+  fileName         String
+  fileUrl          String
+  mimeType         String?
+  createdAt        DateTime @default(now())
+
+  relationCase RelationCase @relation(fields: [caseId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  caseId     String?
+  actorEmail String?
+  eventType  String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  relationCase RelationCase? @relation(fields: [caseId], references: [id])
+}

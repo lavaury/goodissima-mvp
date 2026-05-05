@@ -1,0 +1,2 @@
+import { CopyLinkButton } from "@/components/CopyLinkButton";
+export function PublicLinkBox({ url }: { url: string }) { return <div className="rounded-2xl border bg-white p-5 shadow-sm"><p className="mb-2 text-sm font-medium text-slate-700">Lien sécurisé à partager</p><div className="flex flex-col gap-3 sm:flex-row"><input value={url} readOnly className="w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm"/><CopyLinkButton value={url}/></div><p className="mt-3 text-sm text-slate-500">Remplacez votre téléphone ou email par ce lien dans votre annonce.</p></div>; }
