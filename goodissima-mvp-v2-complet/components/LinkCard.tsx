@@ -8,7 +8,7 @@ export function LinkCard({
   item: { id: string; slug: string; title: string; city?: string | null };
 }) {
   const publicPath = `/l/${item.slug}`;
-  const publicUrl = `http://localhost:3000${publicPath}`;
+  const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
 
   return (
     <div className="rounded-2xl border bg-white p-5 shadow-sm">

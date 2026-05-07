@@ -1,2 +1,50 @@
-import { notFound } from "next/navigation"; import { prisma } from "@/lib/prisma"; import CandidateForm from "./candidate-form"; import { PublicLinkBox } from "@/components/PublicLinkBox";
-export default async function PublicLinkPage({params}:{params:{slug:string}}){const link=await prisma.gLink.findUnique({where:{slug:params.slug},include:{owner:true}}); if(!link||link.status!=="ACTIVE") notFound(); const publicUrl=`http://localhost:3000/l/${link.slug}`; return <main className="mx-auto max-w-3xl px-6 py-10"><div className="mb-6"><p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Goodissima — Relation sécurisée</p></div><div className="mb-6"><PublicLinkBox url={publicUrl}/></div><div className="rounded-3xl border bg-white p-8 shadow-sm"><p className="text-sm font-medium uppercase tracking-wide text-slate-500">Contacter le propriétaire</p><h1 className="mt-3 text-3xl font-bold">{link.title}</h1>{link.city&&<p className="mt-1 text-slate-500">{link.city}</p>}{link.description&&<p className="mt-5 text-slate-700">{link.description}</p>}<div className="mt-8 rounded-2xl bg-slate-50 p-5"><h2 className="font-semibold">🔒 Ce propriétaire utilise un lien sécurisé</h2><p className="mt-2 text-sm text-slate-600">Ce lien permet d’éviter les messages inutiles, les faux profils et les contacts hors contexte. Merci de vous présenter clairement : votre demande sera traitée plus rapidement.</p></div><CandidateForm gLinkId={link.id} slug={link.slug}/></div></main>}
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import CandidateForm from "./candidate-form";
+import { PublicLinkBox } from "@/components/PublicLinkBox";
+
+export default async function PublicLinkPage({ params }: { params: { slug: string } }) {
+  const link = await prisma.gLink.findUnique({
+    where: { slug: params.slug },
+    include: { owner: true },
+  });
+
+  if (!link || link.status !== "ACTIVE") notFound();
+
+  const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/l/${link.slug}`;
+
+  return (
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mb-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Goodissima — Relation sécurisée
+        </p>
+      </div>
+
+      <div className="mb-6">
+        <PublicLinkBox url={publicUrl} />
+      </div>
+
+      <div className="rounded-3xl border bg-white p-8 shadow-sm">
+        <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+          Contacter le propriétaire
+        </p>
+
+        <h1 className="mt-3 text-3xl font-bold">{link.title}</h1>
+
+        {link.city && <p className="mt-1 text-slate-500">{link.city}</p>}
+        {link.description && <p className="mt-5 text-slate-700">{link.description}</p>}
+
+        <div className="mt-8 rounded-2xl bg-slate-50 p-5">
+          <h2 className="font-semibold">🔒 Ce propriétaire utilise un lien sécurisé</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Ce lien permet d’éviter les messages inutiles, les faux profils et les contacts hors contexte.
+            Merci de vous présenter clairement : votre demande sera traitée plus rapidement.
+          </p>
+        </div>
+
+        <CandidateForm gLinkId={link.id} slug={link.slug} />
+      </div>
+    </main>
+  );
+}
