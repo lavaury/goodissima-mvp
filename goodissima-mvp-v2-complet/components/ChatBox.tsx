@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export function ChatBox({
   caseId,
@@ -22,15 +21,24 @@ export function ChatBox({
   const [messages, setMessages] = useState(initialMessages);
   const [body, setBody] = useState("");
 
-  const router = useRouter();
+  async function loadMessages() {
+    const res = await fetch(`/api/messages?caseId=${caseId}`, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) return;
+
+    const freshMessages = await res.json();
+    setMessages(freshMessages);
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
-      router.refresh();
-    }, 4000);
+      loadMessages();
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [router]);
+  }, [caseId]);
 
   async function sendMessage() {
     if (!body.trim()) return;
@@ -51,11 +59,8 @@ export function ChatBox({
       return;
     }
 
-    const created = await res.json();
-
-    setMessages((prev) => [...prev, created]);
     setBody("");
-    router.refresh();
+    await loadMessages();
   }
 
   return (
