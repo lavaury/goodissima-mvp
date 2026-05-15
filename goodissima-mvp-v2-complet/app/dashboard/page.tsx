@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { LinkCard } from "@/components/LinkCard";
+import { LogoutButton } from "@/components/LogoutButton";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -19,9 +20,12 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-bold">Mes liens sécurisés</h1>
           <p className="text-slate-500">Compte connecté : {owner.email}</p>
         </div>
-        <Link href="/links/new" className="rounded-2xl bg-slate-900 px-5 py-3 text-white">
+        <div className="flex items-center gap-3">
+          <Link href="/links/new" className="rounded-2xl bg-slate-900 px-5 py-3 text-white">
           Créer un lien
-        </Link>
+          </Link>
+          <LogoutButton />
+        </div>
       </div>
       {links.length === 0 ? (
         <div className="rounded-2xl border bg-white p-8 text-center">

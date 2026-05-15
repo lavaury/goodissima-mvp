@@ -1,26 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
+export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setMessage(null);
     setIsLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
 
     setIsLoading(false);
 
@@ -29,8 +26,7 @@ function LoginForm() {
       return;
     }
 
-    router.replace(next);
-    router.refresh();
+    setMessage("Si un compte existe pour cet email, un lien de reinitialisation a ete envoye.");
   }
 
   return (
@@ -38,7 +34,7 @@ function LoginForm() {
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
         Goodissima Banque
       </p>
-      <h1 className="mt-3 text-3xl font-bold">Connexion conseiller</h1>
+      <h1 className="mt-3 text-3xl font-bold">Mot de passe oublie</h1>
       <form onSubmit={submit} className="mt-8 space-y-4 rounded-2xl border bg-white p-6">
         <input
           className="w-full rounded-xl border px-4 py-3"
@@ -49,42 +45,20 @@ function LoginForm() {
           onChange={(event) => setEmail(event.target.value)}
           required
         />
-        <input
-          className="w-full rounded-xl border px-4 py-3"
-          type="password"
-          autoComplete="current-password"
-          placeholder="Mot de passe"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
         <button
           className="w-full rounded-2xl bg-slate-900 px-5 py-3 font-medium text-white disabled:opacity-60"
           disabled={isLoading}
         >
-          {isLoading ? "Connexion..." : "Se connecter"}
+          {isLoading ? "Envoi..." : "Envoyer le lien"}
         </button>
       </form>
       <p className="mt-4 text-center text-sm text-slate-600">
-        <Link className="font-medium text-slate-900 underline" href="/reset-password">
-          Mot de passe oublie ?
-        </Link>
-      </p>
-      <p className="mt-4 text-center text-sm text-slate-600">
-        Pas encore de compte ?{" "}
-        <Link className="font-medium text-slate-900 underline" href="/signup">
-          Créer un accès
+        <Link className="font-medium text-slate-900 underline" href="/login">
+          Retour a la connexion
         </Link>
       </p>
     </main>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
   );
 }

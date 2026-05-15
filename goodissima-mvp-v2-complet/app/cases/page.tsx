@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { LogoutButton } from "@/components/LogoutButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +19,10 @@ export default async function CasesPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="text-3xl font-bold">Dossiers relationnels</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold">Dossiers relationnels</h1>
+        <LogoutButton />
+      </div>
       <div className="mt-8 overflow-hidden rounded-2xl border bg-white">
         {cases.length === 0 ? (
           <p className="p-8 text-slate-500">Aucun dossier pour le moment.</p>
