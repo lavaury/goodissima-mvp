@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { QRCodeBox } from "@/components/QRCodeBox";
 
@@ -16,6 +19,26 @@ export function LinkCard({
   const publicPath = `/l/${item.slug}`;
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
   const latestCase = item.cases?.[0];
+  const [shared, setShared] = useState(false);
+
+  async function shareLink() {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Lien sécurisé Goodissima",
+          text: "Accédez à votre espace sécurisé Goodissima.",
+          url: publicUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(publicUrl);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch {
+      alert("Impossible de partager automatiquement. Copiez le lien manuellement.");
+    }
+  }
 
   return (
     <div className="rounded-2xl border bg-white p-5 shadow-sm">
@@ -35,6 +58,13 @@ export function LinkCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         <CopyLinkButton value={publicUrl} />
+        <button
+          type="button"
+          onClick={shareLink}
+          className="rounded-xl border px-4 py-2 text-sm"
+        >
+          {shared ? "Lien copié" : "Partager"}
+        </button>
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
           Voir le lien
         </Link>
