@@ -42,7 +42,9 @@ export function LinkCard({
           <Link className="rounded-xl border px-4 py-2 text-sm" href={`/cases/${latestCase.id}`}>
             Voir le dossier
           </Link>
-        ) : null}
+        ) : (
+          <span className="px-4 py-2 text-sm text-slate-500">En attente de contact</span>
+        )}
       </div>
 
       <div className="mt-5">
