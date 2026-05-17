@@ -58,6 +58,9 @@ model RelationCase {
   id             String     @id @default(cuid())
   gLinkId         String
   ownerId         String
+  candidateAccessToken String @unique
+  candidateAccessExpiresAt DateTime?
+  candidateAccessRevokedAt DateTime?
   candidateName   String
   candidateEmail  String
   status          CaseStatus @default(NEW)

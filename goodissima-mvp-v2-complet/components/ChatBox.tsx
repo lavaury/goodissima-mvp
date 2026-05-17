@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 
 export function ChatBox({
   caseId,
+  candidateAccessToken,
   initialMessages,
   senderEmail,
   senderType,
 }: {
-  caseId: string;
+  caseId?: string;
+  candidateAccessToken?: string;
   initialMessages: Array<{
     id: string;
     body: string;
@@ -22,7 +24,10 @@ export function ChatBox({
   const [body, setBody] = useState("");
 
   async function loadMessages() {
-    const res = await fetch(`/api/messages?caseId=${caseId}`, {
+    const query = candidateAccessToken
+      ? `candidateAccessToken=${encodeURIComponent(candidateAccessToken)}`
+      : `caseId=${encodeURIComponent(caseId ?? "")}`;
+    const res = await fetch(`/api/messages?${query}`, {
       cache: "no-store",
     });
 
@@ -38,7 +43,7 @@ export function ChatBox({
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [caseId]);
+  }, [caseId, candidateAccessToken]);
 
   async function sendMessage() {
     if (!body.trim()) return;
@@ -48,6 +53,7 @@ export function ChatBox({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         caseId,
+        candidateAccessToken,
         senderEmail,
         senderType,
         body,

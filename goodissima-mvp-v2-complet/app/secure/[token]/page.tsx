@@ -1,12 +1,13 @@
 import { RelationCaseWorkspace } from "@/components/RelationCaseWorkspace";
-import { getCurrentPrismaUser } from "@/lib/auth";
+import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 
-export default async function CaseDetailPage({ params }: { params: { caseId: string } }) {
-  const owner = await getCurrentPrismaUser();
+export const dynamic = "force-dynamic";
+
+export default async function SecureCasePage({ params }: { params: { token: string } }) {
   const item = await prisma.relationCase.findFirst({
-    where: { id: params.caseId, ownerId: owner.id },
+    where: activeCandidateAccessWhere(params.token),
     include: {
       gLink: true,
       messages: { orderBy: { createdAt: "asc" } },
@@ -17,5 +18,12 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
 
   if (!item) notFound();
 
-  return <RelationCaseWorkspace item={item} senderEmail="demo@goodissima.app" senderType="OWNER" />;
+  return (
+    <RelationCaseWorkspace
+      item={item}
+      senderEmail={item.candidateEmail}
+      senderType="CANDIDATE"
+      candidateAccessToken={item.candidateAccessToken}
+    />
+  );
 }

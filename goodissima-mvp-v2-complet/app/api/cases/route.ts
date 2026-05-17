@@ -1,2 +1,75 @@
-import { NextResponse } from "next/server"; import { prisma } from "@/lib/prisma"; import { auditLog } from "@/lib/audit";
-export async function POST(req:Request){const body=await req.json(); if(!body.gLinkId||!body.candidateName||!body.candidateEmail||!body.message) return NextResponse.json({error:"Missing required fields"},{status:400}); const gLink=await prisma.gLink.findUnique({where:{id:body.gLinkId}}); if(!gLink) return NextResponse.json({error:"Link not found"},{status:404}); const relationCase=await prisma.relationCase.create({data:{gLinkId:gLink.id,ownerId:gLink.ownerId,candidateName:body.candidateName,candidateEmail:body.candidateEmail,messages:{create:{senderType:"CANDIDATE",senderEmail:body.candidateEmail,body:body.message}},documents:body.documentName&&body.documentUrl?{create:{uploadedByEmail:body.candidateEmail,fileName:body.documentName,fileUrl:body.documentUrl,mimeType:"application/octet-stream"}}:undefined},include:{messages:true,documents:true}}); await auditLog({caseId:relationCase.id,actorEmail:body.candidateEmail,eventType:"CASE_CREATED",metadata:{gLinkId:gLink.id}}); await auditLog({caseId:relationCase.id,actorEmail:body.candidateEmail,eventType:"MESSAGE_SENT",metadata:{initial:true}}); if(body.documentName&&body.documentUrl) await auditLog({caseId:relationCase.id,actorEmail:body.candidateEmail,eventType:"DOCUMENT_UPLOADED",metadata:{fileName:body.documentName}}); return NextResponse.json(relationCase);}
+import { NextResponse } from "next/server";
+import { auditLog } from "@/lib/audit";
+import { createCandidateAccessExpiresAt, createCandidateAccessToken } from "@/lib/candidate-access";
+import { prisma } from "@/lib/prisma";
+
+export async function POST(req: Request) {
+  const body = await req.json();
+
+  if (!body.gLinkId || !body.candidateName || !body.candidateEmail || !body.message) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  const gLink = await prisma.gLink.findUnique({ where: { id: body.gLinkId } });
+
+  if (!gLink) {
+    return NextResponse.json({ error: "Link not found" }, { status: 404 });
+  }
+
+  const relationCase = await prisma.relationCase.create({
+    data: {
+      gLinkId: gLink.id,
+      ownerId: gLink.ownerId,
+      candidateAccessToken: createCandidateAccessToken(),
+      candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
+      candidateName: body.candidateName,
+      candidateEmail: body.candidateEmail,
+      messages: {
+        create: {
+          senderType: "CANDIDATE",
+          senderEmail: body.candidateEmail,
+          body: body.message,
+        },
+      },
+      documents:
+        body.documentName && body.documentUrl
+          ? {
+              create: {
+                uploadedByEmail: body.candidateEmail,
+                fileName: body.documentName,
+                fileUrl: body.documentUrl,
+                mimeType: "application/octet-stream",
+              },
+            }
+          : undefined,
+    },
+    select: {
+      id: true,
+      candidateAccessToken: true,
+    },
+  });
+
+  await auditLog({
+    caseId: relationCase.id,
+    actorEmail: body.candidateEmail,
+    eventType: "CASE_CREATED",
+    metadata: { gLinkId: gLink.id },
+  });
+  await auditLog({
+    caseId: relationCase.id,
+    actorEmail: body.candidateEmail,
+    eventType: "MESSAGE_SENT",
+    metadata: { initial: true },
+  });
+
+  if (body.documentName && body.documentUrl) {
+    await auditLog({
+      caseId: relationCase.id,
+      actorEmail: body.candidateEmail,
+      eventType: "DOCUMENT_UPLOADED",
+      metadata: { fileName: body.documentName },
+    });
+  }
+
+  return NextResponse.json({ candidateAccessToken: relationCase.candidateAccessToken });
+}

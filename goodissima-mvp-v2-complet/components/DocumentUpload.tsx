@@ -1,3 +1,60 @@
 "use client";
 import { useState } from "react";
-export function DocumentUpload({ caseId, uploadedByEmail }: { caseId: string; uploadedByEmail: string }) { const [fileName,setFileName]=useState(""); const [fileUrl,setFileUrl]=useState(""); async function addDocument(){ if(!fileName.trim()||!fileUrl.trim()) return; const res=await fetch("/api/documents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({caseId,uploadedByEmail,fileName,fileUrl})}); if(!res.ok){alert("Erreur lors de l'ajout du document."); return;} window.location.reload(); } return <div className="rounded-2xl border bg-white p-4"><h3 className="font-semibold">Ajouter un document</h3><p className="mb-3 text-sm text-slate-500">MVP : ajoutez une URL de fichier.</p><input className="mb-2 w-full rounded-xl border px-3 py-2" placeholder="Nom du fichier" value={fileName} onChange={(e)=>setFileName(e.target.value)}/><input className="mb-3 w-full rounded-xl border px-3 py-2" placeholder="URL du fichier" value={fileUrl} onChange={(e)=>setFileUrl(e.target.value)}/><button onClick={addDocument} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Ajouter</button></div>; }
+
+export function DocumentUpload({
+  caseId,
+  candidateAccessToken,
+  uploadedByEmail,
+}: {
+  caseId?: string;
+  candidateAccessToken?: string;
+  uploadedByEmail: string;
+}) {
+  const [fileName, setFileName] = useState("");
+  const [fileUrl, setFileUrl] = useState("");
+
+  async function addDocument() {
+    if (!fileName.trim() || !fileUrl.trim()) return;
+
+    const res = await fetch("/api/documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caseId,
+        candidateAccessToken,
+        uploadedByEmail,
+        fileName,
+        fileUrl,
+      }),
+    });
+
+    if (!res.ok) {
+      alert("Erreur lors de l'ajout du document.");
+      return;
+    }
+
+    window.location.reload();
+  }
+
+  return (
+    <div className="rounded-2xl border bg-white p-4">
+      <h3 className="font-semibold">Ajouter un document</h3>
+      <p className="mb-3 text-sm text-slate-500">MVP : ajoutez une URL de fichier.</p>
+      <input
+        className="mb-2 w-full rounded-xl border px-3 py-2"
+        placeholder="Nom du fichier"
+        value={fileName}
+        onChange={(e) => setFileName(e.target.value)}
+      />
+      <input
+        className="mb-3 w-full rounded-xl border px-3 py-2"
+        placeholder="URL du fichier"
+        value={fileUrl}
+        onChange={(e) => setFileUrl(e.target.value)}
+      />
+      <button onClick={addDocument} className="rounded-xl bg-slate-900 px-4 py-2 text-white">
+        Ajouter
+      </button>
+    </div>
+  );
+}
