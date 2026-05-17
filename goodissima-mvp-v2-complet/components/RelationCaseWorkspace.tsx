@@ -15,10 +15,68 @@ type RelationCaseWorkspaceItem = {
   priority: RelationPriority;
   status: RelationStatus;
   gLink: { title: string };
-  messages: Array<{ id: string; body: string; senderEmail: string; createdAt: Date | string }>;
-  documents: Array<{ id: string; fileUrl: string; fileName: string }>;
+  createdAt: Date | string;
+  messages: Array<{
+    id: string;
+    body: string;
+    senderType?: string;
+    senderEmail: string;
+    createdAt: Date | string;
+  }>;
+  documents: Array<{
+    id: string;
+    fileUrl: string;
+    fileName: string;
+    uploadedByEmail?: string;
+    createdAt?: Date | string;
+  }>;
   auditLogs: Array<{ id: string; eventType: string; createdAt: Date | string }>;
 };
+
+function formatActivityDate(date: Date | string) {
+  return new Date(date).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getActivityEvents(item: RelationCaseWorkspaceItem) {
+  const events = [
+    {
+      id: `case-${item.id}`,
+      label: "Dossier créé",
+      date: item.createdAt,
+      type: "Dossier",
+    },
+    ...item.messages.map((message) => ({
+      id: `message-${message.id}`,
+      label:
+        message.senderType === "OWNER"
+          ? "Message envoyé par propriétaire"
+          : "Message envoyé par candidat",
+      date: message.createdAt,
+      type: "Message",
+    })),
+    ...item.documents
+      .filter((document) => document.createdAt)
+      .map((document) => ({
+        id: `document-${document.id}`,
+        label:
+          document.uploadedByEmail === item.candidateEmail
+            ? "Document ajouté par candidat"
+            : "Document ajouté par propriétaire",
+        date: document.createdAt!,
+        type: "Document",
+      })),
+  ];
+
+  return events
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 10);
+}
 
 export function RelationCaseWorkspace({
   item,
@@ -31,6 +89,8 @@ export function RelationCaseWorkspace({
   senderType: "OWNER" | "CANDIDATE";
   candidateAccessToken?: string;
 }) {
+  const activityEvents = getActivityEvents(item);
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
       <h1 className="text-3xl font-bold">{item.gLink.title}</h1>
@@ -43,6 +103,20 @@ export function RelationCaseWorkspace({
         status={item.status}
         editable={senderType === "OWNER"}
       />
+      <div className="mt-6 rounded-2xl border bg-white p-4">
+        <h2 className="font-semibold">Activité du dossier</h2>
+        <div className="mt-3 space-y-2">
+          {activityEvents.map((event) => (
+            <div key={event.id} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-3 text-sm">
+              <div>
+                <p className="font-medium text-slate-800">{event.label}</p>
+                <p className="text-xs text-slate-500">{event.type}</p>
+              </div>
+              <p className="shrink-0 text-xs text-slate-500">{formatActivityDate(event.date)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
         <ChatBox
           caseId={candidateAccessToken ? undefined : item.id}
