@@ -27,6 +27,16 @@ enum RelationPriority {
   URGENT
 }
 
+enum RelationStatus {
+  NEW
+  WAITING_CANDIDATE
+  WAITING_OWNER
+  REVIEWING
+  VALIDATED
+  REJECTED
+  CLOSED
+}
+
 enum SenderType {
   OWNER
   CANDIDATE
@@ -70,7 +80,7 @@ model RelationCase {
   candidateName   String
   candidateEmail  String
   priority        RelationPriority @default(NORMAL)
-  status          CaseStatus @default(NEW)
+  status          RelationStatus @default(NEW)
   createdAt       DateTime   @default(now())
   closedAt        DateTime?
 

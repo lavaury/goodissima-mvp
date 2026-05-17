@@ -2,6 +2,8 @@ import { CandidateAccessControls } from "@/components/CandidateAccessControls";
 import { ChatBox } from "@/components/ChatBox";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
+import { RelationCaseFields } from "@/components/RelationCaseFields";
+import type { RelationPriority, RelationStatus } from "@prisma/client";
 
 type RelationCaseWorkspaceItem = {
   id: string;
@@ -10,8 +12,8 @@ type RelationCaseWorkspaceItem = {
   candidateAccessRevokedAt?: Date | string | null;
   candidateName: string;
   candidateEmail: string;
-  priority: string;
-  status: string;
+  priority: RelationPriority;
+  status: RelationStatus;
   gLink: { title: string };
   messages: Array<{ id: string; body: string; senderEmail: string; createdAt: Date | string }>;
   documents: Array<{ id: string; fileUrl: string; fileName: string }>;
@@ -35,14 +37,12 @@ export function RelationCaseWorkspace({
       <p className="text-slate-500">
         Dossier avec {item.candidateName} - {item.candidateEmail}
       </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-          Priorite : {item.priority}
-        </span>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-          Statut : {item.status}
-        </span>
-      </div>
+      <RelationCaseFields
+        caseId={item.id}
+        priority={item.priority}
+        status={item.status}
+        editable={senderType === "OWNER"}
+      />
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
         <ChatBox
           caseId={candidateAccessToken ? undefined : item.id}
