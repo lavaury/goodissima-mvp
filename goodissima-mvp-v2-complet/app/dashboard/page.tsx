@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { LinkCard } from "@/components/LinkCard";
+import { DashboardLinkFilters } from "@/components/DashboardLinkFilters";
 import { LogoutButton } from "@/components/LogoutButton";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +14,12 @@ export default async function DashboardPage() {
       include: {
         cases: {
           orderBy: { createdAt: "desc" },
-          take: 1,
+          select: {
+            id: true,
+            candidateEmail: true,
+            priority: true,
+            status: true,
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -39,6 +44,13 @@ export default async function DashboardPage() {
     { label: "Urgents", value: cases.filter((item) => item.priority === "URGENT").length },
     { label: "Clôturés", value: cases.filter((item) => item.status === "CLOSED").length },
   ];
+  const dashboardLinks = links.map((item) => ({
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    city: item.city,
+    cases: item.cases,
+  }));
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -49,7 +61,7 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <Link href="/links/new" className="rounded-2xl bg-slate-900 px-5 py-3 text-white">
-          Créer un lien
+            Créer un lien
           </Link>
           <LogoutButton />
         </div>
@@ -62,23 +74,7 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
-      {links.length === 0 ? (
-        <div className="rounded-2xl border bg-white p-8 text-center">
-          <p className="text-slate-600">Aucun lien pour le moment.</p>
-          <Link
-            href="/links/new"
-            className="mt-4 inline-block rounded-xl bg-slate-900 px-4 py-2 text-white"
-          >
-            Créer le premier lien
-          </Link>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {links.map((item) => (
-            <LinkCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
+      <DashboardLinkFilters links={dashboardLinks} />
     </main>
   );
 }
