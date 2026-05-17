@@ -5,10 +5,17 @@ import { QRCodeBox } from "@/components/QRCodeBox";
 export function LinkCard({
   item
 }: {
-  item: { id: string; slug: string; title: string; city?: string | null };
+  item: {
+    id: string;
+    slug: string;
+    title: string;
+    city?: string | null;
+    cases?: Array<{ id: string }>;
+  };
 }) {
   const publicPath = `/l/${item.slug}`;
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
+  const latestCase = item.cases?.[0];
 
   return (
     <div className="rounded-2xl border bg-white p-5 shadow-sm">
@@ -31,9 +38,11 @@ export function LinkCard({
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
           Voir le lien
         </Link>
-        <Link className="rounded-xl border px-4 py-2 text-sm" href="/cases">
-          Voir les dossiers
-        </Link>
+        {latestCase ? (
+          <Link className="rounded-xl border px-4 py-2 text-sm" href={`/cases/${latestCase.id}`}>
+            Voir le dossier
+          </Link>
+        ) : null}
       </div>
 
       <div className="mt-5">

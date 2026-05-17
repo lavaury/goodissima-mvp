@@ -10,6 +10,12 @@ export default async function DashboardPage() {
   const owner = await getCurrentPrismaUser();
   const links = await prisma.gLink.findMany({
     where: { ownerId: owner.id },
+    include: {
+      cases: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
