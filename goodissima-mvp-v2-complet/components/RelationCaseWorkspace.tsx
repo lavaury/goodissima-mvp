@@ -1,5 +1,6 @@
 import { CandidateAccessControls } from "@/components/CandidateAccessControls";
 import { ChatBox } from "@/components/ChatBox";
+import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 
 type RelationCaseWorkspaceItem = {
@@ -44,20 +45,11 @@ export function RelationCaseWorkspace({
           <div className="rounded-2xl border bg-white p-4">
             <h2 className="font-semibold">Documents</h2>
             <div className="mt-3 space-y-2">
-              {item.documents.length === 0 ? (
-                <p className="text-sm text-slate-500">Aucun document.</p>
-              ) : (
-                item.documents.map((doc) => (
-                  <a
-                    key={doc.id}
-                    href={doc.fileUrl}
-                    target="_blank"
-                    className="block rounded-xl border p-3 text-sm hover:bg-slate-50"
-                  >
-                    {doc.fileName}
-                  </a>
-                ))
-              )}
+              <DocumentList
+                documents={item.documents}
+                caseId={candidateAccessToken ? undefined : item.id}
+                candidateAccessToken={candidateAccessToken}
+              />
             </div>
           </div>
           <DocumentUpload
