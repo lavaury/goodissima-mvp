@@ -1,4 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
 import { PublicLinkBox } from "@/components/PublicLinkBox";
@@ -10,6 +12,22 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
   });
 
   if (!link || link.status !== "ACTIVE") notFound();
+
+  const candidateCookie = cookies().get(`goodissima_candidate_${link.id}`)?.value;
+
+  if (candidateCookie) {
+    const existingCase = await prisma.relationCase.findFirst({
+      where: {
+        ...activeCandidateAccessWhere(candidateCookie),
+        gLinkId: link.id,
+      },
+      select: { candidateAccessToken: true },
+    });
+
+    if (existingCase) {
+      redirect(`/secure/${encodeURIComponent(existingCase.candidateAccessToken)}`);
+    }
+  }
 
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/l/${link.slug}`;
 
@@ -43,7 +61,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           </p>
         </div>
 
-        <CandidateForm gLinkId={link.id} slug={link.slug} />
+        <CandidateForm gLinkId={link.id} />
       </div>
     </main>
   );

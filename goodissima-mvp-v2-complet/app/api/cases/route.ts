@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
 import { RelationStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
-import { createCandidateAccessExpiresAt, createCandidateAccessToken } from "@/lib/candidate-access";
+import {
+  CANDIDATE_ACCESS_TTL_DAYS,
+  createCandidateAccessExpiresAt,
+  createCandidateAccessToken,
+} from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
+
+function withCandidateCookie(token: string, gLinkId: string) {
+  const response = NextResponse.json({ candidateAccessToken: token });
+  response.cookies.set(`goodissima_candidate_${gLinkId}`, token, {
+    httpOnly: true,
+    maxAge: CANDIDATE_ACCESS_TTL_DAYS * 24 * 60 * 60,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+
+  return response;
+}
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -71,7 +88,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ candidateAccessToken: existingRelationCase.candidateAccessToken });
+    return withCandidateCookie(existingRelationCase.candidateAccessToken, gLink.id);
   }
 
   const relationCase = await prisma.relationCase.create({
@@ -130,5 +147,5 @@ export async function POST(req: Request) {
     });
   }
 
-  return NextResponse.json({ candidateAccessToken: relationCase.candidateAccessToken });
+  return withCandidateCookie(relationCase.candidateAccessToken, gLink.id);
 }

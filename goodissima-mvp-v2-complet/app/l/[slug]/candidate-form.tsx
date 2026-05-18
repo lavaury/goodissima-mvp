@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 
-export default function CandidateForm({ gLinkId, slug }: { gLinkId: string; slug: string }) {
+export default function CandidateForm({ gLinkId }: { gLinkId: string }) {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ export default function CandidateForm({ gLinkId, slug }: { gLinkId: string; slug
 
     toast.success("Message envoye");
     const relationCase = await res.json();
-    router.push(`/l/${slug}/confirmation?token=${encodeURIComponent(relationCase.candidateAccessToken)}`);
+    router.push(`/secure/${encodeURIComponent(relationCase.candidateAccessToken)}`);
   }
 
   return (
