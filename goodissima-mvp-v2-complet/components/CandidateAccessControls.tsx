@@ -3,6 +3,15 @@
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 
+const parisDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 export function CandidateAccessControls({
   caseId,
   candidateAccessToken,
@@ -21,10 +30,10 @@ export function CandidateAccessControls({
   const expiresAtLabel = useMemo(() => {
     if (!candidateAccessExpiresAt) return "Aucune expiration";
 
-    return new Date(candidateAccessExpiresAt).toLocaleString("fr-FR");
+    return parisDateFormatter.format(new Date(candidateAccessExpiresAt));
   }, [candidateAccessExpiresAt]);
   const revokedAtLabel = candidateAccessRevokedAt
-    ? new Date(candidateAccessRevokedAt).toLocaleString("fr-FR")
+    ? parisDateFormatter.format(new Date(candidateAccessRevokedAt))
     : null;
 
   async function postAction(action: "revoke" | "regenerate") {

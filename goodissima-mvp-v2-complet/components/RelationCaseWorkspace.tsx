@@ -33,14 +33,17 @@ type RelationCaseWorkspaceItem = {
   auditLogs: Array<{ id: string; eventType: string; createdAt: Date | string }>;
 };
 
+const parisDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 function formatActivityDate(date: Date | string) {
-  return new Date(date).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return parisDateFormatter.format(new Date(date));
 }
 
 function getActivityEvents(item: RelationCaseWorkspaceItem) {
@@ -161,7 +164,7 @@ export function RelationCaseWorkspace({
                   <div key={log.id} className="rounded-xl bg-slate-50 p-2 text-xs">
                     <p className="font-medium">{log.eventType}</p>
                     <p className="text-slate-500">
-                      {new Date(log.createdAt).toLocaleString("fr-FR")}
+                      {formatActivityDate(log.createdAt)}
                     </p>
                   </div>
                 ))}

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { DashboardLinkFilters } from "@/components/DashboardLinkFilters";
 import { LogoutButton } from "@/components/LogoutButton";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -20,6 +21,8 @@ function formatRelativeDate(date: Date) {
 }
 
 export default async function DashboardPage() {
+  noStore();
+
   const owner = await getCurrentPrismaUser();
   const [links, cases, recentCases, recentMessages, recentDocuments] = await Promise.all([
     prisma.gLink.findMany({

@@ -1,12 +1,15 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { LogoutButton } from "@/components/LogoutButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function CasesPage() {
+  noStore();
+
   const owner = await getCurrentPrismaUser();
   const cases = await prisma.relationCase.findMany({
     where: { ownerId: owner.id },
