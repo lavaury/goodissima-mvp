@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { RelationStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
 import { createCandidateAccessExpiresAt, createCandidateAccessToken } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
       candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
       candidateName: body.candidateName,
       candidateEmail: body.candidateEmail,
+      status: RelationStatus.NEW,
       messages: {
         create: {
           senderType: "CANDIDATE",
