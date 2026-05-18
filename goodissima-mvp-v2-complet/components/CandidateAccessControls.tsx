@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 export function CandidateAccessControls({
   caseId,
@@ -14,6 +15,7 @@ export function CandidateAccessControls({
   candidateAccessRevokedAt?: Date | string | null;
 }) {
   const [loading, setLoading] = useState<"revoke" | "regenerate" | null>(null);
+  const toast = useToast();
 
   const securePath = `/secure/${encodeURIComponent(candidateAccessToken)}`;
   const expiresAtLabel = useMemo(() => {
@@ -38,11 +40,12 @@ export function CandidateAccessControls({
     setLoading(null);
 
     if (!res.ok) {
-      alert("Impossible de modifier l'acces candidat.");
+      toast.error("Erreur lors de l'action");
       return;
     }
 
-    window.location.reload();
+    toast.success(action === "revoke" ? "Acces candidat revoque" : "Acces candidat regenere");
+    window.setTimeout(() => window.location.reload(), 700);
   }
 
   return (

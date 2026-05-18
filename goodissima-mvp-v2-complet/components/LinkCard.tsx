@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { QRCodeBox } from "@/components/QRCodeBox";
+import { useToast } from "@/components/ToastProvider";
 
 export function LinkCard({
-  item
+  item,
 }: {
   item: {
     id: string;
@@ -20,23 +21,26 @@ export function LinkCard({
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
   const latestCase = item.cases?.[0];
   const [shared, setShared] = useState(false);
+  const toast = useToast();
 
   async function shareLink() {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "Lien sécurisé Goodissima",
-          text: "Accédez à votre espace sécurisé Goodissima.",
+          title: "Lien securise Goodissima",
+          text: "Accedez a votre espace securise Goodissima.",
           url: publicUrl,
         });
+        toast.success("Lien partage");
         return;
       }
 
       await navigator.clipboard.writeText(publicUrl);
       setShared(true);
+      toast.success("Lien partage");
       setTimeout(() => setShared(false), 2000);
     } catch {
-      alert("Impossible de partager automatiquement. Copiez le lien manuellement.");
+      toast.error("Erreur lors de l'action");
     }
   }
 
@@ -47,23 +51,15 @@ export function LinkCard({
 
       <div className="mt-4 rounded-xl bg-slate-50 p-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Lien à partager
+          Lien a partager
         </p>
-        <input
-          value={publicUrl}
-          readOnly
-          className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
-        />
+        <input value={publicUrl} readOnly className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <CopyLinkButton value={publicUrl} />
-        <button
-          type="button"
-          onClick={shareLink}
-          className="rounded-xl border px-4 py-2 text-sm"
-        >
-          {shared ? "Lien copié" : "Partager"}
+        <button type="button" onClick={shareLink} className="rounded-xl border px-4 py-2 text-sm">
+          {shared ? "Lien copie" : "Partager"}
         </button>
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
           Voir le lien

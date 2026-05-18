@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ToastProvider";
+
 export function DocumentList({
   documents,
   caseId,
@@ -9,6 +11,8 @@ export function DocumentList({
   caseId?: string;
   candidateAccessToken?: string;
 }) {
+  const toast = useToast();
+
   async function openDocument(documentId: string) {
     const res = await fetch(`/api/documents/${encodeURIComponent(documentId)}/signed-url`, {
       method: "POST",
@@ -17,7 +21,7 @@ export function DocumentList({
     });
 
     if (!res.ok) {
-      alert("Impossible d'ouvrir le document.");
+      toast.error("Erreur lors de l'action");
       return;
     }
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { RelationPriority, RelationStatus } from "@prisma/client";
+import { useState } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 const priorityOptions = [
   { value: RelationPriority.NORMAL, label: "Normale" },
@@ -12,11 +13,11 @@ const priorityOptions = [
 const statusOptions = [
   { value: RelationStatus.NEW, label: "Nouveau" },
   { value: RelationStatus.WAITING_CANDIDATE, label: "En attente candidat" },
-  { value: RelationStatus.WAITING_OWNER, label: "En attente propriétaire" },
-  { value: RelationStatus.REVIEWING, label: "À vérifier" },
-  { value: RelationStatus.VALIDATED, label: "Validé" },
-  { value: RelationStatus.REJECTED, label: "Refusé" },
-  { value: RelationStatus.CLOSED, label: "Clôturé" },
+  { value: RelationStatus.WAITING_OWNER, label: "En attente proprietaire" },
+  { value: RelationStatus.REVIEWING, label: "A verifier" },
+  { value: RelationStatus.VALIDATED, label: "Valide" },
+  { value: RelationStatus.REJECTED, label: "Refuse" },
+  { value: RelationStatus.CLOSED, label: "Cloture" },
 ];
 
 export function formatRelationPriority(priority: string) {
@@ -41,6 +42,7 @@ export function RelationCaseFields({
   const [currentPriority, setCurrentPriority] = useState(priority);
   const [currentStatus, setCurrentStatus] = useState(status);
   const [feedback, setFeedback] = useState("");
+  const toast = useToast();
 
   async function updateCase(data: { priority?: RelationPriority; status?: RelationStatus }) {
     const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, {
@@ -50,11 +52,11 @@ export function RelationCaseFields({
     });
 
     if (!res.ok) {
-      alert("Impossible de mettre à jour le dossier.");
+      toast.error("Erreur lors de l'action");
       return false;
     }
 
-    setFeedback("Mis à jour");
+    setFeedback("Mis a jour");
     setTimeout(() => setFeedback(""), 2000);
     return true;
   }
@@ -65,7 +67,10 @@ export function RelationCaseFields({
 
     if (!(await updateCase({ priority: nextPriority }))) {
       setCurrentPriority(previousPriority);
+      return;
     }
+
+    toast.success("Priorite mise a jour");
   }
 
   async function onStatusChange(nextStatus: RelationStatus) {
@@ -74,7 +79,10 @@ export function RelationCaseFields({
 
     if (!(await updateCase({ status: nextStatus }))) {
       setCurrentStatus(previousStatus);
+      return;
     }
+
+    toast.success("Statut mis a jour");
   }
 
   if (!editable) {

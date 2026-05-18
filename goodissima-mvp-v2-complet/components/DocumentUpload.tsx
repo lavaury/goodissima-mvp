@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ".pdf,.jpg,.jpeg,.png,.docx";
@@ -15,12 +16,13 @@ export function DocumentUpload({
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   async function addDocument() {
     if (!file) return;
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      alert("Le fichier ne doit pas depasser 10 Mo.");
+      toast.error("Erreur lors de l'action");
       return;
     }
 
@@ -40,11 +42,12 @@ export function DocumentUpload({
     setLoading(false);
 
     if (!res.ok) {
-      alert("Erreur lors de l'ajout du document.");
+      toast.error("Erreur lors de l'action");
       return;
     }
 
-    window.location.reload();
+    toast.success("Document ajoute");
+    window.setTimeout(() => window.location.reload(), 700);
   }
 
   return (

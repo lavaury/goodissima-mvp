@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 export function ChatBox({
   caseId,
@@ -22,6 +23,7 @@ export function ChatBox({
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [body, setBody] = useState("");
+  const toast = useToast();
 
   async function loadMessages() {
     const query = candidateAccessToken
@@ -61,11 +63,12 @@ export function ChatBox({
     });
 
     if (!res.ok) {
-      alert("Erreur lors de l'envoi.");
+      toast.error("Erreur lors de l'action");
       return;
     }
 
     setBody("");
+    toast.success("Message envoye");
     await loadMessages();
   }
 
