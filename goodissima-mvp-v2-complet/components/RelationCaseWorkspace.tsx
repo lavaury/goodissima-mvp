@@ -47,7 +47,7 @@ function getActivityEvents(item: RelationCaseWorkspaceItem) {
   const events = [
     {
       id: `case-${item.id}`,
-      label: "Dossier créé",
+      label: "Dossier cree",
       date: item.createdAt,
       type: "Dossier",
     },
@@ -55,8 +55,8 @@ function getActivityEvents(item: RelationCaseWorkspaceItem) {
       id: `message-${message.id}`,
       label:
         message.senderType === "OWNER"
-          ? "Message envoyé par propriétaire"
-          : "Message envoyé par candidat",
+          ? "Message envoye par proprietaire"
+          : "Message envoye par candidat",
       date: message.createdAt,
       type: "Message",
     })),
@@ -66,8 +66,8 @@ function getActivityEvents(item: RelationCaseWorkspaceItem) {
         id: `document-${document.id}`,
         label:
           document.uploadedByEmail === item.candidateEmail
-            ? "Document ajouté par candidat"
-            : "Document ajouté par propriétaire",
+            ? "Document ajoute par candidat"
+            : "Document ajoute par proprietaire",
         date: document.createdAt!,
         type: "Document",
       })),
@@ -90,11 +90,12 @@ export function RelationCaseWorkspace({
   candidateAccessToken?: string;
 }) {
   const activityEvents = getActivityEvents(item);
+  const isCandidateView = senderType === "CANDIDATE";
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
-      <h1 className="text-3xl font-bold">{item.gLink.title}</h1>
-      <p className="text-slate-500">
+    <main className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:py-10">
+      <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{item.gLink.title}</h1>
+      <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">
         Dossier avec {item.candidateName} - {item.candidateEmail}
       </p>
       <RelationCaseFields
@@ -103,11 +104,14 @@ export function RelationCaseWorkspace({
         status={item.status}
         editable={senderType === "OWNER"}
       />
-      <div className="mt-6 rounded-2xl border bg-white p-4">
-        <h2 className="font-semibold">Activité du dossier</h2>
+      <div className="mt-6 rounded-2xl border bg-white p-4 sm:p-5 lg:p-4">
+        <h2 className="font-semibold">Activite du dossier</h2>
         <div className="mt-3 space-y-2">
           {activityEvents.map((event) => (
-            <div key={event.id} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-3 text-sm">
+            <div
+              key={event.id}
+              className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+            >
               <div>
                 <p className="font-medium text-slate-800">{event.label}</p>
                 <p className="text-xs text-slate-500">{event.type}</p>
@@ -117,7 +121,7 @@ export function RelationCaseWorkspace({
           ))}
         </div>
       </div>
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="mt-6 grid gap-5 lg:mt-8 lg:grid-cols-[1fr_360px] lg:gap-6">
         <ChatBox
           caseId={candidateAccessToken ? undefined : item.id}
           candidateAccessToken={candidateAccessToken}
@@ -126,9 +130,9 @@ export function RelationCaseWorkspace({
           senderType={senderType}
         />
         <aside className="space-y-4">
-          <div className="rounded-2xl border bg-white p-4">
+          <div className="rounded-2xl border bg-white p-4 sm:p-5 lg:p-4">
             <h2 className="font-semibold">Documents</h2>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3">
               <DocumentList
                 documents={item.documents}
                 caseId={candidateAccessToken ? undefined : item.id}
@@ -149,17 +153,19 @@ export function RelationCaseWorkspace({
               candidateAccessRevokedAt={item.candidateAccessRevokedAt}
             />
           ) : null}
-          <div className="rounded-2xl border bg-white p-4">
-            <h2 className="font-semibold">Historique minimal</h2>
-            <div className="mt-3 space-y-2">
-              {item.auditLogs.map((log) => (
-                <div key={log.id} className="rounded-xl bg-slate-50 p-2 text-xs">
-                  <p className="font-medium">{log.eventType}</p>
-                  <p className="text-slate-500">
-                    {new Date(log.createdAt).toLocaleString("fr-FR")}
-                  </p>
-                </div>
-              ))}
+          <div className={isCandidateView ? "hidden lg:block" : ""}>
+            <div className="rounded-2xl border bg-white p-4">
+              <h2 className="font-semibold">Historique minimal</h2>
+              <div className="mt-3 space-y-2">
+                {item.auditLogs.map((log) => (
+                  <div key={log.id} className="rounded-xl bg-slate-50 p-2 text-xs">
+                    <p className="font-medium">{log.eventType}</p>
+                    <p className="text-slate-500">
+                      {new Date(log.createdAt).toLocaleString("fr-FR")}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </aside>

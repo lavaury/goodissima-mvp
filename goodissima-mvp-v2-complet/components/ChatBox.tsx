@@ -15,6 +15,7 @@ export function ChatBox({
   initialMessages: Array<{
     id: string;
     body: string;
+    senderType?: string;
     senderEmail: string;
     createdAt: Date | string;
   }>;
@@ -73,29 +74,49 @@ export function ChatBox({
   }
 
   return (
-    <div className="flex h-[520px] flex-col rounded-2xl border bg-white">
-      <div className="border-b p-4 font-semibold">Conversation</div>
+    <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col rounded-2xl border bg-white lg:h-[520px] lg:min-h-0">
+      <div className="border-b px-4 py-4 font-semibold sm:px-5">Conversation</div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        {messages.map((m) => (
-          <div key={m.id} className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">{m.senderEmail}</p>
-            <p>{m.body}</p>
-          </div>
-        ))}
+      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5 sm:px-5">
+        {messages.map((message) => {
+          const isOwnerMessage =
+            message.senderType === "OWNER" ||
+            (!message.senderType && message.senderEmail !== senderEmail);
+
+          return (
+            <div
+              key={message.id}
+              className={`flex ${isOwnerMessage ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={[
+                  "max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm sm:max-w-[72%]",
+                  isOwnerMessage
+                    ? "rounded-br-md bg-slate-900 text-white"
+                    : "rounded-bl-md border bg-slate-50 text-slate-900",
+                ].join(" ")}
+              >
+                <p className={isOwnerMessage ? "text-xs text-slate-300" : "text-xs text-slate-500"}>
+                  {isOwnerMessage ? "Proprietaire" : "Candidat"}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap break-words">{message.body}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="flex gap-2 border-t p-4">
+      <div className="sticky bottom-0 flex gap-2 border-t bg-white p-3 sm:p-4">
         <input
-          className="flex-1 rounded-xl border px-3 py-2"
-          placeholder="Écrire un message..."
+          className="min-h-12 flex-1 rounded-xl border px-4 py-3 text-base sm:text-sm"
+          placeholder="Ecrire un message..."
           value={body}
           onChange={(e) => setBody(e.target.value)}
         />
 
         <button
           onClick={sendMessage}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-white"
+          className="min-h-12 rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white"
         >
           Envoyer
         </button>

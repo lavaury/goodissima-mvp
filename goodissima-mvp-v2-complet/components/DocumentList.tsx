@@ -34,17 +34,18 @@ export function DocumentList({
   }
 
   return (
-    <>
+    <div className="space-y-2">
       {documents.map((doc) => (
         <button
           key={doc.id}
           type="button"
           onClick={() => openDocument(doc.id)}
-          className="block w-full rounded-xl border p-3 text-left text-sm hover:bg-slate-50"
+          className="block min-h-12 w-full rounded-xl border bg-white px-3 py-3 text-left text-sm leading-snug hover:bg-slate-50"
         >
-          {doc.fileName}
+          <span className="block truncate font-medium text-slate-800">{doc.fileName}</span>
+          <span className="mt-0.5 block text-xs text-slate-500">Ouvrir le document</span>
         </button>
       ))}
-    </>
+    </div>
   );
 }

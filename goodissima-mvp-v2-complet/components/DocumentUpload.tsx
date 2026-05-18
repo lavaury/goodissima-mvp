@@ -51,11 +51,11 @@ export function DocumentUpload({
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-4">
+    <div className="rounded-2xl border bg-white p-4 sm:p-5 lg:p-4">
       <h3 className="font-semibold">Ajouter un document</h3>
       <p className="mb-3 text-sm text-slate-500">PDF, JPG, PNG ou DOCX. Maximum 10 Mo.</p>
       <input
-        className="mb-3 w-full rounded-xl border px-3 py-2"
+        className="mb-3 w-full rounded-xl border px-3 py-3 text-sm"
         type="file"
         accept={ACCEPTED_TYPES}
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -63,7 +63,7 @@ export function DocumentUpload({
       <button
         onClick={addDocument}
         disabled={!file || loading}
-        className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
+        className="min-h-12 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-60 sm:w-auto lg:min-h-0 lg:py-2"
       >
         {loading ? "Upload en cours..." : "Ajouter"}
       </button>
