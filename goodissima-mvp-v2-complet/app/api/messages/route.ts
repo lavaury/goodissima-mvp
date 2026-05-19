@@ -119,6 +119,12 @@ export async function POST(req: Request) {
   }
 
   if (body.senderType === "CANDIDATE") {
+    console.log("New candidate message email trigger:", {
+      caseId: relationCase.id,
+      to: relationCase.owner.email,
+      hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
+    });
+
     try {
       await sendNewMessageEmail({
         ownerEmail: relationCase.owner.email,
@@ -128,7 +134,7 @@ export async function POST(req: Request) {
         messageBody: message.body,
       });
     } catch (error) {
-      console.error("Unable to send new message email", error);
+      console.error("Unable to send new message email:", error);
     }
   }
 

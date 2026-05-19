@@ -6,7 +6,10 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://goodissima-mvp.verce
 const FROM_EMAIL = "Goodissima <onboarding@resend.dev>";
 
 function getResendClient() {
-  if (!process.env.RESEND_API_KEY) return null;
+  const hasApiKey = Boolean(process.env.RESEND_API_KEY);
+  console.log("RESEND_API_KEY present:", hasApiKey);
+
+  if (!hasApiKey) return null;
 
   return new Resend(process.env.RESEND_API_KEY);
 }
@@ -29,19 +32,30 @@ export async function sendNewMessageEmail({
   messageBody: string;
 }) {
   const resend = getResendClient();
-  if (!resend) return;
+  console.log("Sending new message email to:", ownerEmail);
 
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: ownerEmail,
-    subject: `Nouveau message - ${caseTitle}`,
-    react: NewMessageEmail({
-      caseTitle,
-      candidateName,
-      messagePreview: messageBody.slice(0, 240),
-      ctaHref: getCaseUrl(caseId),
-    }),
-  });
+  if (!resend) {
+    console.error("Resend skipped: missing RESEND_API_KEY");
+    return;
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ownerEmail,
+      subject: `Nouveau message - ${caseTitle}`,
+      react: NewMessageEmail({
+        caseTitle,
+        candidateName,
+        messagePreview: messageBody.slice(0, 240),
+        ctaHref: getCaseUrl(caseId),
+      }),
+    });
+    console.log("Resend new message result:", result);
+  } catch (error) {
+    console.error("Resend new message error:", error);
+    throw error;
+  }
 }
 
 export async function sendNewDocumentEmail({
@@ -58,17 +72,28 @@ export async function sendNewDocumentEmail({
   fileName: string;
 }) {
   const resend = getResendClient();
-  if (!resend) return;
+  console.log("Sending new document email to:", ownerEmail);
 
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: ownerEmail,
-    subject: `Nouveau document - ${caseTitle}`,
-    react: NewDocumentEmail({
-      caseTitle,
-      candidateName,
-      fileName,
-      ctaHref: getCaseUrl(caseId),
-    }),
-  });
+  if (!resend) {
+    console.error("Resend skipped: missing RESEND_API_KEY");
+    return;
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ownerEmail,
+      subject: `Nouveau document - ${caseTitle}`,
+      react: NewDocumentEmail({
+        caseTitle,
+        candidateName,
+        fileName,
+        ctaHref: getCaseUrl(caseId),
+      }),
+    });
+    console.log("Resend new document result:", result);
+  } catch (error) {
+    console.error("Resend new document error:", error);
+    throw error;
+  }
 }
