@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 
@@ -44,6 +44,7 @@ export function ChatBox({
   const [messages, setMessages] = useState(initialMessages);
   const [syncedMessagesKey, setSyncedMessagesKey] = useState(initialMessagesKey);
   const [body, setBody] = useState("");
+  const didRequestInitialRefresh = useRef(false);
   const router = useRouter();
   const toast = useToast();
 
@@ -102,6 +103,11 @@ export function ChatBox({
   }, [initialMessages, initialMessagesKey, initialMessagesNewestTime, syncedMessagesKey]);
 
   useEffect(() => {
+    if (!didRequestInitialRefresh.current) {
+      didRequestInitialRefresh.current = true;
+      router.refresh();
+    }
+
     void loadMessages();
 
     const interval = setInterval(() => {
@@ -109,7 +115,7 @@ export function ChatBox({
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [loadMessages]);
+  }, [loadMessages, router]);
 
   async function sendMessage() {
     if (!body.trim()) return;

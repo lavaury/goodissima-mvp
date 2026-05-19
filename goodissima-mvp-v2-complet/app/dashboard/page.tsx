@@ -180,7 +180,7 @@ export default async function DashboardPage() {
             recentActivities.map((activity) => (
               <Link
                 key={activity.id}
-                href={`/cases/${activity.caseId}`}
+                href={`/cases/${activity.caseId}?refresh=1`}
                 prefetch={false}
                 className="flex flex-col gap-1 py-3 text-sm hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
               >

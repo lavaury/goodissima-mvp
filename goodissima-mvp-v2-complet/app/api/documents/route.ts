@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 async function resolveCaseForAccess(params: {
   caseId?: string | null;
@@ -28,6 +31,31 @@ async function resolveCaseForAccess(params: {
     where: { id: params.caseId, ownerId: owner.id },
     select: { id: true, candidateEmail: true },
   });
+}
+
+export async function GET(req: Request) {
+  noStore();
+
+  const { searchParams } = new URL(req.url);
+  const caseId = searchParams.get("caseId");
+  const candidateAccessToken = searchParams.get("candidateAccessToken");
+
+  if (!caseId && !candidateAccessToken) {
+    return NextResponse.json({ error: "Missing case reference" }, { status: 400 });
+  }
+
+  const relationCase = await resolveCaseForAccess({ caseId, candidateAccessToken });
+
+  if (!relationCase) {
+    return NextResponse.json({ error: "Case not found" }, { status: 404 });
+  }
+
+  const documents = await prisma.document.findMany({
+    where: { caseId: relationCase.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return NextResponse.json(documents);
 }
 
 export async function POST(req: Request) {

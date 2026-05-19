@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 async function resolveCaseForAccess(params: {
   caseId?: string | null;
@@ -32,6 +34,8 @@ async function resolveCaseForAccess(params: {
 }
 
 export async function GET(req: Request) {
+  noStore();
+
   const { searchParams } = new URL(req.url);
   const caseId = searchParams.get("caseId");
   const candidateAccessToken = searchParams.get("candidateAccessToken");

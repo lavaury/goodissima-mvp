@@ -20,6 +20,7 @@ export function LinkCard({
   const publicPath = `/l/${item.slug}`;
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
   const latestCase = item.cases?.[0];
+  const latestCasePath = latestCase ? `/cases/${latestCase.id}?refresh=1` : null;
   const [shared, setShared] = useState(false);
   const toast = useToast();
 
@@ -67,7 +68,7 @@ export function LinkCard({
         {latestCase ? (
           <Link
             className="rounded-xl border px-4 py-2 text-sm"
-            href={`/cases/${latestCase.id}`}
+            href={latestCasePath!}
             prefetch={false}
           >
             Voir le dossier

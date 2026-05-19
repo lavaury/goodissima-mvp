@@ -33,7 +33,7 @@ export default async function CasesPage() {
           cases.map((item) => (
             <Link
               key={item.id}
-              href={`/cases/${item.id}`}
+              href={`/cases/${item.id}?refresh=1`}
               prefetch={false}
               className="block border-b p-5 hover:bg-slate-50"
             >
