@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
+
+type ChatMessage = {
+  id: string;
+  body: string;
+  senderType?: string;
+  senderEmail: string;
+  createdAt: Date | string;
+};
 
 export function ChatBox({
   caseId,
@@ -13,22 +21,21 @@ export function ChatBox({
 }: {
   caseId?: string;
   candidateAccessToken?: string;
-  initialMessages: Array<{
-    id: string;
-    body: string;
-    senderType?: string;
-    senderEmail: string;
-    createdAt: Date | string;
-  }>;
+  initialMessages: ChatMessage[];
   senderEmail: string;
   senderType: "OWNER" | "CANDIDATE";
 }) {
+  const initialMessagesKey = useMemo(
+    () => initialMessages.map((message) => `${message.id}:${message.createdAt}`).join("|"),
+    [initialMessages],
+  );
   const [messages, setMessages] = useState(initialMessages);
+  const [syncedMessagesKey, setSyncedMessagesKey] = useState(initialMessagesKey);
   const [body, setBody] = useState("");
   const router = useRouter();
   const toast = useToast();
 
-  async function loadMessages() {
+  const loadMessages = useCallback(async () => {
     const query = candidateAccessToken
       ? `candidateAccessToken=${encodeURIComponent(candidateAccessToken)}`
       : `caseId=${encodeURIComponent(caseId ?? "")}`;
@@ -40,19 +47,24 @@ export function ChatBox({
 
     const freshMessages = await res.json();
     setMessages(freshMessages);
-  }
+  }, [caseId, candidateAccessToken]);
 
   useEffect(() => {
+    if (syncedMessagesKey === initialMessagesKey) return;
+
     setMessages(initialMessages);
-  }, [initialMessages]);
+    setSyncedMessagesKey(initialMessagesKey);
+  }, [initialMessages, initialMessagesKey, syncedMessagesKey]);
 
   useEffect(() => {
+    void loadMessages();
+
     const interval = setInterval(() => {
-      loadMessages();
+      void loadMessages();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [caseId, candidateAccessToken]);
+  }, [loadMessages]);
 
   async function sendMessage() {
     if (!body.trim()) return;
@@ -74,10 +86,17 @@ export function ChatBox({
       return;
     }
 
+    const createdMessage = await res.json();
+
+    setMessages((currentMessages) =>
+      currentMessages.some((message) => message.id === createdMessage.id)
+        ? currentMessages
+        : [...currentMessages, createdMessage],
+    );
     setBody("");
     toast.success("Message envoye");
-    await loadMessages();
     router.refresh();
+    await loadMessages();
   }
 
   return (
