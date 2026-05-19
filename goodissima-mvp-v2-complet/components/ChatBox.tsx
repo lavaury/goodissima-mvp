@@ -29,6 +29,7 @@ export function ChatBox({
 
   useEffect(() => {
     messagesLengthRef.current = messages.length;
+    console.log("CHATBOX STATE", messages.length);
   }, [messages.length]);
 
   const loadMessages = useCallback(async () => {
@@ -63,6 +64,8 @@ export function ChatBox({
       }
 
       const freshMessages = (await res.json()) as ChatMessage[];
+      console.log("FETCH RESULT", freshMessages.length);
+      console.log("SET MESSAGES", freshMessages.length);
       setMessages(freshMessages);
     } catch (error) {
       console.error("ChatBox.loadMessages error", {
@@ -112,7 +115,10 @@ export function ChatBox({
 
   return (
     <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col rounded-2xl border bg-white lg:h-[520px] lg:min-h-0">
-      <div className="border-b px-4 py-4 font-semibold sm:px-5">Conversation</div>
+      <div className="border-b px-4 py-4 font-semibold sm:px-5">
+        Conversation
+        <div className="mt-1 text-xs font-normal text-red-600">DEBUG {messages.length}</div>
+      </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5 sm:px-5">
         {messages.map((message) => {
