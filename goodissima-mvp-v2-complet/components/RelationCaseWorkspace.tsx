@@ -94,9 +94,6 @@ export function RelationCaseWorkspace({
 }) {
   const activityEvents = getActivityEvents(item);
   const isCandidateView = senderType === "CANDIDATE";
-  const messagesKey = `${item.id}:${item.messages
-    .map((message) => `${message.id}:${message.createdAt}`)
-    .join("|")}`;
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:py-10">
@@ -129,7 +126,7 @@ export function RelationCaseWorkspace({
       </div>
       <div className="mt-6 grid gap-5 lg:mt-8 lg:grid-cols-[1fr_360px] lg:gap-6">
         <ChatBox
-          key={messagesKey}
+          key={item.id}
           caseId={candidateAccessToken ? undefined : item.id}
           candidateAccessToken={candidateAccessToken}
           initialMessages={item.messages}

@@ -12,6 +12,14 @@ type ChatMessage = {
   createdAt: Date | string;
 };
 
+function getNewestMessageTime(messages: ChatMessage[]) {
+  return messages.reduce((newestTime, message) => {
+    const messageTime = new Date(message.createdAt).getTime();
+
+    return Number.isFinite(messageTime) ? Math.max(newestTime, messageTime) : newestTime;
+  }, 0);
+}
+
 export function ChatBox({
   caseId,
   candidateAccessToken,
@@ -29,6 +37,10 @@ export function ChatBox({
     () => initialMessages.map((message) => `${message.id}:${message.createdAt}`).join("|"),
     [initialMessages],
   );
+  const initialMessagesNewestTime = useMemo(
+    () => getNewestMessageTime(initialMessages),
+    [initialMessagesKey],
+  );
   const [messages, setMessages] = useState(initialMessages);
   const [syncedMessagesKey, setSyncedMessagesKey] = useState(initialMessagesKey);
   const [body, setBody] = useState("");
@@ -36,25 +48,58 @@ export function ChatBox({
   const toast = useToast();
 
   const loadMessages = useCallback(async () => {
+    if (!candidateAccessToken && !caseId) {
+      console.error("ChatBox.loadMessages missing case reference", {
+        caseId,
+        hasCandidateAccessToken: Boolean(candidateAccessToken),
+        senderType,
+      });
+      return;
+    }
+
     const query = candidateAccessToken
       ? `candidateAccessToken=${encodeURIComponent(candidateAccessToken)}`
-      : `caseId=${encodeURIComponent(caseId ?? "")}`;
-    const res = await fetch(`/api/messages?${query}`, {
-      cache: "no-store",
-    });
+      : `caseId=${encodeURIComponent(caseId!)}`;
 
-    if (!res.ok) return;
+    try {
+      const res = await fetch(`/api/messages?${query}`, {
+        cache: "no-store",
+      });
 
-    const freshMessages = await res.json();
-    setMessages(freshMessages);
-  }, [caseId, candidateAccessToken]);
+      if (!res.ok) {
+        console.error("ChatBox.loadMessages failed", {
+          status: res.status,
+          caseId,
+          hasCandidateAccessToken: Boolean(candidateAccessToken),
+          senderType,
+        });
+        return;
+      }
+
+      const freshMessages = (await res.json()) as ChatMessage[];
+      setMessages(freshMessages);
+    } catch (error) {
+      console.error("ChatBox.loadMessages error", {
+        error,
+        caseId,
+        hasCandidateAccessToken: Boolean(candidateAccessToken),
+        senderType,
+      });
+    }
+  }, [caseId, candidateAccessToken, senderType]);
 
   useEffect(() => {
     if (syncedMessagesKey === initialMessagesKey) return;
 
-    setMessages(initialMessages);
+    setMessages((currentMessages) => {
+      if (currentMessages.length === 0) return initialMessages;
+
+      const currentNewestTime = getNewestMessageTime(currentMessages);
+
+      return initialMessagesNewestTime > currentNewestTime ? initialMessages : currentMessages;
+    });
     setSyncedMessagesKey(initialMessagesKey);
-  }, [initialMessages, initialMessagesKey, syncedMessagesKey]);
+  }, [initialMessages, initialMessagesKey, initialMessagesNewestTime, syncedMessagesKey]);
 
   useEffect(() => {
     void loadMessages();
