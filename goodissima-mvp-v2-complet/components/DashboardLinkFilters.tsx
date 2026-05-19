@@ -23,11 +23,17 @@ const filters = [
   { value: "WAITING", label: "En attente" },
   { value: "HIGH", label: "Prioritaires" },
   { value: "URGENT", label: "Urgents" },
-  { value: "CLOSED", label: "Clôturés" },
+  { value: "CLOSED", label: "Clotures" },
+  { value: "ARCHIVED", label: "Archives" },
 ];
 
 function hasActiveCase(item: DashboardLink) {
-  return item.cases?.some((relationCase) => relationCase.status !== "CLOSED") ?? false;
+  return (
+    item.cases?.some(
+      (relationCase) =>
+        relationCase.status !== "CLOSED" && relationCase.status !== "ARCHIVED",
+    ) ?? false
+  );
 }
 
 function matchesFilter(item: DashboardLink, filter: string) {
@@ -42,8 +48,28 @@ function matchesFilter(item: DashboardLink, filter: string) {
   if (filter === "CLOSED") {
     return item.cases?.some((relationCase) => relationCase.status === "CLOSED") ?? false;
   }
+  if (filter === "ARCHIVED") {
+    return item.cases?.some((relationCase) => relationCase.status === "ARCHIVED") ?? false;
+  }
 
   return true;
+}
+
+function getCasesForFilter(item: DashboardLink, filter: string) {
+  if (filter === "ACTIVE") {
+    return item.cases?.filter(
+      (relationCase) =>
+        relationCase.status !== "CLOSED" && relationCase.status !== "ARCHIVED",
+    );
+  }
+  if (filter === "CLOSED") {
+    return item.cases?.filter((relationCase) => relationCase.status === "CLOSED");
+  }
+  if (filter === "ARCHIVED") {
+    return item.cases?.filter((relationCase) => relationCase.status === "ARCHIVED");
+  }
+
+  return item.cases;
 }
 
 function matchesSearch(item: DashboardLink, query: string) {
@@ -67,7 +93,13 @@ export function DashboardLinkFilters({ links }: { links: DashboardLink[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
   const filteredLinks = useMemo(
-    () => links.filter((item) => matchesSearch(item, query) && matchesFilter(item, filter)),
+    () =>
+      links
+        .filter((item) => matchesSearch(item, query) && matchesFilter(item, filter))
+        .map((item) => ({
+          ...item,
+          cases: getCasesForFilter(item, filter),
+        })),
     [links, query, filter],
   );
 

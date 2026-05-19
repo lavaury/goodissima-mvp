@@ -18,7 +18,8 @@ export function DocumentUpload({
   const [loading, setLoading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const documentInputRef = useRef<HTMLInputElement>(null);
+  const mobileDocumentInputRef = useRef<HTMLInputElement>(null);
+  const desktopDocumentInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const toast = useToast();
 
@@ -53,7 +54,8 @@ export function DocumentUpload({
     toast.success("Document ajoute");
     if (photoInputRef.current) photoInputRef.current.value = "";
     if (imageInputRef.current) imageInputRef.current.value = "";
-    if (documentInputRef.current) documentInputRef.current.value = "";
+    if (mobileDocumentInputRef.current) mobileDocumentInputRef.current.value = "";
+    if (desktopDocumentInputRef.current) desktopDocumentInputRef.current.value = "";
     router.refresh();
   }
 
@@ -84,8 +86,8 @@ export function DocumentUpload({
         }}
       />
       <input
-        ref={documentInputRef}
-        id="document-upload"
+        ref={mobileDocumentInputRef}
+        id="mobile-document-upload"
         className="sr-only"
         type="file"
         accept="application/pdf,.pdf,.doc,.docx"
@@ -93,8 +95,18 @@ export function DocumentUpload({
           void uploadDocument(event.target.files?.[0] ?? null);
         }}
       />
+      <input
+        ref={desktopDocumentInputRef}
+        id="desktop-document-upload"
+        className="sr-only"
+        type="file"
+        accept="application/pdf,.pdf,.doc,.docx,image/*"
+        onChange={(event) => {
+          void uploadDocument(event.target.files?.[0] ?? null);
+        }}
+      />
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 md:hidden">
         <button
           type="button"
           onClick={() => photoInputRef.current?.click()}
@@ -113,12 +125,24 @@ export function DocumentUpload({
         </button>
         <button
           type="button"
-          onClick={() => documentInputRef.current?.click()}
+          onClick={() => mobileDocumentInputRef.current?.click()}
           disabled={loading}
           className="min-h-14 w-full rounded-xl border bg-white px-4 py-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
         >
           {loading ? "Upload en cours..." : "📄 Choisir un PDF ou fichier"}
         </button>
+      </div>
+
+      <div className="hidden md:block">
+        <button
+          type="button"
+          onClick={() => desktopDocumentInputRef.current?.click()}
+          disabled={loading}
+          className="min-h-10 rounded-xl border bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+        >
+          {loading ? "Upload en cours..." : "Choisir un document"}
+        </button>
+        <p className="mt-2 text-xs text-slate-500">PDF, DOC, DOCX ou image.</p>
       </div>
     </div>
   );

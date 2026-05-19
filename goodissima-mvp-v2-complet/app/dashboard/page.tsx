@@ -116,7 +116,9 @@ export default async function DashboardPage() {
     }),
   ]);
   const activeLinkIds = new Set(
-    cases.filter((item) => item.status !== "CLOSED").map((item) => item.gLinkId),
+    cases
+      .filter((item) => item.status !== "CLOSED" && item.status !== "ARCHIVED")
+      .map((item) => item.gLinkId),
   );
   const stats = [
     { label: t("dashboard.kpi.linksCreated"), value: links.length },
@@ -128,6 +130,7 @@ export default async function DashboardPage() {
     },
     { label: t("dashboard.kpi.urgent"), value: cases.filter((item) => item.priority === "URGENT").length },
     { label: t("dashboard.kpi.closed"), value: cases.filter((item) => item.status === "CLOSED").length },
+    { label: "Archives", value: cases.filter((item) => item.status === "ARCHIVED").length },
   ];
   const dashboardLinks = links.map((item) => ({
     id: item.id,
@@ -142,7 +145,12 @@ export default async function DashboardPage() {
         status: relationCase.status,
         lastActivityAt: getCaseLastActivityAt(relationCase),
       }))
-      .sort((a, b) => b.lastActivityAt - a.lastActivityAt),
+      .sort((a, b) => {
+        if (a.status === "ARCHIVED" && b.status !== "ARCHIVED") return 1;
+        if (a.status !== "ARCHIVED" && b.status === "ARCHIVED") return -1;
+
+        return b.lastActivityAt - a.lastActivityAt;
+      }),
   }));
   const recentActivities = [
     ...recentCases.map((item) => ({
@@ -192,7 +200,7 @@ export default async function DashboardPage() {
           <LogoutButton />
         </div>
       </div>
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-7">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-2xl border bg-white p-4 shadow-sm">
             <p className="text-sm text-slate-500">{stat.label}</p>

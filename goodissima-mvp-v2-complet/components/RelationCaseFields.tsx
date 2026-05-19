@@ -2,6 +2,7 @@
 
 import { RelationPriority, RelationStatus } from "@prisma/client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 
 const priorityOptions = [
@@ -18,6 +19,7 @@ const statusOptions = [
   { value: RelationStatus.VALIDATED, label: "Valide" },
   { value: RelationStatus.REJECTED, label: "Refuse" },
   { value: RelationStatus.CLOSED, label: "Cloture" },
+  { value: RelationStatus.ARCHIVED, label: "Archivé" },
 ];
 
 export function formatRelationPriority(priority: string) {
@@ -42,6 +44,7 @@ export function RelationCaseFields({
   const [currentPriority, setCurrentPriority] = useState(priority);
   const [currentStatus, setCurrentStatus] = useState(status);
   const [feedback, setFeedback] = useState("");
+  const router = useRouter();
   const toast = useToast();
 
   async function updateCase(data: { priority?: RelationPriority; status?: RelationStatus }) {
@@ -58,6 +61,7 @@ export function RelationCaseFields({
 
     setFeedback("Mis a jour");
     setTimeout(() => setFeedback(""), 2000);
+    router.refresh();
     return true;
   }
 
@@ -83,6 +87,14 @@ export function RelationCaseFields({
     }
 
     toast.success("Statut mis a jour");
+  }
+
+  async function archiveCase() {
+    await onStatusChange(RelationStatus.ARCHIVED);
+  }
+
+  async function reactivateCase() {
+    await onStatusChange(RelationStatus.REVIEWING);
   }
 
   if (!editable) {
@@ -128,6 +140,28 @@ export function RelationCaseFields({
           ))}
         </select>
       </label>
+      {currentStatus === RelationStatus.ARCHIVED ? (
+        <>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+            Dossier archivé
+          </span>
+          <button
+            type="button"
+            onClick={reactivateCase}
+            className="rounded-full border px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Réactiver
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={archiveCase}
+          className="rounded-full border px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Archiver le dossier
+        </button>
+      )}
       {feedback ? <span className="text-xs font-medium text-slate-500">{feedback}</span> : null}
     </div>
   );
