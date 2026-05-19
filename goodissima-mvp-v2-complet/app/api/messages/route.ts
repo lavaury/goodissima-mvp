@@ -54,6 +54,7 @@ export async function GET(req: Request) {
     where: { caseId: relationCase.id },
     orderBy: { createdAt: "asc" },
   });
+  console.log("GET MESSAGES API", caseId, messages.length);
 
   return NextResponse.json(messages, {
     headers: {

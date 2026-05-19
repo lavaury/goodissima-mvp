@@ -70,6 +70,9 @@ export function LinkCard({
             className="rounded-xl border px-4 py-2 text-sm"
             href={latestCasePath!}
             prefetch={false}
+            onClick={() => {
+              console.log("NAVIGATION FROM LinkCard", latestCase.id, Date.now());
+            }}
           >
             Voir le dossier
           </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 
 type ChatMessage = {
@@ -23,8 +23,13 @@ export function ChatBox({
   senderType: "OWNER" | "CANDIDATE";
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesLengthRef = useRef(0);
   const [body, setBody] = useState("");
   const toast = useToast();
+
+  useEffect(() => {
+    messagesLengthRef.current = messages.length;
+  }, [messages.length]);
 
   const loadMessages = useCallback(async () => {
     if (!candidateAccessToken && !caseId) {
@@ -39,6 +44,8 @@ export function ChatBox({
     const query = candidateAccessToken
       ? `candidateAccessToken=${encodeURIComponent(candidateAccessToken)}`
       : `caseId=${encodeURIComponent(caseId!)}`;
+
+    console.log("LOAD MESSAGES", caseId, Date.now(), messagesLengthRef.current);
 
     try {
       const res = await fetch(`/api/messages?${query}`, {
@@ -68,6 +75,7 @@ export function ChatBox({
   }, [caseId, candidateAccessToken, senderType]);
 
   useEffect(() => {
+    console.log("CHATBOX MOUNT", caseId, Date.now());
     void loadMessages();
 
     const interval = setInterval(() => {

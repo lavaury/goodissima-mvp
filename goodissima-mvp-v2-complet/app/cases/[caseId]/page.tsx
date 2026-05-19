@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CaseDetailPage({ params }: { params: { caseId: string } }) {
   noStore();
+  console.log("CASE PAGE RENDER", params.caseId, Date.now());
 
   const owner = await getCurrentPrismaUser();
   const item = await prisma.relationCase.findFirst({

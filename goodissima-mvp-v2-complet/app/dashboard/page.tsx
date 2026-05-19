@@ -4,6 +4,7 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { DashboardLinkFilters } from "@/components/DashboardLinkFilters";
 import { LogoutButton } from "@/components/LogoutButton";
+import { RecentActivityLink } from "@/components/RecentActivityLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -178,17 +179,15 @@ export default async function DashboardPage() {
             </p>
           ) : (
             recentActivities.map((activity) => (
-              <Link
+              <RecentActivityLink
                 key={activity.id}
-                href={`/cases/${activity.caseId}?refresh=1`}
-                prefetch={false}
-                className="flex flex-col gap-1 py-3 text-sm hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
+                caseId={activity.caseId}
               >
                 <span className="font-medium text-slate-800">
                   {activity.label} — {activity.caseName}
                 </span>
                 <span className="text-xs text-slate-500">{formatRelativeDate(activity.date)}</span>
-              </Link>
+              </RecentActivityLink>
             ))
           )}
         </div>
