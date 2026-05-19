@@ -126,10 +126,8 @@ export function RelationCaseWorkspace({
       </div>
       <div className="mt-6 grid gap-5 lg:mt-8 lg:grid-cols-[1fr_360px] lg:gap-6">
         <ChatBox
-          key={item.id}
           caseId={candidateAccessToken ? undefined : item.id}
           candidateAccessToken={candidateAccessToken}
-          initialMessages={item.messages}
           senderEmail={senderEmail}
           senderType={senderType}
         />

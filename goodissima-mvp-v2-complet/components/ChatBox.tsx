@@ -14,17 +14,15 @@ type ChatMessage = {
 export function ChatBox({
   caseId,
   candidateAccessToken,
-  initialMessages,
   senderEmail,
   senderType,
 }: {
   caseId?: string;
   candidateAccessToken?: string;
-  initialMessages: ChatMessage[];
   senderEmail: string;
   senderType: "OWNER" | "CANDIDATE";
 }) {
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [body, setBody] = useState("");
   const toast = useToast();
 
