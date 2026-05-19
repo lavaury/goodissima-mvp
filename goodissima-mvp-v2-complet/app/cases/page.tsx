@@ -34,6 +34,7 @@ export default async function CasesPage() {
             <Link
               key={item.id}
               href={`/cases/${item.id}`}
+              prefetch={false}
               className="block border-b p-5 hover:bg-slate-50"
             >
               <div className="flex items-center justify-between gap-4">

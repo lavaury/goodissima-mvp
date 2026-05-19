@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
@@ -134,6 +135,12 @@ export async function POST(req: Request) {
     eventType: "DOCUMENT_UPLOADED",
     metadata: { fileName: file.name },
   });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/cases/${relationCase.id}`);
+  if (typeof candidateAccessToken === "string" && candidateAccessToken) {
+    revalidatePath(`/secure/${candidateAccessToken}`);
+  }
 
   return NextResponse.json(document);
 }

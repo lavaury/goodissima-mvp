@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 
 export function ChatBox({
@@ -24,6 +25,7 @@ export function ChatBox({
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [body, setBody] = useState("");
+  const router = useRouter();
   const toast = useToast();
 
   async function loadMessages() {
@@ -39,6 +41,10 @@ export function ChatBox({
     const freshMessages = await res.json();
     setMessages(freshMessages);
   }
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -71,6 +77,7 @@ export function ChatBox({
     setBody("");
     toast.success("Message envoye");
     await loadMessages();
+    router.refresh();
   }
 
   return (

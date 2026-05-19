@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
@@ -89,6 +90,12 @@ export async function POST(req: Request) {
     actorEmail: senderEmail,
     eventType: "MESSAGE_SENT",
   });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/cases/${relationCase.id}`);
+  if (body.candidateAccessToken) {
+    revalidatePath(`/secure/${body.candidateAccessToken}`);
+  }
 
   return NextResponse.json(message);
 }

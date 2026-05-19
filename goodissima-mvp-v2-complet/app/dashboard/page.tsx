@@ -181,6 +181,7 @@ export default async function DashboardPage() {
               <Link
                 key={activity.id}
                 href={`/cases/${activity.caseId}`}
+                prefetch={false}
                 className="flex flex-col gap-1 py-3 text-sm hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span className="font-medium text-slate-800">

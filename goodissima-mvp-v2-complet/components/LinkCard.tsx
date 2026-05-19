@@ -65,7 +65,11 @@ export function LinkCard({
           Voir le lien
         </Link>
         {latestCase ? (
-          <Link className="rounded-xl border px-4 py-2 text-sm" href={`/cases/${latestCase.id}`}>
+          <Link
+            className="rounded-xl border px-4 py-2 text-sm"
+            href={`/cases/${latestCase.id}`}
+            prefetch={false}
+          >
             Voir le dossier
           </Link>
         ) : (

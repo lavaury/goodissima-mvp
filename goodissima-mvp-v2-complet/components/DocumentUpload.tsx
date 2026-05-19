@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -16,6 +17,7 @@ export function DocumentUpload({
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const toast = useToast();
 
   async function addDocument() {
@@ -47,7 +49,8 @@ export function DocumentUpload({
     }
 
     toast.success("Document ajouté");
-    window.setTimeout(() => window.location.reload(), 700);
+    setFile(null);
+    router.refresh();
   }
 
   return (
