@@ -44,12 +44,14 @@ export async function sendNewMessageEmail({
       from: FROM_EMAIL,
       to: ownerEmail,
       subject: `Nouveau message - ${caseTitle}`,
-      react: NewMessageEmail({
-        caseTitle,
-        candidateName,
-        messagePreview: messageBody.slice(0, 240),
-        ctaHref: getCaseUrl(caseId),
-      }),
+      react: (
+        <NewMessageEmail
+          caseTitle={caseTitle}
+          candidateName={candidateName}
+          messagePreview={messageBody.slice(0, 240)}
+          ctaHref={getCaseUrl(caseId)}
+        />
+      ),
     });
     console.log("Resend new message result:", result);
   } catch (error) {
@@ -84,12 +86,14 @@ export async function sendNewDocumentEmail({
       from: FROM_EMAIL,
       to: ownerEmail,
       subject: `Nouveau document - ${caseTitle}`,
-      react: NewDocumentEmail({
-        caseTitle,
-        candidateName,
-        fileName,
-        ctaHref: getCaseUrl(caseId),
-      }),
+      react: (
+        <NewDocumentEmail
+          caseTitle={caseTitle}
+          candidateName={candidateName}
+          fileName={fileName}
+          ctaHref={getCaseUrl(caseId)}
+        />
+      ),
     });
     console.log("Resend new document result:", result);
   } catch (error) {
