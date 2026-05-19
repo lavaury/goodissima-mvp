@@ -4,6 +4,7 @@ import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
 import type { RelationPriority, RelationStatus } from "@prisma/client";
+import Image from "next/image";
 
 type RelationCaseWorkspaceItem = {
   id: string;
@@ -97,6 +98,16 @@ export function RelationCaseWorkspace({
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:py-10">
+      {isCandidateView ? (
+        <Image
+          src="/logo-goodissima.png"
+          alt="Goodissima"
+          width={240}
+          height={104}
+          priority
+          className="mb-6 h-auto w-44 sm:w-60"
+        />
+      ) : null}
       <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{item.gLink.title}</h1>
       <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">
         Dossier avec {item.candidateName} - {item.candidateEmail}
@@ -109,7 +120,7 @@ export function RelationCaseWorkspace({
       />
       <div className="mt-6 rounded-2xl border bg-white p-4 sm:p-5 lg:p-4">
         <h2 className="font-semibold">Activite du dossier</h2>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-2">
           {activityEvents.map((event) => (
             <div
               key={event.id}

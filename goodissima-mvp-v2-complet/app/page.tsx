@@ -1,10 +1,19 @@
 import Link from "next/link";
+import Image from "next/image";
 import { t } from "@/lib/i18n";
 
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6">
       <div className="max-w-3xl">
+        <Image
+          src="/logo-goodissima.png"
+          alt="Goodissima"
+          width={280}
+          height={120}
+          priority
+          className="mb-5 h-auto w-52 sm:mb-6 sm:w-72"
+        />
         <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
           {t("homepage.eyebrow")}
         </p>

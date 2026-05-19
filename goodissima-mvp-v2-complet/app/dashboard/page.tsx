@@ -202,7 +202,7 @@ export default async function DashboardPage() {
       </div>
       <div className="mb-8 rounded-2xl border bg-white p-4 shadow-sm">
         <h2 className="font-semibold">{t("dashboard.recentActivity.title")}</h2>
-        <div className="mt-3 divide-y">
+        <div className="mt-3 max-h-80 divide-y overflow-y-auto pr-2">
           {recentActivities.length === 0 ? (
             <p className="py-3 text-sm text-slate-500">
               {t("dashboard.recentActivity.empty")}
