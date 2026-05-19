@@ -17,6 +17,7 @@ export function DocumentUpload({
 }) {
   const [loading, setLoading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const toast = useToast();
@@ -51,6 +52,7 @@ export function DocumentUpload({
 
     toast.success("Document ajoute");
     if (photoInputRef.current) photoInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
     if (documentInputRef.current) documentInputRef.current.value = "";
     router.refresh();
   }
@@ -72,17 +74,27 @@ export function DocumentUpload({
         }}
       />
       <input
+        ref={imageInputRef}
+        id="image-upload"
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        onChange={(event) => {
+          void uploadDocument(event.target.files?.[0] ?? null);
+        }}
+      />
+      <input
         ref={documentInputRef}
         id="document-upload"
         className="sr-only"
         type="file"
-        accept=".pdf,image/*"
+        accept="application/pdf,.pdf,.doc,.docx"
         onChange={(event) => {
           void uploadDocument(event.target.files?.[0] ?? null);
         }}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3">
         <button
           type="button"
           onClick={() => photoInputRef.current?.click()}
@@ -93,11 +105,19 @@ export function DocumentUpload({
         </button>
         <button
           type="button"
+          onClick={() => imageInputRef.current?.click()}
+          disabled={loading}
+          className="min-h-14 w-full rounded-xl border bg-white px-4 py-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+        >
+          {loading ? "Upload en cours..." : "🖼️ Choisir une image existante"}
+        </button>
+        <button
+          type="button"
           onClick={() => documentInputRef.current?.click()}
           disabled={loading}
           className="min-h-14 w-full rounded-xl border bg-white px-4 py-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
         >
-          {loading ? "Upload en cours..." : "📄 Choisir un document"}
+          {loading ? "Upload en cours..." : "📄 Choisir un PDF ou fichier"}
         </button>
       </div>
     </div>
