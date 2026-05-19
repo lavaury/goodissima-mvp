@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 
 type ChatMessage = {
@@ -23,14 +23,8 @@ export function ChatBox({
   senderType: "OWNER" | "CANDIDATE";
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const messagesLengthRef = useRef(0);
   const [body, setBody] = useState("");
   const toast = useToast();
-
-  useEffect(() => {
-    messagesLengthRef.current = messages.length;
-    console.log("CHATBOX STATE", messages.length);
-  }, [messages.length]);
 
   const loadMessages = useCallback(async () => {
     if (!candidateAccessToken && !caseId) {
@@ -45,8 +39,6 @@ export function ChatBox({
     const query = candidateAccessToken
       ? `candidateAccessToken=${encodeURIComponent(candidateAccessToken)}`
       : `caseId=${encodeURIComponent(caseId!)}`;
-
-    console.log("LOAD MESSAGES", caseId, Date.now(), messagesLengthRef.current);
 
     try {
       const res = await fetch(`/api/messages?${query}`, {
@@ -64,8 +56,6 @@ export function ChatBox({
       }
 
       const freshMessages = (await res.json()) as ChatMessage[];
-      console.log("FETCH RESULT", freshMessages.length);
-      console.log("SET MESSAGES", freshMessages.length);
       setMessages(freshMessages);
     } catch (error) {
       console.error("ChatBox.loadMessages error", {
@@ -78,7 +68,6 @@ export function ChatBox({
   }, [caseId, candidateAccessToken, senderType]);
 
   useEffect(() => {
-    console.log("CHATBOX MOUNT", caseId, Date.now());
     void loadMessages();
 
     const interval = setInterval(() => {
@@ -115,10 +104,7 @@ export function ChatBox({
 
   return (
     <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col rounded-2xl border bg-white lg:h-[520px] lg:min-h-0">
-      <div className="border-b px-4 py-4 font-semibold sm:px-5">
-        Conversation
-        <div className="mt-1 text-xs font-normal text-red-600">DEBUG {messages.length}</div>
-      </div>
+      <div className="border-b px-4 py-4 font-semibold sm:px-5">Conversation</div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5 sm:px-5">
         {messages.map((message) => {

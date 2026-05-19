@@ -13,6 +13,7 @@ type DashboardLink = {
     candidateEmail: string;
     priority: string;
     status: string;
+    lastActivityAt?: number;
   }>;
 };
 

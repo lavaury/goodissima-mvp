@@ -14,13 +14,14 @@ export function LinkCard({
     slug: string;
     title: string;
     city?: string | null;
-    cases?: Array<{ id: string }>;
+    cases?: Array<{ id: string; lastActivityAt?: number }>;
   };
 }) {
   const publicPath = `/l/${item.slug}`;
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
   const latestCase = item.cases?.[0];
   const latestCasePath = latestCase ? `/cases/${latestCase.id}?refresh=1` : null;
+  const caseCount = item.cases?.length ?? 0;
   const [shared, setShared] = useState(false);
   const toast = useToast();
 
@@ -49,6 +50,9 @@ export function LinkCard({
     <div className="rounded-2xl border bg-white p-5 shadow-sm">
       <h3 className="text-lg font-semibold">{item.title}</h3>
       {item.city && <p className="text-sm text-slate-500">{item.city}</p>}
+      {caseCount > 1 ? (
+        <p className="mt-1 text-xs text-slate-500">{caseCount} dossiers</p>
+      ) : null}
 
       <div className="mt-4 rounded-xl bg-slate-50 p-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -70,9 +74,6 @@ export function LinkCard({
             className="rounded-xl border px-4 py-2 text-sm"
             href={latestCasePath!}
             prefetch={false}
-            onClick={() => {
-              console.log("NAVIGATION FROM LinkCard", latestCase.id, Date.now());
-            }}
           >
             Voir le dossier
           </Link>

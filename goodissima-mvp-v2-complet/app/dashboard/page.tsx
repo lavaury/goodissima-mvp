@@ -4,7 +4,6 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { DashboardLinkFilters } from "@/components/DashboardLinkFilters";
 import { LogoutButton } from "@/components/LogoutButton";
-import { RecentActivityLink } from "@/components/RecentActivityLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +18,18 @@ function formatRelativeDate(date: Date) {
   if (diffHours >= 1) return `il y a ${diffHours}h`;
 
   return `il y a ${diffMinutes} min`;
+}
+
+function getCaseLastActivityAt(relationCase: {
+  createdAt: Date;
+  messages: Array<{ createdAt: Date }>;
+  documents: Array<{ createdAt: Date }>;
+}) {
+  return Math.max(
+    relationCase.createdAt.getTime(),
+    relationCase.messages[0]?.createdAt.getTime() ?? 0,
+    relationCase.documents[0]?.createdAt.getTime() ?? 0,
+  );
 }
 
 export default async function DashboardPage() {
@@ -36,6 +47,17 @@ export default async function DashboardPage() {
             candidateEmail: true,
             priority: true,
             status: true,
+            createdAt: true,
+            messages: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { createdAt: true },
+            },
+            documents: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { createdAt: true },
+            },
           },
         },
       },
@@ -112,7 +134,15 @@ export default async function DashboardPage() {
     slug: item.slug,
     title: item.title,
     city: item.city,
-    cases: item.cases,
+    cases: item.cases
+      .map((relationCase) => ({
+        id: relationCase.id,
+        candidateEmail: relationCase.candidateEmail,
+        priority: relationCase.priority,
+        status: relationCase.status,
+        lastActivityAt: getCaseLastActivityAt(relationCase),
+      }))
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt),
   }));
   const recentActivities = [
     ...recentCases.map((item) => ({
@@ -179,15 +209,17 @@ export default async function DashboardPage() {
             </p>
           ) : (
             recentActivities.map((activity) => (
-              <RecentActivityLink
+              <Link
                 key={activity.id}
-                caseId={activity.caseId}
+                href={`/cases/${activity.caseId}?refresh=1`}
+                prefetch={false}
+                className="flex flex-col gap-1 py-3 text-sm hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span className="font-medium text-slate-800">
                   {activity.label} — {activity.caseName}
                 </span>
                 <span className="text-xs text-slate-500">{formatRelativeDate(activity.date)}</span>
-              </RecentActivityLink>
+              </Link>
             ))
           )}
         </div>
