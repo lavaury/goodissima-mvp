@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 
 type ChatMessage = {
@@ -11,14 +10,6 @@ type ChatMessage = {
   senderEmail: string;
   createdAt: Date | string;
 };
-
-function getNewestMessageTime(messages: ChatMessage[]) {
-  return messages.reduce((newestTime, message) => {
-    const messageTime = new Date(message.createdAt).getTime();
-
-    return Number.isFinite(messageTime) ? Math.max(newestTime, messageTime) : newestTime;
-  }, 0);
-}
 
 export function ChatBox({
   caseId,
@@ -33,19 +24,8 @@ export function ChatBox({
   senderEmail: string;
   senderType: "OWNER" | "CANDIDATE";
 }) {
-  const initialMessagesKey = useMemo(
-    () => initialMessages.map((message) => `${message.id}:${message.createdAt}`).join("|"),
-    [initialMessages],
-  );
-  const initialMessagesNewestTime = useMemo(
-    () => getNewestMessageTime(initialMessages),
-    [initialMessagesKey],
-  );
   const [messages, setMessages] = useState(initialMessages);
-  const [syncedMessagesKey, setSyncedMessagesKey] = useState(initialMessagesKey);
   const [body, setBody] = useState("");
-  const didRequestInitialRefresh = useRef(false);
-  const router = useRouter();
   const toast = useToast();
 
   const loadMessages = useCallback(async () => {
@@ -90,24 +70,6 @@ export function ChatBox({
   }, [caseId, candidateAccessToken, senderType]);
 
   useEffect(() => {
-    if (syncedMessagesKey === initialMessagesKey) return;
-
-    setMessages((currentMessages) => {
-      if (currentMessages.length === 0) return initialMessages;
-
-      const currentNewestTime = getNewestMessageTime(currentMessages);
-
-      return initialMessagesNewestTime > currentNewestTime ? initialMessages : currentMessages;
-    });
-    setSyncedMessagesKey(initialMessagesKey);
-  }, [initialMessages, initialMessagesKey, initialMessagesNewestTime, syncedMessagesKey]);
-
-  useEffect(() => {
-    if (!didRequestInitialRefresh.current) {
-      didRequestInitialRefresh.current = true;
-      router.refresh();
-    }
-
     void loadMessages();
 
     const interval = setInterval(() => {
@@ -115,7 +77,7 @@ export function ChatBox({
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [loadMessages, router]);
+  }, [loadMessages]);
 
   async function sendMessage() {
     if (!body.trim()) return;
@@ -137,16 +99,8 @@ export function ChatBox({
       return;
     }
 
-    const createdMessage = await res.json();
-
-    setMessages((currentMessages) =>
-      currentMessages.some((message) => message.id === createdMessage.id)
-        ? currentMessages
-        : [...currentMessages, createdMessage],
-    );
     setBody("");
     toast.success("Message envoye");
-    router.refresh();
     await loadMessages();
   }
 

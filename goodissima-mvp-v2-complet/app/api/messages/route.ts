@@ -55,7 +55,11 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "asc" },
   });
 
-  return NextResponse.json(messages);
+  return NextResponse.json(messages, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    },
+  });
 }
 
 export async function POST(req: Request) {
