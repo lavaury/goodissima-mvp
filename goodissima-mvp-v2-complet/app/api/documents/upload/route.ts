@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { sendNewDocumentEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -23,7 +24,13 @@ async function resolveCaseForAccess(params: {
   if (params.candidateAccessToken) {
     return prisma.relationCase.findFirst({
       where: activeCandidateAccessWhere(params.candidateAccessToken),
-      select: { id: true, candidateEmail: true },
+      select: {
+        id: true,
+        candidateEmail: true,
+        candidateName: true,
+        gLink: { select: { title: true } },
+        owner: { select: { email: true } },
+      },
     });
   }
 
@@ -38,7 +45,13 @@ async function resolveCaseForAccess(params: {
 
   return prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
-    select: { id: true, candidateEmail: true },
+    select: {
+      id: true,
+      candidateEmail: true,
+      candidateName: true,
+      gLink: { select: { title: true } },
+      owner: { select: { email: true } },
+    },
   });
 }
 
@@ -140,6 +153,20 @@ export async function POST(req: Request) {
   revalidatePath(`/cases/${relationCase.id}`);
   if (typeof candidateAccessToken === "string" && candidateAccessToken) {
     revalidatePath(`/secure/${candidateAccessToken}`);
+  }
+
+  if (typeof candidateAccessToken === "string" && candidateAccessToken) {
+    try {
+      await sendNewDocumentEmail({
+        ownerEmail: relationCase.owner.email,
+        caseId: relationCase.id,
+        caseTitle: relationCase.gLink.title,
+        candidateName: relationCase.candidateName,
+        fileName: document.fileName,
+      });
+    } catch (error) {
+      console.error("Unable to send new document email", error);
+    }
   }
 
   return NextResponse.json(document);

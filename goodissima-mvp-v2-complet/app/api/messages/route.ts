@@ -3,6 +3,7 @@ import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { sendNewMessageEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,13 @@ async function resolveCaseForAccess(params: {
   if (params.candidateAccessToken) {
     return prisma.relationCase.findFirst({
       where: activeCandidateAccessWhere(params.candidateAccessToken),
-      select: { id: true, candidateEmail: true },
+      select: {
+        id: true,
+        candidateEmail: true,
+        candidateName: true,
+        gLink: { select: { title: true } },
+        owner: { select: { email: true } },
+      },
     });
   }
 
@@ -29,7 +36,13 @@ async function resolveCaseForAccess(params: {
 
   return prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
-    select: { id: true, candidateEmail: true },
+    select: {
+      id: true,
+      candidateEmail: true,
+      candidateName: true,
+      gLink: { select: { title: true } },
+      owner: { select: { email: true } },
+    },
   });
 }
 
@@ -103,6 +116,20 @@ export async function POST(req: Request) {
   revalidatePath(`/cases/${relationCase.id}`);
   if (body.candidateAccessToken) {
     revalidatePath(`/secure/${body.candidateAccessToken}`);
+  }
+
+  if (body.senderType === "CANDIDATE") {
+    try {
+      await sendNewMessageEmail({
+        ownerEmail: relationCase.owner.email,
+        caseId: relationCase.id,
+        caseTitle: relationCase.gLink.title,
+        candidateName: relationCase.candidateName,
+        messageBody: message.body,
+      });
+    } catch (error) {
+      console.error("Unable to send new message email", error);
+    }
   }
 
   return NextResponse.json(message);
