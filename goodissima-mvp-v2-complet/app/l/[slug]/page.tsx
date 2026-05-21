@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import type { ConditionalRule } from "@/lib/form-rules";
 import { DEFAULT_FORM_TEMPLATE_KEY, getFormFields, getFormTemplateByKey } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
@@ -20,6 +21,7 @@ const defaultFields = [
     placeholder: "Votre nom",
     defaultValue: null,
     options: [],
+    conditionalRules: [],
   },
   {
     key: "email",
@@ -29,6 +31,7 @@ const defaultFields = [
     placeholder: "Votre email",
     defaultValue: null,
     options: [],
+    conditionalRules: [],
   },
   {
     key: "message",
@@ -38,6 +41,7 @@ const defaultFields = [
     placeholder: "Presentez-vous et indiquez votre demande",
     defaultValue: null,
     options: [],
+    conditionalRules: [],
   },
 ];
 
@@ -54,6 +58,31 @@ function parseFieldOptions(options: unknown): FieldOption[] {
       return { label, value };
     })
     .filter((option): option is FieldOption => Boolean(option));
+}
+
+function parseConditionalRules(rules: unknown): ConditionalRule[] {
+  if (!Array.isArray(rules)) return [];
+
+  return rules
+    .map((rule) => {
+      if (!rule || typeof rule !== "object") return null;
+
+      const { field, operator, value, action } = rule as Record<string, unknown>;
+      if (typeof field !== "string" || typeof operator !== "string" || typeof action !== "string") {
+        return null;
+      }
+
+      if (!["equals", "notEquals", "greaterThan", "exists"].includes(operator)) return null;
+      if (!["SHOW", "HIDE", "REQUIRE", "DISABLE"].includes(action)) return null;
+
+      return {
+        field,
+        operator,
+        value: typeof value === "string" || typeof value === "boolean" || typeof value === "number" ? value : null,
+        action,
+      } as ConditionalRule;
+    })
+    .filter((rule): rule is ConditionalRule => Boolean(rule));
 }
 
 export default async function PublicLinkPage({ params }: { params: { slug: string } }) {
@@ -92,6 +121,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         placeholder: field.placeholder,
         defaultValue: field.defaultValue,
         options: parseFieldOptions(field.options),
+        conditionalRules: parseConditionalRules(field.conditionalRules),
       }))
     : defaultFields;
 

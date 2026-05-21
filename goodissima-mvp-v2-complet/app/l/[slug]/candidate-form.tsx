@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
+import type { ConditionalRule, FormValues } from "@/lib/form-rules";
+import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
 
 type FieldValue = string | boolean;
 
@@ -19,6 +21,7 @@ type CandidateFormField = {
   placeholder: string | null;
   defaultValue: string | null;
   options: CandidateFormFieldOption[];
+  conditionalRules: ConditionalRule[];
 };
 
 const supportedFieldTypes = new Set([
@@ -46,6 +49,10 @@ function getStringValue(value: FieldValue | undefined) {
   return typeof value === "string" ? value : "";
 }
 
+function toRuleValues(values: Record<string, FieldValue>): FormValues {
+  return values;
+}
+
 export default function CandidateForm({
   gLinkId,
   formTemplateId,
@@ -66,11 +73,18 @@ export default function CandidateForm({
   });
 
   function validateForm() {
-    for (const field of fields.filter((item) => supportedFieldTypes.has(item.type))) {
+    const ruleValues = toRuleValues(answers);
+
+    for (const field of fields.filter(
+      (item) =>
+        supportedFieldTypes.has(item.type) &&
+        shouldDisplayField(item, ruleValues) &&
+        !isFieldDisabled(item, ruleValues),
+    )) {
       const value = answers[field.key];
       const stringValue = getStringValue(value).trim();
 
-      if (field.required) {
+      if (isFieldRequired(field, ruleValues)) {
         const missingValue =
           field.type === "CHECKBOX"
             ? value !== true
@@ -124,8 +138,10 @@ export default function CandidateForm({
     const fullName = getStringValue(answers.fullName).trim();
     const email = getStringValue(answers.email).trim();
     const message = getStringValue(answers.message).trim();
+    const ruleValues = toRuleValues(answers);
     const submissionAnswers = fields.reduce<Record<string, FieldValue>>((result, field) => {
       if (!supportedFieldTypes.has(field.type)) return result;
+      if (!shouldDisplayField(field, ruleValues)) return result;
 
       result[field.key] = field.type === "FILE" ? files[field.key]?.name ?? "" : answers[field.key] ?? "";
       return result;
@@ -169,6 +185,12 @@ export default function CandidateForm({
   }
 
   function renderField(field: CandidateFormField) {
+    const ruleValues = toRuleValues(answers);
+    if (!shouldDisplayField(field, ruleValues)) return null;
+
+    const disabled = loading || isFieldDisabled(field, ruleValues);
+    const required = isFieldRequired(field, ruleValues);
+
     switch (field.type) {
       case "TEXTAREA":
         return (
@@ -177,6 +199,8 @@ export default function CandidateForm({
             className="min-h-32 w-full rounded-xl border px-4 py-3"
             placeholder={field.placeholder ?? undefined}
             value={getStringValue(answers[field.key])}
+            required={required}
+            disabled={disabled}
             onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
           />
         );
@@ -186,6 +210,8 @@ export default function CandidateForm({
             key={field.key}
             className="w-full rounded-xl border px-4 py-3"
             value={getStringValue(answers[field.key])}
+            required={required}
+            disabled={disabled}
             onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
           >
             <option value="">{field.placeholder ?? field.label}</option>
@@ -203,6 +229,8 @@ export default function CandidateForm({
               className="mt-1"
               type="checkbox"
               checked={answers[field.key] === true}
+              required={required}
+              disabled={disabled}
               onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.checked })}
             />
             <span className="text-sm text-slate-700">{field.label}</span>
@@ -215,6 +243,8 @@ export default function CandidateForm({
             <input
               className="w-full text-sm"
               type="file"
+              required={required}
+              disabled={disabled}
               onChange={(e) => setFiles({ ...files, [field.key]: e.target.files?.[0] ?? null })}
             />
           </div>
@@ -237,6 +267,8 @@ export default function CandidateForm({
             }
             placeholder={field.placeholder ?? undefined}
             value={getStringValue(answers[field.key])}
+            required={required}
+            disabled={disabled}
             onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
           />
         );
