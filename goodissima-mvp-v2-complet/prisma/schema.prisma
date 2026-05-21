@@ -67,59 +67,117 @@ model GLink {
   createdAt   DateTime   @default(now())
   expiresAt   DateTime?
 
-  owner User @relation(fields: [ownerId], references: [id])
+  owner User           @relation(fields: [ownerId], references: [id])
   cases RelationCase[]
 }
 
 model RelationCase {
-  id             String     @id @default(cuid())
-  gLinkId         String
-  ownerId         String
-  templateId      String?
-  candidateAccessToken String @unique
+  id                       String           @id @default(cuid())
+  gLinkId                  String
+  ownerId                  String
+  templateId               String?
+  candidateAccessToken     String           @unique
   candidateAccessExpiresAt DateTime?
   candidateAccessRevokedAt DateTime?
-  candidateName   String
-  candidateEmail  String
-  priority        RelationPriority @default(NORMAL)
-  status          RelationStatus @default(NEW)
-  currentStep     String?    @default("CONVERSATION")
-  createdAt       DateTime   @default(now())
-  closedAt        DateTime?
+  candidateName            String
+  candidateEmail           String
+  priority                 RelationPriority @default(NORMAL)
+  status                   RelationStatus   @default(NEW)
+  currentStep              String?          @default("CONVERSATION")
+  createdAt                DateTime         @default(now())
+  closedAt                 DateTime?
 
-  gLink     GLink @relation(fields: [gLinkId], references: [id])
-  owner     User  @relation("OwnerCases", fields: [ownerId], references: [id])
-  template  RelationTemplate? @relation(fields: [templateId], references: [id])
-  messages  Message[]
-  documents Document[]
-  auditLogs AuditLog[]
-  relationEvents RelationEvent[]
+  gLink           GLink             @relation(fields: [gLinkId], references: [id])
+  owner           User              @relation("OwnerCases", fields: [ownerId], references: [id])
+  template        RelationTemplate? @relation(fields: [templateId], references: [id])
+  messages        Message[]
+  documents       Document[]
+  auditLogs       AuditLog[]
+  relationEvents  RelationEvent[]
+  formSubmissions FormSubmission[]
 }
 
 model RelationTemplate {
-  id          String   @id @default(cuid())
-  key         String   @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   name        String
   description String?
-  isDefault   Boolean  @default(false)
+  isDefault   Boolean @default(false)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   relationCases RelationCase[]
+  formTemplates FormTemplate[]
+}
+
+model FormTemplate {
+  id String @id @default(cuid())
+
+  key         String  @unique
+  name        String
+  description String?
+
+  relationTemplateId String?
+  relationTemplate   RelationTemplate? @relation(fields: [relationTemplateId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fields      FormField[]
+  submissions FormSubmission[]
+}
+
+model FormField {
+  id String @id @default(cuid())
+
+  formTemplateId String
+  formTemplate   FormTemplate @relation(fields: [formTemplateId], references: [id], onDelete: Cascade)
+
+  key   String
+  label String
+
+  type     String
+  required Boolean @default(false)
+
+  placeholder  String?
+  defaultValue String?
+
+  position Int @default(0)
+
+  options Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([formTemplateId, position])
+}
+
+model FormSubmission {
+  id String @id @default(cuid())
+
+  formTemplateId String
+  formTemplate   FormTemplate @relation(fields: [formTemplateId], references: [id])
+
+  caseId String?
+  case   RelationCase? @relation(fields: [caseId], references: [id])
+
+  answers Json
+
+  createdAt DateTime @default(now())
 }
 
 model RelationEvent {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  caseId    String
-  case      RelationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId String
+  case   RelationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   type      String
   actorType String?
   actorId   String?
 
-  payload   Json?
+  payload Json?
 
   createdAt DateTime @default(now())
 
@@ -139,12 +197,12 @@ model Message {
 
 model Document {
   id              String   @id @default(cuid())
-  caseId           String
-  uploadedByEmail  String
-  fileName         String
-  fileUrl          String
-  mimeType         String?
-  createdAt        DateTime @default(now())
+  caseId          String
+  uploadedByEmail String
+  fileName        String
+  fileUrl         String
+  mimeType        String?
+  createdAt       DateTime @default(now())
 
   relationCase RelationCase @relation(fields: [caseId], references: [id])
 }

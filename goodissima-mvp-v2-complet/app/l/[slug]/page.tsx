@@ -1,9 +1,37 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { DEFAULT_FORM_TEMPLATE_KEY, getFormFields, getFormTemplateByKey } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
 import { PublicLinkBox } from "@/components/PublicLinkBox";
+
+const defaultFields = [
+  {
+    key: "fullName",
+    label: "Nom complet",
+    type: "TEXT",
+    required: true,
+    placeholder: "Votre nom",
+    defaultValue: null,
+  },
+  {
+    key: "email",
+    label: "Email",
+    type: "EMAIL",
+    required: true,
+    placeholder: "Votre email",
+    defaultValue: null,
+  },
+  {
+    key: "message",
+    label: "Message",
+    type: "TEXTAREA",
+    required: true,
+    placeholder: "Presentez-vous et indiquez votre demande",
+    defaultValue: null,
+  },
+];
 
 export default async function PublicLinkPage({ params }: { params: { slug: string } }) {
   const link = await prisma.gLink.findUnique({
@@ -30,6 +58,18 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
   }
 
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/l/${link.slug}`;
+  const formTemplate = await getFormTemplateByKey(DEFAULT_FORM_TEMPLATE_KEY);
+  const formFields = formTemplate ? await getFormFields(formTemplate.id) : [];
+  const candidateFields = formFields.length
+    ? formFields.map((field) => ({
+        key: field.key,
+        label: field.label,
+        type: field.type.toUpperCase(),
+        required: field.required,
+        placeholder: field.placeholder,
+        defaultValue: field.defaultValue,
+      }))
+    : defaultFields;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -61,7 +101,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           </p>
         </div>
 
-        <CandidateForm gLinkId={link.id} />
+        <CandidateForm gLinkId={link.id} formTemplateId={formTemplate?.id ?? null} fields={candidateFields} />
       </div>
     </main>
   );

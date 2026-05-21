@@ -7,9 +7,26 @@ import {
   createCandidateAccessToken,
 } from "@/lib/candidate-access";
 import { createRelationEvent } from "@/lib/events";
+import { createFormSubmission } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
 
 const DEFAULT_RELATION_TEMPLATE_KEY = "DEFAULT_SECURE_CONVERSATION";
+
+function getFormSubmissionData(body: Record<string, unknown>) {
+  if (typeof body.formTemplateId !== "string" || !body.formTemplateId) {
+    return null;
+  }
+
+  const answers = body.answers;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+    return null;
+  }
+
+  return {
+    formTemplateId: body.formTemplateId,
+    answers: answers as Record<string, string>,
+  };
+}
 
 function withCandidateCookie(token: string, gLinkId: string) {
   const response = NextResponse.json({ candidateAccessToken: token });
@@ -107,6 +124,15 @@ export async function POST(req: Request) {
       });
     }
 
+    const formSubmission = getFormSubmissionData(body);
+    if (formSubmission) {
+      await createFormSubmission({
+        formTemplateId: formSubmission.formTemplateId,
+        caseId: existingRelationCase.id,
+        answers: formSubmission.answers,
+      });
+    }
+
     return withCandidateCookie(existingRelationCase.candidateAccessToken, gLink.id);
   }
 
@@ -187,6 +213,15 @@ export async function POST(req: Request) {
       actorType: "CANDIDATE",
       actorId: candidateEmail,
       payload: { documentId: document.id, fileName: body.documentName },
+    });
+  }
+
+  const formSubmission = getFormSubmissionData(body);
+  if (formSubmission) {
+    await createFormSubmission({
+      formTemplateId: formSubmission.formTemplateId,
+      caseId: relationCase.id,
+      answers: formSubmission.answers,
     });
   }
 
