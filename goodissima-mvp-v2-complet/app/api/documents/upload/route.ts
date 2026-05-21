@@ -4,6 +4,7 @@ import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewDocumentEmail } from "@/lib/email";
+import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -147,6 +148,14 @@ export async function POST(req: Request) {
     actorEmail,
     eventType: "DOCUMENT_UPLOADED",
     metadata: { fileName: file.name },
+  });
+
+  await createRelationEvent({
+    caseId: relationCase.id,
+    type: "DOCUMENT_UPLOADED",
+    actorType: typeof candidateAccessToken === "string" && candidateAccessToken ? "CANDIDATE" : "OWNER",
+    actorId: actorEmail,
+    payload: { documentId: document.id, fileName: file.name },
   });
 
   revalidatePath("/dashboard");

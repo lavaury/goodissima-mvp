@@ -17,6 +17,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
       auditLogs: { orderBy: { createdAt: "desc" } },
+      relationEvents: { orderBy: { createdAt: "desc" } },
     },
   });
 

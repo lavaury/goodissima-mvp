@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,14 @@ export async function POST(req: Request) {
     actorEmail: uploadedByEmail,
     eventType: "DOCUMENT_UPLOADED",
     metadata: { fileName: body.fileName },
+  });
+
+  await createRelationEvent({
+    caseId: relationCase.id,
+    type: "DOCUMENT_UPLOADED",
+    actorType: body.candidateAccessToken ? "CANDIDATE" : "OWNER",
+    actorId: uploadedByEmail,
+    payload: { documentId: document.id, fileName: body.fileName },
   });
 
   return NextResponse.json(document);

@@ -6,7 +6,10 @@ import {
   createCandidateAccessExpiresAt,
   createCandidateAccessToken,
 } from "@/lib/candidate-access";
+import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
+
+const DEFAULT_RELATION_TEMPLATE_KEY = "DEFAULT_SECURE_CONVERSATION";
 
 function withCandidateCookie(token: string, gLinkId: string) {
   const response = NextResponse.json({ candidateAccessToken: token });
@@ -51,7 +54,7 @@ export async function POST(req: Request) {
   });
 
   if (existingRelationCase) {
-    await prisma.message.create({
+    const message = await prisma.message.create({
       data: {
         caseId: existingRelationCase.id,
         senderType: "CANDIDATE",
@@ -60,8 +63,16 @@ export async function POST(req: Request) {
       },
     });
 
+    await createRelationEvent({
+      caseId: existingRelationCase.id,
+      type: "MESSAGE_SENT",
+      actorType: "CANDIDATE",
+      actorId: candidateEmail,
+      payload: { existing: true, messageId: message.id },
+    });
+
     if (body.documentName && body.documentUrl) {
-      await prisma.document.create({
+      const document = await prisma.document.create({
         data: {
           caseId: existingRelationCase.id,
           uploadedByEmail: candidateEmail,
@@ -69,6 +80,14 @@ export async function POST(req: Request) {
           fileUrl: body.documentUrl,
           mimeType: "application/octet-stream",
         },
+      });
+
+      await createRelationEvent({
+        caseId: existingRelationCase.id,
+        type: "DOCUMENT_UPLOADED",
+        actorType: "CANDIDATE",
+        actorId: candidateEmail,
+        payload: { documentId: document.id, fileName: body.documentName },
       });
     }
 
@@ -91,39 +110,49 @@ export async function POST(req: Request) {
     return withCandidateCookie(existingRelationCase.candidateAccessToken, gLink.id);
   }
 
+  const defaultRelationTemplate = await prisma.relationTemplate.findUnique({
+    where: { key: DEFAULT_RELATION_TEMPLATE_KEY },
+    select: { id: true },
+  });
+
   const relationCase = await prisma.relationCase.create({
     data: {
       gLinkId: gLink.id,
       ownerId: gLink.ownerId,
+      templateId: defaultRelationTemplate?.id,
       candidateAccessToken: createCandidateAccessToken(),
       candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
       candidateName,
       candidateEmail,
       status: RelationStatus.NEW,
-      messages: {
-        create: {
-          senderType: "CANDIDATE",
-          senderEmail: candidateEmail,
-          body: messageBody,
-        },
-      },
-      documents:
-        body.documentName && body.documentUrl
-          ? {
-              create: {
-                uploadedByEmail: candidateEmail,
-                fileName: body.documentName,
-                fileUrl: body.documentUrl,
-                mimeType: "application/octet-stream",
-              },
-            }
-          : undefined,
     },
     select: {
       id: true,
       candidateAccessToken: true,
     },
   });
+
+  const message = await prisma.message.create({
+    data: {
+      caseId: relationCase.id,
+      senderType: "CANDIDATE",
+      senderEmail: candidateEmail,
+      body: messageBody,
+    },
+  });
+
+  const document =
+    body.documentName && body.documentUrl
+      ? await prisma.document.create({
+          data: {
+            caseId: relationCase.id,
+            uploadedByEmail: candidateEmail,
+            fileName: body.documentName,
+            fileUrl: body.documentUrl,
+            mimeType: "application/octet-stream",
+          },
+        })
+      : null;
 
   await auditLog({
     caseId: relationCase.id,
@@ -137,13 +166,27 @@ export async function POST(req: Request) {
     eventType: "MESSAGE_SENT",
     metadata: { initial: true },
   });
+  await createRelationEvent({
+    caseId: relationCase.id,
+    type: "MESSAGE_SENT",
+    actorType: "CANDIDATE",
+    actorId: candidateEmail,
+    payload: { initial: true, messageId: message.id },
+  });
 
-  if (body.documentName && body.documentUrl) {
+  if (document) {
     await auditLog({
       caseId: relationCase.id,
       actorEmail: candidateEmail,
       eventType: "DOCUMENT_UPLOADED",
       metadata: { fileName: body.documentName },
+    });
+    await createRelationEvent({
+      caseId: relationCase.id,
+      type: "DOCUMENT_UPLOADED",
+      actorType: "CANDIDATE",
+      actorId: candidateEmail,
+      payload: { documentId: document.id, fileName: body.documentName },
     });
   }
 

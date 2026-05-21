@@ -4,6 +4,7 @@ import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewMessageEmail } from "@/lib/email";
+import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -110,6 +111,14 @@ export async function POST(req: Request) {
     caseId: relationCase.id,
     actorEmail: senderEmail,
     eventType: "MESSAGE_SENT",
+  });
+
+  await createRelationEvent({
+    caseId: relationCase.id,
+    type: "MESSAGE_SENT",
+    actorType: body.senderType,
+    actorId: senderEmail,
+    payload: { messageId: message.id },
   });
 
   revalidatePath("/dashboard");

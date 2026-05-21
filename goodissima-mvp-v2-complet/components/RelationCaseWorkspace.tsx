@@ -3,7 +3,7 @@ import { ChatBox } from "@/components/ChatBox";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
-import type { RelationPriority, RelationStatus } from "@prisma/client";
+import type { Prisma, RelationPriority, RelationStatus } from "@prisma/client";
 import Image from "next/image";
 
 type RelationCaseWorkspaceItem = {
@@ -32,6 +32,13 @@ type RelationCaseWorkspaceItem = {
     createdAt?: Date | string;
   }>;
   auditLogs: Array<{ id: string; eventType: string; createdAt: Date | string }>;
+  relationEvents: Array<{
+    id: string;
+    type: string;
+    actorType?: string | null;
+    payload?: Prisma.JsonValue | null;
+    createdAt: Date | string;
+  }>;
 };
 
 const parisDateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -47,7 +54,64 @@ function formatActivityDate(date: Date | string) {
   return parisDateFormatter.format(new Date(date));
 }
 
+function getPayloadString(payload: Prisma.JsonValue | null | undefined, key: string) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+
+  const value = payload[key];
+  return typeof value === "string" ? value : null;
+}
+
+function getRelationEventLabel(event: RelationCaseWorkspaceItem["relationEvents"][number]) {
+  switch (event.type) {
+    case "MESSAGE_SENT":
+      return event.actorType === "OWNER"
+        ? "Message envoye par proprietaire"
+        : "Message envoye par candidat";
+    case "DOCUMENT_UPLOADED":
+      return event.actorType === "OWNER"
+        ? "Document ajoute par proprietaire"
+        : "Document ajoute par candidat";
+    case "STATUS_CHANGED":
+      return "Statut modifie";
+    case "PRIORITY_CHANGED":
+      return "Priorite modifiee";
+    case "CASE_ARCHIVED":
+      return "Dossier archive";
+    case "CASE_RESTORED":
+      return "Dossier reactive";
+    default:
+      return event.type;
+  }
+}
+
+function getRelationEventType(eventType: string) {
+  switch (eventType) {
+    case "MESSAGE_SENT":
+      return "Message";
+    case "DOCUMENT_UPLOADED":
+      return "Document";
+    case "STATUS_CHANGED":
+    case "PRIORITY_CHANGED":
+    case "CASE_ARCHIVED":
+    case "CASE_RESTORED":
+      return "Dossier";
+    default:
+      return "Evenement";
+  }
+}
+
 function getActivityEvents(item: RelationCaseWorkspaceItem) {
+  const eventMessageIds = new Set(
+    item.relationEvents
+      .map((event) => getPayloadString(event.payload, "messageId"))
+      .filter(Boolean),
+  );
+  const eventDocumentIds = new Set(
+    item.relationEvents
+      .map((event) => getPayloadString(event.payload, "documentId"))
+      .filter(Boolean),
+  );
+
   const events = [
     {
       id: `case-${item.id}`,
@@ -55,17 +119,26 @@ function getActivityEvents(item: RelationCaseWorkspaceItem) {
       date: item.createdAt,
       type: "Dossier",
     },
-    ...item.messages.map((message) => ({
-      id: `message-${message.id}`,
-      label:
-        message.senderType === "OWNER"
-          ? "Message envoye par proprietaire"
-          : "Message envoye par candidat",
-      date: message.createdAt,
-      type: "Message",
+    ...item.relationEvents.map((event) => ({
+      id: `relation-event-${event.id}`,
+      label: getRelationEventLabel(event),
+      date: event.createdAt,
+      type: getRelationEventType(event.type),
     })),
+    ...item.messages
+      .filter((message) => !eventMessageIds.has(message.id))
+      .map((message) => ({
+        id: `message-${message.id}`,
+        label:
+          message.senderType === "OWNER"
+            ? "Message envoye par proprietaire"
+            : "Message envoye par candidat",
+        date: message.createdAt,
+        type: "Message",
+      })),
     ...item.documents
       .filter((document) => document.createdAt)
+      .filter((document) => !eventDocumentIds.has(document.id))
       .map((document) => ({
         id: `document-${document.id}`,
         label:

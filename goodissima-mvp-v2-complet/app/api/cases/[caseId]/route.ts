@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { RelationPriority, RelationStatus } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 
 const relationPriorities = new Set<string>(Object.values(RelationPriority));
@@ -34,7 +35,7 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
 
     const relationCase = await prisma.relationCase.findFirst({
       where: { id: params.caseId, ownerId: owner.id },
-      select: { id: true },
+      select: { id: true, priority: true, status: true },
     });
 
     if (!relationCase) {
@@ -50,6 +51,33 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         status: true,
       },
     });
+
+    if (data.priority && data.priority !== relationCase.priority) {
+      await createRelationEvent({
+        caseId: relationCase.id,
+        type: "PRIORITY_CHANGED",
+        actorType: "OWNER",
+        actorId: owner.id,
+        payload: { from: relationCase.priority, to: data.priority },
+      });
+    }
+
+    if (data.status && data.status !== relationCase.status) {
+      const eventType =
+        data.status === RelationStatus.ARCHIVED
+          ? "CASE_ARCHIVED"
+          : relationCase.status === RelationStatus.ARCHIVED
+            ? "CASE_RESTORED"
+            : "STATUS_CHANGED";
+
+      await createRelationEvent({
+        caseId: relationCase.id,
+        type: eventType,
+        actorType: "OWNER",
+        actorId: owner.id,
+        payload: { from: relationCase.status, to: data.status },
+      });
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

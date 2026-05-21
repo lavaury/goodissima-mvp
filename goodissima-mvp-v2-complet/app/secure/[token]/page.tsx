@@ -16,6 +16,7 @@ export default async function SecureCasePage({ params }: { params: { token: stri
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
       auditLogs: { orderBy: { createdAt: "desc" } },
+      relationEvents: { orderBy: { createdAt: "desc" } },
     },
   });
 
