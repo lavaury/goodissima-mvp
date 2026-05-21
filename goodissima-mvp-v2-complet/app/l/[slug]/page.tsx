@@ -6,6 +6,11 @@ import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
 import { PublicLinkBox } from "@/components/PublicLinkBox";
 
+type FieldOption = {
+  label: string;
+  value: string;
+};
+
 const defaultFields = [
   {
     key: "fullName",
@@ -14,6 +19,7 @@ const defaultFields = [
     required: true,
     placeholder: "Votre nom",
     defaultValue: null,
+    options: [],
   },
   {
     key: "email",
@@ -22,6 +28,7 @@ const defaultFields = [
     required: true,
     placeholder: "Votre email",
     defaultValue: null,
+    options: [],
   },
   {
     key: "message",
@@ -30,8 +37,24 @@ const defaultFields = [
     required: true,
     placeholder: "Presentez-vous et indiquez votre demande",
     defaultValue: null,
+    options: [],
   },
 ];
+
+function parseFieldOptions(options: unknown): FieldOption[] {
+  if (!Array.isArray(options)) return [];
+
+  return options
+    .map((option) => {
+      if (!option || typeof option !== "object") return null;
+
+      const { label, value } = option as { label?: unknown; value?: unknown };
+      if (typeof label !== "string" || typeof value !== "string") return null;
+
+      return { label, value };
+    })
+    .filter((option): option is FieldOption => Boolean(option));
+}
 
 export default async function PublicLinkPage({ params }: { params: { slug: string } }) {
   const link = await prisma.gLink.findUnique({
@@ -68,6 +91,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         required: field.required,
         placeholder: field.placeholder,
         defaultValue: field.defaultValue,
+        options: parseFieldOptions(field.options),
       }))
     : defaultFields;
 

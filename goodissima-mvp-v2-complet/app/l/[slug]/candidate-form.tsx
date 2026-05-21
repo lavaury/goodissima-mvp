@@ -4,6 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 
+type FieldValue = string | boolean;
+
+type CandidateFormFieldOption = {
+  label: string;
+  value: string;
+};
+
 type CandidateFormField = {
   key: string;
   label: string;
@@ -11,15 +18,32 @@ type CandidateFormField = {
   required: boolean;
   placeholder: string | null;
   defaultValue: string | null;
+  options: CandidateFormFieldOption[];
 };
 
-const supportedFieldTypes = new Set(["TEXT", "EMAIL", "TEXTAREA"]);
+const supportedFieldTypes = new Set([
+  "TEXT",
+  "EMAIL",
+  "TEXTAREA",
+  "PHONE",
+  "NUMBER",
+  "DATE",
+  "SELECT",
+  "CHECKBOX",
+  "FILE",
+]);
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function createInitialAnswers(fields: CandidateFormField[]) {
-  return fields.reduce<Record<string, string>>((answers, field) => {
-    answers[field.key] = field.defaultValue ?? "";
+  return fields.reduce<Record<string, FieldValue>>((answers, field) => {
+    answers[field.key] =
+      field.type === "CHECKBOX" ? field.defaultValue === "true" : field.defaultValue ?? "";
     return answers;
   }, {});
+}
+
+function getStringValue(value: FieldValue | undefined) {
+  return typeof value === "string" ? value : "";
 }
 
 export default function CandidateForm({
@@ -34,21 +58,78 @@ export default function CandidateForm({
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [answers, setAnswers] = useState<Record<string, string>>(() => createInitialAnswers(fields));
+  const [answers, setAnswers] = useState<Record<string, FieldValue>>(() => createInitialAnswers(fields));
+  const [files, setFiles] = useState<Record<string, File | null>>({});
   const [documentFields, setDocumentFields] = useState({
     documentName: "",
     documentUrl: "",
   });
 
-  async function submit() {
-    const fullName = answers.fullName?.trim() ?? "";
-    const email = answers.email?.trim() ?? "";
-    const message = answers.message?.trim() ?? "";
+  function validateForm() {
+    for (const field of fields.filter((item) => supportedFieldTypes.has(item.type))) {
+      const value = answers[field.key];
+      const stringValue = getStringValue(value).trim();
 
-    if (!fullName || !email || !message) {
+      if (field.required) {
+        const missingValue =
+          field.type === "CHECKBOX"
+            ? value !== true
+            : field.type === "FILE"
+              ? !files[field.key]
+              : !stringValue;
+
+        if (missingValue) return false;
+      }
+
+      if (field.type === "EMAIL" && stringValue && !emailPattern.test(stringValue)) {
+        return false;
+      }
+
+      if (field.type === "NUMBER" && stringValue && Number.isNaN(Number(stringValue))) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  async function uploadFormFiles(candidateAccessToken: string, uploadedByEmail: string) {
+    const fileEntries = Object.entries(files).filter((entry): entry is [string, File] =>
+      Boolean(entry[1]),
+    );
+
+    for (const [, file] of fileEntries) {
+      const formData = new FormData();
+      formData.append("candidateAccessToken", candidateAccessToken);
+      formData.append("uploadedByEmail", uploadedByEmail);
+      formData.append("file", file);
+
+      const res = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Unable to upload file");
+      }
+    }
+  }
+
+  async function submit() {
+    if (!validateForm()) {
       toast.error("Erreur lors de l'action");
       return;
     }
+
+    const fullName = getStringValue(answers.fullName).trim();
+    const email = getStringValue(answers.email).trim();
+    const message = getStringValue(answers.message).trim();
+    const submissionAnswers = fields.reduce<Record<string, FieldValue>>((result, field) => {
+      if (!supportedFieldTypes.has(field.type)) return result;
+
+      result[field.key] = field.type === "FILE" ? files[field.key]?.name ?? "" : answers[field.key] ?? "";
+      return result;
+    }, {});
 
     const payload = {
       gLinkId,
@@ -58,55 +139,113 @@ export default function CandidateForm({
       documentName: documentFields.documentName,
       documentUrl: documentFields.documentUrl,
       formTemplateId,
-      answers: {
-        fullName,
-        email,
-        message,
-      },
+      answers: submissionAnswers,
     };
 
     setLoading(true);
-    const res = await fetch("/api/cases", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    setLoading(false);
 
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        toast.error("Erreur lors de l'action");
+        return;
+      }
+
+      const relationCase = await res.json();
+      await uploadFormFiles(relationCase.candidateAccessToken, email);
+
+      toast.success("Message envoye");
+      router.push(`/secure/${encodeURIComponent(relationCase.candidateAccessToken)}`);
+    } catch {
       toast.error("Erreur lors de l'action");
-      return;
+    } finally {
+      setLoading(false);
     }
+  }
 
-    toast.success("Message envoye");
-    const relationCase = await res.json();
-    router.push(`/secure/${encodeURIComponent(relationCase.candidateAccessToken)}`);
+  function renderField(field: CandidateFormField) {
+    switch (field.type) {
+      case "TEXTAREA":
+        return (
+          <textarea
+            key={field.key}
+            className="min-h-32 w-full rounded-xl border px-4 py-3"
+            placeholder={field.placeholder ?? undefined}
+            value={getStringValue(answers[field.key])}
+            onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
+          />
+        );
+      case "SELECT":
+        return (
+          <select
+            key={field.key}
+            className="w-full rounded-xl border px-4 py-3"
+            value={getStringValue(answers[field.key])}
+            onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
+          >
+            <option value="">{field.placeholder ?? field.label}</option>
+            {field.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+      case "CHECKBOX":
+        return (
+          <label key={field.key} className="flex items-start gap-3 rounded-xl border px-4 py-3">
+            <input
+              className="mt-1"
+              type="checkbox"
+              checked={answers[field.key] === true}
+              onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.checked })}
+            />
+            <span className="text-sm text-slate-700">{field.label}</span>
+          </label>
+        );
+      case "FILE":
+        return (
+          <div key={field.key} className="rounded-xl border px-4 py-3">
+            <p className="mb-2 text-sm font-medium">{field.label}</p>
+            <input
+              className="w-full text-sm"
+              type="file"
+              onChange={(e) => setFiles({ ...files, [field.key]: e.target.files?.[0] ?? null })}
+            />
+          </div>
+        );
+      default:
+        return (
+          <input
+            key={field.key}
+            className="w-full rounded-xl border px-4 py-3"
+            type={
+              field.type === "EMAIL"
+                ? "email"
+                : field.type === "PHONE"
+                  ? "tel"
+                  : field.type === "NUMBER"
+                    ? "number"
+                    : field.type === "DATE"
+                      ? "date"
+                      : "text"
+            }
+            placeholder={field.placeholder ?? undefined}
+            value={getStringValue(answers[field.key])}
+            onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
+          />
+        );
+    }
   }
 
   return (
     <div className="mt-6 space-y-4">
-      {fields
-        .filter((field) => supportedFieldTypes.has(field.type))
-        .map((field) =>
-          field.type === "TEXTAREA" ? (
-            <textarea
-              key={field.key}
-              className="min-h-32 w-full rounded-xl border px-4 py-3"
-              placeholder={field.placeholder ?? undefined}
-              value={answers[field.key] ?? ""}
-              onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
-            />
-          ) : (
-            <input
-              key={field.key}
-              className="w-full rounded-xl border px-4 py-3"
-              type={field.type === "EMAIL" ? "email" : "text"}
-              placeholder={field.placeholder ?? undefined}
-              value={answers[field.key] ?? ""}
-              onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
-            />
-          ),
-        )}
+      {fields.filter((field) => supportedFieldTypes.has(field.type)).map(renderField)}
       <div className="rounded-2xl border p-4">
         <p className="mb-2 text-sm font-medium">Document optionnel</p>
         <p className="mb-3 text-sm text-slate-500">
