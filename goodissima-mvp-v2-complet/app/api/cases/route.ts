@@ -8,9 +8,8 @@ import {
 } from "@/lib/candidate-access";
 import { createRelationEvent } from "@/lib/events";
 import { createFormSubmission } from "@/lib/forms";
+import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
-
-const DEFAULT_RELATION_TEMPLATE_KEY = "DEFAULT_SECURE_CONVERSATION";
 
 function getFormSubmissionData(body: Record<string, unknown>) {
   if (typeof body.formTemplateId !== "string" || !body.formTemplateId) {
@@ -136,16 +135,13 @@ export async function POST(req: Request) {
     return withCandidateCookie(existingRelationCase.candidateAccessToken, gLink.id);
   }
 
-  const defaultRelationTemplate = await prisma.relationTemplate.findUnique({
-    where: { key: DEFAULT_RELATION_TEMPLATE_KEY },
-    select: { id: true },
-  });
+  const relationTemplate = await getRelationTemplateForLink(gLink.templateId);
 
   const relationCase = await prisma.relationCase.create({
     data: {
       gLinkId: gLink.id,
       ownerId: gLink.ownerId,
-      templateId: defaultRelationTemplate?.id,
+      templateId: relationTemplate?.id,
       candidateAccessToken: createCandidateAccessToken(),
       candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
       candidateName,

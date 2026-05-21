@@ -3,55 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
-import type { ConditionalRule, FormValues } from "@/lib/form-rules";
+import {
+  DynamicFormRenderer,
+  createInitialDynamicValues,
+  getStringFieldValue,
+  supportedFieldTypes,
+  toRuleValues,
+  type DynamicFieldValue,
+  type DynamicFormField,
+} from "@/components/DynamicFormRenderer";
+import { getFieldsForStep, getStepCount } from "@/lib/form-steps";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
 
-type FieldValue = string | boolean;
-
-type CandidateFormFieldOption = {
-  label: string;
-  value: string;
-};
-
-type CandidateFormField = {
-  key: string;
-  label: string;
-  type: string;
-  required: boolean;
-  placeholder: string | null;
-  defaultValue: string | null;
-  options: CandidateFormFieldOption[];
-  conditionalRules: ConditionalRule[];
-};
-
-const supportedFieldTypes = new Set([
-  "TEXT",
-  "EMAIL",
-  "TEXTAREA",
-  "PHONE",
-  "NUMBER",
-  "DATE",
-  "SELECT",
-  "CHECKBOX",
-  "FILE",
-]);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function createInitialAnswers(fields: CandidateFormField[]) {
-  return fields.reduce<Record<string, FieldValue>>((answers, field) => {
-    answers[field.key] =
-      field.type === "CHECKBOX" ? field.defaultValue === "true" : field.defaultValue ?? "";
-    return answers;
-  }, {});
-}
-
-function getStringValue(value: FieldValue | undefined) {
-  return typeof value === "string" ? value : "";
-}
-
-function toRuleValues(values: Record<string, FieldValue>): FormValues {
-  return values;
-}
 
 export default function CandidateForm({
   gLinkId,
@@ -60,29 +24,35 @@ export default function CandidateForm({
 }: {
   gLinkId: string;
   formTemplateId: string | null;
-  fields: CandidateFormField[];
+  fields: DynamicFormField[];
 }) {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [answers, setAnswers] = useState<Record<string, FieldValue>>(() => createInitialAnswers(fields));
+  const [answers, setAnswers] = useState<Record<string, DynamicFieldValue>>(() =>
+    createInitialDynamicValues(fields),
+  );
   const [files, setFiles] = useState<Record<string, File | null>>({});
+  const [currentStep, setCurrentStep] = useState(1);
   const [documentFields, setDocumentFields] = useState({
     documentName: "",
     documentUrl: "",
   });
+  const stepCount = getStepCount(fields);
+  const isMultiStep = stepCount > 1;
+  const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
 
-  function validateForm() {
+  function validateFields(fieldsToValidate: DynamicFormField[]) {
     const ruleValues = toRuleValues(answers);
 
-    for (const field of fields.filter(
+    for (const field of fieldsToValidate.filter(
       (item) =>
         supportedFieldTypes.has(item.type) &&
         shouldDisplayField(item, ruleValues) &&
         !isFieldDisabled(item, ruleValues),
     )) {
       const value = answers[field.key];
-      const stringValue = getStringValue(value).trim();
+      const stringValue = getStringFieldValue(value).trim();
 
       if (isFieldRequired(field, ruleValues)) {
         const missingValue =
@@ -105,6 +75,19 @@ export default function CandidateForm({
     }
 
     return true;
+  }
+
+  function validateForm() {
+    return validateFields(fields);
+  }
+
+  function goToNextStep() {
+    if (!validateFields(currentFields)) {
+      toast.error("Erreur lors de l'action");
+      return;
+    }
+
+    setCurrentStep(Math.min(currentStep + 1, stepCount));
   }
 
   async function uploadFormFiles(candidateAccessToken: string, uploadedByEmail: string) {
@@ -135,11 +118,11 @@ export default function CandidateForm({
       return;
     }
 
-    const fullName = getStringValue(answers.fullName).trim();
-    const email = getStringValue(answers.email).trim();
-    const message = getStringValue(answers.message).trim();
+    const fullName = getStringFieldValue(answers.fullName).trim();
+    const email = getStringFieldValue(answers.email).trim();
+    const message = getStringFieldValue(answers.message).trim();
     const ruleValues = toRuleValues(answers);
-    const submissionAnswers = fields.reduce<Record<string, FieldValue>>((result, field) => {
+    const submissionAnswers = fields.reduce<Record<string, DynamicFieldValue>>((result, field) => {
       if (!supportedFieldTypes.has(field.type)) return result;
       if (!shouldDisplayField(field, ruleValues)) return result;
 
@@ -184,125 +167,82 @@ export default function CandidateForm({
     }
   }
 
-  function renderField(field: CandidateFormField) {
-    const ruleValues = toRuleValues(answers);
-    if (!shouldDisplayField(field, ruleValues)) return null;
-
-    const disabled = loading || isFieldDisabled(field, ruleValues);
-    const required = isFieldRequired(field, ruleValues);
-
-    switch (field.type) {
-      case "TEXTAREA":
-        return (
-          <textarea
-            key={field.key}
-            className="min-h-32 w-full rounded-xl border px-4 py-3"
-            placeholder={field.placeholder ?? undefined}
-            value={getStringValue(answers[field.key])}
-            required={required}
-            disabled={disabled}
-            onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
-          />
-        );
-      case "SELECT":
-        return (
-          <select
-            key={field.key}
-            className="w-full rounded-xl border px-4 py-3"
-            value={getStringValue(answers[field.key])}
-            required={required}
-            disabled={disabled}
-            onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
-          >
-            <option value="">{field.placeholder ?? field.label}</option>
-            {field.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        );
-      case "CHECKBOX":
-        return (
-          <label key={field.key} className="flex items-start gap-3 rounded-xl border px-4 py-3">
-            <input
-              className="mt-1"
-              type="checkbox"
-              checked={answers[field.key] === true}
-              required={required}
-              disabled={disabled}
-              onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.checked })}
-            />
-            <span className="text-sm text-slate-700">{field.label}</span>
-          </label>
-        );
-      case "FILE":
-        return (
-          <div key={field.key} className="rounded-xl border px-4 py-3">
-            <p className="mb-2 text-sm font-medium">{field.label}</p>
-            <input
-              className="w-full text-sm"
-              type="file"
-              required={required}
-              disabled={disabled}
-              onChange={(e) => setFiles({ ...files, [field.key]: e.target.files?.[0] ?? null })}
-            />
-          </div>
-        );
-      default:
-        return (
-          <input
-            key={field.key}
-            className="w-full rounded-xl border px-4 py-3"
-            type={
-              field.type === "EMAIL"
-                ? "email"
-                : field.type === "PHONE"
-                  ? "tel"
-                  : field.type === "NUMBER"
-                    ? "number"
-                    : field.type === "DATE"
-                      ? "date"
-                      : "text"
-            }
-            placeholder={field.placeholder ?? undefined}
-            value={getStringValue(answers[field.key])}
-            required={required}
-            disabled={disabled}
-            onChange={(e) => setAnswers({ ...answers, [field.key]: e.target.value })}
-          />
-        );
-    }
-  }
-
   return (
     <div className="mt-6 space-y-4">
-      {fields.filter((field) => supportedFieldTypes.has(field.type)).map(renderField)}
-      <div className="rounded-2xl border p-4">
-        <p className="mb-2 text-sm font-medium">Document optionnel</p>
-        <p className="mb-3 text-sm text-slate-500">
-          Vous pouvez ajouter un lien vers un document si le proprietaire l'a demande.
-        </p>
-        <input
-          className="mb-2 w-full rounded-xl border px-4 py-3"
-          placeholder="Nom du document"
-          value={documentFields.documentName}
-          onChange={(e) => setDocumentFields({ ...documentFields, documentName: e.target.value })}
-        />
-        <input
-          className="w-full rounded-xl border px-4 py-3"
-          placeholder="URL du document"
-          value={documentFields.documentUrl}
-          onChange={(e) => setDocumentFields({ ...documentFields, documentUrl: e.target.value })}
-        />
+      <DynamicFormRenderer
+        fields={currentFields}
+        values={answers}
+        files={files}
+        loading={loading}
+        onChange={(key, value) => setAnswers({ ...answers, [key]: value })}
+        onFileChange={(key, file) => setFiles({ ...files, [key]: file })}
+      />
+      {(!isMultiStep || currentStep === stepCount) && (
+        <div className="rounded-2xl border p-4">
+          <p className="mb-2 text-sm font-medium">Document optionnel</p>
+          <p className="mb-3 text-sm text-slate-500">
+            Vous pouvez ajouter un lien vers un document si le proprietaire l'a demande.
+          </p>
+          <input
+            className="mb-2 w-full rounded-xl border px-4 py-3"
+            placeholder="Nom du document"
+            value={documentFields.documentName}
+            onChange={(e) => setDocumentFields({ ...documentFields, documentName: e.target.value })}
+          />
+          <input
+            className="w-full rounded-xl border px-4 py-3"
+            placeholder="URL du document"
+            value={documentFields.documentUrl}
+            onChange={(e) => setDocumentFields({ ...documentFields, documentUrl: e.target.value })}
+          />
+        </div>
+      )}
+      {isMultiStep && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-sm text-slate-500">
+            <span>
+              Etape {currentStep} sur {stepCount}
+            </span>
+            <span>{Math.round((currentStep / stepCount) * 100)}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full bg-slate-900"
+              style={{ width: `${Math.round((currentStep / stepCount) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+      <div className={isMultiStep ? "flex gap-3" : ""}>
+        {isMultiStep && currentStep > 1 && (
+          <button
+            type="button"
+            onClick={() => setCurrentStep(Math.max(currentStep - 1, 1))}
+            disabled={loading}
+            className="w-full rounded-2xl border px-5 py-3 text-slate-800 disabled:opacity-60"
+          >
+            Retour
+          </button>
+        )}
+        {isMultiStep && currentStep < stepCount ? (
+          <button
+            type="button"
+            onClick={goToNextStep}
+            disabled={loading}
+            className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-white disabled:opacity-60"
+          >
+            Suivant
+          </button>
+        ) : (
+          <button
+            onClick={submit}
+            disabled={loading}
+            className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-white disabled:opacity-60"
+          >
+            {loading ? "Envoi en cours..." : "Envoyer ma demande"}
+          </button>
+        )}
       </div>
-      <button
-        onClick={submit}
-        disabled={loading}
-        className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-white disabled:opacity-60"
-      >
-        {loading ? "Envoi en cours..." : "Envoyer ma demande"}
-      </button>
     </div>
   );
 }

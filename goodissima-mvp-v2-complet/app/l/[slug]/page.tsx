@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import type { ConditionalRule } from "@/lib/form-rules";
-import { DEFAULT_FORM_TEMPLATE_KEY, getFormFields, getFormTemplateByKey } from "@/lib/forms";
+import { getFormFields } from "@/lib/forms";
+import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
 import { PublicLinkBox } from "@/components/PublicLinkBox";
@@ -20,6 +21,7 @@ const defaultFields = [
     required: true,
     placeholder: "Votre nom",
     defaultValue: null,
+    step: 1,
     options: [],
     conditionalRules: [],
   },
@@ -30,6 +32,7 @@ const defaultFields = [
     required: true,
     placeholder: "Votre email",
     defaultValue: null,
+    step: 1,
     options: [],
     conditionalRules: [],
   },
@@ -40,6 +43,7 @@ const defaultFields = [
     required: true,
     placeholder: "Presentez-vous et indiquez votre demande",
     defaultValue: null,
+    step: 1,
     options: [],
     conditionalRules: [],
   },
@@ -88,7 +92,7 @@ function parseConditionalRules(rules: unknown): ConditionalRule[] {
 export default async function PublicLinkPage({ params }: { params: { slug: string } }) {
   const link = await prisma.gLink.findUnique({
     where: { slug: params.slug },
-    include: { owner: true },
+    include: { owner: true, template: true },
   });
 
   if (!link || link.status !== "ACTIVE") notFound();
@@ -110,7 +114,13 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
   }
 
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/l/${link.slug}`;
-  const formTemplate = await getFormTemplateByKey(DEFAULT_FORM_TEMPLATE_KEY);
+  const relationTemplate = link.template ?? (await getRelationTemplateForLink(null));
+  const formTemplate = relationTemplate
+    ? await prisma.formTemplate.findFirst({
+        where: { relationTemplateId: relationTemplate.id },
+        orderBy: { createdAt: "asc" },
+      })
+    : null;
   const formFields = formTemplate ? await getFormFields(formTemplate.id) : [];
   const candidateFields = formFields.length
     ? formFields.map((field) => ({
@@ -120,6 +130,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         required: field.required,
         placeholder: field.placeholder,
         defaultValue: field.defaultValue,
+        step: field.step,
         options: parseFieldOptions(field.options),
         conditionalRules: parseConditionalRules(field.conditionalRules),
       }))
@@ -155,7 +166,11 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           </p>
         </div>
 
-        <CandidateForm gLinkId={link.id} formTemplateId={formTemplate?.id ?? null} fields={candidateFields} />
+        <CandidateForm
+          gLinkId={link.id}
+          formTemplateId={formTemplate?.id ?? null}
+          fields={candidateFields}
+        />
       </div>
     </main>
   );

@@ -12,7 +12,7 @@ export function getFormTemplateByKey(key: string) {
 export function getFormFields(formTemplateId: string) {
   return prisma.formField.findMany({
     where: { formTemplateId },
-    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    orderBy: [{ step: "asc" }, { position: "asc" }, { createdAt: "asc" }],
   });
 }
 

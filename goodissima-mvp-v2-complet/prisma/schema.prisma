@@ -58,6 +58,7 @@ model User {
 model GLink {
   id          String     @id @default(cuid())
   ownerId     String
+  templateId  String?
   slug        String     @unique
   title       String
   city        String?
@@ -67,8 +68,9 @@ model GLink {
   createdAt   DateTime   @default(now())
   expiresAt   DateTime?
 
-  owner User           @relation(fields: [ownerId], references: [id])
-  cases RelationCase[]
+  owner    User              @relation(fields: [ownerId], references: [id])
+  template RelationTemplate? @relation(fields: [templateId], references: [id])
+  cases    RelationCase[]
 }
 
 model RelationCase {
@@ -108,6 +110,7 @@ model RelationTemplate {
   updatedAt DateTime @updatedAt
 
   relationCases RelationCase[]
+  links         GLink[]
   formTemplates FormTemplate[]
 }
 
@@ -144,6 +147,7 @@ model FormField {
   defaultValue String?
 
   position Int @default(0)
+  step     Int @default(1)
 
   options          Json?
   validationRules  Json?

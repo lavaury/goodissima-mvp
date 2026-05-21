@@ -1,92 +1,29 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ToastProvider";
+import { unstable_noStore as noStore } from "next/cache";
+import { getCurrentPrismaUser } from "@/lib/auth";
+import { DEFAULT_RELATION_TEMPLATE_KEY } from "@/lib/relation-templates";
+import { prisma } from "@/lib/prisma";
+import { NewLinkForm } from "./NewLinkForm";
 
-export default function NewLinkPage() {
-  const router = useRouter();
-  const toast = useToast();
-  const [form, setForm] = useState({
-    title: "",
-    city: "",
-    description: "",
-    requireEmail: true,
-    requireMessage: true,
-    allowDocument: true,
+export default async function NewLinkPage() {
+  noStore();
+  await getCurrentPrismaUser();
+
+  const templates = await prisma.relationTemplate.findMany({
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      key: true,
+      name: true,
+    },
   });
-
-  async function submit() {
-    if (!form.title.trim()) {
-      toast.error("Erreur lors de l'action");
-      return;
-    }
-
-    const res = await fetch("/api/links", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    if (!res.ok) {
-      toast.error("Erreur lors de l'action");
-      return;
-    }
-
-    const link = await res.json();
-    router.push(`/l/${link.slug}`);
-  }
+  const defaultTemplate = templates.find((template) => template.key === DEFAULT_RELATION_TEMPLATE_KEY);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
       <h1 className="text-3xl font-bold">Creer un lien securise</h1>
-      <div className="mt-8 space-y-4 rounded-2xl border bg-white p-6">
-        <input
-          className="w-full rounded-xl border px-4 py-3"
-          placeholder="Titre de l'annonce"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-        />
-        <input
-          className="w-full rounded-xl border px-4 py-3"
-          placeholder="Ville"
-          value={form.city}
-          onChange={(e) => setForm({ ...form, city: e.target.value })}
-        />
-        <textarea
-          className="min-h-32 w-full rounded-xl border px-4 py-3"
-          placeholder="Description courte"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-        <label className="flex gap-2">
-          <input
-            type="checkbox"
-            checked={form.requireEmail}
-            onChange={(e) => setForm({ ...form, requireEmail: e.target.checked })}
-          />
-          Email obligatoire
-        </label>
-        <label className="flex gap-2">
-          <input
-            type="checkbox"
-            checked={form.requireMessage}
-            onChange={(e) => setForm({ ...form, requireMessage: e.target.checked })}
-          />
-          Message obligatoire
-        </label>
-        <label className="flex gap-2">
-          <input
-            type="checkbox"
-            checked={form.allowDocument}
-            onChange={(e) => setForm({ ...form, allowDocument: e.target.checked })}
-          />
-          Document optionnel
-        </label>
-        <button onClick={submit} className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-white">
-          Generer le lien
-        </button>
-      </div>
+      <NewLinkForm templates={templates} defaultTemplateId={defaultTemplate?.id ?? templates[0]?.id ?? null} />
     </main>
   );
 }
