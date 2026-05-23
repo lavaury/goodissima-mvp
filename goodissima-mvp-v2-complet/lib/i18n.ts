@@ -1,15 +1,32 @@
-import de from "@/messages/de.json";
-import en from "@/messages/en.json";
-import es from "@/messages/es.json";
-import fr from "@/messages/fr.json";
+import { cookies } from "next/headers";
+export {
+  createTranslator,
+  defaultLocale,
+  getMessages,
+  interpolate,
+  isLocale,
+  localeCookieName,
+  supportedLocales,
+  type Locale,
+  type Messages,
+} from "@/lib/i18n-core";
+import { createTranslator, defaultLocale, getMessages, isLocale, localeCookieName, type Locale } from "@/lib/i18n-core";
 
-export const defaultLocale = "fr";
+export function getCurrentLocale() {
+  const value = cookies().get(localeCookieName)?.value;
+  return isLocale(value) ? value : defaultLocale;
+}
 
-type Locale = "fr" | "en" | "es" | "de";
-type Messages = Record<string, string>;
+export function getI18n() {
+  const locale = getCurrentLocale();
 
-const dictionaries: Record<Locale, Messages> = { fr, en, es, de };
+  return {
+    locale,
+    messages: getMessages(locale),
+    t: createTranslator(locale),
+  };
+}
 
-export function t(key: string, locale: Locale = defaultLocale) {
-  return dictionaries[locale]?.[key] ?? dictionaries[defaultLocale][key] ?? key;
+export function t(key: string, locale: Locale = defaultLocale, params?: Record<string, string | number>) {
+  return createTranslator(locale)(key, params);
 }

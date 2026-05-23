@@ -8,6 +8,10 @@ type DashboardLink = {
   slug: string;
   title: string;
   city?: string | null;
+  templateName?: string | null;
+  templateStatus?: string | null;
+  templateVersion?: number | null;
+  openActionCount?: number;
   cases?: Array<{
     id: string;
     candidateEmail: string;

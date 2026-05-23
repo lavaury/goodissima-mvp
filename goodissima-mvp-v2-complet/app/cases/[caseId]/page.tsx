@@ -16,6 +16,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
       gLink: true,
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
+      relationActions: { orderBy: [{ status: "asc" }, { createdAt: "desc" }] },
       auditLogs: { orderBy: { createdAt: "desc" } },
       relationEvents: { orderBy: { createdAt: "desc" } },
     },

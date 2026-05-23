@@ -80,7 +80,7 @@ export function CandidateAccessControls({
           disabled={loading !== null}
           className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-50"
         >
-          {loading === "regenerate" ? "Regeneration..." : "Regenerer"}
+          {loading === "regenerate" ? "Régénération..." : "Régénérer"}
         </button>
       </div>
     </div>

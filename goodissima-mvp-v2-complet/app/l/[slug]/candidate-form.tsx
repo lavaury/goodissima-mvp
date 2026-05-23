@@ -21,10 +21,24 @@ export default function CandidateForm({
   gLinkId,
   formTemplateId,
   fields,
+  copy,
 }: {
   gLinkId: string;
   formTemplateId: string | null;
   fields: DynamicFormField[];
+  copy: {
+    documentOptionalTitle: string;
+    documentOptionalHelp: string;
+    documentNamePlaceholder: string;
+    documentUrlPlaceholder: string;
+    submit: string;
+    submitting: string;
+    next: string;
+    back: string;
+    stepProgress: string;
+    messageSentToast: string;
+    fieldErrorToast: string;
+  };
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -83,7 +97,7 @@ export default function CandidateForm({
 
   function goToNextStep() {
     if (!validateFields(currentFields)) {
-      toast.error("Erreur lors de l'action");
+      toast.error(copy.fieldErrorToast);
       return;
     }
 
@@ -114,7 +128,7 @@ export default function CandidateForm({
 
   async function submit() {
     if (!validateForm()) {
-      toast.error("Erreur lors de l'action");
+      toast.error(copy.fieldErrorToast);
       return;
     }
 
@@ -158,7 +172,7 @@ export default function CandidateForm({
       const relationCase = await res.json();
       await uploadFormFiles(relationCase.candidateAccessToken, email);
 
-      toast.success("Message envoye");
+      toast.success(copy.messageSentToast);
       router.push(`/secure/${encodeURIComponent(relationCase.candidateAccessToken)}`);
     } catch {
       toast.error("Erreur lors de l'action");
@@ -179,19 +193,19 @@ export default function CandidateForm({
       />
       {(!isMultiStep || currentStep === stepCount) && (
         <div className="rounded-2xl border p-4">
-          <p className="mb-2 text-sm font-medium">Document optionnel</p>
+          <p className="mb-2 text-sm font-medium">{copy.documentOptionalTitle}</p>
           <p className="mb-3 text-sm text-slate-500">
-            Vous pouvez ajouter un lien vers un document si le proprietaire l'a demande.
+            {copy.documentOptionalHelp}
           </p>
           <input
             className="mb-2 w-full rounded-xl border px-4 py-3"
-            placeholder="Nom du document"
+            placeholder={copy.documentNamePlaceholder}
             value={documentFields.documentName}
             onChange={(e) => setDocumentFields({ ...documentFields, documentName: e.target.value })}
           />
           <input
             className="w-full rounded-xl border px-4 py-3"
-            placeholder="URL du document"
+            placeholder={copy.documentUrlPlaceholder}
             value={documentFields.documentUrl}
             onChange={(e) => setDocumentFields({ ...documentFields, documentUrl: e.target.value })}
           />
@@ -201,7 +215,7 @@ export default function CandidateForm({
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm text-slate-500">
             <span>
-              Etape {currentStep} sur {stepCount}
+              {copy.stepProgress.replace("{current}", String(currentStep)).replace("{total}", String(stepCount))}
             </span>
             <span>{Math.round((currentStep / stepCount) * 100)}%</span>
           </div>
@@ -221,7 +235,7 @@ export default function CandidateForm({
             disabled={loading}
             className="w-full rounded-2xl border px-5 py-3 text-slate-800 disabled:opacity-60"
           >
-            Retour
+            {copy.back}
           </button>
         )}
         {isMultiStep && currentStep < stepCount ? (
@@ -231,7 +245,7 @@ export default function CandidateForm({
             disabled={loading}
             className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-white disabled:opacity-60"
           >
-            Suivant
+            {copy.next}
           </button>
         ) : (
           <button
@@ -239,7 +253,7 @@ export default function CandidateForm({
             disabled={loading}
             className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-white disabled:opacity-60"
           >
-            {loading ? "Envoi en cours..." : "Envoyer ma demande"}
+            {loading ? copy.submitting : copy.submit}
           </button>
         )}
       </div>

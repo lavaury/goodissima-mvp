@@ -6,6 +6,7 @@ import {
   createCandidateAccessExpiresAt,
   createCandidateAccessToken,
 } from "@/lib/candidate-access";
+import { sendNewDocumentEmail, sendNewMessageEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { createFormSubmission } from "@/lib/forms";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
@@ -51,7 +52,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const gLink = await prisma.gLink.findUnique({ where: { id: body.gLinkId } });
+  const gLink = await prisma.gLink.findUnique({
+    where: { id: body.gLinkId },
+    include: { owner: { select: { email: true } } },
+  });
 
   if (!gLink) {
     return NextResponse.json({ error: "Link not found" }, { status: 404 });
@@ -66,6 +70,9 @@ export async function POST(req: Request) {
     select: {
       id: true,
       candidateAccessToken: true,
+      candidateName: true,
+      owner: { select: { email: true } },
+      gLink: { select: { title: true } },
     },
   });
 
@@ -132,6 +139,26 @@ export async function POST(req: Request) {
       });
     }
 
+    await sendNewMessageEmail({
+      ownerEmail: existingRelationCase.owner.email,
+      candidateEmail,
+      caseId: existingRelationCase.id,
+      caseTitle: existingRelationCase.gLink.title,
+      candidateName: existingRelationCase.candidateName,
+      messageBody,
+    });
+
+    if (body.documentName && body.documentUrl) {
+      await sendNewDocumentEmail({
+        ownerEmail: existingRelationCase.owner.email,
+        candidateEmail,
+        caseId: existingRelationCase.id,
+        caseTitle: existingRelationCase.gLink.title,
+        candidateName: existingRelationCase.candidateName,
+        fileName: String(body.documentName),
+      });
+    }
+
     return withCandidateCookie(existingRelationCase.candidateAccessToken, gLink.id);
   }
 
@@ -151,6 +178,9 @@ export async function POST(req: Request) {
     select: {
       id: true,
       candidateAccessToken: true,
+      candidateName: true,
+      owner: { select: { email: true } },
+      gLink: { select: { title: true } },
     },
   });
 
@@ -218,6 +248,26 @@ export async function POST(req: Request) {
       formTemplateId: formSubmission.formTemplateId,
       caseId: relationCase.id,
       answers: formSubmission.answers,
+    });
+  }
+
+  await sendNewMessageEmail({
+    ownerEmail: relationCase.owner.email,
+    candidateEmail,
+    caseId: relationCase.id,
+    caseTitle: relationCase.gLink.title,
+    candidateName: relationCase.candidateName,
+    messageBody,
+  });
+
+  if (document) {
+    await sendNewDocumentEmail({
+      ownerEmail: relationCase.owner.email,
+      candidateEmail,
+      caseId: relationCase.id,
+      caseTitle: relationCase.gLink.title,
+      candidateName: relationCase.candidateName,
+      fileName: document.fileName,
     });
   }
 

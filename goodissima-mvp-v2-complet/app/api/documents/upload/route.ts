@@ -168,6 +168,7 @@ export async function POST(req: Request) {
     try {
       await sendNewDocumentEmail({
         ownerEmail: relationCase.owner.email,
+        candidateEmail: relationCase.candidateEmail,
         caseId: relationCase.id,
         caseTitle: relationCase.gLink.title,
         candidateName: relationCase.candidateName,

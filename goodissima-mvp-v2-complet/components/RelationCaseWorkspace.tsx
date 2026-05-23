@@ -3,6 +3,11 @@ import { ChatBox } from "@/components/ChatBox";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
+import { RelationActionsPanel } from "@/components/RelationActionsPanel";
+import {
+  getRelationActionStatusLabel,
+  getRelationActionTypeLabel,
+} from "@/lib/relation-actions";
 import type { Prisma, RelationPriority, RelationStatus } from "@prisma/client";
 import Image from "next/image";
 
@@ -31,6 +36,17 @@ type RelationCaseWorkspaceItem = {
     uploadedByEmail?: string;
     createdAt?: Date | string;
   }>;
+  relationActions: Array<{
+    id: string;
+    type: string;
+    status: string;
+    title: string;
+    description?: string | null;
+    payload?: Prisma.JsonValue | null;
+    createdByRole: string;
+    completedAt?: Date | string | null;
+    createdAt: Date | string;
+  }>;
   auditLogs: Array<{ id: string; eventType: string; createdAt: Date | string }>;
   relationEvents: Array<{
     id: string;
@@ -39,6 +55,16 @@ type RelationCaseWorkspaceItem = {
     payload?: Prisma.JsonValue | null;
     createdAt: Date | string;
   }>;
+};
+
+type ActivityEvent = {
+  id: string;
+  label: string;
+  date: Date | string;
+  type: string;
+  badge?: string;
+  status?: string;
+  actor?: string;
 };
 
 const parisDateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -52,6 +78,17 @@ const parisDateFormatter = new Intl.DateTimeFormat("fr-FR", {
 
 function formatActivityDate(date: Date | string) {
   return parisDateFormatter.format(new Date(date));
+}
+
+function formatRelativeActivityDate(date: Date | string) {
+  const diffMs = Date.now() - new Date(date).getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays >= 1) return `Il y a ${diffDays} jour${diffDays > 1 ? "s" : ""}`;
+  if (diffHours >= 1) return `Il y a ${diffHours}h`;
+  return `Il y a ${diffMinutes} min`;
 }
 
 function getPayloadString(payload: Prisma.JsonValue | null | undefined, key: string) {
@@ -79,6 +116,10 @@ function getRelationEventLabel(event: RelationCaseWorkspaceItem["relationEvents"
       return "Dossier archive";
     case "CASE_RESTORED":
       return "Dossier reactive";
+    case "ACTION_CREATED":
+      return `Demande créée${getPayloadString(event.payload, "title") ? ` - ${getPayloadString(event.payload, "title")}` : ""}`;
+    case "ACTION_COMPLETED":
+      return `Demande complétée${getPayloadString(event.payload, "title") ? ` - ${getPayloadString(event.payload, "title")}` : ""}`;
     default:
       return event.type;
   }
@@ -95,12 +136,15 @@ function getRelationEventType(eventType: string) {
     case "CASE_ARCHIVED":
     case "CASE_RESTORED":
       return "Dossier";
+    case "ACTION_CREATED":
+    case "ACTION_COMPLETED":
+      return "Demande";
     default:
       return "Evenement";
   }
 }
 
-function getActivityEvents(item: RelationCaseWorkspaceItem) {
+function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
   const eventMessageIds = new Set(
     item.relationEvents
       .map((event) => getPayloadString(event.payload, "messageId"))
@@ -115,7 +159,7 @@ function getActivityEvents(item: RelationCaseWorkspaceItem) {
   const events = [
     {
       id: `case-${item.id}`,
-      label: "Dossier cree",
+      label: "Dossier créé",
       date: item.createdAt,
       type: "Dossier",
     },
@@ -148,11 +192,18 @@ function getActivityEvents(item: RelationCaseWorkspaceItem) {
         date: document.createdAt!,
         type: "Document",
       })),
+    ...item.relationActions.map((action) => ({
+      id: `action-${action.id}`,
+      label: action.title,
+      date: action.completedAt ?? action.createdAt,
+      type: "Demande",
+      badge: getRelationActionTypeLabel(action.type),
+      status: getRelationActionStatusLabel(action.status),
+      actor: action.createdByRole,
+    })),
   ];
 
-  return events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 10);
+  return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export function RelationCaseWorkspace({
@@ -172,14 +223,20 @@ export function RelationCaseWorkspace({
   return (
     <main className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:py-10">
       {isCandidateView ? (
-        <Image
-          src="/logo-goodissima.png"
-          alt="Goodissima"
-          width={240}
-          height={104}
-          priority
-          className="mb-6 h-auto w-44 sm:w-60"
-        />
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Image
+            src="/logo-goodissima.png"
+            alt="Goodissima"
+            width={240}
+            height={104}
+            priority
+            className="h-auto w-44 sm:w-60"
+          />
+          <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-700">
+            <span className="rounded-full bg-emerald-50 px-3 py-1 ring-1 ring-emerald-200">Conversation sécurisée</span>
+            <span className="rounded-full bg-sky-50 px-3 py-1 ring-1 ring-sky-200">Documents proteges</span>
+          </div>
+        </div>
       ) : null}
       <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{item.gLink.title}</h1>
       <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">
@@ -191,9 +248,14 @@ export function RelationCaseWorkspace({
         status={item.status}
         editable={senderType === "OWNER"}
       />
-      <div className="mt-6 rounded-2xl border bg-white p-4 sm:p-5 lg:p-4">
-        <h2 className="font-semibold">Activite du dossier</h2>
-        <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-2">
+      <div className="mt-6 rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4">
+        <h2 className="font-semibold">Activité du dossier</h2>
+        <div className="mt-3 max-h-[50vh] space-y-2 overflow-y-auto pr-2 sm:max-h-[28rem] lg:max-h-[calc(100vh-22rem)]">
+          {activityEvents.length === 0 ? (
+            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+              L'activité du dossier apparaîtra ici au fil des messages, documents et demandes.
+            </div>
+          ) : null}
           {activityEvents.map((event) => (
             <div
               key={event.id}
@@ -201,9 +263,21 @@ export function RelationCaseWorkspace({
             >
               <div>
                 <p className="font-medium text-slate-800">{event.label}</p>
-                <p className="text-xs text-slate-500">{event.type}</p>
+                <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                  <span>{event.type}</span>
+                  {"badge" in event && event.badge ? (
+                    <span className="rounded-full bg-white px-2 py-0.5 text-slate-700 ring-1 ring-slate-200">
+                      {event.badge}
+                    </span>
+                  ) : null}
+                  {"status" in event && event.status ? <span>{event.status}</span> : null}
+                  {"actor" in event && event.actor ? <span>Acteur: {event.actor}</span> : null}
+                </div>
               </div>
-              <p className="shrink-0 text-xs text-slate-500">{formatActivityDate(event.date)}</p>
+              <p className="shrink-0 text-xs text-slate-500">
+                {formatRelativeActivityDate(event.date)}
+                <span className="block text-[11px]">{formatActivityDate(event.date)}</span>
+              </p>
             </div>
           ))}
         </div>
@@ -216,6 +290,12 @@ export function RelationCaseWorkspace({
           senderType={senderType}
         />
         <aside className="space-y-4">
+          <RelationActionsPanel
+            caseId={item.id}
+            actions={item.relationActions}
+            editable={senderType === "OWNER"}
+            candidateAccessToken={candidateAccessToken}
+          />
           <div className="rounded-2xl border bg-white p-4 sm:p-5 lg:p-4">
             <h2 className="font-semibold">Documents</h2>
             <div className="mt-3">
@@ -242,7 +322,7 @@ export function RelationCaseWorkspace({
           <div className={isCandidateView ? "hidden lg:block" : ""}>
             <div className="rounded-2xl border bg-white p-4">
               <h2 className="font-semibold">Historique minimal</h2>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 max-h-[40vh] space-y-2 overflow-y-auto pr-2 lg:max-h-80">
                 {item.auditLogs.map((log) => (
                   <div key={log.id} className="rounded-xl bg-slate-50 p-2 text-xs">
                     <p className="font-medium">{log.eventType}</p>

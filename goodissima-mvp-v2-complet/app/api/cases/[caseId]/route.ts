@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server";
 import { RelationPriority, RelationStatus } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { sendRelationStatusEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 
 const relationPriorities = new Set<string>(Object.values(RelationPriority));
 const relationStatuses = new Set<string>(Object.values(RelationStatus));
+const notifiedStatuses = new Set<RelationStatus>([RelationStatus.VALIDATED, RelationStatus.REJECTED]);
+
+function getStatusEmailLabel(status: RelationStatus) {
+  switch (status) {
+    case RelationStatus.VALIDATED:
+      return "Relation validee";
+    case RelationStatus.REJECTED:
+      return "Relation refusee";
+    default:
+      return status;
+  }
+}
 
 export async function PATCH(req: Request, { params }: { params: { caseId: string } }) {
   try {
@@ -35,7 +48,15 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
 
     const relationCase = await prisma.relationCase.findFirst({
       where: { id: params.caseId, ownerId: owner.id },
-      select: { id: true, priority: true, status: true },
+      select: {
+        id: true,
+        candidateAccessToken: true,
+        candidateEmail: true,
+        candidateName: true,
+        priority: true,
+        status: true,
+        gLink: { select: { title: true } },
+      },
     });
 
     if (!relationCase) {
@@ -77,6 +98,26 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         actorId: owner.id,
         payload: { from: relationCase.status, to: data.status },
       });
+
+      if (notifiedStatuses.has(data.status)) {
+        console.info("[candidate-email] Relation status email trigger", {
+          caseId: relationCase.id,
+          to: relationCase.candidateEmail,
+          status: data.status,
+          secureLink: `/secure/${relationCase.candidateAccessToken}`,
+          hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
+        });
+
+        await sendRelationStatusEmail({
+          candidateEmail: relationCase.candidateEmail,
+          ownerEmail: owner.email,
+          caseId: relationCase.id,
+          caseTitle: relationCase.gLink.title,
+          candidateName: relationCase.candidateName,
+          candidateAccessToken: relationCase.candidateAccessToken,
+          statusLabel: getStatusEmailLabel(data.status),
+        });
+      }
     }
 
     return NextResponse.json(updated);

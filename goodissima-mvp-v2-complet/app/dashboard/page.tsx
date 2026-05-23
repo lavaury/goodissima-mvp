@@ -4,8 +4,9 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { DashboardLinkFilters } from "@/components/DashboardLinkFilters";
 import { LogoutButton } from "@/components/LogoutButton";
+import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { t } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 
 function formatRelativeDate(date: Date) {
@@ -24,22 +25,29 @@ function getCaseLastActivityAt(relationCase: {
   createdAt: Date;
   messages: Array<{ createdAt: Date }>;
   documents: Array<{ createdAt: Date }>;
+  relationActions: Array<{ createdAt: Date; completedAt: Date | null }>;
 }) {
   return Math.max(
     relationCase.createdAt.getTime(),
     relationCase.messages[0]?.createdAt.getTime() ?? 0,
     relationCase.documents[0]?.createdAt.getTime() ?? 0,
+    relationCase.relationActions[0]?.completedAt?.getTime() ??
+      relationCase.relationActions[0]?.createdAt.getTime() ??
+      0,
   );
 }
 
 export default async function DashboardPage() {
   noStore();
 
+  const { t } = getI18n();
   const owner = await getCurrentPrismaUser();
   const [links, cases, recentCases, recentMessages, recentDocuments] = await Promise.all([
     prisma.gLink.findMany({
       where: { ownerId: owner.id },
       include: {
+        template: { select: { name: true, status: true } },
+        templateVersion: { select: { version: true } },
         cases: {
           orderBy: { createdAt: "desc" },
           select: {
@@ -58,6 +66,10 @@ export default async function DashboardPage() {
               take: 1,
               select: { createdAt: true },
             },
+            relationActions: {
+              orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+              select: { status: true, createdAt: true, completedAt: true },
+            },
           },
         },
       },
@@ -69,6 +81,7 @@ export default async function DashboardPage() {
         gLinkId: true,
         priority: true,
         status: true,
+        relationActions: { select: { status: true } },
       },
     }),
     prisma.relationCase.findMany({
@@ -130,13 +143,28 @@ export default async function DashboardPage() {
     },
     { label: t("dashboard.kpi.urgent"), value: cases.filter((item) => item.priority === "URGENT").length },
     { label: t("dashboard.kpi.closed"), value: cases.filter((item) => item.status === "CLOSED").length },
-    { label: "Archives", value: cases.filter((item) => item.status === "ARCHIVED").length },
+    { label: t("dashboard.kpi.archives"), value: cases.filter((item) => item.status === "ARCHIVED").length },
+    {
+      label: t("dashboard.kpi.openRequests"),
+      value: cases.reduce(
+        (count, item) => count + item.relationActions.filter((action) => action.status !== "COMPLETED").length,
+        0,
+      ),
+    },
   ];
   const dashboardLinks = links.map((item) => ({
     id: item.id,
     slug: item.slug,
     title: item.title,
     city: item.city,
+    templateName: item.template?.name ?? null,
+    templateStatus: item.template?.status ?? null,
+    templateVersion: item.templateVersion?.version ?? null,
+    openActionCount: item.cases.reduce(
+      (count, relationCase) =>
+        count + relationCase.relationActions.filter((action) => action.status !== "COMPLETED").length,
+      0,
+    ),
     cases: item.cases
       .map((relationCase) => ({
         id: relationCase.id,
@@ -200,16 +228,20 @@ export default async function DashboardPage() {
           <LogoutButton />
         </div>
       </div>
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-7">
+      <PlatformNavigation active="relations" />
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border bg-white p-4 shadow-sm">
+          <div key={stat.label} className="rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <p className="text-sm text-slate-500">{stat.label}</p>
             <p className="mt-2 text-2xl font-bold text-slate-900">{stat.value}</p>
           </div>
         ))}
       </div>
       <div className="mb-8 rounded-2xl border bg-white p-4 shadow-sm">
-        <h2 className="font-semibold">{t("dashboard.recentActivity.title")}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">{t("dashboard.recentActivity.title")}</h2>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Live</span>
+        </div>
         <div className="mt-3 max-h-80 divide-y overflow-y-auto pr-2">
           {recentActivities.length === 0 ? (
             <p className="py-3 text-sm text-slate-500">
@@ -221,7 +253,7 @@ export default async function DashboardPage() {
                 key={activity.id}
                 href={`/cases/${activity.caseId}?refresh=1`}
                 prefetch={false}
-                className="flex flex-col gap-1 py-3 text-sm hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-1 rounded-xl px-3 py-3 text-sm transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span className="font-medium text-slate-800">
                   {activity.label} — {activity.caseName}

@@ -13,7 +13,7 @@ import {
 } from "@react-email/components";
 import type { ReactNode } from "react";
 
-const LOGO_URL = "https://goodissima-mvp.vercel.app/logo-goodissima.png";
+const LOGO_URL = "https://goodissima.app/logo-goodissima.png";
 
 export function EmailLayout({
   preview,
@@ -42,8 +42,15 @@ export function EmailLayout({
           </Button>
           <Hr style={hr} />
           <Text style={footer}>
-            Goodissima vous aide a centraliser les echanges et documents importants dans un espace
-            securise.
+            Cet email a été envoyé par Goodissima dans le cadre d’une relation sécurisée. Vous
+            recevez cet email car vous participez à un échange sécurisé Goodissima.
+          </Text>
+          <Text style={footer}>
+            This email was sent by Goodissima as part of a secure relationship. You are receiving
+            this email because you are participating in a secure Goodissima exchange.
+          </Text>
+          <Text style={footerLink}>
+            goodissima.app
           </Text>
         </Container>
       </Body>
@@ -101,8 +108,16 @@ const hr = {
 };
 
 const footer = {
-  margin: "0",
+  margin: "0 0 10px",
   color: "#64748b",
   fontSize: "12px",
+  lineHeight: "18px",
+};
+
+const footerLink = {
+  margin: "0",
+  color: "#0f766e",
+  fontSize: "12px",
+  fontWeight: "700",
   lineHeight: "18px",
 };

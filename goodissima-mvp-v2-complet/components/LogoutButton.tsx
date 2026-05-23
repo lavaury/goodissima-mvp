@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 import { createClient } from "@/lib/supabase/client";
 
 export function LogoutButton() {
   const router = useRouter();
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(false);
 
   async function signOut() {
@@ -22,7 +24,7 @@ export function LogoutButton() {
       disabled={isLoading}
       onClick={signOut}
     >
-      {isLoading ? "Déconnexion..." : "Déconnexion"}
+      {isLoading ? t("auth.loggingOut") : t("auth.logout")}
     </button>
   );
 }

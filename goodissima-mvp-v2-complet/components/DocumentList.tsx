@@ -76,7 +76,11 @@ export function DocumentList({
   }
 
   if (freshDocuments.length === 0) {
-    return <p className="text-sm text-slate-500">Aucun document.</p>;
+    return (
+      <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+        Aucun document partagé pour l'instant. Les pièces ajoutées ici resteront accessibles via un lien sécurisé.
+      </div>
+    );
   }
 
   return (
@@ -86,7 +90,7 @@ export function DocumentList({
           key={doc.id}
           type="button"
           onClick={() => openDocument(doc.id)}
-          className="block min-h-12 w-full rounded-xl border bg-white px-3 py-3 text-left text-sm leading-snug hover:bg-slate-50"
+          className="block min-h-12 w-full rounded-xl border bg-white px-3 py-3 text-left text-sm leading-snug transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm"
         >
           <span className="block truncate font-medium text-slate-800">{doc.fileName}</span>
           <span className="mt-0.5 block text-xs text-slate-500">Ouvrir le document</span>

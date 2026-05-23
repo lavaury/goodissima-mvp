@@ -56,21 +56,23 @@ model User {
 }
 
 model GLink {
-  id          String     @id @default(cuid())
-  ownerId     String
-  templateId  String?
-  slug        String     @unique
-  title       String
-  city        String?
-  description String?
-  rules       Json?
-  status      LinkStatus @default(ACTIVE)
-  createdAt   DateTime   @default(now())
-  expiresAt   DateTime?
+  id                String     @id @default(cuid())
+  ownerId           String
+  templateId        String?
+  templateVersionId String?
+  slug              String     @unique
+  title             String
+  city              String?
+  description       String?
+  rules             Json?
+  status            LinkStatus @default(ACTIVE)
+  createdAt         DateTime   @default(now())
+  expiresAt         DateTime?
 
-  owner    User              @relation(fields: [ownerId], references: [id])
-  template RelationTemplate? @relation(fields: [templateId], references: [id])
-  cases    RelationCase[]
+  owner           User              @relation(fields: [ownerId], references: [id])
+  template        RelationTemplate? @relation(fields: [templateId], references: [id])
+  templateVersion TemplateVersion?  @relation(fields: [templateVersionId], references: [id])
+  cases           RelationCase[]
 }
 
 model RelationCase {
@@ -96,6 +98,7 @@ model RelationCase {
   documents       Document[]
   auditLogs       AuditLog[]
   relationEvents  RelationEvent[]
+  relationActions RelationAction[]
   formSubmissions FormSubmission[]
 }
 
@@ -105,6 +108,7 @@ model RelationTemplate {
   name        String
   description String?
   isDefault   Boolean @default(false)
+  status      String  @default("DRAFT")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -112,6 +116,29 @@ model RelationTemplate {
   relationCases RelationCase[]
   links         GLink[]
   formTemplates FormTemplate[]
+  versions      TemplateVersion[]
+}
+
+model TemplateVersion {
+  id String @id @default(cuid())
+
+  templateId String
+  template   RelationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  version Int
+
+  name        String
+  description String?
+
+  snapshot Json
+
+  isPublished Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  links GLink[]
+
+  @@unique([templateId, version])
 }
 
 model FormTemplate {
@@ -188,6 +215,31 @@ model RelationEvent {
   createdAt DateTime @default(now())
 
   @@index([caseId, createdAt])
+}
+
+model RelationAction {
+  id String @id @default(cuid())
+
+  relationCaseId String
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  type String
+
+  status String @default("PENDING")
+
+  title       String
+  description String?
+
+  payload Json?
+
+  createdByRole String
+
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([relationCaseId, status])
+  @@index([relationCaseId, createdAt])
 }
 
 model Message {

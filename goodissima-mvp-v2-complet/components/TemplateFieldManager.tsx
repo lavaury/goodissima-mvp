@@ -6,6 +6,7 @@ import { DynamicFormPreview } from "@/components/DynamicFormPreview";
 import { normalizeFieldType, type DynamicFormField } from "@/components/DynamicFormRenderer";
 import { useToast } from "@/components/ToastProvider";
 import type { ConditionalRule } from "@/lib/form-rules";
+import { formatConditionalRule } from "@/lib/template-readable";
 
 const fieldTypes = ["TEXT", "EMAIL", "TEXTAREA", "PHONE", "NUMBER", "DATE", "SELECT", "CHECKBOX", "FILE"];
 const operators = ["equals", "notEquals", "greaterThan", "exists"];
@@ -202,9 +203,18 @@ function toPreviewField(field: BuilderField | NewBuilderField): DynamicFormField
 
 function buildStepNames(fields: Array<BuilderField | NewBuilderField>) {
   return fields.reduce<Record<number, string>>((result, field) => {
-    result[field.step] = result[field.step] ?? `Etape ${field.step}`;
+    result[field.step] = result[field.step] ?? `Étape ${field.step}`;
     return result;
   }, {});
+}
+
+function ruleItemToConditionalRule(rule: RuleItem): ConditionalRule {
+  return {
+    field: rule.field,
+    operator: rule.operator,
+    value: rule.operator === "exists" ? null : rule.value,
+    action: rule.action,
+  } as ConditionalRule;
 }
 
 async function getApiErrorMessage(res: Response) {
@@ -261,7 +271,7 @@ export function TemplateFieldManager({
     }
 
     setNewField(emptyField);
-    toast.success("Champ ajoute");
+    toast.success("Champ ajouté");
     router.refresh();
   }
 
@@ -281,7 +291,7 @@ export function TemplateFieldManager({
       return;
     }
 
-    toast.success("Champ modifie");
+    toast.success("Champ modifié");
     router.refresh();
   }
 
@@ -299,7 +309,7 @@ export function TemplateFieldManager({
       return;
     }
 
-    toast.success("Champ supprime");
+    toast.success("Champ supprimé");
     router.refresh();
   }
 
@@ -308,7 +318,7 @@ export function TemplateFieldManager({
 
     return (
       <div className="rounded-xl border p-4 md:col-span-2">
-        <p className="mb-3 text-sm font-medium">Options de selection</p>
+        <p className="mb-3 text-sm font-medium">Options de sélection</p>
         <div className="space-y-2">
           {value.options.map((option, index) => (
             <div key={index} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
@@ -356,7 +366,7 @@ export function TemplateFieldManager({
   function renderRuleBuilder<T extends BuilderField | NewBuilderField>(value: T, onChange: (next: T) => void) {
     return (
       <div className="rounded-xl border p-4 md:col-span-2">
-        <p className="mb-3 text-sm font-medium">Regles conditionnelles</p>
+        <p className="mb-3 text-sm font-medium">Règles conditionnelles</p>
         <div className="space-y-2">
           {value.rules.map((rule, index) => (
             <div key={index} className="grid gap-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
@@ -437,8 +447,22 @@ export function TemplateFieldManager({
             })
           }
         >
-          Ajouter une regle
+          Ajouter une règle
         </button>
+        {value.rules.length > 0 ? (
+          <div className="mt-3 space-y-1 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+            {value.rules
+              .filter((rule) => rule.field && rule.operator && rule.action)
+              .map((rule, index) => (
+                <p key={index}>
+                  {formatConditionalRule(
+                    ruleItemToConditionalRule(rule),
+                    savedFields.map((field) => ({ key: field.key, label: field.label })),
+                  )}
+                </p>
+              ))}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -450,7 +474,7 @@ export function TemplateFieldManager({
       <div className="grid gap-3 rounded-xl border p-4 md:col-span-2 md:grid-cols-2">
         <input
           className="rounded-xl border px-4 py-3"
-          placeholder="Types autorises: pdf, jpg, png"
+          placeholder="Types autorisés: pdf, jpg, png"
           value={value.fileAllowedTypes}
           onChange={(e) => onChange({ ...value, fileAllowedTypes: e.target.value })}
         />
@@ -502,7 +526,7 @@ export function TemplateFieldManager({
           className="rounded-xl border px-4 py-3"
           min={1}
           type="number"
-          placeholder="Step"
+          placeholder="Étape"
           value={value.step}
           onChange={(e) => onChange({ ...value, step: Number(e.target.value) || 1 })}
         />
@@ -512,7 +536,7 @@ export function TemplateFieldManager({
             checked={value.required}
             onChange={(e) => onChange({ ...value, required: e.target.checked })}
           />
-          Required
+          Obligatoire
         </label>
         {renderOptionsEditor(value, onChange)}
         {renderFileEditor(value, onChange)}
@@ -525,13 +549,13 @@ export function TemplateFieldManager({
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-6">
         <div className="rounded-2xl border bg-white p-5">
-          <h2 className="font-semibold">Nommer les etapes</h2>
+          <h2 className="font-semibold">Nommer les étapes</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {detectedSteps.map((step) => (
               <input
                 key={step}
                 className="rounded-xl border px-4 py-3"
-                placeholder={`Etape ${step}`}
+                placeholder={`Étape ${step}`}
                 value={stepNames[step] ?? ""}
                 onChange={(e) => setStepNames({ ...stepNames, [step]: e.target.value })}
               />
@@ -579,7 +603,7 @@ export function TemplateFieldManager({
       </div>
 
       <aside className="rounded-2xl border bg-white p-5 lg:sticky lg:top-6 lg:self-start">
-        <h2 className="font-semibold">Preview live</h2>
+        <h2 className="font-semibold">Aperçu live</h2>
         <div className="mt-4">
           <DynamicFormPreview fields={previewFields} stepNames={stepNames} />
         </div>

@@ -3,7 +3,7 @@ import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
-import { sendNewMessageEmail } from "@/lib/email";
+import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 
@@ -18,6 +18,7 @@ async function resolveCaseForAccess(params: {
       where: activeCandidateAccessWhere(params.candidateAccessToken),
       select: {
         id: true,
+        candidateAccessToken: true,
         candidateEmail: true,
         candidateName: true,
         gLink: { select: { title: true } },
@@ -39,6 +40,7 @@ async function resolveCaseForAccess(params: {
     where: { id: params.caseId, ownerId: owner.id },
     select: {
       id: true,
+      candidateAccessToken: true,
       candidateEmail: true,
       candidateName: true,
       gLink: { select: { title: true } },
@@ -92,7 +94,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
   }
 
-  const senderEmail = body.candidateAccessToken ? relationCase.candidateEmail : body.senderEmail;
+  const senderEmail =
+    body.senderType === "OWNER" ? relationCase.owner.email : relationCase.candidateEmail;
 
   if (!senderEmail) {
     return NextResponse.json({ error: "Missing sender email" }, { status: 400 });
@@ -128,23 +131,38 @@ export async function POST(req: Request) {
   }
 
   if (body.senderType === "CANDIDATE") {
-    console.log("New candidate message email trigger:", {
+    console.info("[owner-email] New candidate message email trigger", {
       caseId: relationCase.id,
       to: relationCase.owner.email,
       hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
     });
 
-    try {
       await sendNewMessageEmail({
         ownerEmail: relationCase.owner.email,
+        candidateEmail: relationCase.candidateEmail,
         caseId: relationCase.id,
         caseTitle: relationCase.gLink.title,
         candidateName: relationCase.candidateName,
-        messageBody: message.body,
-      });
-    } catch (error) {
-      console.error("Unable to send new message email:", error);
-    }
+      messageBody: message.body,
+    });
+  }
+
+  if (body.senderType === "OWNER") {
+    console.info("[candidate-email] New owner message email trigger", {
+      caseId: relationCase.id,
+      to: relationCase.candidateEmail,
+      secureLink: `/secure/${relationCase.candidateAccessToken}`,
+      hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
+    });
+
+    await sendOwnerMessageToCandidateEmail({
+      candidateEmail: relationCase.candidateEmail,
+      ownerEmail: relationCase.owner.email,
+      caseTitle: relationCase.gLink.title,
+      candidateName: relationCase.candidateName,
+      candidateAccessToken: relationCase.candidateAccessToken,
+      messageBody: message.body,
+    });
   }
 
   return NextResponse.json(message);

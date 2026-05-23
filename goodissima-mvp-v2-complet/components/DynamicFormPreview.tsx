@@ -31,7 +31,7 @@ export function DynamicFormPreview({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm text-slate-500">
             <span>
-              {stepNames[currentStep] || `Etape ${currentStep}`} sur {stepCount}
+              {stepNames[currentStep] || `Étape ${currentStep}`} sur {stepCount}
             </span>
             <span>{Math.round((currentStep / stepCount) * 100)}%</span>
           </div>

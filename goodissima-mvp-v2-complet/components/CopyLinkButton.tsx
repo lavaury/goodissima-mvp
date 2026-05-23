@@ -11,7 +11,7 @@ export function CopyLinkButton({ value, label = "Copier le lien" }: { value: str
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      toast.success("Lien copie");
+      toast.success("Lien copié");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Erreur lors de l'action");
@@ -24,7 +24,7 @@ export function CopyLinkButton({ value, label = "Copier le lien" }: { value: str
       onClick={copy}
       className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
     >
-      {copied ? "Lien copie" : label}
+      {copied ? "Lien copié" : label}
     </button>
   );
 }

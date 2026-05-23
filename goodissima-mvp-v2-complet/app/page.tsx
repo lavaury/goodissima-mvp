@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { t } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n";
 
 export default function HomePage() {
+  const { t } = getI18n();
+
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6">
       <div className="max-w-3xl">

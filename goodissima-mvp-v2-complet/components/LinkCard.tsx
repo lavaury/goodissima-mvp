@@ -14,6 +14,10 @@ export function LinkCard({
     slug: string;
     title: string;
     city?: string | null;
+    templateName?: string | null;
+    templateStatus?: string | null;
+    templateVersion?: number | null;
+    openActionCount?: number;
     cases?: Array<{ id: string; lastActivityAt?: number }>;
   };
 }) {
@@ -29,17 +33,17 @@ export function LinkCard({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "Lien securise Goodissima",
-          text: "Accedez a votre espace securise Goodissima.",
+          title: "Lien sécurisé Goodissima",
+          text: "Accédez à votre espace sécurisé Goodissima.",
           url: publicUrl,
         });
-        toast.success("Lien partage");
+        toast.success("Lien partagé");
         return;
       }
 
       await navigator.clipboard.writeText(publicUrl);
       setShared(true);
-      toast.success("Lien partage");
+      toast.success("Lien partagé");
       setTimeout(() => setShared(false), 2000);
     } catch {
       toast.error("Erreur lors de l'action");
@@ -47,16 +51,31 @@ export function LinkCard({
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-5 shadow-sm">
-      <h3 className="text-lg font-semibold">{item.title}</h3>
-      {item.city && <p className="text-sm text-slate-500">{item.city}</p>}
+    <div className="rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold">{item.title}</h3>
+          {item.city && <p className="text-sm text-slate-500">{item.city}</p>}
+        </div>
+        {item.openActionCount ? (
+          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+            {item.openActionCount} demande{item.openActionCount > 1 ? "s" : ""}
+          </span>
+        ) : null}
+      </div>
+      {item.templateName ? (
+        <p className="mt-1 text-xs text-slate-500">
+          {item.templateName} {item.templateVersion ? `- v${item.templateVersion}` : "- version courante"}{" "}
+          {item.templateStatus ? `(${item.templateStatus})` : ""}
+        </p>
+      ) : null}
       {caseCount > 1 ? (
         <p className="mt-1 text-xs text-slate-500">{caseCount} dossiers</p>
       ) : null}
 
       <div className="mt-4 rounded-xl bg-slate-50 p-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Lien a partager
+          Lien à partager
         </p>
         <input value={publicUrl} readOnly className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
       </div>
@@ -64,18 +83,18 @@ export function LinkCard({
       <div className="mt-4 flex flex-wrap gap-2">
         <CopyLinkButton value={publicUrl} />
         <button type="button" onClick={shareLink} className="rounded-xl border px-4 py-2 text-sm">
-          {shared ? "Lien copie" : "Partager"}
+          {shared ? "Lien copié" : "Partager"}
         </button>
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
           Voir le lien
         </Link>
         {latestCase ? (
           <Link
-            className="rounded-xl border px-4 py-2 text-sm"
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
             href={latestCasePath!}
             prefetch={false}
           >
-            Voir le dossier
+            Ouvrir le dossier
           </Link>
         ) : (
           <span className="px-4 py-2 text-sm text-slate-500">En attente de contact</span>

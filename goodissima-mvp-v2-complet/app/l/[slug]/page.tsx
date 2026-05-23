@@ -3,7 +3,17 @@ import { cookies } from "next/headers";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import type { ConditionalRule } from "@/lib/form-rules";
 import { getFormFields } from "@/lib/forms";
+import { getI18n } from "@/lib/i18n";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
+import {
+  getDefaultSecureConversationCopy,
+  localizeDefaultSecureConversationFields,
+} from "@/lib/template-localization";
+import {
+  parseTemplateSnapshot,
+  snapshotFieldsToDynamicFields,
+  getActiveTemplateVersion,
+} from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
 import { PublicLinkBox } from "@/components/PublicLinkBox";
@@ -90,9 +100,10 @@ function parseConditionalRules(rules: unknown): ConditionalRule[] {
 }
 
 export default async function PublicLinkPage({ params }: { params: { slug: string } }) {
+  const { locale } = getI18n();
   const link = await prisma.gLink.findUnique({
     where: { slug: params.slug },
-    include: { owner: true, template: true },
+    include: { owner: true, template: true, templateVersion: true },
   });
 
   if (!link || link.status !== "ACTIVE") notFound();
@@ -115,32 +126,48 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
 
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/l/${link.slug}`;
   const relationTemplate = link.template ?? (await getRelationTemplateForLink(null));
-  const formTemplate = relationTemplate
-    ? await prisma.formTemplate.findFirst({
-        where: { relationTemplateId: relationTemplate.id },
-        orderBy: { createdAt: "asc" },
-      })
-    : null;
-  const formFields = formTemplate ? await getFormFields(formTemplate.id) : [];
-  const candidateFields = formFields.length
-    ? formFields.map((field) => ({
-        key: field.key,
-        label: field.label,
-        type: field.type.toUpperCase(),
-        required: field.required,
-        placeholder: field.placeholder,
-        defaultValue: field.defaultValue,
-        step: field.step,
-        options: parseFieldOptions(field.options),
-        conditionalRules: parseConditionalRules(field.conditionalRules),
-      }))
-    : defaultFields;
+  const activeFallbackVersion =
+    !link.templateVersion && relationTemplate ? await getActiveTemplateVersion(relationTemplate.id) : null;
+  const snapshot = link.templateVersion
+    ? parseTemplateSnapshot(link.templateVersion.snapshot)
+    : activeFallbackVersion
+      ? parseTemplateSnapshot(activeFallbackVersion.snapshot)
+      : null;
+  const templateKey = snapshot?.relationTemplate.key ?? relationTemplate?.key ?? null;
+  const formTemplate = snapshot
+    ? { id: snapshot.formTemplate.id }
+    : relationTemplate
+      ? await prisma.formTemplate.findFirst({
+          where: { relationTemplateId: relationTemplate.id },
+          orderBy: { createdAt: "asc" },
+        })
+      : null;
+  const formFields = !snapshot && formTemplate ? await getFormFields(formTemplate.id) : [];
+  const candidateFieldsSource = snapshot
+    ? snapshotFieldsToDynamicFields(snapshot)
+    : formFields.length
+      ? formFields.map((field) => ({
+          key: field.key,
+          label: field.label,
+          type: field.type.toUpperCase(),
+          required: field.required,
+          placeholder: field.placeholder,
+          defaultValue: field.defaultValue,
+          step: field.step,
+          options: parseFieldOptions(field.options),
+          conditionalRules: parseConditionalRules(field.conditionalRules),
+        }))
+      : defaultFields;
+  const candidateFields =
+    templateKey === "DEFAULT_SECURE_CONVERSATION"
+      ? localizeDefaultSecureConversationFields(candidateFieldsSource, locale)
+      : candidateFieldsSource;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="mb-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Goodissima — Relation sécurisée
+          {getDefaultSecureConversationCopy("publicEyebrow", locale)}
         </p>
       </div>
 
@@ -150,7 +177,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
 
       <div className="rounded-3xl border bg-white p-8 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-          Contacter le propriétaire
+          {getDefaultSecureConversationCopy("contactEyebrow", locale)}
         </p>
 
         <h1 className="mt-3 text-3xl font-bold">{link.title}</h1>
@@ -159,10 +186,9 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         {link.description && <p className="mt-5 text-slate-700">{link.description}</p>}
 
         <div className="mt-8 rounded-2xl bg-slate-50 p-5">
-          <h2 className="font-semibold">🔒 Ce propriétaire utilise un lien sécurisé</h2>
+          <h2 className="font-semibold">{getDefaultSecureConversationCopy("onboardingTitle", locale)}</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Ce lien permet d’éviter les messages inutiles, les faux profils et les contacts hors contexte.
-            Merci de vous présenter clairement : votre demande sera traitée plus rapidement.
+            {getDefaultSecureConversationCopy("onboardingText", locale)}
           </p>
         </div>
 
@@ -170,6 +196,19 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           gLinkId={link.id}
           formTemplateId={formTemplate?.id ?? null}
           fields={candidateFields}
+          copy={{
+            documentOptionalTitle: getDefaultSecureConversationCopy("documentOptionalTitle", locale),
+            documentOptionalHelp: getDefaultSecureConversationCopy("documentOptionalHelp", locale),
+            documentNamePlaceholder: getDefaultSecureConversationCopy("documentNamePlaceholder", locale),
+            documentUrlPlaceholder: getDefaultSecureConversationCopy("documentUrlPlaceholder", locale),
+            submit: getDefaultSecureConversationCopy("submit", locale),
+            submitting: getDefaultSecureConversationCopy("submitting", locale),
+            next: getDefaultSecureConversationCopy("next", locale),
+            back: getDefaultSecureConversationCopy("back", locale),
+            stepProgress: getDefaultSecureConversationCopy("stepProgress", locale),
+            messageSentToast: getDefaultSecureConversationCopy("messageSentToast", locale),
+            fieldErrorToast: getDefaultSecureConversationCopy("fieldErrorToast", locale),
+          }}
         />
       </div>
     </main>
