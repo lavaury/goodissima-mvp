@@ -26,7 +26,6 @@ export default async function SecureCasePage({ params }: { params: { token: stri
   return (
     <RelationCaseWorkspace
       item={item}
-      senderEmail={item.candidateEmail}
       senderType="CANDIDATE"
       candidateAccessToken={item.candidateAccessToken}
     />

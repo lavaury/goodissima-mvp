@@ -9,8 +9,11 @@ import {
 import { sendNewDocumentEmail, sendNewMessageEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { createFormSubmission } from "@/lib/forms";
+import { isNotificationEnabled } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function getFormSubmissionData(body: Record<string, unknown>) {
   if (typeof body.formTemplateId !== "string" || !body.formTemplateId) {
@@ -43,10 +46,20 @@ function withCandidateCookie(token: string, gLinkId: string) {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const candidateEmail =
+  const submittedCandidateEmail =
     typeof body.candidateEmail === "string" ? body.candidateEmail.trim().toLowerCase() : "";
+  const candidateNotificationEmail =
+    typeof body.candidateNotificationEmail === "string"
+      ? body.candidateNotificationEmail.trim().toLowerCase()
+      : "";
+  const wantsCandidateNotifications = body.emailNotificationsConsent === true;
+  const candidateEmail = wantsCandidateNotifications ? candidateNotificationEmail : submittedCandidateEmail;
   const candidateName = typeof body.candidateName === "string" ? body.candidateName.trim() : "";
   const messageBody = typeof body.message === "string" ? body.message.trim() : "";
+
+  if (wantsCandidateNotifications && (!candidateNotificationEmail || !emailPattern.test(candidateNotificationEmail))) {
+    return NextResponse.json({ error: "Valid notification email required" }, { status: 400 });
+  }
 
   if (!body.gLinkId || !candidateName || !candidateEmail || !messageBody) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -54,7 +67,7 @@ export async function POST(req: Request) {
 
   const gLink = await prisma.gLink.findUnique({
     where: { id: body.gLinkId },
-    include: { owner: { select: { email: true } } },
+    include: { owner: { select: { email: true, notificationPreferences: true } } },
   });
 
   if (!gLink) {
@@ -71,7 +84,8 @@ export async function POST(req: Request) {
       id: true,
       candidateAccessToken: true,
       candidateName: true,
-      owner: { select: { email: true } },
+      candidateEmailNotificationsEnabled: true,
+      owner: { select: { email: true, notificationPreferences: true } },
       gLink: { select: { title: true } },
     },
   });
@@ -90,7 +104,7 @@ export async function POST(req: Request) {
       caseId: existingRelationCase.id,
       type: "MESSAGE_SENT",
       actorType: "CANDIDATE",
-      actorId: candidateEmail,
+      actorId: "CANDIDATE",
       payload: { existing: true, messageId: message.id },
     });
 
@@ -109,7 +123,7 @@ export async function POST(req: Request) {
         caseId: existingRelationCase.id,
         type: "DOCUMENT_UPLOADED",
         actorType: "CANDIDATE",
-        actorId: candidateEmail,
+        actorId: "CANDIDATE",
         payload: { documentId: document.id, fileName: body.documentName },
       });
     }
@@ -139,16 +153,18 @@ export async function POST(req: Request) {
       });
     }
 
-    await sendNewMessageEmail({
-      ownerEmail: existingRelationCase.owner.email,
-      candidateEmail,
-      caseId: existingRelationCase.id,
-      caseTitle: existingRelationCase.gLink.title,
-      candidateName: existingRelationCase.candidateName,
-      messageBody,
-    });
+    if (isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "messages")) {
+      await sendNewMessageEmail({
+        ownerEmail: existingRelationCase.owner.email,
+        candidateEmail,
+        caseId: existingRelationCase.id,
+        caseTitle: existingRelationCase.gLink.title,
+        candidateName: existingRelationCase.candidateName,
+        messageBody,
+      });
+    }
 
-    if (body.documentName && body.documentUrl) {
+    if (body.documentName && body.documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
       await sendNewDocumentEmail({
         ownerEmail: existingRelationCase.owner.email,
         candidateEmail,
@@ -173,13 +189,15 @@ export async function POST(req: Request) {
       candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
       candidateName,
       candidateEmail,
+      candidateEmailNotificationsEnabled: wantsCandidateNotifications,
       status: RelationStatus.NEW,
     },
     select: {
       id: true,
       candidateAccessToken: true,
       candidateName: true,
-      owner: { select: { email: true } },
+      candidateEmailNotificationsEnabled: true,
+      owner: { select: { email: true, notificationPreferences: true } },
       gLink: { select: { title: true } },
     },
   });
@@ -222,7 +240,7 @@ export async function POST(req: Request) {
     caseId: relationCase.id,
     type: "MESSAGE_SENT",
     actorType: "CANDIDATE",
-    actorId: candidateEmail,
+    actorId: "CANDIDATE",
     payload: { initial: true, messageId: message.id },
   });
 
@@ -237,7 +255,7 @@ export async function POST(req: Request) {
       caseId: relationCase.id,
       type: "DOCUMENT_UPLOADED",
       actorType: "CANDIDATE",
-      actorId: candidateEmail,
+      actorId: "CANDIDATE",
       payload: { documentId: document.id, fileName: body.documentName },
     });
   }
@@ -251,16 +269,18 @@ export async function POST(req: Request) {
     });
   }
 
-  await sendNewMessageEmail({
-    ownerEmail: relationCase.owner.email,
-    candidateEmail,
-    caseId: relationCase.id,
-    caseTitle: relationCase.gLink.title,
-    candidateName: relationCase.candidateName,
-    messageBody,
-  });
+  if (isNotificationEnabled(relationCase.owner.notificationPreferences, "messages")) {
+    await sendNewMessageEmail({
+      ownerEmail: relationCase.owner.email,
+      candidateEmail,
+      caseId: relationCase.id,
+      caseTitle: relationCase.gLink.title,
+      candidateName: relationCase.candidateName,
+      messageBody,
+    });
+  }
 
-  if (document) {
+  if (document && isNotificationEnabled(relationCase.owner.notificationPreferences, "documents")) {
     await sendNewDocumentEmail({
       ownerEmail: relationCase.owner.email,
       candidateEmail,

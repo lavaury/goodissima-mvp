@@ -56,9 +56,13 @@ export function NewLinkForm({
       return;
     }
 
-    const link = await res.json();
-    router.refresh();
-    router.push(`/l/${link.slug}`);
+    await res.json();
+    const refreshKey = Date.now();
+
+    router.replace(`/dashboard?refresh=${refreshKey}`);
+    setTimeout(() => {
+      router.refresh();
+    }, 0);
   }
 
   return (

@@ -5,6 +5,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewDocumentEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
+import { isNotificationEnabled } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -30,7 +31,7 @@ async function resolveCaseForAccess(params: {
         candidateEmail: true,
         candidateName: true,
         gLink: { select: { title: true } },
-        owner: { select: { email: true } },
+        owner: { select: { email: true, notificationPreferences: true } },
       },
     });
   }
@@ -51,7 +52,7 @@ async function resolveCaseForAccess(params: {
       candidateEmail: true,
       candidateName: true,
       gLink: { select: { title: true } },
-      owner: { select: { email: true } },
+      owner: { select: { email: true, notificationPreferences: true } },
     },
   });
 }
@@ -77,7 +78,6 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const caseId = formData.get("caseId");
   const candidateAccessToken = formData.get("candidateAccessToken");
-  const uploadedByEmail = formData.get("uploadedByEmail");
   const file = formData.get("file");
 
   if (
@@ -109,9 +109,7 @@ export async function POST(req: Request) {
   const actorEmail =
     typeof candidateAccessToken === "string" && candidateAccessToken
       ? relationCase.candidateEmail
-      : typeof uploadedByEmail === "string"
-        ? uploadedByEmail
-        : null;
+      : relationCase.owner.email;
 
   if (!actorEmail) {
     return NextResponse.json({ error: "Missing uploader email" }, { status: 400 });
@@ -154,13 +152,17 @@ export async function POST(req: Request) {
     caseId: relationCase.id,
     type: "DOCUMENT_UPLOADED",
     actorType: typeof candidateAccessToken === "string" && candidateAccessToken ? "CANDIDATE" : "OWNER",
-    actorId: actorEmail,
+    actorId: typeof candidateAccessToken === "string" && candidateAccessToken ? "CANDIDATE" : "OWNER",
     payload: { documentId: document.id, fileName: file.name },
   });
 
   revalidatePath("/dashboard");
   revalidatePath(`/cases/${relationCase.id}`);
-  if (typeof candidateAccessToken === "string" && candidateAccessToken) {
+  if (
+    typeof candidateAccessToken === "string" &&
+    candidateAccessToken &&
+    isNotificationEnabled(relationCase.owner.notificationPreferences, "documents")
+  ) {
     revalidatePath(`/secure/${candidateAccessToken}`);
   }
 
@@ -179,5 +181,6 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json(document);
+  const { uploadedByEmail: _uploadedByEmail, fileUrl: _fileUrl, ...safeDocument } = document;
+  return NextResponse.json(safeDocument);
 }

@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
+import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
+import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
+import { DebugDeleteLinkButton } from "@/components/DebugDeleteLinkButton";
 import { QRCodeBox } from "@/components/QRCodeBox";
 import { useToast } from "@/components/ToastProvider";
 
 export function LinkCard({
   item,
+  debugMode = false,
 }: {
   item: {
     id: string;
@@ -18,8 +22,9 @@ export function LinkCard({
     templateStatus?: string | null;
     templateVersion?: number | null;
     openActionCount?: number;
-    cases?: Array<{ id: string; lastActivityAt?: number }>;
+    cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
+  debugMode?: boolean;
 }) {
   const publicPath = `/l/${item.slug}`;
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
@@ -33,17 +38,17 @@ export function LinkCard({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "Lien sécurisé Goodissima",
-          text: "Accédez à votre espace sécurisé Goodissima.",
+          title: "Lien securise Goodissima",
+          text: "Accedez a votre espace securise Goodissima.",
           url: publicUrl,
         });
-        toast.success("Lien partagé");
+        toast.success("Lien partage");
         return;
       }
 
       await navigator.clipboard.writeText(publicUrl);
       setShared(true);
-      toast.success("Lien partagé");
+      toast.success("Lien partage");
       setTimeout(() => setShared(false), 2000);
     } catch {
       toast.error("Erreur lors de l'action");
@@ -75,7 +80,7 @@ export function LinkCard({
 
       <div className="mt-4 rounded-xl bg-slate-50 p-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Lien à partager
+          Lien public candidat
         </p>
         <input value={publicUrl} readOnly className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
       </div>
@@ -83,12 +88,12 @@ export function LinkCard({
       <div className="mt-4 flex flex-wrap gap-2">
         <CopyLinkButton value={publicUrl} />
         <button type="button" onClick={shareLink} className="rounded-xl border px-4 py-2 text-sm">
-          {shared ? "Lien copié" : "Partager"}
+          {shared ? "Lien copie" : "Partager"}
         </button>
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
-          Voir le lien
+          Tester parcours
         </Link>
-        {latestCase ? (
+        {!debugMode && latestCase ? (
           <Link
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
             href={latestCasePath!}
@@ -96,10 +101,58 @@ export function LinkCard({
           >
             Ouvrir le dossier
           </Link>
-        ) : (
+        ) : null}
+        {!debugMode && !latestCase ? (
           <span className="px-4 py-2 text-sm text-slate-500">En attente de contact</span>
-        )}
+        ) : null}
       </div>
+
+      {debugMode ? (
+        <div className="mt-5 space-y-4 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold uppercase tracking-wide text-amber-800">Debug GLink</span>
+            <span className="text-amber-950">{publicPath}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <CopyLinkButton value={publicUrl} />
+            <Link className="rounded-xl border bg-white px-4 py-2 text-sm" href={publicPath}>
+              Tester parcours
+            </Link>
+            <DebugCreateTestCaseButton linkId={item.id} />
+          </div>
+
+          <div className="space-y-3">
+            {caseCount === 0 ? (
+              <p className="rounded-xl bg-white px-3 py-2 text-slate-600 ring-1 ring-amber-100">
+                Aucune conversation active
+              </p>
+            ) : (
+              item.cases?.map((relationCase, index) => (
+                <div key={relationCase.id} className="space-y-3 rounded-xl bg-white p-3 ring-1 ring-amber-100">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-slate-900">Conversation test {index + 1}</p>
+                      {relationCase.candidateEmail ? (
+                        <p className="text-xs text-slate-500">{relationCase.candidateEmail}</p>
+                      ) : null}
+                    </div>
+                    <Link
+                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
+                      href={`/cases/${relationCase.id}?refresh=1`}
+                      prefetch={false}
+                    >
+                      Ouvrir dossier
+                    </Link>
+                  </div>
+                  <DebugDeleteCaseButton caseId={relationCase.id} />
+                </div>
+              ))
+            )}
+          </div>
+
+          <DebugDeleteLinkButton linkId={item.id} />
+        </div>
+      ) : null}
 
       <div className="mt-5">
         <QRCodeBox value={publicUrl} fileName={`goodissima-${item.slug}.png`} />

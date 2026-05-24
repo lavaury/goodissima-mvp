@@ -13,7 +13,7 @@ export function DocumentUpload({
 }: {
   caseId?: string;
   candidateAccessToken?: string;
-  uploadedByEmail: string;
+  uploadedByEmail?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -34,7 +34,7 @@ export function DocumentUpload({
     const formData = new FormData();
     if (caseId) formData.append("caseId", caseId);
     if (candidateAccessToken) formData.append("candidateAccessToken", candidateAccessToken);
-    formData.append("uploadedByEmail", uploadedByEmail);
+    if (uploadedByEmail) formData.append("uploadedByEmail", uploadedByEmail);
     formData.append("file", file);
 
     setLoading(true);

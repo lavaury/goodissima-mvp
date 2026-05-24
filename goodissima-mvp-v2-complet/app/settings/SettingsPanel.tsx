@@ -4,6 +4,17 @@ import { useState } from "react";
 import { useI18n } from "@/components/I18nProvider";
 import { useToast } from "@/components/ToastProvider";
 
+type NotificationPreferences = {
+  emailNotificationsEnabled: boolean;
+  newMessagesEnabled: boolean;
+  newRequestsEnabled: boolean;
+  newDocumentsEnabled: boolean;
+  validationsEnabled: boolean;
+  relationalPrivacyEnabled: boolean;
+  pseudonymizationEnabled: boolean;
+  frequency: string;
+};
+
 type ToggleRowProps = {
   title: string;
   help: string;
@@ -57,9 +68,16 @@ function SectionCard({
   );
 }
 
-export function SettingsPanel({ ownerEmail, organizationName }: { ownerEmail: string; organizationName: string }) {
+export function SettingsPanel({
+  organizationName,
+  initialNotificationPreferences,
+}: {
+  organizationName: string;
+  initialNotificationPreferences: NotificationPreferences;
+}) {
   const toast = useToast();
   const { t } = useI18n();
+  const [saving, setSaving] = useState(false);
   const [org, setOrg] = useState({
     name: organizationName,
     logo: "",
@@ -73,15 +91,30 @@ export function SettingsPanel({ ownerEmail, organizationName }: { ownerEmail: st
     consentRequired: true,
     documentRetention: "90",
   });
-  const [notifications, setNotifications] = useState({
-    messages: true,
-    documents: true,
-    requests: true,
-  });
+  const [notifications, setNotifications] = useState(initialNotificationPreferences);
   const colors = ["#0f172a", "#2563eb", "#059669", "#7c3aed", "#dc2626", "#d97706"];
 
-  function save() {
-    toast.success(t("settings.saved"));
+  async function save() {
+    setSaving(true);
+
+    try {
+      const res = await fetch("/api/settings/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notifications),
+      });
+
+      if (!res.ok) {
+        toast.error(t("common.error"));
+        return;
+      }
+
+      toast.success(t("settings.saved"));
+    } catch {
+      toast.error(t("common.error"));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -92,7 +125,7 @@ export function SettingsPanel({ ownerEmail, organizationName }: { ownerEmail: st
             <p className="text-sm text-slate-300">{t("settings.governance")}</p>
             <h2 className="mt-1 text-2xl font-semibold">{org.name || "Organisation Goodissima"}</h2>
             <p className="mt-2 text-sm text-slate-300">
-              {t("settings.subtitle")} {ownerEmail}
+              {t("settings.privacy.privateChannels")}
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-3">
@@ -197,26 +230,68 @@ export function SettingsPanel({ ownerEmail, organizationName }: { ownerEmail: st
           </label>
         </SectionCard>
 
-        <SectionCard title={t("settings.notifications.title")} eyebrow={t("settings.notifications.eyebrow")}>
+        <SectionCard title={t("settings.notificationsPrivacy.title")} eyebrow={t("settings.notificationsPrivacy.eyebrow")}>
+          <ToggleRow
+            title={t("settings.notifications.email")}
+            help={t("settings.notifications.emailHelp")}
+            checked={notifications.emailNotificationsEnabled}
+            onChange={(emailNotificationsEnabled) =>
+              setNotifications({ ...notifications, emailNotificationsEnabled })
+            }
+          />
           <ToggleRow
             title={t("settings.notifications.messages")}
             help={t("settings.notifications.messagesHelp")}
-            checked={notifications.messages}
-            onChange={(messages) => setNotifications({ ...notifications, messages })}
+            checked={notifications.newMessagesEnabled}
+            onChange={(newMessagesEnabled) => setNotifications({ ...notifications, newMessagesEnabled })}
           />
           <ToggleRow
             title={t("settings.notifications.documents")}
             help={t("settings.notifications.documentsHelp")}
-            checked={notifications.documents}
-            onChange={(documents) => setNotifications({ ...notifications, documents })}
+            checked={notifications.newDocumentsEnabled}
+            onChange={(newDocumentsEnabled) => setNotifications({ ...notifications, newDocumentsEnabled })}
           />
           <ToggleRow
             title={t("settings.notifications.requests")}
             help={t("settings.notifications.requestsHelp")}
-            checked={notifications.requests}
-            onChange={(requests) => setNotifications({ ...notifications, requests })}
+            checked={notifications.newRequestsEnabled}
+            onChange={(newRequestsEnabled) => setNotifications({ ...notifications, newRequestsEnabled })}
           />
-          {!notifications.messages && !notifications.documents && !notifications.requests ? (
+          <ToggleRow
+            title={t("settings.notifications.validations")}
+            help={t("settings.notifications.validationsHelp")}
+            checked={notifications.validationsEnabled}
+            onChange={(validationsEnabled) => setNotifications({ ...notifications, validationsEnabled })}
+          />
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">{t("settings.notifications.frequency")}</span>
+            <select
+              value={notifications.frequency}
+              onChange={(event) => setNotifications({ ...notifications, frequency: event.target.value })}
+              className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+            >
+              <option value="IMMEDIATE">{t("settings.notifications.frequencyImmediate")}</option>
+              <option value="DAILY">{t("settings.notifications.frequencyDaily")}</option>
+              <option value="WEEKLY">{t("settings.notifications.frequencyWeekly")}</option>
+            </select>
+          </label>
+          <ToggleRow
+            title={t("settings.privacy.relational")}
+            help={t("settings.privacy.relationalHelp")}
+            checked={notifications.relationalPrivacyEnabled}
+            onChange={(relationalPrivacyEnabled) =>
+              setNotifications({ ...notifications, relationalPrivacyEnabled })
+            }
+          />
+          <ToggleRow
+            title={t("settings.privacy.pseudonymization")}
+            help={t("settings.privacy.pseudonymizationHelp")}
+            checked={notifications.pseudonymizationEnabled}
+            onChange={(pseudonymizationEnabled) =>
+              setNotifications({ ...notifications, pseudonymizationEnabled })
+            }
+          />
+          {!notifications.emailNotificationsEnabled ? (
             <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 ring-1 ring-amber-200">
               {t("settings.notifications.allOff")}
             </p>
@@ -232,9 +307,10 @@ export function SettingsPanel({ ownerEmail, organizationName }: { ownerEmail: st
         <button
           type="button"
           onClick={save}
+          disabled={saving}
           className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
         >
-          {t("settings.save")}
+          {saving ? t("feedback.sending") : t("settings.save")}
         </button>
       </div>
     </div>

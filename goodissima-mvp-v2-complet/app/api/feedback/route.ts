@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const appUser = authUser?.email
     ? await prisma.user.findUnique({
         where: { email: authUser.email },
-        select: { id: true, email: true, role: true },
+        select: { id: true, role: true },
       })
     : null;
   const now = new Date();
@@ -46,7 +46,6 @@ export async function POST(req: Request) {
     page: cleanString((body as { page?: unknown }).page, 300),
     role: appUser?.role ?? (authUser?.email ? "AUTHENTICATED" : "VISITOR"),
     userId: appUser?.id ?? null,
-    userEmail: appUser?.email ?? authUser?.email ?? null,
     caseId: cleanString((body as { caseId?: unknown }).caseId, 120),
     templateId: cleanString((body as { templateId?: unknown }).templateId, 120),
     clientTimestamp: cleanString((body as { timestamp?: unknown }).timestamp, 80),
@@ -57,7 +56,7 @@ export async function POST(req: Request) {
   await mkdir(feedbackDir, { recursive: true });
   await appendFile(path.join(feedbackDir, "feedback.jsonl"), `${JSON.stringify(feedback)}\n`, "utf8");
 
-  console.info("[feedback]", feedback);
+  console.info("[feedback]", { id: feedback.id, type: feedback.type, role: feedback.role });
 
   return NextResponse.json({ ok: true, id: feedback.id });
 }

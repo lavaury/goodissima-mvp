@@ -16,7 +16,6 @@ import {
 } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
-import { PublicLinkBox } from "@/components/PublicLinkBox";
 
 type FieldOption = {
   label: string;
@@ -124,7 +123,6 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
     }
   }
 
-  const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/l/${link.slug}`;
   const relationTemplate = link.template ?? (await getRelationTemplateForLink(null));
   const activeFallbackVersion =
     !link.templateVersion && relationTemplate ? await getActiveTemplateVersion(relationTemplate.id) : null;
@@ -171,10 +169,6 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         </p>
       </div>
 
-      <div className="mb-6">
-        <PublicLinkBox url={publicUrl} />
-      </div>
-
       <div className="rounded-3xl border bg-white p-8 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
           {getDefaultSecureConversationCopy("contactEyebrow", locale)}
@@ -201,6 +195,11 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
             documentOptionalHelp: getDefaultSecureConversationCopy("documentOptionalHelp", locale),
             documentNamePlaceholder: getDefaultSecureConversationCopy("documentNamePlaceholder", locale),
             documentUrlPlaceholder: getDefaultSecureConversationCopy("documentUrlPlaceholder", locale),
+            notificationConsentTitle: getDefaultSecureConversationCopy("notificationConsentTitle", locale),
+            notificationConsentHelp: getDefaultSecureConversationCopy("notificationConsentHelp", locale),
+            notificationEmailLabel: getDefaultSecureConversationCopy("notificationEmailLabel", locale),
+            notificationEmailHelp: getDefaultSecureConversationCopy("notificationEmailHelp", locale),
+            notificationEmailPlaceholder: getDefaultSecureConversationCopy("notificationEmailPlaceholder", locale),
             submit: getDefaultSecureConversationCopy("submit", locale),
             submitting: getDefaultSecureConversationCopy("submitting", locale),
             next: getDefaultSecureConversationCopy("next", locale),

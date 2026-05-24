@@ -15,7 +15,7 @@ async function resolveCaseForAccess(params: {
   if (params.candidateAccessToken) {
     return prisma.relationCase.findFirst({
       where: activeCandidateAccessWhere(params.candidateAccessToken),
-      select: { id: true, candidateEmail: true },
+      select: { id: true, candidateEmail: true, owner: { select: { email: true } } },
     });
   }
 
@@ -30,7 +30,7 @@ async function resolveCaseForAccess(params: {
 
   return prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
-    select: { id: true, candidateEmail: true },
+    select: { id: true, candidateEmail: true, owner: { select: { email: true } } },
   });
 }
 
@@ -56,7 +56,9 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(documents);
+  return NextResponse.json(
+    documents.map(({ uploadedByEmail: _uploadedByEmail, fileUrl: _fileUrl, ...document }) => document),
+  );
 }
 
 export async function POST(req: Request) {
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
 
   const uploadedByEmail = body.candidateAccessToken
     ? relationCase.candidateEmail
-    : body.uploadedByEmail;
+    : relationCase.owner.email;
 
   if (!uploadedByEmail) {
     return NextResponse.json({ error: "Missing uploader email" }, { status: 400 });
@@ -104,9 +106,10 @@ export async function POST(req: Request) {
     caseId: relationCase.id,
     type: "DOCUMENT_UPLOADED",
     actorType: body.candidateAccessToken ? "CANDIDATE" : "OWNER",
-    actorId: uploadedByEmail,
+    actorId: body.candidateAccessToken ? "CANDIDATE" : "OWNER",
     payload: { documentId: document.id, fileName: body.fileName },
   });
 
-  return NextResponse.json(document);
+  const { uploadedByEmail: _uploadedByEmail, fileUrl: _fileUrl, ...safeDocument } = document;
+  return NextResponse.json(safeDocument);
 }

@@ -5,6 +5,8 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
+import { defaultNotificationPreferences } from "@/lib/privacy";
+import { prisma } from "@/lib/prisma";
 import { SettingsPanel } from "./SettingsPanel";
 
 export default async function SettingsPage() {
@@ -13,6 +15,9 @@ export default async function SettingsPage() {
   const { t } = getI18n();
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
+  const notificationPreferences = await prisma.userNotificationPreference.findUnique({
+    where: { userId: owner.id },
+  });
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -25,7 +30,10 @@ export default async function SettingsPage() {
       </div>
 
       <PlatformNavigation active="settings" />
-      <SettingsPanel ownerEmail={owner.email} organizationName={organizationName} />
+      <SettingsPanel
+        organizationName={organizationName}
+        initialNotificationPreferences={notificationPreferences ?? defaultNotificationPreferences}
+      />
     </main>
   );
 }

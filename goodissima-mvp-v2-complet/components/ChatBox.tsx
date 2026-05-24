@@ -7,7 +7,7 @@ type ChatMessage = {
   id: string;
   body: string;
   senderType?: string;
-  senderEmail: string;
+  senderEmail?: string;
   createdAt: Date | string;
 };
 
@@ -19,7 +19,7 @@ export function ChatBox({
 }: {
   caseId?: string;
   candidateAccessToken?: string;
-  senderEmail: string;
+  senderEmail?: string;
   senderType: "OWNER" | "CANDIDATE";
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -144,7 +144,6 @@ export function ChatBox({
       body: JSON.stringify({
         caseId,
         candidateAccessToken,
-        senderEmail,
         senderType,
         body,
       }),
@@ -197,7 +196,7 @@ export function ChatBox({
           {messages.map((message) => {
             const isOwnerMessage =
               message.senderType === "OWNER" ||
-              (!message.senderType && message.senderEmail !== senderEmail);
+              Boolean(!message.senderType && senderEmail && message.senderEmail !== senderEmail);
 
             return (
               <div key={message.id}>

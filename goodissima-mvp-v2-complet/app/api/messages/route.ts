@@ -5,6 +5,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
+import { isNotificationEnabled } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,10 @@ async function resolveCaseForAccess(params: {
         id: true,
         candidateAccessToken: true,
         candidateEmail: true,
+        candidateEmailNotificationsEnabled: true,
         candidateName: true,
         gLink: { select: { title: true } },
-        owner: { select: { email: true } },
+        owner: { select: { email: true, notificationPreferences: true } },
       },
     });
   }
@@ -42,9 +44,10 @@ async function resolveCaseForAccess(params: {
       id: true,
       candidateAccessToken: true,
       candidateEmail: true,
+      candidateEmailNotificationsEnabled: true,
       candidateName: true,
       gLink: { select: { title: true } },
-      owner: { select: { email: true } },
+      owner: { select: { email: true, notificationPreferences: true } },
     },
   });
 }
@@ -71,7 +74,7 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "asc" },
   });
 
-  return NextResponse.json(messages, {
+  return NextResponse.json(messages.map(({ senderEmail: _senderEmail, ...message }) => message), {
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
     },
@@ -120,7 +123,7 @@ export async function POST(req: Request) {
     caseId: relationCase.id,
     type: "MESSAGE_SENT",
     actorType: body.senderType,
-    actorId: senderEmail,
+    actorId: body.senderType,
     payload: { messageId: message.id },
   });
 
@@ -130,27 +133,25 @@ export async function POST(req: Request) {
     revalidatePath(`/secure/${body.candidateAccessToken}`);
   }
 
-  if (body.senderType === "CANDIDATE") {
+  if (body.senderType === "CANDIDATE" && isNotificationEnabled(relationCase.owner.notificationPreferences, "messages")) {
     console.info("[owner-email] New candidate message email trigger", {
       caseId: relationCase.id,
-      to: relationCase.owner.email,
       hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
     });
 
-      await sendNewMessageEmail({
-        ownerEmail: relationCase.owner.email,
-        candidateEmail: relationCase.candidateEmail,
-        caseId: relationCase.id,
-        caseTitle: relationCase.gLink.title,
-        candidateName: relationCase.candidateName,
+    await sendNewMessageEmail({
+      ownerEmail: relationCase.owner.email,
+      candidateEmail: relationCase.candidateEmail,
+      caseId: relationCase.id,
+      caseTitle: relationCase.gLink.title,
+      candidateName: relationCase.candidateName,
       messageBody: message.body,
     });
   }
 
-  if (body.senderType === "OWNER") {
+  if (body.senderType === "OWNER" && relationCase.candidateEmailNotificationsEnabled) {
     console.info("[candidate-email] New owner message email trigger", {
       caseId: relationCase.id,
-      to: relationCase.candidateEmail,
       secureLink: `/secure/${relationCase.candidateAccessToken}`,
       hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
     });
@@ -165,5 +166,6 @@ export async function POST(req: Request) {
     });
   }
 
-  return NextResponse.json(message);
+  const { senderEmail: _senderEmail, ...safeMessage } = message;
+  return NextResponse.json(safeMessage);
 }

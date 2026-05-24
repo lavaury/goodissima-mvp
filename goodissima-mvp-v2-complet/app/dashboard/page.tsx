@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
@@ -6,8 +7,10 @@ import { DashboardLinkFilters } from "@/components/DashboardLinkFilters";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { isGoodissimaDebugMode } from "@/lib/debug";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { DashboardRealtimeRefresh } from "./DashboardRealtimeRefresh";
 
 function formatRelativeDate(date: Date) {
   const diffMs = Date.now() - date.getTime();
@@ -37,11 +40,18 @@ function getCaseLastActivityAt(relationCase: {
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { refresh?: string };
+}) {
   noStore();
+  const refreshKey = searchParams?.refresh;
+  void refreshKey;
 
   const { t } = getI18n();
   const owner = await getCurrentPrismaUser();
+  const debugMode = isGoodissimaDebugMode();
   const [links, cases, recentCases, recentMessages, recentDocuments] = await Promise.all([
     prisma.gLink.findMany({
       where: { ownerId: owner.id },
@@ -214,6 +224,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
+      <DashboardRealtimeRefresh />
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("dashboard.title")}</h1>
@@ -264,7 +275,7 @@ export default async function DashboardPage() {
           )}
         </div>
       </div>
-      <DashboardLinkFilters links={dashboardLinks} />
+      <DashboardLinkFilters links={dashboardLinks} debugMode={debugMode} />
     </main>
   );
 }

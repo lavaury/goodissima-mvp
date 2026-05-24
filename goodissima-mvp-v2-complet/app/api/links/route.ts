@@ -50,6 +50,8 @@ export async function POST(req: Request) {
   });
 
   revalidatePath("/dashboard");
+  revalidatePath("/");
+  revalidatePath("/analytics");
   revalidatePath("/links/new");
 
   const appUrl =
@@ -62,5 +64,9 @@ export async function POST(req: Request) {
     publicUrl: `${appUrl}/l/${encodeURIComponent(link.slug)}`,
   });
 
-  return NextResponse.json(link);
+  return NextResponse.json(link, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    },
+  });
 }

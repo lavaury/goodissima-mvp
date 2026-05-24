@@ -32,8 +32,8 @@ export const defaultSecureConversationCopy = {
     en: "Goodissima — Secure relationship",
   },
   contactEyebrow: {
-    fr: "Contacter le propriétaire",
-    en: "Contact the owner",
+    fr: "Relation sécurisée",
+    en: "Secure relationship",
   },
   onboardingTitle: {
     fr: "🔒 Ce propriétaire utilise un lien sécurisé",
@@ -58,6 +58,26 @@ export const defaultSecureConversationCopy = {
   documentUrlPlaceholder: {
     fr: "URL du document",
     en: "Document URL",
+  },
+  notificationConsentTitle: {
+    fr: "Souhaitez-vous recevoir des notifications concernant cette relation sécurisée ?",
+    en: "Would you like to receive notifications about this secure relationship?",
+  },
+  notificationConsentHelp: {
+    fr: "Votre email reste un canal technique privé et ne sera pas affiché comme identité relationnelle.",
+    en: "Your email remains a private technical channel and will not be shown as your relationship identity.",
+  },
+  notificationEmailLabel: {
+    fr: "Email de notification",
+    en: "Notification email",
+  },
+  notificationEmailHelp: {
+    fr: "Canal technique privé utilisé uniquement pour les notifications de cette relation sécurisée.",
+    en: "Private technical channel used only for notifications about this secure relationship.",
+  },
+  notificationEmailPlaceholder: {
+    fr: "votre-email@exemple.com",
+    en: "your-email@example.com",
   },
   submit: {
     fr: "Envoyer ma demande",

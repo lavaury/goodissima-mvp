@@ -243,18 +243,18 @@ export async function sendEmail({ to, subject, html, text }: SendEmailInput) {
     if (result.error) {
       console.error("[email] Resend rejected email", {
         subject,
-        to: recipients,
+        recipientCount: recipients.length,
         error: result.error.message,
       });
       return { ok: false, error: result.error };
     }
 
-    console.info("[email] Email sent", { subject, to: recipients, id: result.data?.id });
+    console.info("[email] Email sent", { subject, recipientCount: recipients.length, id: result.data?.id });
     return { ok: true, id: result.data?.id };
   } catch (error) {
     console.error("[email] Resend send failed", {
       subject,
-      to: recipients,
+      recipientCount: recipients.length,
       error: error instanceof Error ? error.message : "Unknown error",
     });
     return { ok: false, error };
@@ -274,16 +274,14 @@ export async function sendNewMessageEmail({
 }) {
   if (sameEmail(ownerEmail, candidateEmail)) {
     console.info("[owner-email] Skipped candidate message email: sender and recipient match", {
-      to: ownerEmail,
       caseId,
     });
     return { ok: false, skipped: true };
   }
 
-  const primaryCta = { label: "Ouvrir la conversation", href: conversationUrl(caseId) };
+  const primaryCta = { label: "Accéder à la conversation sécurisée", href: conversationUrl(caseId) };
 
   console.info("[owner-email] Sending candidate message email", {
-    to: ownerEmail,
     caseId,
   });
 
@@ -302,9 +300,9 @@ export async function sendNewMessageEmail({
     ],
     primaryCta,
     links: [
-      { label: "Dashboard proprietaire", href: dashboardUrl() },
+      { label: "Consulter votre dossier sécurisé", href: dashboardUrl() },
       primaryCta,
-      { label: "Voir la relation", href: relationUrl(caseId) },
+      { label: "Ouvrir la relation sécurisée", href: relationUrl(caseId) },
     ],
   });
 }
@@ -326,16 +324,14 @@ export async function sendOwnerMessageToCandidateEmail({
 }) {
   if (sameEmail(candidateEmail, ownerEmail)) {
     console.info("[candidate-email] Skipped owner message email: sender and recipient match", {
-      to: candidateEmail,
     });
     return { ok: false, skipped: true };
   }
 
   const candidateUrl = secureUrl(candidateAccessToken);
-  const primaryCta = { label: "Ouvrir ma conversation", href: candidateUrl };
+  const primaryCta = { label: "Accéder à la conversation sécurisée", href: candidateUrl };
 
   console.info("[candidate-email] Sending owner message email", {
-    to: candidateEmail,
     caseTitle,
   });
 
@@ -354,8 +350,8 @@ export async function sendOwnerMessageToCandidateEmail({
     ],
     primaryCta,
     links: [
-      { label: "Ouvrir la conversation", href: candidateUrl },
-      { label: "Voir la relation", href: candidateUrl },
+      { label: "Accéder à la conversation sécurisée", href: candidateUrl },
+      { label: "Ouvrir la relation sécurisée", href: candidateUrl },
     ],
   });
 }
@@ -373,16 +369,14 @@ export async function sendNewDocumentEmail({
 }) {
   if (sameEmail(ownerEmail, candidateEmail)) {
     console.info("[owner-email] Skipped candidate document email: sender and recipient match", {
-      to: ownerEmail,
       caseId,
     });
     return { ok: false, skipped: true };
   }
 
-  const primaryCta = { label: "Ouvrir la relation", href: relationUrl(caseId) };
+  const primaryCta = { label: "Ouvrir la relation sécurisée", href: relationUrl(caseId) };
 
   console.info("[owner-email] Sending candidate document email", {
-    to: ownerEmail,
     caseId,
   });
 
@@ -401,8 +395,8 @@ export async function sendNewDocumentEmail({
     ],
     primaryCta,
     links: [
-      { label: "Dashboard proprietaire", href: dashboardUrl() },
-      { label: "Ouvrir la conversation", href: conversationUrl(caseId) },
+      { label: "Consulter votre dossier sécurisé", href: dashboardUrl() },
+      { label: "Accéder à la conversation sécurisée", href: conversationUrl(caseId) },
       primaryCta,
     ],
   });
@@ -426,17 +420,15 @@ export async function sendNewRelationActionEmail({
 }) {
   if (sameEmail(candidateEmail, ownerEmail)) {
     console.info("[action-email] Skipped action email: sender and recipient match", {
-      to: candidateEmail,
       caseId,
     });
     return { ok: false, skipped: true };
   }
 
   const candidateUrl = candidateAccessToken ? secureUrl(candidateAccessToken) : relationUrl(caseId);
-  const primaryCta = { label: "Voir l'action", href: candidateUrl };
+  const primaryCta = { label: "Consulter votre dossier sécurisé", href: candidateUrl };
 
   console.info("[action-email] Sending relation action email", {
-    to: candidateEmail,
     caseId,
     actionType,
   });
@@ -456,8 +448,8 @@ export async function sendNewRelationActionEmail({
     ],
     primaryCta,
     links: [
-      { label: "Dashboard proprietaire", href: dashboardUrl() },
-      { label: "Ouvrir la conversation", href: candidateUrl },
+      { label: "Consulter votre dossier sécurisé", href: dashboardUrl() },
+      { label: "Accéder à la conversation sécurisée", href: candidateUrl },
       primaryCta,
     ],
   });
@@ -482,17 +474,15 @@ export async function sendRelationStatusEmail({
 }) {
   if (sameEmail(candidateEmail, ownerEmail)) {
     console.info("[candidate-email] Skipped status email: sender and recipient match", {
-      to: candidateEmail,
       caseId,
     });
     return { ok: false, skipped: true };
   }
 
   const candidateUrl = secureUrl(candidateAccessToken);
-  const primaryCta = { label: "Ouvrir ma relation", href: candidateUrl };
+  const primaryCta = { label: "Ouvrir la relation sécurisée", href: candidateUrl };
 
   console.info("[candidate-email] Sending relation status email", {
-    to: candidateEmail,
     caseId,
     status: statusLabel,
   });
@@ -511,8 +501,8 @@ export async function sendRelationStatusEmail({
     ],
     primaryCta,
     links: [
-      { label: "Ouvrir la conversation", href: candidateUrl },
-      { label: "Voir la relation", href: candidateUrl },
+      { label: "Accéder à la conversation sécurisée", href: candidateUrl },
+      { label: "Ouvrir la relation sécurisée", href: candidateUrl },
     ],
   });
 }
@@ -526,7 +516,7 @@ export async function sendSecureLinkCreatedEmail({
   linkTitle: string;
   publicUrl: string;
 }) {
-  const primaryCta = { label: "Ouvrir le lien securise", href: publicUrl };
+  const primaryCta = { label: "Ouvrir la relation sécurisée", href: publicUrl };
 
   return sendTransactionalEmail({
     to: ownerEmail,
@@ -543,15 +533,15 @@ export async function sendSecureLinkCreatedEmail({
     ],
     primaryCta,
     links: [
-      { label: "Dashboard proprietaire", href: dashboardUrl() },
-      { label: "Ouvrir la conversation", href: publicUrl },
+      { label: "Consulter votre dossier sécurisé", href: dashboardUrl() },
+      { label: "Accéder à la conversation sécurisée", href: publicUrl },
       primaryCta,
     ],
   });
 }
 
 export async function sendTestEmail(to: string) {
-  const primaryCta = { label: "Ouvrir le dashboard", href: dashboardUrl() };
+  const primaryCta = { label: "Consulter votre dossier sécurisé", href: dashboardUrl() };
 
   return sendTransactionalEmail({
     to,
@@ -568,8 +558,8 @@ export async function sendTestEmail(to: string) {
     primaryCta,
     links: [
       primaryCta,
-      { label: "Ouvrir la conversation", href: absoluteUrl("/dashboard") },
-      { label: "Voir la relation", href: absoluteUrl("/dashboard") },
+      { label: "Accéder à la conversation sécurisée", href: absoluteUrl("/dashboard") },
+      { label: "Ouvrir la relation sécurisée", href: absoluteUrl("/dashboard") },
     ],
   });
 }

@@ -51,8 +51,28 @@ model User {
   role      String   @default("OWNER")
   createdAt DateTime @default(now())
 
-  links GLink[]
-  cases RelationCase[] @relation("OwnerCases")
+  links                   GLink[]
+  cases                   RelationCase[]              @relation("OwnerCases")
+  notificationPreferences UserNotificationPreference?
+}
+
+model UserNotificationPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  emailNotificationsEnabled Boolean @default(false)
+  newMessagesEnabled        Boolean @default(false)
+  newRequestsEnabled        Boolean @default(false)
+  newDocumentsEnabled       Boolean @default(false)
+  validationsEnabled        Boolean @default(false)
+  relationalPrivacyEnabled  Boolean @default(true)
+  pseudonymizationEnabled   Boolean @default(true)
+  frequency                 String  @default("IMMEDIATE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model GLink {
@@ -85,6 +105,7 @@ model RelationCase {
   candidateAccessRevokedAt DateTime?
   candidateName            String
   candidateEmail           String
+  candidateEmailNotificationsEnabled Boolean @default(false)
   priority                 RelationPriority @default(NORMAL)
   status                   RelationStatus   @default(NEW)
   currentStep              String?          @default("CONVERSATION")

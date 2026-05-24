@@ -1,5 +1,6 @@
 import { CandidateAccessControls } from "@/components/CandidateAccessControls";
 import { ChatBox } from "@/components/ChatBox";
+import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
@@ -17,23 +18,20 @@ type RelationCaseWorkspaceItem = {
   candidateAccessExpiresAt?: Date | string | null;
   candidateAccessRevokedAt?: Date | string | null;
   candidateName: string;
-  candidateEmail: string;
+  candidateEmail?: string;
   priority: RelationPriority;
   status: RelationStatus;
-  gLink: { title: string };
+  gLink: { title: string; slug?: string | null };
   createdAt: Date | string;
   messages: Array<{
     id: string;
     body: string;
     senderType?: string;
-    senderEmail: string;
     createdAt: Date | string;
   }>;
   documents: Array<{
     id: string;
-    fileUrl: string;
     fileName: string;
-    uploadedByEmail?: string;
     createdAt?: Date | string;
   }>;
   relationActions: Array<{
@@ -185,10 +183,7 @@ function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
       .filter((document) => !eventDocumentIds.has(document.id))
       .map((document) => ({
         id: `document-${document.id}`,
-        label:
-          document.uploadedByEmail === item.candidateEmail
-            ? "Document ajoute par candidat"
-            : "Document ajoute par proprietaire",
+        label: "Document ajoute dans le dossier",
         date: document.createdAt!,
         type: "Document",
       })),
@@ -208,14 +203,14 @@ function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
 
 export function RelationCaseWorkspace({
   item,
-  senderEmail,
   senderType,
   candidateAccessToken,
+  debugMode = false,
 }: {
   item: RelationCaseWorkspaceItem;
-  senderEmail: string;
   senderType: "OWNER" | "CANDIDATE";
   candidateAccessToken?: string;
+  debugMode?: boolean;
 }) {
   const activityEvents = getActivityEvents(item);
   const isCandidateView = senderType === "CANDIDATE";
@@ -240,8 +235,20 @@ export function RelationCaseWorkspace({
       ) : null}
       <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{item.gLink.title}</h1>
       <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">
-        Dossier avec {item.candidateName} - {item.candidateEmail}
+        Dossier avec {item.candidateName}
       </p>
+      {debugMode && senderType === "OWNER" ? (
+        <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
+          <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
+          <div className="mt-3 space-y-1">
+            {item.gLink.slug ? <p>Lien public candidat: /l/{item.gLink.slug}</p> : null}
+            <p>Lien secure: /secure/{item.candidateAccessToken}</p>
+          </div>
+          <div className="mt-4">
+            <DebugDeleteCaseButton caseId={item.id} />
+          </div>
+        </section>
+      ) : null}
       <RelationCaseFields
         caseId={item.id}
         priority={item.priority}
@@ -286,7 +293,6 @@ export function RelationCaseWorkspace({
         <ChatBox
           caseId={candidateAccessToken ? undefined : item.id}
           candidateAccessToken={candidateAccessToken}
-          senderEmail={senderEmail}
           senderType={senderType}
         />
         <aside className="space-y-4">
@@ -309,7 +315,6 @@ export function RelationCaseWorkspace({
           <DocumentUpload
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
-            uploadedByEmail={senderEmail}
           />
           {senderType === "OWNER" ? (
             <CandidateAccessControls

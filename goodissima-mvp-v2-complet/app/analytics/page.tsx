@@ -65,7 +65,7 @@ export default async function AnalyticsPage() {
       cases: {
         orderBy: { createdAt: "desc" },
         include: {
-          documents: { orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true, uploadedByEmail: true } },
+          documents: { orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true } },
           messages: { orderBy: { createdAt: "asc" }, select: { id: true, senderType: true, createdAt: true } },
           relationActions: {
             orderBy: { createdAt: "desc" },

@@ -1,5 +1,6 @@
 import { RelationCaseWorkspace } from "@/components/RelationCaseWorkspace";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { isGoodissimaDebugMode } from "@/lib/debug";
 import { prisma } from "@/lib/prisma";
 import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
@@ -10,6 +11,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
   noStore();
 
   const owner = await getCurrentPrismaUser();
+  const debugMode = isGoodissimaDebugMode();
   const item = await prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
     include: {
@@ -24,5 +26,5 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
 
   if (!item) notFound();
 
-  return <RelationCaseWorkspace item={item} senderEmail="demo@goodissima.app" senderType="OWNER" />;
+  return <RelationCaseWorkspace item={item} senderType="OWNER" debugMode={debugMode} />;
 }

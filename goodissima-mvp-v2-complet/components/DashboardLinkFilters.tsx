@@ -93,7 +93,13 @@ function matchesSearch(item: DashboardLink, query: string) {
   return searchableText.includes(normalizedQuery);
 }
 
-export function DashboardLinkFilters({ links }: { links: DashboardLink[] }) {
+export function DashboardLinkFilters({
+  links,
+  debugMode = false,
+}: {
+  links: DashboardLink[];
+  debugMode?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
   const filteredLinks = useMemo(
@@ -145,7 +151,7 @@ export function DashboardLinkFilters({ links }: { links: DashboardLink[] }) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filteredLinks.map((item) => (
-            <LinkCard key={item.id} item={item} />
+            <LinkCard key={item.id} item={item} debugMode={debugMode} />
           ))}
         </div>
       )}

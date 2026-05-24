@@ -31,6 +31,11 @@ export default function CandidateForm({
     documentOptionalHelp: string;
     documentNamePlaceholder: string;
     documentUrlPlaceholder: string;
+    notificationConsentTitle: string;
+    notificationConsentHelp: string;
+    notificationEmailLabel: string;
+    notificationEmailHelp: string;
+    notificationEmailPlaceholder: string;
     submit: string;
     submitting: string;
     next: string;
@@ -52,6 +57,8 @@ export default function CandidateForm({
     documentName: "",
     documentUrl: "",
   });
+  const [emailNotificationsConsent, setEmailNotificationsConsent] = useState(false);
+  const [notificationEmail, setNotificationEmail] = useState("");
   const stepCount = getStepCount(fields);
   const isMultiStep = stepCount > 1;
   const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
@@ -92,7 +99,14 @@ export default function CandidateForm({
   }
 
   function validateForm() {
-    return validateFields(fields);
+    if (!validateFields(fields)) return false;
+
+    if (emailNotificationsConsent) {
+      const value = notificationEmail.trim();
+      return Boolean(value && emailPattern.test(value));
+    }
+
+    return true;
   }
 
   function goToNextStep() {
@@ -104,7 +118,7 @@ export default function CandidateForm({
     setCurrentStep(Math.min(currentStep + 1, stepCount));
   }
 
-  async function uploadFormFiles(candidateAccessToken: string, uploadedByEmail: string) {
+  async function uploadFormFiles(candidateAccessToken: string) {
     const fileEntries = Object.entries(files).filter((entry): entry is [string, File] =>
       Boolean(entry[1]),
     );
@@ -112,7 +126,6 @@ export default function CandidateForm({
     for (const [, file] of fileEntries) {
       const formData = new FormData();
       formData.append("candidateAccessToken", candidateAccessToken);
-      formData.append("uploadedByEmail", uploadedByEmail);
       formData.append("file", file);
 
       const res = await fetch("/api/documents/upload", {
@@ -134,6 +147,7 @@ export default function CandidateForm({
 
     const fullName = getStringFieldValue(answers.fullName).trim();
     const email = getStringFieldValue(answers.email).trim();
+    const privateNotificationEmail = notificationEmail.trim().toLowerCase();
     const message = getStringFieldValue(answers.message).trim();
     const ruleValues = toRuleValues(answers);
     const submissionAnswers = fields.reduce<Record<string, DynamicFieldValue>>((result, field) => {
@@ -148,11 +162,13 @@ export default function CandidateForm({
       gLinkId,
       candidateName: fullName,
       candidateEmail: email,
+      candidateNotificationEmail: emailNotificationsConsent ? privateNotificationEmail : "",
       message,
       documentName: documentFields.documentName,
       documentUrl: documentFields.documentUrl,
       formTemplateId,
       answers: submissionAnswers,
+      emailNotificationsConsent,
     };
 
     setLoading(true);
@@ -170,7 +186,7 @@ export default function CandidateForm({
       }
 
       const relationCase = await res.json();
-      await uploadFormFiles(relationCase.candidateAccessToken, email);
+      await uploadFormFiles(relationCase.candidateAccessToken);
 
       toast.success(copy.messageSentToast);
       router.push(`/secure/${encodeURIComponent(relationCase.candidateAccessToken)}`);
@@ -192,24 +208,53 @@ export default function CandidateForm({
         onFileChange={(key, file) => setFiles({ ...files, [key]: file })}
       />
       {(!isMultiStep || currentStep === stepCount) && (
-        <div className="rounded-2xl border p-4">
-          <p className="mb-2 text-sm font-medium">{copy.documentOptionalTitle}</p>
-          <p className="mb-3 text-sm text-slate-500">
-            {copy.documentOptionalHelp}
-          </p>
-          <input
-            className="mb-2 w-full rounded-xl border px-4 py-3"
-            placeholder={copy.documentNamePlaceholder}
-            value={documentFields.documentName}
-            onChange={(e) => setDocumentFields({ ...documentFields, documentName: e.target.value })}
-          />
-          <input
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder={copy.documentUrlPlaceholder}
-            value={documentFields.documentUrl}
-            onChange={(e) => setDocumentFields({ ...documentFields, documentUrl: e.target.value })}
-          />
-        </div>
+        <>
+          <label className="flex gap-3 rounded-2xl border bg-white p-4 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={emailNotificationsConsent}
+              onChange={(event) => setEmailNotificationsConsent(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-slate-300"
+            />
+            <span>
+              {copy.notificationConsentTitle}
+              <span className="mt-1 block text-xs text-slate-500">
+                {copy.notificationConsentHelp}
+              </span>
+            </span>
+          </label>
+          {emailNotificationsConsent ? (
+            <label className="block rounded-2xl border bg-white p-4">
+              <span className="text-sm font-medium text-slate-700">{copy.notificationEmailLabel}</span>
+              <input
+                type="email"
+                value={notificationEmail}
+                onChange={(event) => setNotificationEmail(event.target.value)}
+                placeholder={copy.notificationEmailPlaceholder}
+                className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+              />
+              <span className="mt-2 block text-xs text-slate-500">{copy.notificationEmailHelp}</span>
+            </label>
+          ) : null}
+          <div className="rounded-2xl border p-4">
+            <p className="mb-2 text-sm font-medium">{copy.documentOptionalTitle}</p>
+            <p className="mb-3 text-sm text-slate-500">
+              {copy.documentOptionalHelp}
+            </p>
+            <input
+              className="mb-2 w-full rounded-xl border px-4 py-3"
+              placeholder={copy.documentNamePlaceholder}
+              value={documentFields.documentName}
+              onChange={(e) => setDocumentFields({ ...documentFields, documentName: e.target.value })}
+            />
+            <input
+              className="w-full rounded-xl border px-4 py-3"
+              placeholder={copy.documentUrlPlaceholder}
+              value={documentFields.documentUrl}
+              onChange={(e) => setDocumentFields({ ...documentFields, documentUrl: e.target.value })}
+            />
+          </div>
+        </>
       )}
       {isMultiStep && (
         <div className="space-y-3">

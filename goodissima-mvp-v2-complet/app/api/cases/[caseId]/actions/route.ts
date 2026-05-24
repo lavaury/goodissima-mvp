@@ -26,6 +26,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
         id: true,
         candidateAccessToken: true,
         candidateEmail: true,
+        candidateEmailNotificationsEnabled: true,
         candidateName: true,
         gLink: { select: { title: true } },
       },
@@ -58,16 +59,18 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       },
     });
 
-    await sendNewRelationActionEmail({
-      candidateEmail: relationCase.candidateEmail,
-      ownerEmail: owner.email,
-      caseId: relationCase.id,
-      caseTitle: relationCase.gLink.title,
-      candidateName: relationCase.candidateName,
-      candidateAccessToken: relationCase.candidateAccessToken,
-      actionTitle: action.title,
-      actionType: getRelationActionTypeLabel(action.type),
-    });
+    if (relationCase.candidateEmailNotificationsEnabled) {
+      await sendNewRelationActionEmail({
+        candidateEmail: relationCase.candidateEmail,
+        ownerEmail: owner.email,
+        caseId: relationCase.id,
+        caseTitle: relationCase.gLink.title,
+        candidateName: relationCase.candidateName,
+        candidateAccessToken: relationCase.candidateAccessToken,
+        actionTitle: action.title,
+        actionType: getRelationActionTypeLabel(action.type),
+      });
+    }
 
     return NextResponse.json(action, { status: 201 });
   } catch (error) {

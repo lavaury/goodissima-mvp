@@ -41,7 +41,7 @@ export default async function CasesPage() {
                 <div>
                   <p className="font-semibold">{item.candidateName}</p>
                   <p className="text-sm text-slate-500">
-                    {item.gLink.title} · {item.candidateEmail}
+                    {item.gLink.title}
                   </p>
                 </div>
                 <StatusBadge status={item.status} />
