@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { AIEmptyState } from "@/components/AIEmptyState";
 import { useI18n } from "@/components/I18nProvider";
 import { useToast } from "@/components/ToastProvider";
 import type { AISuggestedAction, AISummary } from "@/lib/ai/types";
@@ -38,7 +39,7 @@ function formatSummary(summary: AISummary, labels: {
     .join("\n\n");
 }
 
-export function AIRelationSummaryPanel({ caseId }: { caseId: string }) {
+export function AIRelationSummaryPanel({ caseId, workspace = false }: { caseId: string; workspace?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [creatingActionKey, setCreatingActionKey] = useState<string | null>(null);
@@ -116,7 +117,7 @@ export function AIRelationSummaryPanel({ caseId }: { caseId: string }) {
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4">
+    <div className={workspace ? "h-full" : "rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4"}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">{t("ai.summary.title")}</h2>
@@ -158,8 +159,16 @@ export function AIRelationSummaryPanel({ caseId }: { caseId: string }) {
         </div>
       ) : null}
 
+      {!result && !emptyMessage ? (
+        <AIEmptyState
+          title="Resume explicable pret a generer"
+          description="Lancez une analyse IA pour obtenir une synthese claire du dossier, avec points forts, risques, documents manquants et actions possibles."
+          suggestions={["Resume contextualise", "Points cles actionnables", "Actions creees uniquement apres validation humaine"]}
+        />
+      ) : null}
+
       {result ? (
-        <div className="mt-4 grid gap-3 text-sm">
+        <div className={workspace ? "mt-5 grid gap-4 text-sm" : "mt-4 grid gap-3 text-sm"}>
           <SummaryCard title={t("ai.summary.section.summary")} tone="slate">
             <p className="text-slate-600">{result.summary.summary}</p>
           </SummaryCard>

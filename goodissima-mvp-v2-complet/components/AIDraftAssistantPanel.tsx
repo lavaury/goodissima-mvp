@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AIEmptyState } from "@/components/AIEmptyState";
 import { useToast } from "@/components/ToastProvider";
 import type { AIDraft, AIDraftType } from "@/lib/ai/types";
 
@@ -19,7 +20,7 @@ const draftOptions: Array<{ type: AIDraftType; label: string }> = [
   { type: "PROFESSIONAL_RESPONSE", label: "Proposer une reponse professionnelle" },
 ];
 
-export function AIDraftAssistantPanel({ caseId }: { caseId: string }) {
+export function AIDraftAssistantPanel({ caseId, workspace = false }: { caseId: string; workspace?: boolean }) {
   const toast = useToast();
   const [draftType, setDraftType] = useState<AIDraftType>("FOLLOW_UP");
   const [instruction, setInstruction] = useState("");
@@ -80,7 +81,7 @@ export function AIDraftAssistantPanel({ caseId }: { caseId: string }) {
   }
 
   return (
-    <section className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4">
+    <section className={workspace ? "h-full" : "rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4"}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">Assistant redaction IA</h2>
@@ -123,8 +124,16 @@ export function AIDraftAssistantPanel({ caseId }: { caseId: string }) {
         </button>
       </div>
 
+      {!result ? (
+        <AIEmptyState
+          title="Brouillon assiste disponible"
+          description="Choisissez une intention, ajoutez une consigne si utile, puis generelez un brouillon a copier ou placer dans l'editeur."
+          suggestions={["Aucun envoi automatique", "Ton professionnel", "Utilisation auditee"]}
+        />
+      ) : null}
+
       {result ? (
-        <div className="mt-4 grid gap-3 text-sm">
+        <div className={workspace ? "mt-5 grid gap-4 text-sm" : "mt-4 grid gap-3 text-sm"}>
           <section className="rounded-xl border bg-slate-50 p-3">
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">

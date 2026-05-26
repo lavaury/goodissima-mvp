@@ -1,21 +1,17 @@
 import { CandidateAccessControls } from "@/components/CandidateAccessControls";
-import { AIDraftAssistantPanel } from "@/components/AIDraftAssistantPanel";
-import { AIRelationSummaryPanel } from "@/components/AIRelationSummaryPanel";
-import { AIRiskSignalsPanel } from "@/components/AIRiskSignalsPanel";
-import { AITimelineIntelligencePanel } from "@/components/AITimelineIntelligencePanel";
+import { AIWorkspace } from "@/components/AIWorkspace";
 import { ChatBox } from "@/components/ChatBox";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
-import { MatchingPanel } from "@/components/MatchingPanel";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
   getRelationActionStatusLabel,
   getRelationActionTypeLabel,
 } from "@/lib/relation-actions";
-import { humanizeRelationEvent } from "@/lib/events/humanize";
+import { humanizeAIEvent, humanizeRelationEvent } from "@/lib/events/humanize";
 import type { Prisma, RelationPriority, RelationStatus } from "@prisma/client";
 import Image from "next/image";
 
@@ -251,7 +247,7 @@ export function RelationCaseWorkspace({
   const isCandidateView = senderType === "CANDIDATE";
 
   return (
-    <main className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:py-10">
+    <main className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
       {isCandidateView ? (
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Image
@@ -268,8 +264,9 @@ export function RelationCaseWorkspace({
           </div>
         </div>
       ) : null}
-      <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{item.gLink.title}</h1>
-      <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#247f88]">Goodissima relation workspace</p>
+      <h1 className="mt-2 text-2xl font-bold leading-tight text-[#2f3437] sm:text-3xl">{item.gLink.title}</h1>
+      <p className="mt-1 text-sm leading-relaxed text-[#766f68] sm:text-base">
         Dossier avec {item.candidateName}
       </p>
       {debugMode && senderType === "OWNER" ? (
@@ -290,77 +287,26 @@ export function RelationCaseWorkspace({
         status={item.status}
         editable={senderType === "OWNER"}
       />
-      <div className="mt-6 rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4">
-        <h2 className="font-semibold">Activité du dossier</h2>
-        <div className="mt-3 max-h-[50vh] space-y-2 overflow-y-auto pr-2 sm:max-h-[28rem] lg:max-h-[calc(100vh-22rem)]">
-          {activityEvents.length === 0 ? (
-            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-              L'activité du dossier apparaîtra ici au fil des messages, documents et demandes.
-            </div>
-          ) : null}
-          {activityEvents.map((event) => (
-            <div
-              key={event.id}
-              className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  {event.icon ? (
-                    <span
-                      aria-hidden="true"
-                      title={event.icon}
-                      className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[10px] font-semibold uppercase text-slate-500 ring-1 ring-slate-200"
-                    >
-                      {event.type.slice(0, 1)}
-                    </span>
-                  ) : null}
-                  <p className="font-medium text-slate-800">{event.label}</p>
-                </div>
-                <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
-                  <span>{event.type}</span>
-                  {"badge" in event && event.badge ? (
-                    <span className="rounded-full bg-white px-2 py-0.5 text-slate-700 ring-1 ring-slate-200">
-                      {event.badge}
-                    </span>
-                  ) : null}
-                  {"status" in event && event.status ? <span>{event.status}</span> : null}
-                  {"actor" in event && event.actor ? <span>Acteur: {event.actor}</span> : null}
-                </div>
-              </div>
-              <p className="shrink-0 text-xs text-slate-500">
-                {formatRelativeActivityDate(event.date)}
-                <span className="block text-[11px]">{formatActivityDate(event.date)}</span>
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="mt-6 grid gap-5 lg:mt-8 lg:grid-cols-[1fr_360px] lg:gap-6">
-        <ChatBox
-          caseId={candidateAccessToken ? undefined : item.id}
-          candidateAccessToken={candidateAccessToken}
-          senderType={senderType}
-        />
-        <aside className="space-y-4">
-          <MatchingOptInPanel
-            caseId={item.id}
-            initialMatchingEnabled={item.matchingEnabled}
+      <div
+        data-case-layout="conversation-ai-sidebar"
+        className="mt-6 grid gap-5 lg:mt-8 xl:grid-cols-[minmax(420px,1.2fr)_minmax(390px,0.98fr)_280px] xl:gap-5"
+      >
+        <section data-conversation-zone="true" className="min-w-0 space-y-4">
+          <ChatBox
+            caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
             senderType={senderType}
           />
-          {senderType === "OWNER" ? <MatchingPanel caseId={item.id} matchingEnabled={item.matchingEnabled} /> : null}
-          {senderType === "OWNER" ? <AIDraftAssistantPanel caseId={item.id} /> : null}
-          {senderType === "OWNER" ? <AIRiskSignalsPanel caseId={item.id} /> : null}
-          {senderType === "OWNER" ? <AIRelationSummaryPanel caseId={item.id} /> : null}
-          {senderType === "OWNER" ? <AITimelineIntelligencePanel caseId={item.id} /> : null}
-          <RelationActionsPanel
-            caseId={item.id}
-            actions={item.relationActions}
-            editable={senderType === "OWNER"}
-            candidateAccessToken={candidateAccessToken}
-          />
-          <div className="rounded-2xl border bg-white p-4 sm:p-5 lg:p-4">
-            <h2 className="font-semibold">Documents</h2>
+          <div className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)] transition hover:shadow-[0_18px_40px_rgba(47,52,55,0.08)]">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold text-[#2f3437]">Documents</h2>
+                <p className="text-xs text-[#766f68]">Pieces partagees dans le meme contexte que la conversation.</p>
+              </div>
+              <span className="rounded-full bg-[#e8f8f9] px-2.5 py-1 text-xs font-medium text-[#247f88]">
+                {item.documents.length} document{item.documents.length > 1 ? "s" : ""}
+              </span>
+            </div>
             <div className="mt-3">
               <DocumentList
                 documents={item.documents}
@@ -373,28 +319,83 @@ export function RelationCaseWorkspace({
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
           />
+        </section>
+        {senderType === "OWNER" ? (
+          <AIWorkspace caseId={item.id} matchingEnabled={item.matchingEnabled} />
+        ) : null}
+        <aside data-metadata-sidebar="true" className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1">
+          <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+              Matching
+              <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+            </summary>
+            <div className="mt-3">
+              <MatchingOptInPanel
+                caseId={item.id}
+                initialMatchingEnabled={item.matchingEnabled}
+                candidateAccessToken={candidateAccessToken}
+                senderType={senderType}
+              />
+            </div>
+          </details>
+          <RelationActionsPanel
+            caseId={item.id}
+            actions={item.relationActions}
+            editable={senderType === "OWNER"}
+            candidateAccessToken={candidateAccessToken}
+          />
           {senderType === "OWNER" ? (
-            <CandidateAccessControls
-              caseId={item.id}
-              candidateAccessToken={item.candidateAccessToken}
-              candidateAccessExpiresAt={item.candidateAccessExpiresAt}
-              candidateAccessRevokedAt={item.candidateAccessRevokedAt}
-            />
+            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+                Acces
+                <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+              </summary>
+              <div className="mt-3">
+                <CandidateAccessControls
+                  caseId={item.id}
+                  candidateAccessToken={item.candidateAccessToken}
+                  candidateAccessExpiresAt={item.candidateAccessExpiresAt}
+                  candidateAccessRevokedAt={item.candidateAccessRevokedAt}
+                />
+              </div>
+            </details>
           ) : null}
+          <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+              Activite recente
+              <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+            </summary>
+            <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+              {activityEvents.slice(0, 16).map((event) => (
+                <div key={event.id} className="rounded-lg bg-[#f6f0e8] px-2.5 py-2 text-xs transition hover:bg-[#e8f8f9]">
+                  <p className="font-medium leading-snug text-[#2f3437]">{event.label}</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-[#766f68]">
+                    <span>{event.type}</span>
+                    {"badge" in event && event.badge ? <span>{event.badge}</span> : null}
+                    {"status" in event && event.status ? <span>{event.status}</span> : null}
+                  </div>
+                  <p className="mt-1 text-[11px] text-[#766f68]">{formatRelativeActivityDate(event.date)}</p>
+                </div>
+              ))}
+            </div>
+          </details>
           <div className={isCandidateView ? "hidden lg:block" : ""}>
-            <div className="rounded-2xl border bg-white p-4">
-              <h2 className="font-semibold">Historique minimal</h2>
+            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+                Audit
+                <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+              </summary>
               <div className="mt-3 max-h-[40vh] space-y-2 overflow-y-auto pr-2 lg:max-h-80">
                 {item.auditLogs.map((log) => (
-                  <div key={log.id} className="rounded-xl bg-slate-50 p-2 text-xs">
-                    <p className="font-medium">{log.eventType}</p>
-                    <p className="text-slate-500">
+                  <div key={log.id} className="rounded-xl bg-[#f6f0e8] p-2 text-xs">
+                    <p className="font-medium text-[#2f3437]">{humanizeAIEvent(log.eventType).title}</p>
+                    <p className="text-[#766f68]">
                       {formatActivityDate(log.createdAt)}
                     </p>
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           </div>
         </aside>
       </div>

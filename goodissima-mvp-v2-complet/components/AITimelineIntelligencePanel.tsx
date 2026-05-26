@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { AIEmptyState } from "@/components/AIEmptyState";
 import { useToast } from "@/components/ToastProvider";
 import type { AITimelineIntelligence, AITimelineNextBestAction } from "@/lib/ai/types";
 
@@ -13,7 +14,25 @@ type TimelineResponse = {
   timeline: AITimelineIntelligence;
 };
 
-export function AITimelineIntelligencePanel({ caseId }: { caseId: string }) {
+function formatTimeline(result: TimelineResponse) {
+  return [
+    `Etat relationnel:\n${result.timeline.timelineStatus}`,
+    typeof result.timeline.inactiveSinceDays === "number"
+      ? `Inactivite:\n${result.timeline.inactiveSinceDays} jour(s)`
+      : "",
+    result.timeline.blockers.length ? `Blocages:\n- ${result.timeline.blockers.join("\n- ")}` : "",
+    result.timeline.alerts.length ? `Alertes:\n- ${result.timeline.alerts.join("\n- ")}` : "",
+    result.timeline.nextBestActions.length
+      ? `Recommandations:\n- ${result.timeline.nextBestActions
+          .map((action) => `${action.label}: ${action.reason}`)
+          .join("\n- ")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function AITimelineIntelligencePanel({ caseId, workspace = false }: { caseId: string; workspace?: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
@@ -72,8 +91,14 @@ export function AITimelineIntelligencePanel({ caseId }: { caseId: string }) {
     setIgnoredActions((current) => [...current, `${action.type}:${action.label}`]);
   }
 
+  async function copyTimeline() {
+    if (!result) return;
+    await navigator.clipboard.writeText(formatTimeline(result));
+    toast.success("Analyse timeline copiee");
+  }
+
   return (
-    <section className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4">
+    <section className={workspace ? "h-full" : "rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4"}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">Analyse IA de la timeline</h2>
@@ -88,17 +113,35 @@ export function AITimelineIntelligencePanel({ caseId }: { caseId: string }) {
         ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={analyzeTimeline}
-        disabled={loading}
-        className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {loading ? "Analyse..." : "Analyser la timeline"}
-      </button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={analyzeTimeline}
+          disabled={loading}
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {loading ? "Analyse..." : result ? "Regenerer la timeline" : "Analyser la timeline"}
+        </button>
+        <button
+          type="button"
+          onClick={copyTimeline}
+          disabled={!result}
+          className="rounded-lg border px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+        >
+          Copier
+        </button>
+      </div>
+
+      {!result ? (
+        <AIEmptyState
+          title="Timeline relationnelle en attente"
+          description="Lancez l'analyse pour faire apparaitre les blocages, alertes, evenements utiles et recommandations de suivi."
+          suggestions={["Blocages visibles", "Alertes contextualisees", "Actions proposees sans automatisme"]}
+        />
+      ) : null}
 
       {result ? (
-        <div className="mt-4 grid gap-3 text-sm">
+        <div className={workspace ? "mt-5 grid gap-4 text-sm" : "mt-4 grid gap-3 text-sm"}>
           <TimelineCard title="Etat relationnel">
             <p className="text-slate-700">{result.timeline.timelineStatus}</p>
             {typeof result.timeline.inactiveSinceDays === "number" ? (

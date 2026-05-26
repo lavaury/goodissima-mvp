@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AIEmptyState } from "@/components/AIEmptyState";
 import { useToast } from "@/components/ToastProvider";
 import type { AIRiskAnalysis, AIRiskSignal } from "@/lib/ai/types";
 
@@ -11,13 +12,30 @@ type RiskResponse = {
   riskAnalysis: AIRiskAnalysis;
 };
 
+function formatRiskAnalysis(result: RiskResponse) {
+  if (!result.riskAnalysis.riskSignals.length) return "Aucun signal particulier detecte.";
+
+  return result.riskAnalysis.riskSignals
+    .map((signal) =>
+      [
+        `${signal.title} (${signal.severity})`,
+        `Type: ${signal.type}`,
+        `Explication: ${signal.explanation}`,
+        signal.recommendation ? `Recommandation: ${signal.recommendation}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n");
+}
+
 const severityClasses = {
   low: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   medium: "bg-amber-50 text-amber-700 ring-amber-200",
   high: "bg-rose-50 text-rose-700 ring-rose-200",
 };
 
-export function AIRiskSignalsPanel({ caseId }: { caseId: string }) {
+export function AIRiskSignalsPanel({ caseId, workspace = false }: { caseId: string; workspace?: boolean }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [actingSignal, setActingSignal] = useState<string | null>(null);
@@ -71,8 +89,14 @@ export function AIRiskSignalsPanel({ caseId }: { caseId: string }) {
     }
   }
 
+  async function copyRiskAnalysis() {
+    if (!result) return;
+    await navigator.clipboard.writeText(formatRiskAnalysis(result));
+    toast.success("Signaux copies");
+  }
+
   return (
-    <section className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4">
+    <section className={workspace ? "h-full" : "rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4"}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">Signaux IA de confiance</h2>
@@ -87,17 +111,35 @@ export function AIRiskSignalsPanel({ caseId }: { caseId: string }) {
         ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={analyzeRiskSignals}
-        disabled={loading}
-        className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {loading ? "Analyse..." : "Analyser les signaux"}
-      </button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={analyzeRiskSignals}
+          disabled={loading}
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {loading ? "Analyse..." : result ? "Regenerer les signaux" : "Analyser les signaux"}
+        </button>
+        <button
+          type="button"
+          onClick={copyRiskAnalysis}
+          disabled={!result}
+          className="rounded-lg border px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+        >
+          Copier
+        </button>
+      </div>
+
+      {!result ? (
+        <AIEmptyState
+          title="Signaux de confiance non analyses"
+          description="L'analyse signale les points de vigilance et recommandations, sans score cache ni decision automatique."
+          suggestions={["Severite lisible", "Explications courtes", "Prise en compte auditee"]}
+        />
+      ) : null}
 
       {result ? (
-        <div className="mt-4 space-y-3 text-sm">
+        <div className={workspace ? "mt-5 space-y-4 text-sm" : "mt-4 space-y-3 text-sm"}>
           {result.riskAnalysis.riskSignals.length === 0 ? (
             <div className="rounded-xl bg-slate-50 p-3 text-slate-500">
               Aucun signal particulier detecte dans le contexte transmis.
