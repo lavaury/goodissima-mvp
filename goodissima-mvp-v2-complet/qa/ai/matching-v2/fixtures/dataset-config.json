@@ -1,0 +1,21 @@
+{
+  "seed": "goodissima-semantic-matching-v2",
+  "profiles": 500,
+  "semanticSynonyms": [
+    [
+      "banque",
+      "institution financière",
+      "finance regulated"
+    ],
+    [
+      "IA",
+      "intelligence artificielle",
+      "AI platform"
+    ],
+    [
+      "B2B SaaS",
+      "logiciel professionnel",
+      "enterprise software"
+    ]
+  ]
+}

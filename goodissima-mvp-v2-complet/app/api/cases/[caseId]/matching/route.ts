@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { extractMatchingProfile, rankMatches } from "@/lib/ai/matching";
+import { generateCaseEmbedding, semanticMatchV2, semanticVectorSearch } from "@/lib/ai/semantic-matching";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(_req: Request, { params }: { params: { caseId: string } }) {
@@ -67,6 +68,29 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       }));
 
     const matches = rankMatches(sourceProfile, sameTemplateCandidates);
+    const embedding = await generateCaseEmbedding(relationCase.id, "case_summary");
+    let semanticMatches = semanticMatchV2(sourceProfile, sameTemplateCandidates);
+
+    if (process.env.AI_TEST_MODE !== "scenario") {
+      try {
+        const vectorRows = await semanticVectorSearch({
+          sourceVector: embedding.vector,
+          ownerId: owner.id,
+          templateKey: relationCase.template?.key ?? null,
+          excludeCaseId: relationCase.id,
+        });
+        const byId = new Map(sameTemplateCandidates.map((candidate) => [candidate.id, candidate]));
+        const vectorCandidates = vectorRows
+          .map((row) => byId.get(row.relationCaseId))
+          .filter((candidate): candidate is (typeof sameTemplateCandidates)[number] => Boolean(candidate));
+        const vectorMatches = semanticMatchV2(sourceProfile, vectorCandidates);
+        if (vectorMatches.length > 0) semanticMatches = vectorMatches;
+      } catch (error) {
+        console.info("[matching] semantic vector search fallback", {
+          reason: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_VECTOR_SEARCH_ERROR",
+        });
+      }
+    }
 
     await prisma.aIEvent.create({
       data: {
@@ -80,7 +104,19 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       },
     });
 
-    return NextResponse.json({ profile: sourceProfile, matches });
+    await prisma.aIEvent.create({
+      data: {
+        caseId: relationCase.id,
+        provider: "mock",
+        model: "hybrid-semantic-matching-v2",
+        action: "semantic_matching_analysis",
+        status: "success",
+        promptVersion: "semantic-matching-v2",
+        outputSummary: `${semanticMatches.length} correspondance(s) semantique(s)`,
+      },
+    });
+
+    return NextResponse.json({ profile: sourceProfile, matches, semanticMatches });
   } catch (error) {
     console.error("[matching] Unable to analyze", error);
     return NextResponse.json({ error: "Impossible d'analyser les correspondances" }, { status: 500 });

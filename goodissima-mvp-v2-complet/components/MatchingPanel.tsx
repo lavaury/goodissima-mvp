@@ -8,6 +8,7 @@ type MatchItem = {
   pseudonym: string;
   explanation: {
     compatibleElements: string[];
+    semanticSignals?: string[];
     clarificationsNeeded: string[];
     warnings: string[];
   };
@@ -42,8 +43,8 @@ export function MatchingPanel({ caseId, matchingEnabled }: { caseId: string; mat
       return;
     }
 
-    const payload = (await res.json()) as { matches: MatchItem[] };
-    setMatches(payload.matches);
+    const payload = (await res.json()) as { matches: MatchItem[]; semanticMatches?: MatchItem[] };
+    setMatches(payload.semanticMatches?.length ? payload.semanticMatches : payload.matches);
     toast.success("Correspondances analysees");
   }
 
@@ -83,7 +84,13 @@ export function MatchingPanel({ caseId, matchingEnabled }: { caseId: string; mat
         {matches.map((match) => (
           <article key={match.relationId} className="rounded-xl border bg-slate-50 p-3 text-sm">
             <p className="font-medium text-slate-900">{match.pseudonym}</p>
+            {match.explanation.semanticSignals?.length ? (
+              <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+                Correspondance semantique detectee
+              </p>
+            ) : null}
             <MatchList title="Elements compatibles" items={match.explanation.compatibleElements} />
+            <MatchList title="Signaux relationnels" items={match.explanation.semanticSignals ?? []} />
             <MatchList title="Clarifications necessaires" items={match.explanation.clarificationsNeeded} />
             <MatchList title="Vigilance" items={match.explanation.warnings} />
             <button

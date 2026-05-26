@@ -9,6 +9,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { defaultNotificationPreferences } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
+import { humanizeAIEvent } from "@/lib/events/humanize";
 import { SettingsPanel } from "./SettingsPanel";
 
 const defaultMistralModel = "mistral-small-latest";
@@ -149,9 +150,9 @@ export default async function SettingsPage() {
                 <article key={event.id} className="rounded-lg bg-white p-3 text-sm ring-1 ring-slate-200">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="font-medium text-slate-900">{event.action}</p>
+                      <p className="font-medium text-slate-900">{humanizeAIEvent(event.action).title}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {event.provider} / {event.model ?? "modele non renseigne"} - {event.status}
+                        {humanizeAIEvent(event.action).category ?? "IA"} - {event.provider} / {event.model ?? "modele non renseigne"} - {event.status}
                       </p>
                       {event.case ? (
                         <p className="mt-1 text-xs text-slate-500">

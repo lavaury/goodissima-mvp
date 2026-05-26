@@ -15,6 +15,7 @@ import {
   getRelationActionStatusLabel,
   getRelationActionTypeLabel,
 } from "@/lib/relation-actions";
+import { humanizeRelationEvent } from "@/lib/events/humanize";
 import type { Prisma, RelationPriority, RelationStatus } from "@prisma/client";
 import Image from "next/image";
 
@@ -67,6 +68,7 @@ type ActivityEvent = {
   label: string;
   date: Date | string;
   type: string;
+  icon?: string;
   badge?: string;
   status?: string;
   actor?: string;
@@ -158,6 +160,19 @@ function getRelationEventType(eventType: string) {
   }
 }
 
+function getHumanizedRelationEventLabel(event: RelationCaseWorkspaceItem["relationEvents"][number]) {
+  const humanized = humanizeRelationEvent(
+    event.type,
+    event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload : null,
+  );
+  const payloadTitle = getPayloadString(event.payload, "title");
+  return payloadTitle ? `${humanized.title} - ${payloadTitle}` : humanized.title;
+}
+
+function getHumanizedRelationEventType(eventType: string) {
+  return humanizeRelationEvent(eventType).category ?? "Dossier";
+}
+
 function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
   const eventMessageIds = new Set(
     item.relationEvents
@@ -179,9 +194,13 @@ function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
     },
     ...item.relationEvents.map((event) => ({
       id: `relation-event-${event.id}`,
-      label: getRelationEventLabel(event),
+      label: getHumanizedRelationEventLabel(event),
       date: event.createdAt,
-      type: getRelationEventType(event.type),
+      type: getHumanizedRelationEventType(event.type),
+      icon: humanizeRelationEvent(
+        event.type,
+        event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload : null,
+      ).icon,
     })),
     ...item.messages
       .filter((message) => !eventMessageIds.has(message.id))
@@ -285,7 +304,18 @@ export function RelationCaseWorkspace({
               className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             >
               <div>
-                <p className="font-medium text-slate-800">{event.label}</p>
+                <div className="flex items-center gap-2">
+                  {event.icon ? (
+                    <span
+                      aria-hidden="true"
+                      title={event.icon}
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[10px] font-semibold uppercase text-slate-500 ring-1 ring-slate-200"
+                    >
+                      {event.type.slice(0, 1)}
+                    </span>
+                  ) : null}
+                  <p className="font-medium text-slate-800">{event.label}</p>
+                </div>
                 <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
                   <span>{event.type}</span>
                   {"badge" in event && event.badge ? (

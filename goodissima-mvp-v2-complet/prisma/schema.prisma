@@ -123,6 +123,23 @@ model RelationCase {
   relationActions RelationAction[]
   formSubmissions FormSubmission[]
   aiEvents        AIEvent[]
+  embeddings      RelationEmbedding[]
+}
+
+model RelationEmbedding {
+  id String @id @default(cuid())
+
+  relationCaseId String
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  embeddingType String
+  contentHash   String
+  vector        Unsupported("vector")?
+
+  createdAt DateTime @default(now())
+
+  @@index([relationCaseId, embeddingType])
+  @@index([contentHash])
 }
 
 model RelationTemplate {
