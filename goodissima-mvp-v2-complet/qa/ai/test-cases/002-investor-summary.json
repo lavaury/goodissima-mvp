@@ -1,0 +1,24 @@
+{
+  "id": "AI-QA-002",
+  "name": "Resume investisseur",
+  "features": [
+    "AI Summary",
+    "AI Suggested Actions",
+    "Template AI Instructions"
+  ],
+  "fixture": "../fixtures/investor-summary.json",
+  "expected": "../expected/investor-summary.expected.json",
+  "provider": "mock",
+  "automatedChecks": [
+    "valid_json",
+    "ai_summary_shape",
+    "allowed_suggested_action_types",
+    "privacy_context_contains_no_sensitive_values"
+  ],
+  "manualAcceptanceCriteria": [
+    "summary mentionne l'interet strategique investisseur, le focus IA europeenne et l'interet banque/B2B SaaS",
+    "keyPoints couvre investisseur early-stage, Europe, B2B SaaS, privacy-first et banque",
+    "risks clarifie stade investissement, timing et attentes",
+    "suggestedActions inclut INVESTOR_FOLLOW_UP, REQUEST_CLARIFICATION et SCHEDULE_EXCHANGE"
+  ]
+}

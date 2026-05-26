@@ -1,0 +1,45 @@
+{
+  "id": "investor_strategic_interest",
+  "title": "Investisseur - interet strategique",
+  "template": {
+    "key": "investor_introduction",
+    "name": "Investor Introduction",
+    "aiInstructions": "Identifier les signaux strategiques sans conclure."
+  },
+  "relation": {
+    "type": "investor",
+    "organization": "fonds europeen",
+    "role": "partner"
+  },
+  "messages": [
+    "Nous sommes un fonds europeen interesse par les plateformes IA B2B.",
+    "Le potentiel banque et un partenariat strategique nous interessent.",
+    "Nous souhaitons echanger sur un investissement possible."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "summaryMustContain": [
+      "fonds europeen",
+      "IA B2B",
+      "banque",
+      "partenariat strategique"
+    ],
+    "keyPointsMustContain": [
+      "fonds europeen",
+      "IA B2B",
+      "interet banque"
+    ],
+    "risksMustContain": [
+      "stade d'investissement",
+      "timing",
+      "attentes"
+    ],
+    "missingDocumentsMustContain": [],
+    "suggestedActionTypes": [
+      "INVESTOR_FOLLOW_UP",
+      "SCHEDULE_EXCHANGE",
+      "REQUEST_CLARIFICATION"
+    ]
+  }
+}

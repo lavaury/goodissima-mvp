@@ -1,0 +1,53 @@
+{
+  "id": "immobilier_candidat_solide",
+  "title": "Immobilier - candidat solide",
+  "template": {
+    "key": "real_estate_rental",
+    "name": "Location immobiliere",
+    "aiInstructions": "Qualifier les prochaines etapes sans decision automatique."
+  },
+  "relation": {
+    "type": "real_estate",
+    "listing": "Appartement T2 Lyon, disponible le mois prochain",
+    "candidate": "pseudonyme:candidat_b"
+  },
+  "messages": [
+    "Je suis en CDI depuis trois ans.",
+    "Mes revenus sont stables.",
+    "Tous les documents demandes sont transmis.",
+    "Je souhaite organiser une visite."
+  ],
+  "documents": [
+    {
+      "type": "identity",
+      "status": "present"
+    },
+    {
+      "type": "income_proof",
+      "status": "present"
+    },
+    {
+      "type": "employment_contract",
+      "status": "present"
+    }
+  ],
+  "actions": [],
+  "expected": {
+    "summaryMustContain": [
+      "CDI",
+      "revenus stables",
+      "visite"
+    ],
+    "keyPointsMustContain": [
+      "documents complets",
+      "revenus stables"
+    ],
+    "risksMustContain": [
+      "peu de risques"
+    ],
+    "missingDocumentsMustContain": [],
+    "suggestedActionTypes": [
+      "SCHEDULE_EXCHANGE"
+    ]
+  }
+}

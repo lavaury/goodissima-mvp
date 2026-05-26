@@ -63,6 +63,7 @@ export default async function DashboardPage({
           select: {
             id: true,
             candidateEmail: true,
+            candidateEmailNotificationsEnabled: true,
             priority: true,
             status: true,
             createdAt: true,
@@ -178,7 +179,9 @@ export default async function DashboardPage({
     cases: item.cases
       .map((relationCase) => ({
         id: relationCase.id,
-        candidateEmail: relationCase.candidateEmail,
+        candidateEmail: relationCase.candidateEmailNotificationsEnabled || relationCase.candidateEmail.endsWith("@goodissima.local")
+          ? t("dashboard.privateNotificationChannel")
+          : relationCase.candidateEmail,
         priority: relationCase.priority,
         status: relationCase.status,
         lastActivityAt: getCaseLastActivityAt(relationCase),

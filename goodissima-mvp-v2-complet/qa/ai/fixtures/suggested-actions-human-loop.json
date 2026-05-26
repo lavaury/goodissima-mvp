@@ -1,0 +1,29 @@
+{
+  "id": "fixture-ai-005-suggested-actions-human-loop",
+  "feature": "AI Suggested Actions",
+  "provider": "mock",
+  "aiOutput": {
+    "suggestedActions": [
+      {
+        "label": "Demander le justificatif de revenus",
+        "type": "REQUEST_DOCUMENT",
+        "reason": "Le dossier indique que le justificatif de revenus est absent."
+      },
+      {
+        "label": "Clarifier le statut du garant",
+        "type": "REQUEST_CLARIFICATION",
+        "reason": "Le garant est potentiel mais non confirme."
+      }
+    ]
+  },
+  "initialState": {
+    "relationActions": [],
+    "relationEvents": [],
+    "aiEvents": [],
+    "emailsSent": []
+  },
+  "humanClick": {
+    "acceptedActionType": "REQUEST_DOCUMENT",
+    "acceptedActionLabel": "Demander le justificatif de revenus"
+  }
+}

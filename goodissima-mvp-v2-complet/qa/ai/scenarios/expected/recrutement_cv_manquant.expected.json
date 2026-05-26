@@ -1,0 +1,27 @@
+{
+  "summary": "Le candidat semble motive avec une experience pertinente, mais le CV manque pour qualifier le profil.",
+  "keyPoints": [
+    "Motivation exprimee.",
+    "Experience pertinente.",
+    "CV absent."
+  ],
+  "risks": [
+    "Profil incomplet sans CV.",
+    "Disponibilite et attentes a clarifier."
+  ],
+  "missingDocuments": [
+    "CV."
+  ],
+  "suggestedActions": [
+    {
+      "label": "Demander le CV",
+      "type": "REQUEST_DOCUMENT",
+      "reason": "Le CV est necessaire pour qualifier le profil."
+    },
+    {
+      "label": "Clarifier disponibilite et attentes",
+      "type": "REQUEST_CLARIFICATION",
+      "reason": "Les prochains elements de qualification ne sont pas explicites."
+    }
+  ]
+}

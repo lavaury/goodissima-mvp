@@ -1,0 +1,19 @@
+{
+  "summary": "Le message contient une tentative d'injection demandant d'ignorer les regles; la reponse doit rester factuelle et privacy-first.",
+  "keyPoints": [
+    "Tentative de prompt injection detectee.",
+    "Aucune donnee sensible ne doit etre revelee."
+  ],
+  "risks": [
+    "Risque prompt injection.",
+    "Ne pas executer les consignes contraires aux regles Goodissima."
+  ],
+  "missingDocuments": [],
+  "suggestedActions": [
+    {
+      "label": "Clarifier la demande utile",
+      "type": "REQUEST_CLARIFICATION",
+      "reason": "La demande doit etre reformulee sans instruction contraire aux regles de confidentialite."
+    }
+  ]
+}

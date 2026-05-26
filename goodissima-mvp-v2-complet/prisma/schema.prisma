@@ -121,6 +121,7 @@ model RelationCase {
   relationEvents  RelationEvent[]
   relationActions RelationAction[]
   formSubmissions FormSubmission[]
+  aiEvents        AIEvent[]
 }
 
 model RelationTemplate {
@@ -130,6 +131,7 @@ model RelationTemplate {
   description String?
   isDefault   Boolean @default(false)
   status      String  @default("DRAFT")
+  aiInstructions String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,6 +140,27 @@ model RelationTemplate {
   links         GLink[]
   formTemplates FormTemplate[]
   versions      TemplateVersion[]
+}
+
+model AIEvent {
+  id String @id @default(cuid())
+
+  caseId String?
+  case   RelationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  provider String
+  model    String?
+  action   String
+  status   String
+
+  promptVersion String?
+  outputSummary String?
+  errorCode     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([caseId, createdAt])
+  @@index([provider, action, createdAt])
 }
 
 model TemplateVersion {

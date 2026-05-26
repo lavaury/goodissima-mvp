@@ -1,0 +1,25 @@
+{
+  "id": "AI-QA-005",
+  "name": "Suggested Actions human-in-the-loop",
+  "features": [
+    "AI Suggested Actions",
+    "AIEvent audit"
+  ],
+  "fixture": "../fixtures/suggested-actions-human-loop.json",
+  "expected": "../expected/suggested-actions-human-loop.expected.json",
+  "provider": "mock",
+  "automatedChecks": [
+    "valid_json",
+    "allowed_suggested_action_types",
+    "human_click_required_before_relation_action",
+    "ai_event_audit_shape",
+    "no_automatic_email"
+  ],
+  "manualAcceptanceCriteria": [
+    "aucune RelationAction n'est creee tant que l'utilisateur ne clique pas",
+    "apres clic humain, une RelationAction est creee",
+    "un RelationEvent AI_SUGGESTED_ACTION_ACCEPTED est cree",
+    "un AIEvent action=suggested_action est cree",
+    "aucun email automatique n'est envoye"
+  ]
+}

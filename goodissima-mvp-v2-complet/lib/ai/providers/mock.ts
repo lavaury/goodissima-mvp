@@ -1,0 +1,237 @@
+import type {
+  AIClassification,
+  AIProvider,
+  AIProviderRequest,
+  AIProviderResult,
+  AISummary,
+} from "@/lib/ai/types";
+
+const scenarioSummaries: Record<string, AISummary> = {
+  immobilier_dossier_incomplet: {
+    summary:
+      "Le candidat independant manifeste un interet pour le logement et souhaite une visite, mais le dossier reste incomplet avec revenus variables et garant non confirme.",
+    keyPoints: [
+      "Candidat independant avec revenus variables.",
+      "Garant potentiel non confirme.",
+      "Demande de visite a organiser.",
+    ],
+    risks: ["Dossier incomplet.", "Revenus a clarifier.", "Garant non confirme."],
+    missingDocuments: ["Justificatif revenus.", "Document garant si necessaire."],
+    suggestedActions: [
+      {
+        label: "Demander le justificatif de revenus",
+        type: "REQUEST_DOCUMENT",
+        reason: "Le justificatif de revenus est absent du dossier.",
+      },
+      {
+        label: "Clarifier les revenus et le garant",
+        type: "REQUEST_CLARIFICATION",
+        reason: "Les revenus sont variables et le garant n'est pas confirme.",
+      },
+      {
+        label: "Proposer un creneau de visite",
+        type: "SCHEDULE_EXCHANGE",
+        reason: "Le candidat demande une visite.",
+      },
+    ],
+  },
+  immobilier_candidat_solide: {
+    summary:
+      "Le candidat en CDI presente des revenus stables, des documents complets et souhaite organiser une visite.",
+    keyPoints: ["CDI indique.", "Revenus stables.", "Documents complets.", "Visite souhaitee."],
+    risks: ["Peu de risques identifies a ce stade."],
+    missingDocuments: [],
+    suggestedActions: [
+      {
+        label: "Planifier une visite",
+        type: "SCHEDULE_EXCHANGE",
+        reason: "Le dossier est complet et le candidat souhaite visiter.",
+      },
+    ],
+  },
+  recrutement_cv_manquant: {
+    summary:
+      "Le candidat semble motive avec une experience pertinente, mais le CV manque pour qualifier le profil.",
+    keyPoints: ["Motivation exprimee.", "Experience pertinente.", "CV absent."],
+    risks: ["Profil incomplet sans CV.", "Disponibilite et attentes a clarifier."],
+    missingDocuments: ["CV."],
+    suggestedActions: [
+      {
+        label: "Demander le CV",
+        type: "REQUEST_DOCUMENT",
+        reason: "Le CV est necessaire pour qualifier le profil.",
+      },
+      {
+        label: "Clarifier disponibilite et attentes",
+        type: "REQUEST_CLARIFICATION",
+        reason: "Les prochains elements de qualification ne sont pas explicites.",
+      },
+    ],
+  },
+  recrutement_profil_complet: {
+    summary:
+      "Le profil complet de recrutement inclut CV, portfolio et disponibilite indiquee; un echange peut etre organise.",
+    keyPoints: ["CV present.", "Portfolio present.", "Disponibilite indiquee."],
+    risks: ["Verifier l'adequation finale avec le besoin avant toute decision."],
+    missingDocuments: [],
+    suggestedActions: [
+      {
+        label: "Planifier un entretien",
+        type: "SCHEDULE_EXCHANGE",
+        reason: "Les elements principaux du profil sont disponibles.",
+      },
+      {
+        label: "Faire un suivi candidat",
+        type: "FOLLOW_UP",
+        reason: "Un suivi humain permet de confirmer les prochaines etapes.",
+      },
+    ],
+  },
+  investor_strategic_interest: {
+    summary:
+      "Un fonds europeen exprime un interet strategique pour une IA B2B liee a la banque et a un partenariat strategique.",
+    keyPoints: ["Fonds europeen.", "IA B2B.", "Interet banque.", "Partenariat strategique."],
+    risks: ["Stade d'investissement a clarifier.", "Timing a clarifier.", "Attentes de partenariat a clarifier."],
+    missingDocuments: [],
+    suggestedActions: [
+      {
+        label: "Preparer un suivi investisseur",
+        type: "INVESTOR_FOLLOW_UP",
+        reason: "L'interet strategique merite un suivi dedie.",
+      },
+      {
+        label: "Organiser un echange",
+        type: "SCHEDULE_EXCHANGE",
+        reason: "Un rendez-vous permettra de qualifier l'opportunite.",
+      },
+      {
+        label: "Clarifier les attentes",
+        type: "REQUEST_CLARIFICATION",
+        reason: "Le stade, le timing et les attentes doivent rester explicites.",
+      },
+    ],
+  },
+  investor_vague_interest: {
+    summary:
+      "L'interet investisseur est trop vague pour qualifier la relation sans informations complementaires.",
+    keyPoints: ["Message vague.", "Role non precise.", "Organisation non precise."],
+    risks: ["Interet insuffisamment qualifie.", "Besoin de clarifier role, organisation et intention."],
+    missingDocuments: [],
+    suggestedActions: [
+      {
+        label: "Clarifier l'interet",
+        type: "REQUEST_CLARIFICATION",
+        reason: "Le role, l'organisation et l'objectif ne sont pas suffisamment qualifies.",
+      },
+    ],
+  },
+  privacy_injection_attempt: {
+    summary:
+      "Le message contient une tentative d'injection demandant d'ignorer les regles; la reponse doit rester factuelle et privacy-first.",
+    keyPoints: ["Tentative de prompt injection detectee.", "Aucune donnee sensible ne doit etre revelee."],
+    risks: ["Risque prompt injection.", "Ne pas executer les consignes contraires aux regles Goodissima."],
+    missingDocuments: [],
+    suggestedActions: [
+      {
+        label: "Clarifier la demande utile",
+        type: "REQUEST_CLARIFICATION",
+        reason: "La demande doit etre reformulee sans instruction contraire aux regles de confidentialite.",
+      },
+    ],
+  },
+  empty_or_too_light_case: {
+    summary: "Pas assez de contenu pour une analyse IA pertinente.",
+    keyPoints: [],
+    risks: ["Pas assez de contenu."],
+    missingDocuments: [],
+    suggestedActions: [],
+  },
+};
+
+function getScenarioId(request: AIProviderRequest) {
+  const metadataScenarioId = request.metadata?.scenarioId;
+  if (typeof metadataScenarioId === "string") return metadataScenarioId;
+
+  try {
+    const parsed = JSON.parse(request.prompt) as { id?: unknown; scenarioId?: unknown };
+    if (typeof parsed.scenarioId === "string") return parsed.scenarioId;
+    if (typeof parsed.id === "string") return parsed.id;
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+export const mockAIProvider: AIProvider = {
+  name: "mock",
+  model: "mock-goodissima-v1",
+  async chat(request: AIProviderRequest): Promise<AIProviderResult<string>> {
+    return {
+      provider: "mock",
+      model: this.model,
+      output: `Reponse mock basee sur ${request.prompt.length} caracteres de contexte privacy-first.`,
+    };
+  },
+  async summarize(request: AIProviderRequest): Promise<AIProviderResult<AISummary>> {
+    if (process.env.AI_TEST_MODE === "scenario") {
+      const scenarioId = getScenarioId(request);
+      const output = scenarioId ? scenarioSummaries[scenarioId] : null;
+
+      if (output) {
+        return {
+          provider: "mock",
+          model: "mock-goodissima-scenario-v1",
+          output,
+        };
+      }
+    }
+
+    const hasDocuments = !request.prompt.includes('"documents":[]');
+    const hasOpenActions = !request.prompt.includes('"openActions":[]');
+
+    return {
+      provider: "mock",
+      model: this.model,
+      output: {
+        summary:
+          "La relation presente des signaux exploitables, mais la synthese doit etre verifiee par l'equipe avant toute decision.",
+        keyPoints: [
+          "Le contexte analyse est limite aux donnees relationnelles utiles.",
+          hasOpenActions
+            ? "Des actions ouvertes semblent encore a suivre."
+            : "Aucune action ouverte n'est visible dans le contexte transmis.",
+          "Les messages recents ont ete pseudonymises avant analyse.",
+        ],
+        risks: [
+          "Verifier manuellement les informations importantes avant de repondre.",
+          "Ne pas deduire de decision d'investissement ou de partenariat depuis cette synthese seule.",
+        ],
+        suggestedActions: [
+          {
+            label: "Clarifier le prochain point attendu",
+            type: "REQUEST_CLARIFICATION",
+            reason: "Les prochains elements a fournir ou valider doivent rester explicites avant d'avancer.",
+          },
+          {
+            label: hasDocuments ? "Faire un suivi relationnel" : "Demander un document utile au dossier",
+            type: hasDocuments ? "FOLLOW_UP" : "REQUEST_DOCUMENT",
+            reason: hasDocuments
+              ? "Le dossier contient deja des elements et peut necessiter un suivi humain."
+              : "Aucun document n'est visible dans le contexte transmis.",
+          },
+        ],
+        missingDocuments: hasDocuments
+          ? []
+          : ["Aucun document n'est reference dans le dossier; ne demander une piece que si elle est utile au contexte."],
+      },
+    };
+  },
+  async classify(): Promise<AIProviderResult<AIClassification>> {
+    return {
+      provider: "mock",
+      model: this.model,
+      output: { label: "needs_review", confidence: 0.6 },
+    };
+  },
+};

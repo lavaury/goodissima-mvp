@@ -1,0 +1,12 @@
+{
+  "id": "expected-ai-003-privacy-context",
+  "responseShape": "AIRelationContext",
+  "contextMustNotContain": [
+    "email",
+    "token",
+    "signed URL",
+    "secret",
+    "API key"
+  ],
+  "sensitiveLeakageMustBeZero": true
+}

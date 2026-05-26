@@ -1,4 +1,5 @@
 import { CandidateAccessControls } from "@/components/CandidateAccessControls";
+import { AIRelationSummaryPanel } from "@/components/AIRelationSummaryPanel";
 import { ChatBox } from "@/components/ChatBox";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
@@ -118,6 +119,8 @@ function getRelationEventLabel(event: RelationCaseWorkspaceItem["relationEvents"
       return `Demande créée${getPayloadString(event.payload, "title") ? ` - ${getPayloadString(event.payload, "title")}` : ""}`;
     case "ACTION_COMPLETED":
       return `Demande complétée${getPayloadString(event.payload, "title") ? ` - ${getPayloadString(event.payload, "title")}` : ""}`;
+    case "AI_SUGGESTED_ACTION_ACCEPTED":
+      return `Suggestion IA acceptée${getPayloadString(event.payload, "title") ? ` - ${getPayloadString(event.payload, "title")}` : ""}`;
     default:
       return event.type;
   }
@@ -136,6 +139,7 @@ function getRelationEventType(eventType: string) {
       return "Dossier";
     case "ACTION_CREATED":
     case "ACTION_COMPLETED":
+    case "AI_SUGGESTED_ACTION_ACCEPTED":
       return "Demande";
     default:
       return "Evenement";
@@ -296,6 +300,7 @@ export function RelationCaseWorkspace({
           senderType={senderType}
         />
         <aside className="space-y-4">
+          {senderType === "OWNER" ? <AIRelationSummaryPanel caseId={item.id} /> : null}
           <RelationActionsPanel
             caseId={item.id}
             actions={item.relationActions}

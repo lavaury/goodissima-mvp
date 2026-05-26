@@ -1,0 +1,15 @@
+{
+  "id": "expected-ai-004-template-instructions",
+  "responseShape": "AISummary",
+  "behaviorMustBe": [
+    "factuel",
+    "advisory_only",
+    "verifiable_steps_only"
+  ],
+  "mustNot": [
+    "decide",
+    "promise",
+    "create_outcome"
+  ],
+  "suggestedActionsScope": "next_steps_only"
+}

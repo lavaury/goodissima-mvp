@@ -14,6 +14,7 @@ import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const privateAnswerKeys = new Set(["notificationEmail"]);
 
 function getFormSubmissionData(body: Record<string, unknown>) {
   if (typeof body.formTemplateId !== "string" || !body.formTemplateId) {
@@ -27,7 +28,9 @@ function getFormSubmissionData(body: Record<string, unknown>) {
 
   return {
     formTemplateId: body.formTemplateId,
-    answers: answers as Record<string, string>,
+    answers: Object.fromEntries(
+      Object.entries(answers as Record<string, unknown>).filter(([key]) => !privateAnswerKeys.has(key)),
+    ) as Record<string, string>,
   };
 }
 

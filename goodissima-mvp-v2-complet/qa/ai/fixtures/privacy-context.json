@@ -1,0 +1,46 @@
+{
+  "id": "fixture-ai-003-privacy-context",
+  "feature": "Privacy-first context builder",
+  "provider": "mock",
+  "rawRelationCase": {
+    "candidateEmail": "candidate.private@example.com",
+    "candidateAccessToken": "sec_0123456789abcdef0123456789abcdef",
+    "signedDocumentUrl": "https://storage.example.com/documents/file.pdf?token=secret-signed-url-value&signature=abc123",
+    "messages": [
+      {
+        "author": "contact",
+        "body": "Bonjour, je peux transmettre les documents demandes."
+      }
+    ],
+    "secret": "internal-secret-value",
+    "apiKey": "sk-test-0123456789abcdef"
+  },
+  "aiContext": {
+    "title": "Dossier candidat privacy-first",
+    "template": {
+      "key": "real_estate_rental",
+      "name": "Location immobiliere",
+      "status": "PUBLISHED",
+      "aiInstructions": null
+    },
+    "status": "NEW",
+    "currentStep": "CONVERSATION",
+    "steps": [
+      "Step 1: Conversation"
+    ],
+    "openActions": [],
+    "recentMessages": [
+      {
+        "author": "contact",
+        "body": "Bonjour, je peux transmettre les documents demandes.",
+        "createdAt": "2026-05-22T08:00:00.000Z"
+      }
+    ],
+    "documents": [
+      {
+        "fileName": "justificatif.pdf",
+        "mimeType": "application/pdf"
+      }
+    ]
+  }
+}

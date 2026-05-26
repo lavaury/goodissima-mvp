@@ -1,0 +1,32 @@
+{
+  "summary": "Un fonds europeen exprime un interet strategique pour une IA B2B liee a la banque et a un partenariat strategique.",
+  "keyPoints": [
+    "Fonds europeen.",
+    "IA B2B.",
+    "Interet banque.",
+    "Partenariat strategique."
+  ],
+  "risks": [
+    "Stade d'investissement a clarifier.",
+    "Timing a clarifier.",
+    "Attentes de partenariat a clarifier."
+  ],
+  "missingDocuments": [],
+  "suggestedActions": [
+    {
+      "label": "Preparer un suivi investisseur",
+      "type": "INVESTOR_FOLLOW_UP",
+      "reason": "L'interet strategique merite un suivi dedie."
+    },
+    {
+      "label": "Organiser un echange",
+      "type": "SCHEDULE_EXCHANGE",
+      "reason": "Un rendez-vous permettra de qualifier l'opportunite."
+    },
+    {
+      "label": "Clarifier les attentes",
+      "type": "REQUEST_CLARIFICATION",
+      "reason": "Le stade, le timing et les attentes doivent rester explicites."
+    }
+  ]
+}

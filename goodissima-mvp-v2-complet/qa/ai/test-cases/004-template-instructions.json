@@ -1,0 +1,22 @@
+{
+  "id": "AI-QA-004",
+  "name": "Template instructions",
+  "features": [
+    "Template AI Instructions",
+    "AI Summary"
+  ],
+  "fixture": "../fixtures/template-instructions.json",
+  "expected": "../expected/template-instructions.expected.json",
+  "provider": "mock",
+  "automatedChecks": [
+    "valid_json",
+    "template_instructions_present",
+    "privacy_context_contains_no_sensitive_values"
+  ],
+  "manualAcceptanceCriteria": [
+    "la reponse IA reste factuelle",
+    "la reponse IA ne decide pas",
+    "la reponse IA ne promet pas",
+    "la reponse IA propose uniquement des prochaines etapes verifiables"
+  ]
+}

@@ -47,6 +47,66 @@ const demos = [
   },
 ];
 
+const draftTemplates = [
+  {
+    key: "INVESTOR_INTRODUCTION",
+    name: "Investor Introduction",
+    description: "Secure relationship entry point for investors and strategic partners.",
+    fields: [
+      { key: "name", label: "Name", type: "TEXT", required: true, step: 1, position: 1 },
+      { key: "organization", label: "Organization", type: "TEXT", required: false, step: 1, position: 2 },
+      { key: "role", label: "Role", type: "TEXT", required: false, step: 1, position: 3 },
+      { key: "country", label: "Country", type: "TEXT", required: false, step: 1, position: 4 },
+      {
+        key: "interestType",
+        label: "Interest type",
+        type: "SELECT",
+        required: true,
+        step: 2,
+        position: 1,
+        options: [
+          { label: "Investment", value: "investment" },
+          { label: "Strategic partnership", value: "strategic_partnership" },
+          { label: "Banking", value: "banking" },
+          { label: "AI", value: "ai" },
+          { label: "Marketplace", value: "marketplace" },
+          { label: "Enterprise", value: "enterprise" },
+          { label: "Media", value: "media" },
+          { label: "Other", value: "other" },
+        ],
+      },
+      {
+        key: "message",
+        label: "Why would you like to connect with Goodissima?",
+        type: "TEXTAREA",
+        required: true,
+        step: 2,
+        position: 2,
+      },
+      {
+        key: "notificationOptIn",
+        label: "I would like to receive notifications about this secure relationship.",
+        type: "CHECKBOX",
+        required: false,
+        step: 3,
+        position: 1,
+      },
+      {
+        key: "notificationEmail",
+        label: "Notification email",
+        type: "EMAIL",
+        required: false,
+        step: 3,
+        position: 2,
+        conditionalRules: [
+          { field: "notificationOptIn", operator: "equals", value: true, action: "SHOW" },
+          { field: "notificationOptIn", operator: "equals", value: true, action: "REQUIRE" },
+        ],
+      },
+    ],
+  },
+];
+
 function buildSnapshot(relationTemplate, formTemplate, fields) {
   return {
     relationTemplate: {
@@ -77,40 +137,40 @@ function buildSnapshot(relationTemplate, formTemplate, fields) {
   };
 }
 
-for (const demo of demos) {
+async function upsertTemplateDefinition(template, status) {
   const relationTemplate = await prisma.relationTemplate.upsert({
-    where: { key: demo.key },
+    where: { key: template.key },
     update: {
-      name: demo.name,
-      description: demo.description,
-      status: "PUBLISHED",
+      name: template.name,
+      description: template.description,
+      status,
     },
     create: {
-      key: demo.key,
-      name: demo.name,
-      description: demo.description,
-      status: "PUBLISHED",
+      key: template.key,
+      name: template.name,
+      description: template.description,
+      status,
     },
   });
 
   const formTemplate = await prisma.formTemplate.upsert({
-    where: { key: `${demo.key}_FORM` },
+    where: { key: `${template.key}_FORM` },
     update: {
-      name: demo.name,
-      description: demo.description,
+      name: template.name,
+      description: template.description,
       relationTemplateId: relationTemplate.id,
     },
     create: {
-      key: `${demo.key}_FORM`,
-      name: demo.name,
-      description: demo.description,
+      key: `${template.key}_FORM`,
+      name: template.name,
+      description: template.description,
       relationTemplateId: relationTemplate.id,
     },
   });
 
   await prisma.formField.deleteMany({ where: { formTemplateId: formTemplate.id } });
   await prisma.formField.createMany({
-    data: demo.fields.map((field) => ({
+    data: template.fields.map((field) => ({
       formTemplateId: formTemplate.id,
       key: field.key,
       label: field.label,
@@ -125,6 +185,12 @@ for (const demo of demos) {
     })),
   });
 
+  return { relationTemplate, formTemplate };
+}
+
+for (const demo of demos) {
+  const { relationTemplate, formTemplate } = await upsertTemplateDefinition(demo, "PUBLISHED");
+
   const createdFields = await prisma.formField.findMany({
     where: { formTemplateId: formTemplate.id },
     orderBy: [{ step: "asc" }, { position: "asc" }, { createdAt: "asc" }],
@@ -136,6 +202,14 @@ for (const demo of demos) {
   });
   const version = (lastVersion?.version ?? 0) + 1;
   const snapshot = buildSnapshot(relationTemplate, formTemplate, createdFields);
+  const activeVersion = await prisma.templateVersion.findFirst({
+    where: { templateId: relationTemplate.id, isPublished: true },
+    select: { snapshot: true },
+  });
+
+  if (activeVersion && JSON.stringify(activeVersion.snapshot) === JSON.stringify(snapshot)) {
+    continue;
+  }
 
   await prisma.templateVersion.updateMany({
     where: { templateId: relationTemplate.id, isPublished: true },
@@ -151,6 +225,10 @@ for (const demo of demos) {
       isPublished: true,
     },
   });
+}
+
+for (const template of draftTemplates) {
+  await upsertTemplateDefinition(template, "DRAFT");
 }
 
 await prisma.$disconnect();

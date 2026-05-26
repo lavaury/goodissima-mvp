@@ -1,0 +1,21 @@
+{
+  "id": "expected-ai-005-suggested-actions-human-loop",
+  "responseShape": "HumanInTheLoopActionFlow",
+  "beforeHumanClick": {
+    "relationActionsCreated": 0,
+    "emailsSent": 0
+  },
+  "afterHumanClick": {
+    "relationActionsCreated": 1,
+    "relationEventTypesMustInclude": [
+      "AI_SUGGESTED_ACTION_ACCEPTED"
+    ],
+    "aiEventsMustInclude": [
+      {
+        "action": "suggested_action",
+        "status": "success"
+      }
+    ],
+    "emailsSent": 0
+  }
+}

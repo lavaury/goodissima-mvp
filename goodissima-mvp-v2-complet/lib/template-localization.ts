@@ -2,6 +2,8 @@ import type { DynamicFormField } from "@/components/DynamicFormRenderer";
 import { defaultLocale, type Locale } from "@/lib/i18n-core";
 import { DEFAULT_RELATION_TEMPLATE_KEY } from "@/lib/relation-templates";
 
+export const INVESTOR_INTRODUCTION_TEMPLATE_KEY = "INVESTOR_INTRODUCTION";
+
 export type LocalizedText = Partial<Record<Locale, string>> & {
   fallback?: string;
 };
@@ -127,6 +129,63 @@ const defaultSecureConversationFields: Record<string, LocalizedDefaultField> = {
   },
 };
 
+const investorIntroductionCopy = {
+  name: {
+    fr: "Introduction investisseur",
+    en: "Investor Introduction",
+  },
+  description: {
+    fr: "Point d'entree relationnel securise pour investisseurs et partenaires strategiques.",
+    en: "Secure relationship entry point for investors and strategic partners.",
+  },
+};
+
+const investorIntroductionFields: Record<string, LocalizedDefaultField> = {
+  name: {
+    label: { fr: "Nom", en: "Name" },
+  },
+  organization: {
+    label: { fr: "Organisation", en: "Organization" },
+  },
+  role: {
+    label: { fr: "Role", en: "Role" },
+  },
+  country: {
+    label: { fr: "Pays", en: "Country" },
+  },
+  interestType: {
+    label: { fr: "Type d'interet", en: "Interest type" },
+  },
+  message: {
+    label: {
+      fr: "Pourquoi souhaitez-vous echanger avec Goodissima ?",
+      en: "Why would you like to connect with Goodissima?",
+    },
+  },
+  notificationOptIn: {
+    label: {
+      fr: "Je souhaite recevoir des notifications concernant cette relation securisee.",
+      en: "I would like to receive notifications about this secure relationship.",
+    },
+  },
+  notificationEmail: {
+    label: { fr: "Email de notification", en: "Notification email" },
+  },
+};
+
+const investorIntroductionOptions: Record<string, Record<string, LocalizedText>> = {
+  interestType: {
+    investment: { fr: "Investissement", en: "Investment" },
+    strategic_partnership: { fr: "Partenariat strategique", en: "Strategic partnership" },
+    banking: { fr: "Banque", en: "Banking" },
+    ai: { fr: "IA", en: "AI" },
+    marketplace: { fr: "Marketplace", en: "Marketplace" },
+    enterprise: { fr: "Entreprise", en: "Enterprise" },
+    media: { fr: "Media", en: "Media" },
+    other: { fr: "Autre", en: "Other" },
+  },
+};
+
 export function getLocalizedValue(
   value: LocalizableTemplateLabel | null | undefined,
   locale: Locale,
@@ -153,9 +212,46 @@ export function localizeDefaultSecureConversationFields<T extends DynamicFormFie
   return fields.map((field) => localizeDefaultSecureConversationField(field, locale));
 }
 
+export function localizeInvestorIntroductionField<T extends DynamicFormField>(field: T, locale: Locale): T {
+  const localized = investorIntroductionFields[field.key];
+  const optionLabels = investorIntroductionOptions[field.key];
+
+  return {
+    ...field,
+    label: localized ? getLocalizedValue(localized.label, locale, field.label) : field.label,
+    placeholder: localized
+      ? getLocalizedValue(localized.placeholder, locale, field.placeholder ?? "") || field.placeholder
+      : field.placeholder,
+    options: optionLabels
+      ? field.options.map((option) => ({
+          ...option,
+          label: getLocalizedValue(optionLabels[option.value], locale, option.label),
+        }))
+      : field.options,
+  };
+}
+
+export function localizeTemplateFields<T extends DynamicFormField>(
+  templateKey: string | null | undefined,
+  fields: T[],
+  locale: Locale,
+) {
+  if (templateKey === DEFAULT_RELATION_TEMPLATE_KEY) return localizeDefaultSecureConversationFields(fields, locale);
+  if (templateKey === INVESTOR_INTRODUCTION_TEMPLATE_KEY) {
+    return fields.map((field) => localizeInvestorIntroductionField(field, locale));
+  }
+
+  return fields;
+}
+
 export function localizeTemplateName(templateKey: string | null | undefined, name: string, locale: Locale) {
-  if (templateKey !== DEFAULT_RELATION_TEMPLATE_KEY) return name;
-  return getLocalizedValue(defaultSecureConversationCopy.name, locale, name);
+  if (templateKey === DEFAULT_RELATION_TEMPLATE_KEY) {
+    return getLocalizedValue(defaultSecureConversationCopy.name, locale, name);
+  }
+  if (templateKey === INVESTOR_INTRODUCTION_TEMPLATE_KEY) {
+    return getLocalizedValue(investorIntroductionCopy.name, locale, name);
+  }
+  return name;
 }
 
 export function localizeTemplateDescription(
@@ -163,8 +259,13 @@ export function localizeTemplateDescription(
   description: string | null,
   locale: Locale,
 ) {
-  if (templateKey !== DEFAULT_RELATION_TEMPLATE_KEY) return description;
-  return getLocalizedValue(defaultSecureConversationCopy.description, locale, description ?? "") || description;
+  if (templateKey === DEFAULT_RELATION_TEMPLATE_KEY) {
+    return getLocalizedValue(defaultSecureConversationCopy.description, locale, description ?? "") || description;
+  }
+  if (templateKey === INVESTOR_INTRODUCTION_TEMPLATE_KEY) {
+    return getLocalizedValue(investorIntroductionCopy.description, locale, description ?? "") || description;
+  }
+  return description;
 }
 
 export function getDefaultSecureConversationCopy(

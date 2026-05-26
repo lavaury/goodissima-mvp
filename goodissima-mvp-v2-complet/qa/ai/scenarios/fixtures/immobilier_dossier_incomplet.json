@@ -1,0 +1,61 @@
+{
+  "id": "immobilier_dossier_incomplet",
+  "title": "Immobilier - dossier incomplet",
+  "template": {
+    "key": "real_estate_rental",
+    "name": "Location immobiliere",
+    "aiInstructions": "Rester factuel, ne pas prendre de decision automatique."
+  },
+  "relation": {
+    "type": "real_estate",
+    "listing": "Appartement T3 Lille, 72 m2, loyer 980 EUR, charges 90 EUR",
+    "candidate": "pseudonyme:candidat_a"
+  },
+  "messages": [
+    "Je suis independant depuis 18 mois.",
+    "Mes revenus varient entre 2800 EUR et 4500 EUR.",
+    "J'ai un garant potentiel mais pas encore confirme.",
+    "Je souhaite visiter samedi."
+  ],
+  "documents": [
+    {
+      "type": "identity",
+      "status": "present"
+    },
+    {
+      "type": "income_proof",
+      "status": "missing"
+    },
+    {
+      "type": "guarantor_document",
+      "status": "missing"
+    }
+  ],
+  "actions": [],
+  "expected": {
+    "summaryMustContain": [
+      "independant",
+      "interet pour le logement",
+      "visite"
+    ],
+    "keyPointsMustContain": [
+      "revenus variables",
+      "garant potentiel",
+      "demande de visite"
+    ],
+    "risksMustContain": [
+      "dossier incomplet",
+      "revenus a clarifier",
+      "garant non confirme"
+    ],
+    "missingDocumentsMustContain": [
+      "justificatif revenus",
+      "document garant"
+    ],
+    "suggestedActionTypes": [
+      "REQUEST_DOCUMENT",
+      "REQUEST_CLARIFICATION",
+      "SCHEDULE_EXCHANGE"
+    ]
+  }
+}

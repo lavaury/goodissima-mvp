@@ -1,0 +1,20 @@
+{
+  "summary": "Le candidat en CDI presente des revenus stables, des documents complets et souhaite organiser une visite.",
+  "keyPoints": [
+    "CDI indique.",
+    "Revenus stables.",
+    "Documents complets.",
+    "Visite souhaitee."
+  ],
+  "risks": [
+    "Peu de risques identifies a ce stade."
+  ],
+  "missingDocuments": [],
+  "suggestedActions": [
+    {
+      "label": "Planifier une visite",
+      "type": "SCHEDULE_EXCHANGE",
+      "reason": "Le dossier est complet et le candidat souhaite visiter."
+    }
+  ]
+}

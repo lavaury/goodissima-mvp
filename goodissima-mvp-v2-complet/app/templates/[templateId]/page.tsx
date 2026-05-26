@@ -6,6 +6,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { PublishTemplateButton } from "@/components/PublishTemplateButton";
 import { TemplateLifecycleActions } from "@/components/TemplateLifecycleActions";
 import { TemplateFieldManager } from "@/components/TemplateFieldManager";
+import { TemplateAIInstructionsEditor } from "@/components/TemplateAIInstructionsEditor";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -163,6 +164,12 @@ export default async function TemplateDetailPage({ params }: { params: { templat
           </p>
         </div>
       </section>
+
+      <TemplateAIInstructionsEditor
+        templateId={template.id}
+        initialValue={template.relationTemplate?.aiInstructions ?? ""}
+        disabled={!template.relationTemplate}
+      />
 
       <section className="mt-8 rounded-2xl border bg-white p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

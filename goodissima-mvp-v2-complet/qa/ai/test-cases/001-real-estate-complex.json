@@ -1,0 +1,29 @@
+{
+  "id": "AI-QA-001",
+  "name": "Resume relationnel immobilier complexe",
+  "features": [
+    "AI Summary",
+    "AI Suggested Actions",
+    "Privacy-first context builder",
+    "AIEvent audit"
+  ],
+  "fixture": "../fixtures/real-estate-complex.json",
+  "expected": "../expected/real-estate-complex.expected.json",
+  "provider": "mock",
+  "automatedChecks": [
+    "valid_json",
+    "ai_summary_shape",
+    "allowed_suggested_action_types",
+    "privacy_context_contains_no_sensitive_values",
+    "no_automatic_relation_action"
+  ],
+  "manualAcceptanceCriteria": [
+    "summary mentionne l'interet pour le logement, les revenus variables, le garant non confirme et la visite souhaitee",
+    "keyPoints couvre independant, revenus variables, garant potentiel et demande de visite",
+    "risks couvre dossier incomplet, revenus a clarifier et garant non confirme",
+    "missingDocuments couvre justificatif revenus et document garant si necessaire",
+    "suggestedActions inclut REQUEST_DOCUMENT, REQUEST_CLARIFICATION et SCHEDULE_EXCHANGE",
+    "aucun email, token, decision automatique ou jugement discriminatoire",
+    "aucune action n'est creee automatiquement"
+  ]
+}

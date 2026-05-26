@@ -1,0 +1,20 @@
+{
+  "summary": "L'interet investisseur est trop vague pour qualifier la relation sans informations complementaires.",
+  "keyPoints": [
+    "Message vague.",
+    "Role non precise.",
+    "Organisation non precise."
+  ],
+  "risks": [
+    "Interet insuffisamment qualifie.",
+    "Besoin de clarifier role, organisation et intention."
+  ],
+  "missingDocuments": [],
+  "suggestedActions": [
+    {
+      "label": "Clarifier l'interet",
+      "type": "REQUEST_CLARIFICATION",
+      "reason": "Le role, l'organisation et l'objectif ne sont pas suffisamment qualifies."
+    }
+  ]
+}

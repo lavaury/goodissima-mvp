@@ -16,6 +16,7 @@ import { getFieldsForStep, getStepCount } from "@/lib/form-steps";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const privateFieldKeys = new Set(["notificationEmail"]);
 
 export default function CandidateForm({
   gLinkId,
@@ -62,6 +63,9 @@ export default function CandidateForm({
   const stepCount = getStepCount(fields);
   const isMultiStep = stepCount > 1;
   const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
+  const hasTemplateNotificationFields = fields.some((field) =>
+    ["notificationOptIn", "notificationEmail"].includes(field.key),
+  );
 
   function validateFields(fieldsToValidate: DynamicFormField[]) {
     const ruleValues = toRuleValues(answers);
@@ -101,8 +105,15 @@ export default function CandidateForm({
   function validateForm() {
     if (!validateFields(fields)) return false;
 
-    if (emailNotificationsConsent) {
-      const value = notificationEmail.trim();
+    const templateNotificationOptIn = answers.notificationOptIn === true;
+    const wantsNotifications = hasTemplateNotificationFields
+      ? templateNotificationOptIn
+      : emailNotificationsConsent;
+
+    if (wantsNotifications) {
+      const value = (
+        hasTemplateNotificationFields ? getStringFieldValue(answers.notificationEmail) : notificationEmail
+      ).trim();
       return Boolean(value && emailPattern.test(value));
     }
 
@@ -145,30 +156,40 @@ export default function CandidateForm({
       return;
     }
 
-    const fullName = getStringFieldValue(answers.fullName).trim();
+    const fullName = (getStringFieldValue(answers.fullName) || getStringFieldValue(answers.name)).trim();
     const email = getStringFieldValue(answers.email).trim();
-    const privateNotificationEmail = notificationEmail.trim().toLowerCase();
+    const templateNotificationOptIn = answers.notificationOptIn === true;
+    const wantsNotifications = hasTemplateNotificationFields
+      ? templateNotificationOptIn
+      : emailNotificationsConsent;
+    const privateNotificationEmail = (
+      hasTemplateNotificationFields ? getStringFieldValue(answers.notificationEmail) : notificationEmail
+    )
+      .trim()
+      .toLowerCase();
     const message = getStringFieldValue(answers.message).trim();
     const ruleValues = toRuleValues(answers);
     const submissionAnswers = fields.reduce<Record<string, DynamicFieldValue>>((result, field) => {
       if (!supportedFieldTypes.has(field.type)) return result;
       if (!shouldDisplayField(field, ruleValues)) return result;
+      if (privateFieldKeys.has(field.key)) return result;
 
       result[field.key] = field.type === "FILE" ? files[field.key]?.name ?? "" : answers[field.key] ?? "";
       return result;
     }, {});
+    const candidateEmail = email || `private-${crypto.randomUUID()}@goodissima.local`;
 
     const payload = {
       gLinkId,
       candidateName: fullName,
-      candidateEmail: email,
-      candidateNotificationEmail: emailNotificationsConsent ? privateNotificationEmail : "",
+      candidateEmail,
+      candidateNotificationEmail: wantsNotifications ? privateNotificationEmail : "",
       message,
       documentName: documentFields.documentName,
       documentUrl: documentFields.documentUrl,
       formTemplateId,
       answers: submissionAnswers,
-      emailNotificationsConsent,
+      emailNotificationsConsent: wantsNotifications,
     };
 
     setLoading(true);
@@ -207,7 +228,7 @@ export default function CandidateForm({
         onChange={(key, value) => setAnswers({ ...answers, [key]: value })}
         onFileChange={(key, file) => setFiles({ ...files, [key]: file })}
       />
-      {(!isMultiStep || currentStep === stepCount) && (
+      {(!isMultiStep || currentStep === stepCount) && !hasTemplateNotificationFields && (
         <>
           <label className="flex gap-3 rounded-2xl border bg-white p-4 text-sm text-slate-700">
             <input

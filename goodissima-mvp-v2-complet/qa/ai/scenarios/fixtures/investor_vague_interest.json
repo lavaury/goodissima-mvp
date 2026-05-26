@@ -1,0 +1,37 @@
+{
+  "id": "investor_vague_interest",
+  "title": "Investisseur - interet vague",
+  "template": {
+    "key": "investor_introduction",
+    "name": "Investor Introduction",
+    "aiInstructions": "Demander les precisions necessaires avant qualification."
+  },
+  "relation": {
+    "type": "investor",
+    "organization": null,
+    "role": null
+  },
+  "messages": [
+    "Bonjour, votre projet peut nous interesser. Pouvez-vous en dire plus ?"
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "summaryMustContain": [
+      "trop vague",
+      "informations complementaires"
+    ],
+    "keyPointsMustContain": [
+      "message vague",
+      "role non precise",
+      "organisation non precise"
+    ],
+    "risksMustContain": [
+      "interet insuffisamment qualifie"
+    ],
+    "missingDocumentsMustContain": [],
+    "suggestedActionTypes": [
+      "REQUEST_CLARIFICATION"
+    ]
+  }
+}

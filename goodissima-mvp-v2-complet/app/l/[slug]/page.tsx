@@ -7,7 +7,7 @@ import { getI18n } from "@/lib/i18n";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import {
   getDefaultSecureConversationCopy,
-  localizeDefaultSecureConversationFields,
+  localizeTemplateFields,
 } from "@/lib/template-localization";
 import {
   parseTemplateSnapshot,
@@ -156,10 +156,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           conditionalRules: parseConditionalRules(field.conditionalRules),
         }))
       : defaultFields;
-  const candidateFields =
-    templateKey === "DEFAULT_SECURE_CONVERSATION"
-      ? localizeDefaultSecureConversationFields(candidateFieldsSource, locale)
-      : candidateFieldsSource;
+  const candidateFields = localizeTemplateFields(templateKey, candidateFieldsSource, locale);
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">

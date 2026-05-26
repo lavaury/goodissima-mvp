@@ -6,7 +6,7 @@ import { getI18n } from "@/lib/i18n";
 import { DEFAULT_RELATION_TEMPLATE_KEY } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import {
-  localizeDefaultSecureConversationFields,
+  localizeTemplateFields,
   localizeTemplateName,
 } from "@/lib/template-localization";
 import { parseTemplateSnapshot, snapshotFieldsToDynamicFields } from "@/lib/template-snapshots";
@@ -26,6 +26,27 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
       key: true,
       name: true,
       status: true,
+      formTemplates: {
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: {
+          fields: {
+            orderBy: [{ step: "asc" }, { position: "asc" }, { createdAt: "asc" }],
+            select: {
+              key: true,
+              label: true,
+              type: true,
+              required: true,
+              placeholder: true,
+              defaultValue: true,
+              step: true,
+              options: true,
+              conditionalRules: true,
+              validationRules: true,
+            },
+          },
+        },
+      },
       versions: {
         where: { isPublished: true },
         orderBy: [{ version: "desc" }, { createdAt: "desc" }],
@@ -38,11 +59,21 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
   const templateOptions = templates.map((template) => {
     const activeVersion = template.versions[0] ?? null;
     const snapshot = activeVersion ? parseTemplateSnapshot(activeVersion.snapshot) : null;
-    const rawFields = snapshot ? snapshotFieldsToDynamicFields(snapshot) : [];
-    const fields =
-      template.key === DEFAULT_RELATION_TEMPLATE_KEY
-        ? localizeDefaultSecureConversationFields(rawFields, locale)
-        : rawFields;
+    const rawFields = snapshot
+      ? snapshotFieldsToDynamicFields(snapshot)
+      : template.formTemplates[0]?.fields.map((field) => ({
+          key: field.key,
+          label: field.label,
+          type: field.type.toUpperCase(),
+          required: field.required,
+          placeholder: field.placeholder,
+          defaultValue: field.defaultValue,
+          step: field.step,
+          options: Array.isArray(field.options) ? field.options as { label: string; value: string }[] : [],
+          conditionalRules: Array.isArray(field.conditionalRules) ? field.conditionalRules as never[] : [],
+          validationRules: field.validationRules,
+        })) ?? [];
+    const fields = localizeTemplateFields(template.key, rawFields, locale);
     const fieldLabels = fields.map((field) => ({ key: field.key, label: field.label }));
     const steps = Array.from(new Set(fields.map((field) => field.step || 1)))
       .sort((a, b) => a - b)

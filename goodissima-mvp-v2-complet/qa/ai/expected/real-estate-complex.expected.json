@@ -1,0 +1,40 @@
+{
+  "id": "expected-ai-001-real-estate-complex",
+  "responseShape": "AISummary",
+  "summaryMustMention": [
+    "interet pour logement",
+    "revenus variables",
+    "garant non confirme",
+    "visite souhaitee"
+  ],
+  "keyPointsMustInclude": [
+    "independant",
+    "revenus variables",
+    "garant potentiel",
+    "demande visite"
+  ],
+  "risksMustInclude": [
+    "dossier incomplet",
+    "revenus a clarifier",
+    "garant non confirme"
+  ],
+  "missingDocumentsMustInclude": [
+    "justificatif revenus",
+    "document garant si necessaire"
+  ],
+  "suggestedActionTypesMustInclude": [
+    "REQUEST_DOCUMENT",
+    "REQUEST_CLARIFICATION",
+    "SCHEDULE_EXCHANGE"
+  ],
+  "mustNotContain": [
+    "email address",
+    "access token",
+    "automatic decision",
+    "discriminatory judgement"
+  ],
+  "mustNotCreateAutomatically": [
+    "RelationAction",
+    "email"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "AI-QA-003",
+  "name": "Privacy context",
+  "features": [
+    "Privacy-first context builder"
+  ],
+  "fixture": "../fixtures/privacy-context.json",
+  "expected": "../expected/privacy-context.expected.json",
+  "provider": "mock",
+  "automatedChecks": [
+    "valid_json",
+    "privacy_context_contains_no_sensitive_values"
+  ],
+  "manualAcceptanceCriteria": [
+    "le contexte envoye a l'IA ne contient jamais d'email",
+    "le contexte envoye a l'IA ne contient jamais de token",
+    "le contexte envoye a l'IA ne contient jamais d'URL signee",
+    "le contexte envoye a l'IA ne contient jamais de secret ou API key"
+  ]
+}
