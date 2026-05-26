@@ -122,7 +122,35 @@ export async function generateCaseEmbedding(caseId: string, embeddingType: Embed
     },
   });
 
+  await prisma.relationCase.update({
+    where: { id: relationCase.id },
+    data: { embeddingStatus: "fresh", embeddingUpdatedAt: new Date() },
+    select: { id: true },
+  });
+
   return { profile, contentHash: hash, vector: result.vector, provider: result.provider, model: result.model };
+}
+
+export async function getStoredCaseEmbedding(caseId: string, embeddingType: EmbeddingType = "case_summary") {
+  const row = await prisma.$queryRawUnsafe<Array<{ vectorText: string | null }>>(
+    `
+    SELECT "vector"::text AS "vectorText"
+    FROM "RelationEmbedding"
+    WHERE "relationCaseId" = $1 AND "embeddingType" = $2 AND "vector" IS NOT NULL
+    ORDER BY "createdAt" DESC
+    LIMIT 1
+    `,
+    caseId,
+    embeddingType,
+  );
+  const vectorText = row[0]?.vectorText;
+  if (!vectorText) return null;
+  return vectorText
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isFinite(value));
 }
 
 export async function semanticVectorSearch({

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { extractMatchingProfile, rankMatches } from "@/lib/ai/matching";
-import { generateCaseEmbedding, semanticMatchV2, semanticVectorSearch } from "@/lib/ai/semantic-matching";
+import { deterministicEmbedding } from "@/lib/ai/embeddings";
+import { getStoredCaseEmbedding, semanticMatchV2, semanticVectorSearch } from "@/lib/ai/semantic-matching";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(_req: Request, { params }: { params: { caseId: string } }) {
@@ -12,6 +13,7 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       select: {
         id: true,
         matchingEnabled: true,
+        embeddingStatus: true,
         candidateName: true,
         gLink: { select: { title: true } },
         template: { select: { key: true, name: true, aiInstructions: true } },
@@ -68,13 +70,26 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       }));
 
     const matches = rankMatches(sourceProfile, sameTemplateCandidates);
-    const embedding = await generateCaseEmbedding(relationCase.id, "case_summary");
     let semanticMatches = semanticMatchV2(sourceProfile, sameTemplateCandidates);
+    const warnings =
+      relationCase.embeddingStatus === "stale" || relationCase.embeddingStatus === "processing"
+        ? ["Analyse semantique en cours d'actualisation"]
+        : [];
 
     if (process.env.AI_TEST_MODE !== "scenario") {
       try {
+        const sourceVector = await getStoredCaseEmbedding(relationCase.id, "case_summary");
+        const fallbackVector = deterministicEmbedding([
+          ...sourceProfile.categories,
+          ...sourceProfile.interests,
+          ...sourceProfile.constraints,
+          sourceProfile.location,
+          sourceProfile.budget,
+          sourceProfile.availability,
+          sourceProfile.relationType,
+        ].filter(Boolean).join(" "));
         const vectorRows = await semanticVectorSearch({
-          sourceVector: embedding.vector,
+          sourceVector: sourceVector ?? fallbackVector,
           ownerId: owner.id,
           templateKey: relationCase.template?.key ?? null,
           excludeCaseId: relationCase.id,
@@ -116,7 +131,7 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       },
     });
 
-    return NextResponse.json({ profile: sourceProfile, matches, semanticMatches });
+    return NextResponse.json({ profile: sourceProfile, matches, semanticMatches, warnings });
   } catch (error) {
     console.error("[matching] Unable to analyze", error);
     return NextResponse.json({ error: "Impossible d'analyser les correspondances" }, { status: 500 });

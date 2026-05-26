@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { createRelationEvent } from "@/lib/events";
+import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(req: Request, { params }: { params: { caseId: string } }) {
@@ -51,6 +52,7 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         actorId,
         payload: { enabled: matchingEnabled },
       });
+      await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "manual_refresh" });
     }
 
     return NextResponse.json(updated);

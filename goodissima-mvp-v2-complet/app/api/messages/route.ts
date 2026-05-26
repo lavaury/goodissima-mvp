@@ -4,6 +4,7 @@ import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
+import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
 import { isNotificationEnabled } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
@@ -126,6 +127,8 @@ export async function POST(req: Request) {
     actorId: body.senderType,
     payload: { messageId: message.id },
   });
+
+  await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "message_created" });
 
   revalidatePath("/dashboard");
   revalidatePath(`/cases/${relationCase.id}`);

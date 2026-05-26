@@ -20,6 +20,7 @@ export function MatchingPanel({ caseId, matchingEnabled }: { caseId: string; mat
   const [enabled, setEnabled] = useState(matchingEnabled);
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchItem[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     function updateMatching(event: Event) {
@@ -43,8 +44,9 @@ export function MatchingPanel({ caseId, matchingEnabled }: { caseId: string; mat
       return;
     }
 
-    const payload = (await res.json()) as { matches: MatchItem[]; semanticMatches?: MatchItem[] };
+    const payload = (await res.json()) as { matches: MatchItem[]; semanticMatches?: MatchItem[]; warnings?: string[] };
     setMatches(payload.semanticMatches?.length ? payload.semanticMatches : payload.matches);
+    setWarnings(payload.warnings ?? []);
     toast.success("Correspondances analysees");
   }
 
@@ -81,6 +83,11 @@ export function MatchingPanel({ caseId, matchingEnabled }: { caseId: string; mat
       </button>
 
       <div className="mt-4 space-y-3">
+        {warnings.map((warning) => (
+          <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            {warning}
+          </p>
+        ))}
         {matches.map((match) => (
           <article key={match.relationId} className="rounded-xl border bg-slate-50 p-3 text-sm">
             <p className="font-medium text-slate-900">{match.pseudonym}</p>

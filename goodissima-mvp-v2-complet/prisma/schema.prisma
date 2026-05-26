@@ -107,6 +107,8 @@ model RelationCase {
   candidateEmail           String
   candidateEmailNotificationsEnabled Boolean @default(false)
   matchingEnabled          Boolean          @default(false)
+  embeddingStatus          String           @default("fresh")
+  embeddingUpdatedAt       DateTime?
   priority                 RelationPriority @default(NORMAL)
   status                   RelationStatus   @default(NEW)
   currentStep              String?          @default("CONVERSATION")
@@ -124,6 +126,26 @@ model RelationCase {
   formSubmissions FormSubmission[]
   aiEvents        AIEvent[]
   embeddings      RelationEmbedding[]
+  embeddingJobs   EmbeddingJob[]
+}
+
+model EmbeddingJob {
+  id String @id @default(cuid())
+
+  relationCaseId String
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  status      String @default("pending")
+  triggerType String
+  attempts    Int    @default(0)
+  lastError   String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([relationCaseId, status])
 }
 
 model RelationEmbedding {

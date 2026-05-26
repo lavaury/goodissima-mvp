@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { prisma } from "@/lib/prisma";
 
 const maxInstructionsLength = 4000;
@@ -51,6 +52,18 @@ export async function PATCH(req: Request, { params }: { params: { templateId: st
     data: { aiInstructions: aiInstructions || null },
     select: { id: true, aiInstructions: true },
   });
+
+  const cases = await prisma.relationCase.findMany({
+    where: { templateId: updated.id },
+    select: { id: true },
+    take: 100,
+  });
+
+  await Promise.all(
+    cases.map((relationCase) =>
+      enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "template_changed" }),
+    ),
+  );
 
   return NextResponse.json(updated);
 }

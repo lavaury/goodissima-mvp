@@ -4,6 +4,7 @@ import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewDocumentEmail } from "@/lib/email";
+import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
 import { isNotificationEnabled } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
@@ -155,6 +156,8 @@ export async function POST(req: Request) {
     actorId: typeof candidateAccessToken === "string" && candidateAccessToken ? "CANDIDATE" : "OWNER",
     payload: { documentId: document.id, fileName: file.name },
   });
+
+  await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "document_uploaded" });
 
   revalidatePath("/dashboard");
   revalidatePath(`/cases/${relationCase.id}`);

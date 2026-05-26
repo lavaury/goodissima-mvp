@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { sendNewRelationActionEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
@@ -58,6 +59,8 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
         title: action.title,
       },
     });
+
+    await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "timeline_updated" });
 
     if (relationCase.candidateEmailNotificationsEnabled) {
       await sendNewRelationActionEmail({
