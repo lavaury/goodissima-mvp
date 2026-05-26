@@ -1,0 +1,10 @@
+{
+  "draftType": "PROFESSIONAL_RESPONSE",
+  "subject": "Reformulation professionnelle",
+  "message": "Bonjour, je vous propose de rester sur un echange factuel et respectueux. Pour avancer, pouvez-vous indiquer l'element attendu ou le point a clarifier ?",
+  "tone": "calme et professionnel",
+  "warnings": [
+    "Demande menacante refusee et reformulee de maniere sure.",
+    "Pas de pression abusive."
+  ]
+}

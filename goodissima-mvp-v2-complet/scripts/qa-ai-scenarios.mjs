@@ -41,6 +41,13 @@ const requiredTimelineExpectedFields = [
   "nextBestActionTypes",
 ];
 
+const requiredDraftExpectedFields = [
+  "draftType",
+  "toneMustContain",
+  "messageMustContain",
+  "warningsMustContain",
+];
+
 const sensitivePatterns = [
   { name: "email", pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi },
   { name: "signed_url", pattern: /https?:\/\/[^\s"']*(signature|signed|token|X-Amz-Signature)[^\s"']*/gi },
@@ -129,12 +136,19 @@ function assertRequiredScenarioFields(scenario) {
   assertArray(scenario.actions, scenario.id, "actions");
 
   const isTimelineScenario = "nextBestActionTypes" in scenario.expected;
-  const requiredFields = isTimelineScenario ? requiredTimelineExpectedFields : requiredSummaryExpectedFields;
+  const isDraftScenario = "messageMustContain" in scenario.expected;
+  const requiredFields = isDraftScenario
+    ? requiredDraftExpectedFields
+    : isTimelineScenario
+      ? requiredTimelineExpectedFields
+      : requiredSummaryExpectedFields;
 
   for (const field of requiredFields) {
     if (!(field in scenario.expected)) fail(scenario.id, `missing expected field: ${field}`);
-    else assertArray(scenario.expected[field], scenario.id, `expected.${field}`);
+    else if (field !== "draftType") assertArray(scenario.expected[field], scenario.id, `expected.${field}`);
   }
+
+  if (scenario.expected.mustNotContain) assertArray(scenario.expected.mustNotContain, scenario.id, "expected.mustNotContain");
 }
 
 function assertNoSensitiveValues(scenario, output) {
@@ -157,6 +171,34 @@ function assertNoForbiddenOutput(scenario, output) {
 }
 
 function assertTerms(scenario, output) {
+  if ("draftType" in output) {
+    if (scenario.expected.draftType !== output.draftType) {
+      fail(scenario.id, `draftType mismatch: expected ${scenario.expected.draftType}, got ${output.draftType}`);
+    }
+
+    const checks = [
+      ["tone", scenario.expected.toneMustContain, output.tone],
+      ["message", scenario.expected.messageMustContain, output.message],
+      ["warnings", scenario.expected.warningsMustContain, output.warnings.join(" ")],
+    ];
+
+    for (const [field, terms, text] of checks) {
+      for (const term of terms) {
+        if (!includesTerm(text, term)) {
+          fail(scenario.id, `${field} does not contain expected term: ${term}`);
+        }
+      }
+    }
+
+    for (const term of scenario.expected.mustNotContain ?? []) {
+      if (includesTerm(`${output.subject ?? ""} ${output.message} ${output.tone}`, term)) {
+        fail(scenario.id, `draft contains forbidden term: ${term}`);
+      }
+    }
+
+    return;
+  }
+
   if ("timelineStatus" in output) {
     const checks = [
       ["timelineStatus", scenario.expected.timelineStatusMustContain, output.timelineStatus],
@@ -233,6 +275,15 @@ function assertScenarioFlags(scenario, output) {
 }
 
 function assertOutputShape(scenario, output) {
+  if ("draftType" in output) {
+    if (typeof output.draftType !== "string") fail(scenario.id, "output.draftType must be a string");
+    if ("subject" in output && typeof output.subject !== "string") fail(scenario.id, "output.subject must be a string when present");
+    if (typeof output.message !== "string") fail(scenario.id, "output.message must be a string");
+    if (typeof output.tone !== "string") fail(scenario.id, "output.tone must be a string");
+    assertArray(output.warnings, scenario.id, "output.warnings");
+    return;
+  }
+
   if ("timelineStatus" in output) {
     if (typeof output.timelineStatus !== "string") fail(scenario.id, "output.timelineStatus must be a string");
     if ("inactiveSinceDays" in output && typeof output.inactiveSinceDays !== "number") {

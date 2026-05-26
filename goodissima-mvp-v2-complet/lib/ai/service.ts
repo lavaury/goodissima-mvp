@@ -5,6 +5,8 @@ import { createMistralProvider } from "@/lib/ai/providers/mistral";
 import type {
   AIProvider,
   AIProviderName,
+  AIDraft,
+  AIDraftType,
   AIRelationContext,
   AISummary,
   AITimelineIntelligence,
@@ -13,6 +15,7 @@ import type {
 const defaultMistralModel = "mistral-small-latest";
 const relationSummaryPromptVersion = "relation-summary-v2";
 const timelinePromptVersion = "timeline-intelligence-v1";
+const draftPromptVersion = "draft-assistant-v1";
 
 function getConfiguredProvider(): AIProvider {
   const configured = (process.env.AI_PROVIDER ?? "mock").toLowerCase() as AIProviderName;
@@ -43,6 +46,10 @@ function summarizeTimelineForAudit(timeline: AITimelineIntelligence) {
   return timeline.timelineStatus.slice(0, 500);
 }
 
+function summarizeDraftForAudit(draft: AIDraft) {
+  return `${draft.draftType}: ${draft.tone}`.slice(0, 500);
+}
+
 function buildTimelinePrompt(context: unknown) {
   return {
     system: [
@@ -54,6 +61,21 @@ function buildTimelinePrompt(context: unknown) {
       "Never create actions, send email, decide automatically, promise outcomes, or reveal hidden data.",
       "Detect: inactive conversation, pending action, missing document, unanswered message, complete but untreated case, clarification needed.",
       "Suggestions are advisory only and require human acceptance.",
+    ].join("\n"),
+    prompt: JSON.stringify(context),
+  };
+}
+
+function buildDraftPrompt(context: unknown) {
+  return {
+    system: [
+      "You are Goodissima Draft Assistant.",
+      "Use system rules, template aiInstructions, privacy-first relationship context, and recent timeline only.",
+      "Return strict JSON only with: draftType, subject, message, tone, warnings.",
+      "Allowed draftType values: FOLLOW_UP, DOCUMENT_REQUEST, CLARIFICATION_REQUEST, INVESTOR_REPLY, PROFESSIONAL_RESPONSE.",
+      "Never send messages, trigger emails, create actions, decide automatically, promise outcomes, or reveal hidden data.",
+      "Avoid legal promises, discrimination, abusive pressure, private data leakage, and hallucinated documents.",
+      "Add warnings when the request is unsafe, vague, aggressive, or needs human verification.",
     ].join("\n"),
     prompt: JSON.stringify(context),
   };
@@ -192,6 +214,71 @@ export async function analyzeTimelineWithAI({
         action: "timeline_intelligence",
         status: "error",
         promptVersion: timelinePromptVersion,
+        errorCode,
+      },
+    });
+
+    throw error;
+  }
+}
+
+export async function generateDraftWithAI({
+  caseId,
+  draftType,
+  instruction,
+  context,
+}: {
+  caseId: string;
+  draftType: AIDraftType;
+  instruction?: string | null;
+  context: unknown;
+}) {
+  const provider = getConfiguredProvider();
+  const prompt = buildDraftPrompt({ draftType, instruction, context });
+
+  console.info("[ai] Draft generation requested", {
+    provider: provider.name,
+    model: provider.model,
+    action: "draft_generation",
+    caseId,
+    promptVersion: draftPromptVersion,
+  });
+
+  try {
+    const result = await provider.generateDraft({
+      ...prompt,
+      metadata: { caseId, draftType, promptVersion: draftPromptVersion },
+    });
+
+    await prisma.aIEvent.create({
+      data: {
+        caseId,
+        provider: result.provider,
+        model: result.model,
+        action: "draft_generation",
+        status: "success",
+        promptVersion: draftPromptVersion,
+        outputSummary: summarizeDraftForAudit(result.output),
+      },
+    });
+
+    return {
+      provider: result.provider,
+      model: result.model,
+      promptVersion: draftPromptVersion,
+      draft: result.output,
+    };
+  } catch (error) {
+    const errorCode = error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_AI_DRAFT_ERROR";
+
+    await prisma.aIEvent.create({
+      data: {
+        caseId,
+        provider: provider.name,
+        model: provider.model,
+        action: "draft_generation",
+        status: "error",
+        promptVersion: draftPromptVersion,
         errorCode,
       },
     });

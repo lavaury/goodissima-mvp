@@ -1,0 +1,36 @@
+{
+  "id": "clarification_request",
+  "title": "Draft - demande de clarification",
+  "template": {
+    "key": "generic",
+    "name": "Clarification",
+    "aiInstructions": "Demander une clarification precise et respectueuse."
+  },
+  "relation": {
+    "type": "generic",
+    "draftType": "CLARIFICATION_REQUEST"
+  },
+  "messages": [
+    "Les informations transmises ne permettent pas de comprendre la prochaine etape."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "draftType": "CLARIFICATION_REQUEST",
+    "toneMustContain": [
+      "respectueux",
+      "precis"
+    ],
+    "messageMustContain": [
+      "preciser",
+      "point",
+      "clarifier"
+    ],
+    "warningsMustContain": [
+      "informations utiles"
+    ],
+    "mustNotContain": [
+      "decision automatique"
+    ]
+  }
+}

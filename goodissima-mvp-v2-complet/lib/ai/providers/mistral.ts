@@ -1,5 +1,7 @@
 import type {
   AIClassification,
+  AIDraft,
+  AIDraftType,
   AISuggestedAction,
   AITimelineActionType,
   AITimelineIntelligence,
@@ -44,12 +46,24 @@ const timelineActionTypes = [
   "VALIDATION_REVIEW",
 ] as const satisfies readonly AITimelineActionType[];
 
+const draftTypes = [
+  "FOLLOW_UP",
+  "DOCUMENT_REQUEST",
+  "CLARIFICATION_REQUEST",
+  "INVESTOR_REPLY",
+  "PROFESSIONAL_RESPONSE",
+] as const satisfies readonly AIDraftType[];
+
 function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
 function isTimelineActionType(value: unknown): value is AITimelineActionType {
   return typeof value === "string" && timelineActionTypes.includes(value as AITimelineActionType);
+}
+
+function isDraftType(value: unknown): value is AIDraftType {
+  return typeof value === "string" && draftTypes.includes(value as AIDraftType);
 }
 
 function parseTimelineIntelligence(content: string): AITimelineIntelligence {
@@ -80,6 +94,27 @@ function parseTimelineIntelligence(content: string): AITimelineIntelligence {
     };
   } catch {
     throw new Error("MISTRAL_INVALID_TIMELINE_JSON");
+  }
+}
+
+function parseDraft(content: string): AIDraft {
+  try {
+    const cleaned = content.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+    const parsed = JSON.parse(cleaned) as Partial<AIDraft>;
+
+    if (!isDraftType(parsed.draftType) || !isString(parsed.message) || !isString(parsed.tone)) {
+      throw new Error("MISTRAL_INVALID_DRAFT_SHAPE");
+    }
+
+    return {
+      draftType: parsed.draftType,
+      subject: isString(parsed.subject) ? parsed.subject.slice(0, 180) : undefined,
+      message: parsed.message.slice(0, 2400),
+      tone: parsed.tone.slice(0, 120),
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings.filter(isString).slice(0, 8) : [],
+    };
+  } catch {
+    throw new Error("MISTRAL_INVALID_DRAFT_JSON");
   }
 }
 
@@ -179,6 +214,27 @@ export function createMistralProvider({
         responseFormat: { type: "json_object" },
       });
       return { provider: "mistral", model, output: parseTimelineIntelligence(output) };
+    },
+    async generateDraft(request: AIProviderRequest): Promise<AIProviderResult<AIDraft>> {
+      const output = await callMistral({
+        apiKey,
+        model,
+        request: {
+          ...request,
+          system: [
+            request.system,
+            "Return a strict JSON object only.",
+            "The JSON schema is: {\"draftType\":\"FOLLOW_UP|DOCUMENT_REQUEST|CLARIFICATION_REQUEST|INVESTOR_REPLY|PROFESSIONAL_RESPONSE\",\"subject\":\"string\",\"message\":\"string\",\"tone\":\"string\",\"warnings\":[\"string\"]}.",
+            "Generate a draft message only. Never send it, never trigger email, never create action.",
+            "Do not make legal promises, discriminate, decide automatically, apply abusive pressure, reveal private data, or invent documents.",
+            "Add warnings when the request is unsafe, vague, aggressive, or may leak private data.",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+        responseFormat: { type: "json_object" },
+      });
+      return { provider: "mistral", model, output: parseDraft(output) };
     },
     async classify(request: AIProviderRequest): Promise<AIProviderResult<AIClassification>> {
       const output = await callMistral({

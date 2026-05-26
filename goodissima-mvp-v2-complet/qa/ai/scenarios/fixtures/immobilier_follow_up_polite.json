@@ -1,0 +1,37 @@
+{
+  "id": "immobilier_follow_up_polite",
+  "title": "Draft - relance immobiliere polie",
+  "template": {
+    "key": "real_estate_rental",
+    "name": "Location immobiliere",
+    "aiInstructions": "Rester poli, factuel et sans pression."
+  },
+  "relation": {
+    "type": "real_estate",
+    "draftType": "FOLLOW_UP"
+  },
+  "messages": [
+    "Le candidat n'a pas repondu depuis quelques jours."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "draftType": "FOLLOW_UP",
+    "toneMustContain": [
+      "professionnel",
+      "poli"
+    ],
+    "messageMustContain": [
+      "revenir vers vous",
+      "prochaines etapes"
+    ],
+    "warningsMustContain": [
+      "sans pression"
+    ],
+    "mustNotContain": [
+      "menace",
+      "obligation",
+      "automatiquement"
+    ]
+  }
+}

@@ -120,6 +120,19 @@ export function ChatBox({
   }, [loadMessages]);
 
   useEffect(() => {
+    function useDraft(event: Event) {
+      const detail = (event as CustomEvent<{ caseId?: string; message?: string }>).detail;
+      if (!detail?.message || detail.caseId !== caseId) return;
+
+      setBody(detail.message);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+
+    window.addEventListener("goodissima:use-ai-draft", useDraft);
+    return () => window.removeEventListener("goodissima:use-ai-draft", useDraft);
+  }, [caseId]);
+
+  useEffect(() => {
     if (!hasLoadedMessagesRef.current) {
       hasLoadedMessagesRef.current = true;
       requestAnimationFrame(() => scrollToLatestMessage("auto"));

@@ -1,0 +1,10 @@
+{
+  "draftType": "CLARIFICATION_REQUEST",
+  "subject": "Clarification des prochaines etapes",
+  "message": "Bonjour, afin d'avancer de maniere factuelle, pourriez-vous preciser le point que vous souhaitez clarifier en priorite et les informations deja disponibles de votre cote ?",
+  "tone": "respectueux et precis",
+  "warnings": [
+    "Demande limitee aux informations utiles.",
+    "Aucune decision automatique."
+  ]
+}

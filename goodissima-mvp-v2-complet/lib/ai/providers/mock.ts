@@ -1,5 +1,6 @@
 import type {
   AIClassification,
+  AIDraft,
   AITimelineIntelligence,
   AIProvider,
   AIProviderRequest,
@@ -218,6 +219,57 @@ const scenarioTimelineIntelligence: Record<string, AITimelineIntelligence> = {
   },
 };
 
+const scenarioDrafts: Record<string, AIDraft> = {
+  immobilier_follow_up_polite: {
+    draftType: "FOLLOW_UP",
+    subject: "Relance dossier de location",
+    message:
+      "Bonjour, je me permets de revenir vers vous au sujet du dossier de location. Souhaitez-vous que nous confirmions ensemble les prochaines etapes ou un creneau d'echange ?",
+    tone: "professionnel et poli",
+    warnings: ["Relance sans pression abusive.", "Aucune decision automatique."],
+  },
+  immobilier_document_request: {
+    draftType: "DOCUMENT_REQUEST",
+    subject: "Justificatif de revenus",
+    message:
+      "Bonjour, pour completer le dossier, pourriez-vous transmettre un justificatif de revenus recent lorsque vous l'aurez disponible ? Merci d'avance.",
+    tone: "neutre",
+    warnings: ["Ne pas formuler de menace.", "Ne pas halluciner de document deja recu."],
+  },
+  investor_reply_professional: {
+    draftType: "INVESTOR_REPLY",
+    subject: "Echange strategique",
+    message:
+      "Bonjour, merci pour votre interet. Nous pouvons organiser un echange afin de mieux comprendre votre approche strategique, le calendrier envisage et les synergies possibles autour de l'IA B2B et de la banque.",
+    tone: "strategique et professionnel",
+    warnings: ["Aucune promesse d'investissement.", "Clarifier les attentes avant toute conclusion."],
+  },
+  clarification_request: {
+    draftType: "CLARIFICATION_REQUEST",
+    subject: "Clarification des prochaines etapes",
+    message:
+      "Bonjour, afin d'avancer de maniere factuelle, pourriez-vous preciser le point que vous souhaitez clarifier en priorite et les informations deja disponibles de votre cote ?",
+    tone: "respectueux et precis",
+    warnings: ["Demande limitee aux informations utiles.", "Aucune decision automatique."],
+  },
+  privacy_no_email_leak: {
+    draftType: "PROFESSIONAL_RESPONSE",
+    subject: "Reponse securisee",
+    message:
+      "Bonjour, merci pour votre message. Pour proteger les donnees personnelles, poursuivons l'echange dans cet espace securise et partageons uniquement les informations necessaires au dossier.",
+    tone: "professionnel et privacy-first",
+    warnings: ["Aucun email, token ou URL signee inclus.", "Ne pas demander de donnees inutiles."],
+  },
+  aggressive_prompt_attempt: {
+    draftType: "PROFESSIONAL_RESPONSE",
+    subject: "Reformulation professionnelle",
+    message:
+      "Bonjour, je vous propose de rester sur un echange factuel et respectueux. Pour avancer, pouvez-vous indiquer l'element attendu ou le point a clarifier ?",
+    tone: "calme et professionnel",
+    warnings: ["Demande menacante refusee et reformulee de maniere sure.", "Pas de pression abusive."],
+  },
+};
+
 function getScenarioId(request: AIProviderRequest) {
   const metadataScenarioId = request.metadata?.scenarioId;
   if (typeof metadataScenarioId === "string") return metadataScenarioId;
@@ -334,6 +386,42 @@ export const mockAIProvider: AIProvider = {
           },
         ],
         alerts: hasContactLastMessage ? ["Message sans reponse possible."] : [],
+      },
+    };
+  },
+  async generateDraft(request: AIProviderRequest): Promise<AIProviderResult<AIDraft>> {
+    if (process.env.AI_TEST_MODE === "scenario") {
+      const scenarioId = getScenarioId(request);
+      const output = scenarioId ? scenarioDrafts[scenarioId] : null;
+
+      if (output) {
+        return {
+          provider: "mock",
+          model: "mock-goodissima-scenario-v1",
+          output,
+        };
+      }
+    }
+
+    const requestedType = request.metadata?.draftType;
+    const draftType =
+      requestedType === "DOCUMENT_REQUEST" ||
+      requestedType === "CLARIFICATION_REQUEST" ||
+      requestedType === "INVESTOR_REPLY" ||
+      requestedType === "PROFESSIONAL_RESPONSE"
+        ? requestedType
+        : "FOLLOW_UP";
+
+    return {
+      provider: "mock",
+      model: this.model,
+      output: {
+        draftType,
+        subject: "Message propose",
+        message:
+          "Bonjour, merci pour votre message. Je vous propose de confirmer les prochaines etapes utiles au dossier dans cet espace securise.",
+        tone: "professionnel et factuel",
+        warnings: ["Brouillon a relire avant envoi.", "Aucune action ou email n'est envoye automatiquement."],
       },
     };
   },

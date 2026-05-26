@@ -1,4 +1,5 @@
 import { CandidateAccessControls } from "@/components/CandidateAccessControls";
+import { AIDraftAssistantPanel } from "@/components/AIDraftAssistantPanel";
 import { AIRelationSummaryPanel } from "@/components/AIRelationSummaryPanel";
 import { AITimelineIntelligencePanel } from "@/components/AITimelineIntelligencePanel";
 import { ChatBox } from "@/components/ChatBox";
@@ -124,6 +125,8 @@ function getRelationEventLabel(event: RelationCaseWorkspaceItem["relationEvents"
       return `Suggestion IA acceptée${getPayloadString(event.payload, "title") ? ` - ${getPayloadString(event.payload, "title")}` : ""}`;
     case "AI_TIMELINE_SUGGESTION_ACCEPTED":
       return `Suggestion timeline IA acceptee${getPayloadString(event.payload, "title") ? ` - ${getPayloadString(event.payload, "title")}` : ""}`;
+    case "AI_DRAFT_USED":
+      return "Brouillon IA utilise dans l'editeur";
     default:
       return event.type;
   }
@@ -144,6 +147,7 @@ function getRelationEventType(eventType: string) {
     case "ACTION_COMPLETED":
     case "AI_SUGGESTED_ACTION_ACCEPTED":
     case "AI_TIMELINE_SUGGESTION_ACCEPTED":
+    case "AI_DRAFT_USED":
       return "Demande";
     default:
       return "Evenement";
@@ -304,6 +308,7 @@ export function RelationCaseWorkspace({
           senderType={senderType}
         />
         <aside className="space-y-4">
+          {senderType === "OWNER" ? <AIDraftAssistantPanel caseId={item.id} /> : null}
           {senderType === "OWNER" ? <AIRelationSummaryPanel caseId={item.id} /> : null}
           {senderType === "OWNER" ? <AITimelineIntelligencePanel caseId={item.id} /> : null}
           <RelationActionsPanel

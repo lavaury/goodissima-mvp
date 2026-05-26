@@ -30,6 +30,13 @@ export type AISuggestedActionType =
 
 export type AITimelineActionType = AISuggestedActionType | "VALIDATION_REVIEW";
 
+export type AIDraftType =
+  | "FOLLOW_UP"
+  | "DOCUMENT_REQUEST"
+  | "CLARIFICATION_REQUEST"
+  | "INVESTOR_REPLY"
+  | "PROFESSIONAL_RESPONSE";
+
 export type AISuggestedAction = {
   label: string;
   type: AISuggestedActionType;
@@ -50,6 +57,14 @@ export type AITimelineIntelligence = {
   alerts: string[];
 };
 
+export type AIDraft = {
+  draftType: AIDraftType;
+  subject?: string;
+  message: string;
+  tone: string;
+  warnings: string[];
+};
+
 export type AIProviderResult<T> = {
   provider: AIProviderName;
   model: string;
@@ -62,6 +77,7 @@ export type AIProvider = {
   chat(request: AIProviderRequest): Promise<AIProviderResult<string>>;
   summarize(request: AIProviderRequest): Promise<AIProviderResult<AISummary>>;
   analyzeTimeline(request: AIProviderRequest): Promise<AIProviderResult<AITimelineIntelligence>>;
+  generateDraft(request: AIProviderRequest): Promise<AIProviderResult<AIDraft>>;
   classify(request: AIProviderRequest): Promise<AIProviderResult<AIClassification>>;
   // embeddings(request) will be added when the V1 use case is explicit.
 };

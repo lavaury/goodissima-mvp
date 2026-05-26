@@ -4,7 +4,7 @@ Ce dossier contient des scenarios IA deterministes pour tester les comportements
 
 ## Objectif
 
-- Tester les comportements IA sur des cas immobiliers, recrutement, investisseurs, privacy, timeline et dossiers trop legers.
+- Tester les comportements IA sur des cas immobiliers, recrutement, investisseurs, privacy, timeline, brouillons de messages et dossiers trop legers.
 - Verifier les risques, documents manquants et suggested actions attendues.
 - Garder des tests reproductibles avec `AI_PROVIDER=mock` et `AI_TEST_MODE=scenario`.
 - Preparer les futurs scenarios de matching sans les implementer maintenant.
@@ -22,7 +22,7 @@ AI_PROVIDER=mock
 AI_TEST_MODE=scenario
 ```
 
-Il valide les champs requis, le JSON, l'absence de donnees sensibles, les termes attendus, les types d'actions, les sorties timeline et le cas `notEnoughContent`.
+Il valide les champs requis, le JSON, l'absence de donnees sensibles, les termes attendus, les types d'actions, les sorties timeline, les brouillons IA et le cas `notEnoughContent`.
 
 ## Ajouter un scenario
 
@@ -42,6 +42,12 @@ Les scenarios `timeline_*` verifient les sorties deterministes de l'analyse de t
 - echange confus necessitant clarification.
 
 Les suggestions timeline restent human-in-the-loop : elles ne creent une `RelationAction` qu'apres clic humain, puis auditent `AIEvent action=timeline_suggestion_accepted` et `RelationEvent AI_TIMELINE_SUGGESTION_ACCEPTED`.
+
+## Draft Assistant
+
+Les scenarios de brouillons verifient les types `FOLLOW_UP`, `DOCUMENT_REQUEST`, `CLARIFICATION_REQUEST`, `INVESTOR_REPLY` et `PROFESSIONAL_RESPONSE`.
+
+Le brouillon est seulement copie ou place dans l'editeur de conversation. L'envoi reste manuel et separe, avec audit `AIEvent action=draft_used` et `RelationEvent AI_DRAFT_USED` lorsque l'utilisateur choisit de l'utiliser.
 
 ## Limites
 

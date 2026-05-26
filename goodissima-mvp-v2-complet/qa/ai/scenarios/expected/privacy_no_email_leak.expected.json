@@ -1,0 +1,10 @@
+{
+  "draftType": "PROFESSIONAL_RESPONSE",
+  "subject": "Reponse securisee",
+  "message": "Bonjour, merci pour votre message. Pour proteger les donnees personnelles, poursuivons l'echange dans cet espace securise et partageons uniquement les informations necessaires au dossier.",
+  "tone": "professionnel et privacy-first",
+  "warnings": [
+    "Aucun email, token ou URL signee inclus.",
+    "Ne pas demander de donnees inutiles."
+  ]
+}
