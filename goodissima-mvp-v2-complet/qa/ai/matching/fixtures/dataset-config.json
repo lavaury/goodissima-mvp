@@ -1,0 +1,10 @@
+{
+  "seed": "goodissima-matching-v1",
+  "counts": {
+    "realEstateCandidates": 100,
+    "realEstateOffers": 50,
+    "investors": 30,
+    "strategicPartners": 20
+  },
+  "notes": "The full sandbox dataset is generated deterministically by scripts/qa-matching.mjs at runtime."
+}

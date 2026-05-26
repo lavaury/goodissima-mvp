@@ -7,6 +7,8 @@ import { ChatBox } from "@/components/ChatBox";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
+import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
+import { MatchingPanel } from "@/components/MatchingPanel";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
@@ -23,6 +25,7 @@ type RelationCaseWorkspaceItem = {
   candidateAccessRevokedAt?: Date | string | null;
   candidateName: string;
   candidateEmail?: string;
+  matchingEnabled: boolean;
   priority: RelationPriority;
   status: RelationStatus;
   gLink: { title: string; slug?: string | null };
@@ -309,6 +312,13 @@ export function RelationCaseWorkspace({
           senderType={senderType}
         />
         <aside className="space-y-4">
+          <MatchingOptInPanel
+            caseId={item.id}
+            initialMatchingEnabled={item.matchingEnabled}
+            candidateAccessToken={candidateAccessToken}
+            senderType={senderType}
+          />
+          {senderType === "OWNER" ? <MatchingPanel caseId={item.id} matchingEnabled={item.matchingEnabled} /> : null}
           {senderType === "OWNER" ? <AIDraftAssistantPanel caseId={item.id} /> : null}
           {senderType === "OWNER" ? <AIRiskSignalsPanel caseId={item.id} /> : null}
           {senderType === "OWNER" ? <AIRelationSummaryPanel caseId={item.id} /> : null}

@@ -1,13 +1,26 @@
-# Future AI Matching QA
+# Responsible Matching V1 QA
 
-Ce dossier est reserve au futur chantier matching Goodissima.
+Sandbox de matching relationnel privacy-first.
 
-Il contiendra :
+Principes :
 
-- offres,
-- recherches,
-- scores attendus,
-- cas negatifs,
-- cas ambigus.
+- matching opt-in uniquement,
+- aucune revelation automatique d'identite,
+- aucun score opaque visible,
+- aucune decision automatique,
+- human-in-the-loop pour toute proposition,
+- resultats explicables par elements compatibles, clarifications et warnings.
 
-Aucune logique de matching n'est implementee ici pour l'instant.
+Le dataset large est genere deterministiquement par `scripts/qa-matching.mjs` :
+
+- 100 candidats immobiliers,
+- 50 offres immobiliieres,
+- 30 investisseurs,
+- 20 partenaires strategiques,
+- cas forts, faibles, incompatibles, ambigus et limites.
+
+Commande :
+
+```bash
+npm.cmd run qa:matching
+```

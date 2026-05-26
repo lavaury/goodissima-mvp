@@ -24,7 +24,7 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
   try {
     const owner = await getCurrentPrismaUser();
     const body = await req.json();
-    const data: { priority?: RelationPriority; status?: RelationStatus } = {};
+    const data: { priority?: RelationPriority; status?: RelationStatus; matchingEnabled?: boolean } = {};
 
     if (body.priority !== undefined) {
       if (typeof body.priority !== "string" || !relationPriorities.has(body.priority)) {
@@ -42,7 +42,15 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
       data.status = body.status as RelationStatus;
     }
 
-    if (!data.priority && !data.status) {
+    if (body.matchingEnabled !== undefined) {
+      if (typeof body.matchingEnabled !== "boolean") {
+        return NextResponse.json({ error: "Invalid matchingEnabled" }, { status: 400 });
+      }
+
+      data.matchingEnabled = body.matchingEnabled;
+    }
+
+    if (!data.priority && !data.status && data.matchingEnabled === undefined) {
       return NextResponse.json({ error: "No changes provided" }, { status: 400 });
     }
 
@@ -56,6 +64,7 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         candidateName: true,
         priority: true,
         status: true,
+        matchingEnabled: true,
         gLink: { select: { title: true } },
       },
     });
@@ -71,6 +80,7 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         id: true,
         priority: true,
         status: true,
+        matchingEnabled: true,
       },
     });
 
@@ -118,6 +128,16 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
           statusLabel: getStatusEmailLabel(data.status),
         });
       }
+    }
+
+    if (data.matchingEnabled !== undefined && data.matchingEnabled !== relationCase.matchingEnabled) {
+      await createRelationEvent({
+        caseId: relationCase.id,
+        type: "MATCHING_OPT_IN_CHANGED",
+        actorType: "OWNER",
+        actorId: owner.id,
+        payload: { enabled: data.matchingEnabled },
+      });
     }
 
     return NextResponse.json(updated);

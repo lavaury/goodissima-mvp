@@ -106,6 +106,7 @@ model RelationCase {
   candidateName            String
   candidateEmail           String
   candidateEmailNotificationsEnabled Boolean @default(false)
+  matchingEnabled          Boolean          @default(false)
   priority                 RelationPriority @default(NORMAL)
   status                   RelationStatus   @default(NEW)
   currentStep              String?          @default("CONVERSATION")
