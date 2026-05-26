@@ -1,0 +1,16 @@
+{
+  "timelineStatus": "Echange ambigu necessitant clarification.",
+  "blockers": [
+    "Clarification necessaire sur les attentes et les prochaines etapes."
+  ],
+  "nextBestActions": [
+    {
+      "label": "Demander une clarification",
+      "type": "REQUEST_CLARIFICATION",
+      "reason": "Les messages contiennent des informations contradictoires ou incompletes."
+    }
+  ],
+  "alerts": [
+    "Demande de clarification necessaire."
+  ]
+}

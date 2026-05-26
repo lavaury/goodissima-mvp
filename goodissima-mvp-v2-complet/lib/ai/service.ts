@@ -2,10 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { buildRelationSummaryPrompt, toPrismaJson } from "@/lib/ai/context";
 import { mockAIProvider } from "@/lib/ai/providers/mock";
 import { createMistralProvider } from "@/lib/ai/providers/mistral";
-import type { AIProvider, AIProviderName, AIRelationContext, AISummary } from "@/lib/ai/types";
+import type {
+  AIProvider,
+  AIProviderName,
+  AIRelationContext,
+  AISummary,
+  AITimelineIntelligence,
+} from "@/lib/ai/types";
 
 const defaultMistralModel = "mistral-small-latest";
 const relationSummaryPromptVersion = "relation-summary-v2";
+const timelinePromptVersion = "timeline-intelligence-v1";
 
 function getConfiguredProvider(): AIProvider {
   const configured = (process.env.AI_PROVIDER ?? "mock").toLowerCase() as AIProviderName;
@@ -30,6 +37,26 @@ function getConfiguredProvider(): AIProvider {
 
 function summarizeOutputForAudit(summary: AISummary) {
   return summary.summary.slice(0, 500);
+}
+
+function summarizeTimelineForAudit(timeline: AITimelineIntelligence) {
+  return timeline.timelineStatus.slice(0, 500);
+}
+
+function buildTimelinePrompt(context: unknown) {
+  return {
+    system: [
+      "You are Goodissima Timeline Intelligence.",
+      "Use only the privacy-first JSON context provided.",
+      "Return strict JSON only with: timelineStatus, inactiveSinceDays, blockers, nextBestActions, alerts.",
+      "Every nextBestActions item must have label, type and reason.",
+      "Allowed next action types: REQUEST_DOCUMENT, FOLLOW_UP, REQUEST_CLARIFICATION, SCHEDULE_EXCHANGE, INVESTOR_FOLLOW_UP, VALIDATION_REVIEW.",
+      "Never create actions, send email, decide automatically, promise outcomes, or reveal hidden data.",
+      "Detect: inactive conversation, pending action, missing document, unanswered message, complete but untreated case, clarification needed.",
+      "Suggestions are advisory only and require human acceptance.",
+    ].join("\n"),
+    prompt: JSON.stringify(context),
+  };
 }
 
 export async function summarizeRelationWithAI({
@@ -105,6 +132,68 @@ export async function summarizeRelationWithAI({
       caseId,
       status: "error",
       errorCode,
+    });
+
+    throw error;
+  }
+}
+
+export async function analyzeTimelineWithAI({
+  caseId,
+  context,
+}: {
+  caseId: string;
+  context: unknown;
+}) {
+  const provider = getConfiguredProvider();
+  const prompt = buildTimelinePrompt(context);
+
+  console.info("[ai] Timeline intelligence requested", {
+    provider: provider.name,
+    model: provider.model,
+    action: "timeline_intelligence",
+    caseId,
+    promptVersion: timelinePromptVersion,
+  });
+
+  try {
+    const result = await provider.analyzeTimeline({
+      ...prompt,
+      metadata: { caseId, promptVersion: timelinePromptVersion },
+    });
+
+    await prisma.aIEvent.create({
+      data: {
+        caseId,
+        provider: result.provider,
+        model: result.model,
+        action: "timeline_intelligence",
+        status: "success",
+        promptVersion: timelinePromptVersion,
+        outputSummary: summarizeTimelineForAudit(result.output),
+      },
+    });
+
+    return {
+      provider: result.provider,
+      model: result.model,
+      promptVersion: timelinePromptVersion,
+      context: toPrismaJson(context),
+      timeline: result.output,
+    };
+  } catch (error) {
+    const errorCode = error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_AI_TIMELINE_ERROR";
+
+    await prisma.aIEvent.create({
+      data: {
+        caseId,
+        provider: provider.name,
+        model: provider.model,
+        action: "timeline_intelligence",
+        status: "error",
+        promptVersion: timelinePromptVersion,
+        errorCode,
+      },
     });
 
     throw error;

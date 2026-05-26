@@ -4,7 +4,7 @@ Ce dossier contient des scenarios IA deterministes pour tester les comportements
 
 ## Objectif
 
-- Tester les comportements IA sur des cas immobiliers, recrutement, investisseurs, privacy et dossiers trop legers.
+- Tester les comportements IA sur des cas immobiliers, recrutement, investisseurs, privacy, timeline et dossiers trop legers.
 - Verifier les risques, documents manquants et suggested actions attendues.
 - Garder des tests reproductibles avec `AI_PROVIDER=mock` et `AI_TEST_MODE=scenario`.
 - Preparer les futurs scenarios de matching sans les implementer maintenant.
@@ -22,7 +22,7 @@ AI_PROVIDER=mock
 AI_TEST_MODE=scenario
 ```
 
-Il valide les champs requis, le JSON, l'absence de donnees sensibles, les termes attendus, les types d'actions et le cas `notEnoughContent`.
+Il valide les champs requis, le JSON, l'absence de donnees sensibles, les termes attendus, les types d'actions, les sorties timeline et le cas `notEnoughContent`.
 
 ## Ajouter un scenario
 
@@ -30,6 +30,18 @@ Il valide les champs requis, le JSON, l'absence de donnees sensibles, les termes
 2. Ajouter le snapshot deterministe correspondant dans `expected/<id>.expected.json`.
 3. Ajouter la sortie stable dans le mock provider si le scenario doit etre rejoue par le service applicatif.
 4. Lancer `npm.cmd run qa:ai:scenarios`.
+
+## Timeline Intelligence
+
+Les scenarios `timeline_*` verifient les sorties deterministes de l'analyse de timeline :
+
+- conversation inactive,
+- demande de document en attente,
+- message sans reponse,
+- dossier complet pret pour revue,
+- echange confus necessitant clarification.
+
+Les suggestions timeline restent human-in-the-loop : elles ne creent une `RelationAction` qu'apres clic humain, puis auditent `AIEvent action=timeline_suggestion_accepted` et `RelationEvent AI_TIMELINE_SUGGESTION_ACCEPTED`.
 
 ## Limites
 

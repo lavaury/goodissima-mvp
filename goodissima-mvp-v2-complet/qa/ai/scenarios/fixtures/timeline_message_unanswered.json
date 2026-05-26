@@ -1,0 +1,33 @@
+{
+  "id": "timeline_message_unanswered",
+  "title": "Timeline - message sans reponse",
+  "template": {
+    "key": "timeline_intelligence",
+    "name": "Timeline Intelligence",
+    "aiInstructions": "Detecter les messages sans reponse."
+  },
+  "relation": {
+    "type": "timeline",
+    "lastMessageAuthor": "contact"
+  },
+  "messages": [
+    "Pouvez-vous me confirmer la prochaine etape ?"
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "timelineStatusMustContain": [
+      "message",
+      "sans reponse"
+    ],
+    "blockersMustContain": [
+      "reponse proprietaire"
+    ],
+    "alertsMustContain": [
+      "message sans reponse"
+    ],
+    "nextBestActionTypes": [
+      "FOLLOW_UP"
+    ]
+  }
+}

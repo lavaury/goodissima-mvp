@@ -12,6 +12,7 @@ const allowedActionTypes = new Set([
   "REQUEST_CLARIFICATION",
   "SCHEDULE_EXCHANGE",
   "INVESTOR_FOLLOW_UP",
+  "VALIDATION_REVIEW",
 ]);
 
 const requiredScenarioFields = [
@@ -25,7 +26,7 @@ const requiredScenarioFields = [
   "expected",
 ];
 
-const requiredExpectedFields = [
+const requiredSummaryExpectedFields = [
   "summaryMustContain",
   "keyPointsMustContain",
   "risksMustContain",
@@ -33,10 +34,17 @@ const requiredExpectedFields = [
   "suggestedActionTypes",
 ];
 
+const requiredTimelineExpectedFields = [
+  "timelineStatusMustContain",
+  "blockersMustContain",
+  "alertsMustContain",
+  "nextBestActionTypes",
+];
+
 const sensitivePatterns = [
   { name: "email", pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi },
   { name: "signed_url", pattern: /https?:\/\/[^\s"']*(signature|signed|token|X-Amz-Signature)[^\s"']*/gi },
-  { name: "token", pattern: /\b[A-Za-z0-9_-]{32,}\b/g },
+  { name: "token", pattern: /\b(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{32,}\b/g },
   { name: "api_key", pattern: /\b(sk-[A-Za-z0-9_-]{8,}|api[_-]?key\s*[:=])\b/gi },
   { name: "secret", pattern: /\bsecret\s*[:=]\s*[^"',}\]]+/gi },
 ];
@@ -120,7 +128,10 @@ function assertRequiredScenarioFields(scenario) {
   assertArray(scenario.documents, scenario.id, "documents");
   assertArray(scenario.actions, scenario.id, "actions");
 
-  for (const field of requiredExpectedFields) {
+  const isTimelineScenario = "nextBestActionTypes" in scenario.expected;
+  const requiredFields = isTimelineScenario ? requiredTimelineExpectedFields : requiredSummaryExpectedFields;
+
+  for (const field of requiredFields) {
     if (!(field in scenario.expected)) fail(scenario.id, `missing expected field: ${field}`);
     else assertArray(scenario.expected[field], scenario.id, `expected.${field}`);
   }
@@ -146,6 +157,24 @@ function assertNoForbiddenOutput(scenario, output) {
 }
 
 function assertTerms(scenario, output) {
+  if ("timelineStatus" in output) {
+    const checks = [
+      ["timelineStatus", scenario.expected.timelineStatusMustContain, output.timelineStatus],
+      ["blockers", scenario.expected.blockersMustContain, output.blockers.join(" ")],
+      ["alerts", scenario.expected.alertsMustContain, output.alerts.join(" ")],
+    ];
+
+    for (const [field, terms, text] of checks) {
+      for (const term of terms) {
+        if (!includesTerm(text, term)) {
+          fail(scenario.id, `${field} does not contain expected term: ${term}`);
+        }
+      }
+    }
+
+    return;
+  }
+
   const checks = [
     ["summary", scenario.expected.summaryMustContain, output.summary],
     ["keyPoints", scenario.expected.keyPointsMustContain, output.keyPoints.join(" ")],
@@ -163,15 +192,17 @@ function assertTerms(scenario, output) {
 }
 
 function assertActionTypes(scenario, output) {
-  const actualTypes = output.suggestedActions.map((action) => action.type);
+  const expectedTypes = scenario.expected.suggestedActionTypes ?? scenario.expected.nextBestActionTypes ?? [];
+  const actions = output.suggestedActions ?? output.nextBestActions ?? [];
+  const actualTypes = actions.map((action) => action.type);
 
-  for (const action of output.suggestedActions) {
+  for (const action of actions) {
     if (!action.label || !action.reason || !allowedActionTypes.has(action.type)) {
       fail(scenario.id, `invalid suggested action: ${JSON.stringify(action)}`);
     }
   }
 
-  for (const expectedType of scenario.expected.suggestedActionTypes) {
+  for (const expectedType of expectedTypes) {
     if (!allowedActionTypes.has(expectedType)) {
       fail(scenario.id, `unsupported expected action type: ${expectedType}`);
     }
@@ -193,9 +224,26 @@ function assertScenarioFlags(scenario, output) {
   if (scenario.expected.mustNotCreateActionAutomatically && scenario.actions.length > 0) {
     fail(scenario.id, "scenario should not contain pre-created actions");
   }
+
+  if (typeof scenario.expected.inactiveSinceDaysMin === "number") {
+    if (typeof output.inactiveSinceDays !== "number" || output.inactiveSinceDays < scenario.expected.inactiveSinceDaysMin) {
+      fail(scenario.id, `inactiveSinceDays must be >= ${scenario.expected.inactiveSinceDaysMin}`);
+    }
+  }
 }
 
 function assertOutputShape(scenario, output) {
+  if ("timelineStatus" in output) {
+    if (typeof output.timelineStatus !== "string") fail(scenario.id, "output.timelineStatus must be a string");
+    if ("inactiveSinceDays" in output && typeof output.inactiveSinceDays !== "number") {
+      fail(scenario.id, "output.inactiveSinceDays must be a number when present");
+    }
+    assertArray(output.blockers, scenario.id, "output.blockers");
+    assertArray(output.alerts, scenario.id, "output.alerts");
+    assertArray(output.nextBestActions, scenario.id, "output.nextBestActions");
+    return;
+  }
+
   if (typeof output.summary !== "string") fail(scenario.id, "output.summary must be a string");
   assertArray(output.keyPoints, scenario.id, "output.keyPoints");
   assertArray(output.risks, scenario.id, "output.risks");

@@ -1,0 +1,21 @@
+{
+  "timelineStatus": "Document attendu avant poursuite.",
+  "blockers": [
+    "Document attendu: justificatif de revenus."
+  ],
+  "nextBestActions": [
+    {
+      "label": "Relancer la demande de document",
+      "type": "REQUEST_DOCUMENT",
+      "reason": "Un document demande reste en attente."
+    },
+    {
+      "label": "Faire un suivi",
+      "type": "FOLLOW_UP",
+      "reason": "Un suivi humain permet de confirmer le besoin documentaire."
+    }
+  ],
+  "alerts": [
+    "Action en attente liee a un document."
+  ]
+}

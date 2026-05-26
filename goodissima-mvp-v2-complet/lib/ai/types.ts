@@ -28,10 +28,26 @@ export type AISuggestedActionType =
   | "SCHEDULE_EXCHANGE"
   | "INVESTOR_FOLLOW_UP";
 
+export type AITimelineActionType = AISuggestedActionType | "VALIDATION_REVIEW";
+
 export type AISuggestedAction = {
   label: string;
   type: AISuggestedActionType;
   reason: string;
+};
+
+export type AITimelineNextBestAction = {
+  label: string;
+  type: AITimelineActionType;
+  reason: string;
+};
+
+export type AITimelineIntelligence = {
+  timelineStatus: string;
+  inactiveSinceDays?: number;
+  blockers: string[];
+  nextBestActions: AITimelineNextBestAction[];
+  alerts: string[];
 };
 
 export type AIProviderResult<T> = {
@@ -45,6 +61,7 @@ export type AIProvider = {
   model: string;
   chat(request: AIProviderRequest): Promise<AIProviderResult<string>>;
   summarize(request: AIProviderRequest): Promise<AIProviderResult<AISummary>>;
+  analyzeTimeline(request: AIProviderRequest): Promise<AIProviderResult<AITimelineIntelligence>>;
   classify(request: AIProviderRequest): Promise<AIProviderResult<AIClassification>>;
   // embeddings(request) will be added when the V1 use case is explicit.
 };

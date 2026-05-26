@@ -1,0 +1,16 @@
+{
+  "timelineStatus": "Message candidat sans reponse proprietaire.",
+  "blockers": [
+    "Reponse proprietaire attendue."
+  ],
+  "nextBestActions": [
+    {
+      "label": "Repondre au message",
+      "type": "FOLLOW_UP",
+      "reason": "Le dernier message du contact n'a pas encore recu de reponse."
+    }
+  ],
+  "alerts": [
+    "Message sans reponse."
+  ]
+}

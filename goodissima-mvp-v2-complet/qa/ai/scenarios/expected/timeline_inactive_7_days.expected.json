@@ -1,0 +1,17 @@
+{
+  "timelineStatus": "Conversation inactive depuis 7 jours.",
+  "inactiveSinceDays": 7,
+  "blockers": [
+    "Aucun echange recent."
+  ],
+  "nextBestActions": [
+    {
+      "label": "Relancer la relation",
+      "type": "FOLLOW_UP",
+      "reason": "La conversation est inactive depuis au moins 7 jours."
+    }
+  ],
+  "alerts": [
+    "Conversation inactive."
+  ]
+}

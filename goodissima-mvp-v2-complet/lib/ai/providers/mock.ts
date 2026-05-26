@@ -1,5 +1,6 @@
 import type {
   AIClassification,
+  AITimelineIntelligence,
   AIProvider,
   AIProviderRequest,
   AIProviderResult,
@@ -148,6 +149,75 @@ const scenarioSummaries: Record<string, AISummary> = {
   },
 };
 
+const scenarioTimelineIntelligence: Record<string, AITimelineIntelligence> = {
+  timeline_inactive_7_days: {
+    timelineStatus: "Conversation inactive depuis 7 jours.",
+    inactiveSinceDays: 7,
+    blockers: ["Aucun echange recent."],
+    nextBestActions: [
+      {
+        label: "Relancer la relation",
+        type: "FOLLOW_UP",
+        reason: "La conversation est inactive depuis au moins 7 jours.",
+      },
+    ],
+    alerts: ["Conversation inactive."],
+  },
+  timeline_document_request_pending: {
+    timelineStatus: "Document attendu avant poursuite.",
+    blockers: ["Document attendu: justificatif de revenus."],
+    nextBestActions: [
+      {
+        label: "Relancer la demande de document",
+        type: "REQUEST_DOCUMENT",
+        reason: "Un document demande reste en attente.",
+      },
+      {
+        label: "Faire un suivi",
+        type: "FOLLOW_UP",
+        reason: "Un suivi humain permet de confirmer le besoin documentaire.",
+      },
+    ],
+    alerts: ["Action en attente liee a un document."],
+  },
+  timeline_message_unanswered: {
+    timelineStatus: "Message candidat sans reponse proprietaire.",
+    blockers: ["Reponse proprietaire attendue."],
+    nextBestActions: [
+      {
+        label: "Repondre au message",
+        type: "FOLLOW_UP",
+        reason: "Le dernier message du contact n'a pas encore recu de reponse.",
+      },
+    ],
+    alerts: ["Message sans reponse."],
+  },
+  timeline_case_ready_for_review: {
+    timelineStatus: "Dossier complet pret pour revue.",
+    blockers: [],
+    nextBestActions: [
+      {
+        label: "Lancer la revue de validation",
+        type: "VALIDATION_REVIEW",
+        reason: "Les elements principaux sont disponibles pour une revue humaine.",
+      },
+    ],
+    alerts: ["Dossier complet mais non traite."],
+  },
+  timeline_confusing_exchange: {
+    timelineStatus: "Echange ambigu necessitant clarification.",
+    blockers: ["Clarification necessaire sur les attentes et les prochaines etapes."],
+    nextBestActions: [
+      {
+        label: "Demander une clarification",
+        type: "REQUEST_CLARIFICATION",
+        reason: "Les messages contiennent des informations contradictoires ou incompletes.",
+      },
+    ],
+    alerts: ["Demande de clarification necessaire."],
+  },
+};
+
 function getScenarioId(request: AIProviderRequest) {
   const metadataScenarioId = request.metadata?.scenarioId;
   if (typeof metadataScenarioId === "string") return metadataScenarioId;
@@ -224,6 +294,46 @@ export const mockAIProvider: AIProvider = {
         missingDocuments: hasDocuments
           ? []
           : ["Aucun document n'est reference dans le dossier; ne demander une piece que si elle est utile au contexte."],
+      },
+    };
+  },
+  async analyzeTimeline(request: AIProviderRequest): Promise<AIProviderResult<AITimelineIntelligence>> {
+    if (process.env.AI_TEST_MODE === "scenario") {
+      const scenarioId = getScenarioId(request);
+      const output = scenarioId ? scenarioTimelineIntelligence[scenarioId] : null;
+
+      if (output) {
+        return {
+          provider: "mock",
+          model: "mock-goodissima-scenario-v1",
+          output,
+        };
+      }
+    }
+
+    const context = request.prompt.toLowerCase();
+    const hasPendingAction = context.includes('"status":"pending"');
+    const hasDocuments = !request.prompt.includes('"documents":[]');
+    const hasContactLastMessage = context.includes('"lastmessageauthor":"contact"');
+
+    return {
+      provider: "mock",
+      model: this.model,
+      output: {
+        timelineStatus: hasPendingAction
+          ? "Des elements restent en attente dans la timeline."
+          : hasDocuments
+            ? "La timeline contient des elements a verifier par l'equipe."
+            : "La timeline est limitee et doit etre interpretee avec prudence.",
+        blockers: hasPendingAction ? ["Action en attente."] : [],
+        nextBestActions: [
+          {
+            label: hasContactLastMessage ? "Repondre au dernier message" : "Faire un suivi relationnel",
+            type: "FOLLOW_UP",
+            reason: "La prochaine etape doit rester declenchee par un humain.",
+          },
+        ],
+        alerts: hasContactLastMessage ? ["Message sans reponse possible."] : [],
       },
     };
   },
