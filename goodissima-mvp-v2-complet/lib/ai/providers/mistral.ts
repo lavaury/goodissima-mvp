@@ -2,6 +2,9 @@ import type {
   AIClassification,
   AIDraft,
   AIDraftType,
+  AIRiskAnalysis,
+  AIRiskSeverity,
+  AIRiskSignalType,
   AISuggestedAction,
   AITimelineActionType,
   AITimelineIntelligence,
@@ -54,6 +57,21 @@ const draftTypes = [
   "PROFESSIONAL_RESPONSE",
 ] as const satisfies readonly AIDraftType[];
 
+const riskSignalTypes = [
+  "MISSING_DOCUMENT",
+  "INCONSISTENT_INFORMATION",
+  "UNANSWERED_REQUEST",
+  "LOW_INFORMATION",
+  "POSSIBLE_PROMPT_INJECTION",
+  "TIMELINE_INACTIVITY",
+  "UNCLEAR_INTENT",
+  "MISSING_ORGANIZATION",
+  "VARIABLE_INCOME",
+  "UNCONFIRMED_GUARANTOR",
+] as const satisfies readonly AIRiskSignalType[];
+
+const riskSeverities = ["low", "medium", "high"] as const satisfies readonly AIRiskSeverity[];
+
 function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -64,6 +82,14 @@ function isTimelineActionType(value: unknown): value is AITimelineActionType {
 
 function isDraftType(value: unknown): value is AIDraftType {
   return typeof value === "string" && draftTypes.includes(value as AIDraftType);
+}
+
+function isRiskSignalType(value: unknown): value is AIRiskSignalType {
+  return typeof value === "string" && riskSignalTypes.includes(value as AIRiskSignalType);
+}
+
+function isRiskSeverity(value: unknown): value is AIRiskSeverity {
+  return typeof value === "string" && riskSeverities.includes(value as AIRiskSeverity);
 }
 
 function parseTimelineIntelligence(content: string): AITimelineIntelligence {
@@ -115,6 +141,45 @@ function parseDraft(content: string): AIDraft {
     };
   } catch {
     throw new Error("MISTRAL_INVALID_DRAFT_JSON");
+  }
+}
+
+function parseRiskAnalysis(content: string): AIRiskAnalysis {
+  try {
+    const cleaned = content.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+    const parsed = JSON.parse(cleaned) as Partial<AIRiskAnalysis>;
+
+    return {
+      riskSignals: Array.isArray(parsed.riskSignals)
+        ? parsed.riskSignals
+            .map((signal) => {
+              if (!signal || typeof signal !== "object") return null;
+              const value = signal as Record<string, unknown>;
+              if (
+                !isRiskSignalType(value.type) ||
+                !isRiskSeverity(value.severity) ||
+                !isString(value.title) ||
+                !isString(value.explanation)
+              ) {
+                return null;
+              }
+
+              const parsedSignal = {
+                type: value.type,
+                severity: value.severity,
+                title: value.title.slice(0, 180),
+                explanation: value.explanation.slice(0, 800),
+              };
+              return isString(value.recommendation)
+                ? { ...parsedSignal, recommendation: value.recommendation.slice(0, 800) }
+                : parsedSignal;
+            })
+            .filter((signal): signal is AIRiskAnalysis["riskSignals"][number] => Boolean(signal))
+            .slice(0, 10)
+        : [],
+    };
+  } catch {
+    throw new Error("MISTRAL_INVALID_RISK_JSON");
   }
 }
 
@@ -235,6 +300,26 @@ export function createMistralProvider({
         responseFormat: { type: "json_object" },
       });
       return { provider: "mistral", model, output: parseDraft(output) };
+    },
+    async analyzeRiskSignals(request: AIProviderRequest): Promise<AIProviderResult<AIRiskAnalysis>> {
+      const output = await callMistral({
+        apiKey,
+        model,
+        request: {
+          ...request,
+          system: [
+            request.system,
+            "Return a strict JSON object only.",
+            "The JSON schema is: {\"riskSignals\":[{\"type\":\"MISSING_DOCUMENT|INCONSISTENT_INFORMATION|UNANSWERED_REQUEST|LOW_INFORMATION|POSSIBLE_PROMPT_INJECTION|TIMELINE_INACTIVITY|UNCLEAR_INTENT|MISSING_ORGANIZATION|VARIABLE_INCOME|UNCONFIRMED_GUARANTOR\",\"severity\":\"low|medium|high\",\"title\":\"string\",\"explanation\":\"string\",\"recommendation\":\"string\"}]}",
+            "No hidden scoring, no automatic decision, no refusal, no blocking, no profiling.",
+            "Use neutral wording, explain context, recommend human verification, and never reveal private data.",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+        responseFormat: { type: "json_object" },
+      });
+      return { provider: "mistral", model, output: parseRiskAnalysis(output) };
     },
     async classify(request: AIProviderRequest): Promise<AIProviderResult<AIClassification>> {
       const output = await callMistral({

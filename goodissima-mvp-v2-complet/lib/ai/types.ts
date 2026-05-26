@@ -37,6 +37,20 @@ export type AIDraftType =
   | "INVESTOR_REPLY"
   | "PROFESSIONAL_RESPONSE";
 
+export type AIRiskSignalType =
+  | "MISSING_DOCUMENT"
+  | "INCONSISTENT_INFORMATION"
+  | "UNANSWERED_REQUEST"
+  | "LOW_INFORMATION"
+  | "POSSIBLE_PROMPT_INJECTION"
+  | "TIMELINE_INACTIVITY"
+  | "UNCLEAR_INTENT"
+  | "MISSING_ORGANIZATION"
+  | "VARIABLE_INCOME"
+  | "UNCONFIRMED_GUARANTOR";
+
+export type AIRiskSeverity = "low" | "medium" | "high";
+
 export type AISuggestedAction = {
   label: string;
   type: AISuggestedActionType;
@@ -65,6 +79,18 @@ export type AIDraft = {
   warnings: string[];
 };
 
+export type AIRiskSignal = {
+  type: AIRiskSignalType;
+  severity: AIRiskSeverity;
+  title: string;
+  explanation: string;
+  recommendation?: string;
+};
+
+export type AIRiskAnalysis = {
+  riskSignals: AIRiskSignal[];
+};
+
 export type AIProviderResult<T> = {
   provider: AIProviderName;
   model: string;
@@ -78,6 +104,7 @@ export type AIProvider = {
   summarize(request: AIProviderRequest): Promise<AIProviderResult<AISummary>>;
   analyzeTimeline(request: AIProviderRequest): Promise<AIProviderResult<AITimelineIntelligence>>;
   generateDraft(request: AIProviderRequest): Promise<AIProviderResult<AIDraft>>;
+  analyzeRiskSignals(request: AIProviderRequest): Promise<AIProviderResult<AIRiskAnalysis>>;
   classify(request: AIProviderRequest): Promise<AIProviderResult<AIClassification>>;
   // embeddings(request) will be added when the V1 use case is explicit.
 };

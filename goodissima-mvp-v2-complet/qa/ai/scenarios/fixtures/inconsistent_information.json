@@ -1,0 +1,26 @@
+{
+  "id": "inconsistent_information",
+  "title": "Risk - informations incoherentes",
+  "template": {
+    "key": "generic",
+    "name": "Qualification",
+    "aiInstructions": "Demander une clarification si les informations divergent."
+  },
+  "relation": {
+    "type": "generic"
+  },
+  "messages": [
+    "Je suis disponible immediatement.",
+    "Finalement je ne serai pas disponible avant trois mois."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "riskSignals": [
+      {
+        "type": "INCONSISTENT_INFORMATION",
+        "severity": "medium"
+      }
+    ]
+  }
+}

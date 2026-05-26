@@ -1,0 +1,11 @@
+{
+  "riskSignals": [
+    {
+      "type": "UNCONFIRMED_GUARANTOR",
+      "severity": "medium",
+      "title": "Garant non confirme",
+      "explanation": "Un garant est evoque, mais les informations disponibles ne confirment pas encore son engagement.",
+      "recommendation": "Clarifier si un garant est necessaire et demander les elements utiles le cas echeant."
+    }
+  ]
+}

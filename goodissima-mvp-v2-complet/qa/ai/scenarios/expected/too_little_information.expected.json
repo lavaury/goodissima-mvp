@@ -1,0 +1,11 @@
+{
+  "riskSignals": [
+    {
+      "type": "LOW_INFORMATION",
+      "severity": "low",
+      "title": "Informations insuffisantes",
+      "explanation": "Le contexte disponible est trop limite pour produire une analyse relationnelle fiable.",
+      "recommendation": "Demander quelques informations factuelles supplementaires avant d'aller plus loin."
+    }
+  ]
+}

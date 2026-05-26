@@ -1,0 +1,11 @@
+{
+  "riskSignals": [
+    {
+      "type": "MISSING_ORGANIZATION",
+      "severity": "medium",
+      "title": "Organisation non precisee",
+      "explanation": "Le contact investisseur ne fournit pas encore d'organisation identifiable dans le contexte transmis.",
+      "recommendation": "Demander le nom de l'organisation et le role du contact avant de qualifier l'echange."
+    }
+  ]
+}

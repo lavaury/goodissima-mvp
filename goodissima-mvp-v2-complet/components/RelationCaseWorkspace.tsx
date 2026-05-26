@@ -1,6 +1,7 @@
 import { CandidateAccessControls } from "@/components/CandidateAccessControls";
 import { AIDraftAssistantPanel } from "@/components/AIDraftAssistantPanel";
 import { AIRelationSummaryPanel } from "@/components/AIRelationSummaryPanel";
+import { AIRiskSignalsPanel } from "@/components/AIRiskSignalsPanel";
 import { AITimelineIntelligencePanel } from "@/components/AITimelineIntelligencePanel";
 import { ChatBox } from "@/components/ChatBox";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
@@ -309,6 +310,7 @@ export function RelationCaseWorkspace({
         />
         <aside className="space-y-4">
           {senderType === "OWNER" ? <AIDraftAssistantPanel caseId={item.id} /> : null}
+          {senderType === "OWNER" ? <AIRiskSignalsPanel caseId={item.id} /> : null}
           {senderType === "OWNER" ? <AIRelationSummaryPanel caseId={item.id} /> : null}
           {senderType === "OWNER" ? <AITimelineIntelligencePanel caseId={item.id} /> : null}
           <RelationActionsPanel

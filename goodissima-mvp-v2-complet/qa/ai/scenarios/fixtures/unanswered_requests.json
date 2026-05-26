@@ -1,0 +1,31 @@
+{
+  "id": "unanswered_requests",
+  "title": "Risk - demandes sans reponse",
+  "template": {
+    "key": "generic",
+    "name": "Suivi relationnel",
+    "aiInstructions": "Identifier les demandes en attente."
+  },
+  "relation": {
+    "type": "generic"
+  },
+  "messages": [
+    "Pouvez-vous transmettre le document demande ?"
+  ],
+  "documents": [],
+  "actions": [
+    {
+      "type": "DOCUMENT_REQUEST",
+      "status": "PENDING",
+      "title": "Document attendu"
+    }
+  ],
+  "expected": {
+    "riskSignals": [
+      {
+        "type": "UNANSWERED_REQUEST",
+        "severity": "medium"
+      }
+    ]
+  }
+}

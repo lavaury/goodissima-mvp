@@ -1,0 +1,11 @@
+{
+  "riskSignals": [
+    {
+      "type": "INCONSISTENT_INFORMATION",
+      "severity": "medium",
+      "title": "Informations a reconciler",
+      "explanation": "Certaines informations semblent differentes ou difficiles a concilier dans les messages recents.",
+      "recommendation": "Demander une clarification precise avant toute decision humaine."
+    }
+  ]
+}

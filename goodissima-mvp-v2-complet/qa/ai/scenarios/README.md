@@ -4,7 +4,7 @@ Ce dossier contient des scenarios IA deterministes pour tester les comportements
 
 ## Objectif
 
-- Tester les comportements IA sur des cas immobiliers, recrutement, investisseurs, privacy, timeline, brouillons de messages et dossiers trop legers.
+- Tester les comportements IA sur des cas immobiliers, recrutement, investisseurs, privacy, timeline, brouillons de messages, signaux de confiance et dossiers trop legers.
 - Verifier les risques, documents manquants et suggested actions attendues.
 - Garder des tests reproductibles avec `AI_PROVIDER=mock` et `AI_TEST_MODE=scenario`.
 - Preparer les futurs scenarios de matching sans les implementer maintenant.
@@ -22,7 +22,7 @@ AI_PROVIDER=mock
 AI_TEST_MODE=scenario
 ```
 
-Il valide les champs requis, le JSON, l'absence de donnees sensibles, les termes attendus, les types d'actions, les sorties timeline, les brouillons IA et le cas `notEnoughContent`.
+Il valide les champs requis, le JSON, l'absence de donnees sensibles, les termes attendus, les types d'actions, les sorties timeline, les brouillons IA, les signaux de risque/confiance et le cas `notEnoughContent`.
 
 ## Ajouter un scenario
 
@@ -48,6 +48,20 @@ Les suggestions timeline restent human-in-the-loop : elles ne creent une `Relati
 Les scenarios de brouillons verifient les types `FOLLOW_UP`, `DOCUMENT_REQUEST`, `CLARIFICATION_REQUEST`, `INVESTOR_REPLY` et `PROFESSIONAL_RESPONSE`.
 
 Le brouillon est seulement copie ou place dans l'editeur de conversation. L'envoi reste manuel et separe, avec audit `AIEvent action=draft_used` et `RelationEvent AI_DRAFT_USED` lorsque l'utilisateur choisit de l'utiliser.
+
+## Risk & Trust Signals
+
+Les signaux sont des observations contextualisees, pas des decisions. Ils n'ont pas de score global cache, ne refusent rien automatiquement et ne bloquent aucun dossier.
+
+Principes :
+
+- human-in-the-loop obligatoire,
+- explication et recommandation lisibles,
+- wording neutre et non accusatoire,
+- pas de discrimination, profilage interdit, jugement moral ou langage agressif,
+- alignement AI Act par transparence, auditabilite, supervision humaine et minimisation des donnees.
+
+Limites : ces signaux aident a prioriser une verification humaine, mais ne remplacent pas l'analyse metier, juridique ou operationnelle.
 
 ## Limites
 

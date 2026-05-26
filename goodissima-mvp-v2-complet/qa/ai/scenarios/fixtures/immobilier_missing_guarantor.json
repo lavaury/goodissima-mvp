@@ -1,0 +1,28 @@
+{
+  "id": "immobilier_missing_guarantor",
+  "title": "Risk - garant non confirme",
+  "template": {
+    "key": "real_estate_rental",
+    "name": "Location immobiliere",
+    "aiInstructions": "Rester neutre sur les elements incomplets."
+  },
+  "relation": {
+    "type": "real_estate"
+  },
+  "messages": [
+    "J'ai peut-etre un garant, mais ce n'est pas confirme."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "riskSignals": [
+      {
+        "type": "UNCONFIRMED_GUARANTOR",
+        "severityOneOf": [
+          "low",
+          "medium"
+        ]
+      }
+    ]
+  }
+}

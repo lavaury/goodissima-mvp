@@ -1,0 +1,11 @@
+{
+  "riskSignals": [
+    {
+      "type": "VARIABLE_INCOME",
+      "severity": "medium",
+      "title": "Revenus variables a clarifier",
+      "explanation": "Le dossier mentionne des revenus qui varient selon les mois; cela peut demander une verification complementaire.",
+      "recommendation": "Demander des justificatifs recents ou une precision factuelle sur la moyenne de revenus."
+    }
+  ]
+}

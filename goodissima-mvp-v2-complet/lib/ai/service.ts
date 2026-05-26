@@ -7,6 +7,7 @@ import type {
   AIProviderName,
   AIDraft,
   AIDraftType,
+  AIRiskAnalysis,
   AIRelationContext,
   AISummary,
   AITimelineIntelligence,
@@ -16,6 +17,7 @@ const defaultMistralModel = "mistral-small-latest";
 const relationSummaryPromptVersion = "relation-summary-v2";
 const timelinePromptVersion = "timeline-intelligence-v1";
 const draftPromptVersion = "draft-assistant-v1";
+const riskPromptVersion = "risk-signals-v1";
 
 function getConfiguredProvider(): AIProvider {
   const configured = (process.env.AI_PROVIDER ?? "mock").toLowerCase() as AIProviderName;
@@ -50,6 +52,10 @@ function summarizeDraftForAudit(draft: AIDraft) {
   return `${draft.draftType}: ${draft.tone}`.slice(0, 500);
 }
 
+function summarizeRiskForAudit(analysis: AIRiskAnalysis) {
+  return analysis.riskSignals.map((signal) => `${signal.type}:${signal.severity}`).join(", ").slice(0, 500);
+}
+
 function buildTimelinePrompt(context: unknown) {
   return {
     system: [
@@ -76,6 +82,22 @@ function buildDraftPrompt(context: unknown) {
       "Never send messages, trigger emails, create actions, decide automatically, promise outcomes, or reveal hidden data.",
       "Avoid legal promises, discrimination, abusive pressure, private data leakage, and hallucinated documents.",
       "Add warnings when the request is unsafe, vague, aggressive, or needs human verification.",
+    ].join("\n"),
+    prompt: JSON.stringify(context),
+  };
+}
+
+function buildRiskPrompt(context: unknown) {
+  return {
+    system: [
+      "You are Goodissima Risk & Trust Signals.",
+      "Return explanatory, contextual vigilance signals only. Never score, decide, refuse, block, or profile.",
+      "Return strict JSON only with: riskSignals.",
+      "Each signal must have type, severity, title, explanation, and optional recommendation.",
+      "Allowed types: MISSING_DOCUMENT, INCONSISTENT_INFORMATION, UNANSWERED_REQUEST, LOW_INFORMATION, POSSIBLE_PROMPT_INJECTION, TIMELINE_INACTIVITY, UNCLEAR_INTENT, MISSING_ORGANIZATION, VARIABLE_INCOME, UNCONFIRMED_GUARANTOR.",
+      "Allowed severity values: low, medium, high.",
+      "Neutral wording only. No discrimination, moral judgement, automatic decision, opaque scoring, aggressive language, or hidden private data.",
+      "Always explain, contextualize, recommend, and leave the decision to a human.",
     ].join("\n"),
     prompt: JSON.stringify(context),
   };
@@ -279,6 +301,67 @@ export async function generateDraftWithAI({
         action: "draft_generation",
         status: "error",
         promptVersion: draftPromptVersion,
+        errorCode,
+      },
+    });
+
+    throw error;
+  }
+}
+
+export async function analyzeRiskSignalsWithAI({
+  caseId,
+  context,
+}: {
+  caseId: string;
+  context: unknown;
+}) {
+  const provider = getConfiguredProvider();
+  const prompt = buildRiskPrompt(context);
+
+  console.info("[ai] Risk analysis requested", {
+    provider: provider.name,
+    model: provider.model,
+    action: "risk_analysis",
+    caseId,
+    promptVersion: riskPromptVersion,
+  });
+
+  try {
+    const result = await provider.analyzeRiskSignals({
+      ...prompt,
+      metadata: { caseId, promptVersion: riskPromptVersion },
+    });
+
+    await prisma.aIEvent.create({
+      data: {
+        caseId,
+        provider: result.provider,
+        model: result.model,
+        action: "risk_analysis",
+        status: "success",
+        promptVersion: riskPromptVersion,
+        outputSummary: summarizeRiskForAudit(result.output),
+      },
+    });
+
+    return {
+      provider: result.provider,
+      model: result.model,
+      promptVersion: riskPromptVersion,
+      riskAnalysis: result.output,
+    };
+  } catch (error) {
+    const errorCode = error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_AI_RISK_ERROR";
+
+    await prisma.aIEvent.create({
+      data: {
+        caseId,
+        provider: provider.name,
+        model: provider.model,
+        action: "risk_analysis",
+        status: "error",
+        promptVersion: riskPromptVersion,
         errorCode,
       },
     });

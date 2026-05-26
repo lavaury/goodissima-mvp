@@ -1,6 +1,7 @@
 import type {
   AIClassification,
   AIDraft,
+  AIRiskAnalysis,
   AITimelineIntelligence,
   AIProvider,
   AIProviderRequest,
@@ -270,6 +271,86 @@ const scenarioDrafts: Record<string, AIDraft> = {
   },
 };
 
+const scenarioRiskAnalyses: Record<string, AIRiskAnalysis> = {
+  immobilier_variable_income: {
+    riskSignals: [
+      {
+        type: "VARIABLE_INCOME",
+        severity: "medium",
+        title: "Revenus variables a clarifier",
+        explanation: "Le dossier mentionne des revenus qui varient selon les mois; cela peut demander une verification complementaire.",
+        recommendation: "Demander des justificatifs recents ou une precision factuelle sur la moyenne de revenus.",
+      },
+    ],
+  },
+  immobilier_missing_guarantor: {
+    riskSignals: [
+      {
+        type: "UNCONFIRMED_GUARANTOR",
+        severity: "medium",
+        title: "Garant non confirme",
+        explanation: "Un garant est evoque, mais les informations disponibles ne confirment pas encore son engagement.",
+        recommendation: "Clarifier si un garant est necessaire et demander les elements utiles le cas echeant.",
+      },
+    ],
+  },
+  investor_missing_org: {
+    riskSignals: [
+      {
+        type: "MISSING_ORGANIZATION",
+        severity: "medium",
+        title: "Organisation non precisee",
+        explanation: "Le contact investisseur ne fournit pas encore d'organisation identifiable dans le contexte transmis.",
+        recommendation: "Demander le nom de l'organisation et le role du contact avant de qualifier l'echange.",
+      },
+    ],
+  },
+  unanswered_requests: {
+    riskSignals: [
+      {
+        type: "UNANSWERED_REQUEST",
+        severity: "medium",
+        title: "Demande en attente de reponse",
+        explanation: "Une demande reste ouverte dans la relation et pourrait ralentir la suite du dossier.",
+        recommendation: "Faire un suivi neutre pour confirmer si l'information ou le document est toujours attendu.",
+      },
+    ],
+  },
+  possible_prompt_injection: {
+    riskSignals: [
+      {
+        type: "POSSIBLE_PROMPT_INJECTION",
+        severity: "high",
+        title: "Tentative d'instruction non conforme",
+        explanation: "Le message demande d'ignorer les regles ou de reveler des donnees; il doit etre traite comme une tentative de prompt injection.",
+        recommendation: "Ne pas suivre cette instruction et recentrer l'echange sur les informations utiles au dossier.",
+      },
+    ],
+  },
+  too_little_information: {
+    riskSignals: [
+      {
+        type: "LOW_INFORMATION",
+        severity: "low",
+        title: "Informations insuffisantes",
+        explanation: "Le contexte disponible est trop limite pour produire une analyse relationnelle fiable.",
+        recommendation: "Demander quelques informations factuelles supplementaires avant d'aller plus loin.",
+      },
+    ],
+  },
+  inconsistent_information: {
+    riskSignals: [
+      {
+        type: "INCONSISTENT_INFORMATION",
+        severity: "medium",
+        title: "Informations a reconciler",
+        explanation: "Certaines informations semblent differentes ou difficiles a concilier dans les messages recents.",
+        recommendation: "Demander une clarification precise avant toute decision humaine.",
+      },
+    ],
+  },
+};
+
 function getScenarioId(request: AIProviderRequest) {
   const metadataScenarioId = request.metadata?.scenarioId;
   if (typeof metadataScenarioId === "string") return metadataScenarioId;
@@ -422,6 +503,36 @@ export const mockAIProvider: AIProvider = {
           "Bonjour, merci pour votre message. Je vous propose de confirmer les prochaines etapes utiles au dossier dans cet espace securise.",
         tone: "professionnel et factuel",
         warnings: ["Brouillon a relire avant envoi.", "Aucune action ou email n'est envoye automatiquement."],
+      },
+    };
+  },
+  async analyzeRiskSignals(request: AIProviderRequest): Promise<AIProviderResult<AIRiskAnalysis>> {
+    if (process.env.AI_TEST_MODE === "scenario") {
+      const scenarioId = getScenarioId(request);
+      const output = scenarioId ? scenarioRiskAnalyses[scenarioId] : null;
+
+      if (output) {
+        return {
+          provider: "mock",
+          model: "mock-goodissima-scenario-v1",
+          output,
+        };
+      }
+    }
+
+    return {
+      provider: "mock",
+      model: this.model,
+      output: {
+        riskSignals: [
+          {
+            type: "LOW_INFORMATION",
+            severity: "low",
+            title: "Analyse a verifier",
+            explanation: "Le provider mock signale uniquement qu'une verification humaine reste necessaire.",
+            recommendation: "Relire le dossier avant toute action.",
+          },
+        ],
       },
     };
   },

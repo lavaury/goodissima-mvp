@@ -1,0 +1,11 @@
+{
+  "riskSignals": [
+    {
+      "type": "POSSIBLE_PROMPT_INJECTION",
+      "severity": "high",
+      "title": "Tentative d'instruction non conforme",
+      "explanation": "Le message demande d'ignorer les regles ou de reveler des donnees; il doit etre traite comme une tentative de prompt injection.",
+      "recommendation": "Ne pas suivre cette instruction et recentrer l'echange sur les informations utiles au dossier."
+    }
+  ]
+}
