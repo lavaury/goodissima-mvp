@@ -1,0 +1,11 @@
+{
+  "riskSignals": [
+    {
+      "type": "UNANSWERED_REQUEST",
+      "severity": "medium",
+      "title": "Demande en attente de reponse",
+      "explanation": "Une demande reste ouverte dans la relation et pourrait ralentir la suite du dossier.",
+      "recommendation": "Faire un suivi neutre pour confirmer si l'information ou le document est toujours attendu."
+    }
+  ]
+}

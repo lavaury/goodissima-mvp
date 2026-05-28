@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "FormField" ADD COLUMN "step" INTEGER NOT NULL DEFAULT 1;

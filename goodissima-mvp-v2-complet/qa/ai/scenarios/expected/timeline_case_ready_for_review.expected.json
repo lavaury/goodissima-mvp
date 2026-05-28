@@ -1,0 +1,14 @@
+{
+  "timelineStatus": "Dossier complet pret pour revue.",
+  "blockers": [],
+  "nextBestActions": [
+    {
+      "label": "Lancer la revue de validation",
+      "type": "VALIDATION_REVIEW",
+      "reason": "Les elements principaux sont disponibles pour une revue humaine."
+    }
+  ],
+  "alerts": [
+    "Dossier complet mais non traite."
+  ]
+}

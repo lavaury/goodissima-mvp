@@ -1,0 +1,35 @@
+{
+  "id": "fixture-ai-006-insufficient-context",
+  "feature": "AI Summary",
+  "provider": "mock",
+  "rawRelationCase": {
+    "messages": [
+      {
+        "author": "contact",
+        "body": "Bonjour"
+      }
+    ],
+    "documents": []
+  },
+  "aiContext": {
+    "title": "Dossier vide",
+    "template": {
+      "key": null,
+      "name": null,
+      "status": null,
+      "aiInstructions": null
+    },
+    "status": "NEW",
+    "currentStep": "CONVERSATION",
+    "steps": [],
+    "openActions": [],
+    "recentMessages": [
+      {
+        "author": "contact",
+        "body": "Bonjour",
+        "createdAt": "2026-05-24T07:00:00.000Z"
+      }
+    ],
+    "documents": []
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "summary": "Le profil complet de recrutement inclut CV, portfolio et disponibilite indiquee; un echange peut etre organise.",
+  "keyPoints": [
+    "CV present.",
+    "Portfolio present.",
+    "Disponibilite indiquee."
+  ],
+  "risks": [
+    "Verifier l'adequation finale avec le besoin avant toute decision."
+  ],
+  "missingDocuments": [],
+  "suggestedActions": [
+    {
+      "label": "Planifier un entretien",
+      "type": "SCHEDULE_EXCHANGE",
+      "reason": "Les elements principaux du profil sont disponibles."
+    },
+    {
+      "label": "Faire un suivi candidat",
+      "type": "FOLLOW_UP",
+      "reason": "Un suivi humain permet de confirmer les prochaines etapes."
+    }
+  ]
+}

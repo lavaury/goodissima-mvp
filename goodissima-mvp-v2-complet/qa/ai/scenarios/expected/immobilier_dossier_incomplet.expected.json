@@ -1,0 +1,34 @@
+{
+  "summary": "Le candidat independant manifeste un interet pour le logement et souhaite une visite, mais le dossier reste incomplet avec revenus variables et garant non confirme.",
+  "keyPoints": [
+    "Candidat independant avec revenus variables.",
+    "Garant potentiel non confirme.",
+    "Demande de visite a organiser."
+  ],
+  "risks": [
+    "Dossier incomplet.",
+    "Revenus a clarifier.",
+    "Garant non confirme."
+  ],
+  "missingDocuments": [
+    "Justificatif revenus.",
+    "Document garant si necessaire."
+  ],
+  "suggestedActions": [
+    {
+      "label": "Demander le justificatif de revenus",
+      "type": "REQUEST_DOCUMENT",
+      "reason": "Le justificatif de revenus est absent du dossier."
+    },
+    {
+      "label": "Clarifier les revenus et le garant",
+      "type": "REQUEST_CLARIFICATION",
+      "reason": "Les revenus sont variables et le garant n'est pas confirme."
+    },
+    {
+      "label": "Proposer un creneau de visite",
+      "type": "SCHEDULE_EXCHANGE",
+      "reason": "Le candidat demande une visite."
+    }
+  ]
+}

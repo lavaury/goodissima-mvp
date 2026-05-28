@@ -1,0 +1,36 @@
+{
+  "id": "investor_reply_professional",
+  "title": "Draft - reponse investisseur professionnelle",
+  "template": {
+    "key": "investor_introduction",
+    "name": "Investor Introduction",
+    "aiInstructions": "Ne pas promettre d'investissement."
+  },
+  "relation": {
+    "type": "investor",
+    "draftType": "INVESTOR_REPLY"
+  },
+  "messages": [
+    "Nous souhaitons echanger sur un investissement possible."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "draftType": "INVESTOR_REPLY",
+    "toneMustContain": [
+      "strategique",
+      "professionnel"
+    ],
+    "messageMustContain": [
+      "organiser un echange",
+      "approche strategique"
+    ],
+    "warningsMustContain": [
+      "aucune promesse d'investissement"
+    ],
+    "mustNotContain": [
+      "nous investirons",
+      "investissement garanti"
+    ]
+  }
+}

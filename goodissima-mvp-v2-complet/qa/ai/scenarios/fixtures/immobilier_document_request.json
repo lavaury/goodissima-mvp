@@ -1,0 +1,35 @@
+{
+  "id": "immobilier_document_request",
+  "title": "Draft - demande justificatif revenus",
+  "template": {
+    "key": "real_estate_rental",
+    "name": "Location immobiliere",
+    "aiInstructions": "Demander uniquement les documents utiles."
+  },
+  "relation": {
+    "type": "real_estate",
+    "draftType": "DOCUMENT_REQUEST"
+  },
+  "messages": [
+    "Le justificatif de revenus est absent."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "draftType": "DOCUMENT_REQUEST",
+    "toneMustContain": [
+      "neutre"
+    ],
+    "messageMustContain": [
+      "justificatif de revenus",
+      "completer le dossier"
+    ],
+    "warningsMustContain": [
+      "menace"
+    ],
+    "mustNotContain": [
+      "sanction",
+      "refus automatique"
+    ]
+  }
+}

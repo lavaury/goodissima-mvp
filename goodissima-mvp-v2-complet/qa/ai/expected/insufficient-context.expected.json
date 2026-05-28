@@ -1,0 +1,7 @@
+{
+  "id": "expected-ai-006-insufficient-context",
+  "responseShape": "AIError",
+  "status": 422,
+  "error": "INSUFFICIENT_CONTEXT",
+  "message": "Pas assez de contenu pour une analyse IA pertinente."
+}

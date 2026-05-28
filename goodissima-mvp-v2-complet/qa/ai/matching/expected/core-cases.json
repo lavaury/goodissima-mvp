@@ -1,0 +1,20 @@
+{
+  "strong_match": {
+    "minCompatibleElements": 3,
+    "mustPropose": true
+  },
+  "weak_match": {
+    "minClarificationsNeeded": 1,
+    "mustPropose": true
+  },
+  "incompatible_match": {
+    "mustNotBePrioritized": true
+  },
+  "privacy_preserved": {
+    "noIdentityLeak": true
+  },
+  "ambiguous_match": {
+    "minWarnings": 1,
+    "minClarificationsNeeded": 1
+  }
+}

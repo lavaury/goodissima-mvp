@@ -1,0 +1,33 @@
+{
+  "id": "timeline_confusing_exchange",
+  "title": "Timeline - echange confus",
+  "template": {
+    "key": "timeline_intelligence",
+    "name": "Timeline Intelligence",
+    "aiInstructions": "Identifier les besoins de clarification."
+  },
+  "relation": {
+    "type": "timeline"
+  },
+  "messages": [
+    "Je peux venir samedi, ou finalement attendre le mois prochain, sauf si le document suffit.",
+    "Je ne sais pas quelle etape est attendue."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "timelineStatusMustContain": [
+      "ambigu",
+      "clarification"
+    ],
+    "blockersMustContain": [
+      "clarification necessaire"
+    ],
+    "alertsMustContain": [
+      "clarification necessaire"
+    ],
+    "nextBestActionTypes": [
+      "REQUEST_CLARIFICATION"
+    ]
+  }
+}

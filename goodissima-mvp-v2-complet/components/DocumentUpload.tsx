@@ -1,3 +1,94 @@
 "use client";
-import { useState } from "react";
-export function DocumentUpload({ caseId, uploadedByEmail }: { caseId: string; uploadedByEmail: string }) { const [fileName,setFileName]=useState(""); const [fileUrl,setFileUrl]=useState(""); async function addDocument(){ if(!fileName.trim()||!fileUrl.trim()) return; const res=await fetch("/api/documents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({caseId,uploadedByEmail,fileName,fileUrl})}); if(!res.ok){alert("Erreur lors de l'ajout du document."); return;} window.location.reload(); } return <div className="rounded-2xl border bg-white p-4"><h3 className="font-semibold">Ajouter un document</h3><p className="mb-3 text-sm text-slate-500">MVP : ajoutez une URL de fichier.</p><input className="mb-2 w-full rounded-xl border px-3 py-2" placeholder="Nom du fichier" value={fileName} onChange={(e)=>setFileName(e.target.value)}/><input className="mb-3 w-full rounded-xl border px-3 py-2" placeholder="URL du fichier" value={fileUrl} onChange={(e)=>setFileUrl(e.target.value)}/><button onClick={addDocument} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Ajouter</button></div>; }
+
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ToastProvider";
+
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+export function DocumentUpload({
+  caseId,
+  candidateAccessToken,
+  uploadedByEmail,
+}: {
+  caseId?: string;
+  candidateAccessToken?: string;
+  uploadedByEmail?: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const mobileDocumentInputRef = useRef<HTMLInputElement>(null);
+  const desktopDocumentInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const toast = useToast();
+
+  async function uploadDocument(file: File | null) {
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error("Le document depasse 10 Mo");
+      return;
+    }
+
+    const formData = new FormData();
+    if (caseId) formData.append("caseId", caseId);
+    if (candidateAccessToken) formData.append("candidateAccessToken", candidateAccessToken);
+    if (uploadedByEmail) formData.append("uploadedByEmail", uploadedByEmail);
+    formData.append("file", file);
+
+    setLoading(true);
+
+    const res = await fetch("/api/documents/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    setLoading(false);
+
+    if (!res.ok) {
+      toast.error("Erreur lors de l'ajout du document");
+      return;
+    }
+
+    toast.success("Document ajoute");
+    if (photoInputRef.current) photoInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (mobileDocumentInputRef.current) mobileDocumentInputRef.current.value = "";
+    if (desktopDocumentInputRef.current) desktopDocumentInputRef.current.value = "";
+    router.refresh();
+  }
+
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5 lg:p-4">
+      <h3 className="font-semibold">Ajouter un document</h3>
+      <p className="mb-4 text-sm text-slate-500">
+        Vos fichiers sont ajoutés dans l'espace sécurisé du dossier. Maximum 10 Mo.
+      </p>
+
+      <input ref={photoInputRef} id="photo-upload" className="sr-only" type="file" accept="image/*" capture="environment" onChange={(event) => void uploadDocument(event.target.files?.[0] ?? null)} />
+      <input ref={imageInputRef} id="image-upload" className="sr-only" type="file" accept="image/*" onChange={(event) => void uploadDocument(event.target.files?.[0] ?? null)} />
+      <input ref={mobileDocumentInputRef} id="mobile-document-upload" className="sr-only" type="file" accept="application/pdf,.pdf,.doc,.docx" onChange={(event) => void uploadDocument(event.target.files?.[0] ?? null)} />
+      <input ref={desktopDocumentInputRef} id="desktop-document-upload" className="sr-only" type="file" accept="application/pdf,.pdf,.doc,.docx,image/*" onChange={(event) => void uploadDocument(event.target.files?.[0] ?? null)} />
+
+      <div className="grid gap-3 md:hidden">
+        <button type="button" onClick={() => photoInputRef.current?.click()} disabled={loading} className="min-h-14 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60">
+          {loading ? "Ajout en cours..." : "Prendre une photo"}
+        </button>
+        <button type="button" onClick={() => imageInputRef.current?.click()} disabled={loading} className="min-h-14 w-full rounded-xl border bg-white px-4 py-3 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:opacity-60">
+          {loading ? "Ajout en cours..." : "Choisir une image existante"}
+        </button>
+        <button type="button" onClick={() => mobileDocumentInputRef.current?.click()} disabled={loading} className="min-h-14 w-full rounded-xl border bg-white px-4 py-3 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:opacity-60">
+          {loading ? "Ajout en cours..." : "Choisir un PDF ou fichier"}
+        </button>
+      </div>
+
+      <div className="hidden md:block">
+        <button type="button" onClick={() => desktopDocumentInputRef.current?.click()} disabled={loading} className="min-h-10 rounded-xl border bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:opacity-60">
+          {loading ? "Ajout en cours..." : "Ajouter un document"}
+        </button>
+        <p className="mt-2 text-xs text-slate-500">PDF, DOC, DOCX ou image.</p>
+      </div>
+    </div>
+  );
+}

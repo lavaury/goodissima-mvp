@@ -1,0 +1,10 @@
+{
+  "draftType": "FOLLOW_UP",
+  "subject": "Relance dossier de location",
+  "message": "Bonjour, je me permets de revenir vers vous au sujet du dossier de location. Souhaitez-vous que nous confirmions ensemble les prochaines etapes ou un creneau d'echange ?",
+  "tone": "professionnel et poli",
+  "warnings": [
+    "Relance sans pression abusive.",
+    "Aucune decision automatique."
+  ]
+}

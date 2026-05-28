@@ -1,0 +1,10 @@
+{
+  "draftType": "DOCUMENT_REQUEST",
+  "subject": "Justificatif de revenus",
+  "message": "Bonjour, pour completer le dossier, pourriez-vous transmettre un justificatif de revenus recent lorsque vous l'aurez disponible ? Merci d'avance.",
+  "tone": "neutre",
+  "warnings": [
+    "Ne pas formuler de menace.",
+    "Ne pas halluciner de document deja recu."
+  ]
+}

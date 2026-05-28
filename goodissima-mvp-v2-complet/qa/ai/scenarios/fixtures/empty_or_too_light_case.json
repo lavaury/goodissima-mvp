@@ -1,0 +1,29 @@
+{
+  "id": "empty_or_too_light_case",
+  "title": "Dossier vide ou trop leger",
+  "template": {
+    "key": "generic",
+    "name": "Generique",
+    "aiInstructions": "Ne pas analyser si le contenu est insuffisant."
+  },
+  "relation": {
+    "type": "generic"
+  },
+  "messages": [
+    "Bonjour"
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "summaryMustContain": [
+      "Pas assez de contenu"
+    ],
+    "keyPointsMustContain": [],
+    "risksMustContain": [
+      "pas assez de contenu"
+    ],
+    "missingDocumentsMustContain": [],
+    "suggestedActionTypes": [],
+    "notEnoughContent": true
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "too_little_information",
+  "title": "Risk - information insuffisante",
+  "template": {
+    "key": "generic",
+    "name": "Generique",
+    "aiInstructions": "Ne pas sur-interpreter les dossiers trop legers."
+  },
+  "relation": {
+    "type": "generic"
+  },
+  "messages": [
+    "Bonjour"
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "riskSignals": [
+      {
+        "type": "LOW_INFORMATION",
+        "severity": "low"
+      }
+    ]
+  }
+}

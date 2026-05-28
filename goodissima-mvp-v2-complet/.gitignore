@@ -2,6 +2,12 @@ node_modules
 .next
 .env
 .env.local
+.env.staging
 .env.production
 dist
 build
+tsconfig.tsbuildinfo
+.env.staging
+.env.production
+.env.local
+.env

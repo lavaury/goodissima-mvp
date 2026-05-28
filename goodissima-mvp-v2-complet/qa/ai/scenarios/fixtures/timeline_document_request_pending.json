@@ -1,0 +1,38 @@
+{
+  "id": "timeline_document_request_pending",
+  "title": "Timeline - document demande en attente",
+  "template": {
+    "key": "timeline_intelligence",
+    "name": "Timeline Intelligence",
+    "aiInstructions": "Identifier les blocages documentaires."
+  },
+  "relation": {
+    "type": "timeline"
+  },
+  "messages": [
+    "Le justificatif de revenus sera transmis plus tard."
+  ],
+  "documents": [],
+  "actions": [
+    {
+      "type": "DOCUMENT_REQUEST",
+      "status": "PENDING",
+      "title": "Justificatif de revenus"
+    }
+  ],
+  "expected": {
+    "timelineStatusMustContain": [
+      "document attendu"
+    ],
+    "blockersMustContain": [
+      "document attendu"
+    ],
+    "alertsMustContain": [
+      "action en attente"
+    ],
+    "nextBestActionTypes": [
+      "REQUEST_DOCUMENT",
+      "FOLLOW_UP"
+    ]
+  }
+}

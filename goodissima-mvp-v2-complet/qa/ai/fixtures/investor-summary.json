@@ -1,0 +1,51 @@
+{
+  "id": "fixture-ai-002-investor-summary",
+  "feature": "AI Summary",
+  "provider": "mock",
+  "relationType": "investor_introduction",
+  "rawRelationCase": {
+    "contact": {
+      "role": "partner",
+      "organization": "fonds europeen B2B SaaS"
+    },
+    "interest": [
+      "investissement",
+      "partenariat banque"
+    ],
+    "messages": [
+      {
+        "author": "contact",
+        "body": "Nous recherchons des plateformes IA europeennes privacy-first avec potentiel bancaire."
+      }
+    ]
+  },
+  "aiContext": {
+    "title": "Investor Introduction",
+    "template": {
+      "key": "investor_introduction",
+      "name": "Investor Introduction",
+      "status": "PUBLISHED",
+      "aiInstructions": null
+    },
+    "status": "IN_DISCUSSION",
+    "currentStep": "QUALIFICATION",
+    "steps": [
+      "Step 1: Qualification investisseur",
+      "Step 2: Echange strategique"
+    ],
+    "openActions": [],
+    "recentMessages": [
+      {
+        "author": "contact",
+        "body": "Partner dans un fonds europeen B2B SaaS, interesse par investissement et partenariat banque.",
+        "createdAt": "2026-05-21T10:00:00.000Z"
+      },
+      {
+        "author": "contact",
+        "body": "Nous recherchons des plateformes IA europeennes privacy-first avec potentiel bancaire.",
+        "createdAt": "2026-05-21T10:05:00.000Z"
+      }
+    ],
+    "documents": []
+  }
+}

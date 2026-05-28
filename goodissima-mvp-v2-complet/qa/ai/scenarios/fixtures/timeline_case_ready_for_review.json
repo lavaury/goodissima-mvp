@@ -1,0 +1,39 @@
+{
+  "id": "timeline_case_ready_for_review",
+  "title": "Timeline - dossier pret pour revue",
+  "template": {
+    "key": "timeline_intelligence",
+    "name": "Timeline Intelligence",
+    "aiInstructions": "Signaler les dossiers complets non traites."
+  },
+  "relation": {
+    "type": "timeline",
+    "status": "REVIEWING"
+  },
+  "messages": [
+    "Tous les elements demandes sont disponibles."
+  ],
+  "documents": [
+    {
+      "type": "identity",
+      "status": "present"
+    },
+    {
+      "type": "income_proof",
+      "status": "present"
+    }
+  ],
+  "actions": [],
+  "expected": {
+    "timelineStatusMustContain": [
+      "pret pour revue"
+    ],
+    "blockersMustContain": [],
+    "alertsMustContain": [
+      "dossier complet"
+    ],
+    "nextBestActionTypes": [
+      "VALIDATION_REVIEW"
+    ]
+  }
+}

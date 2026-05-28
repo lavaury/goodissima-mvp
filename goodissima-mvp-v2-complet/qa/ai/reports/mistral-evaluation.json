@@ -1,0 +1,8 @@
+{
+  "status": "skipped",
+  "reason": "missing MISTRAL_API_KEY",
+  "generatedAt": "2026-05-27T14:13:01.969Z",
+  "model": "mistral-small-latest",
+  "scenarios": [],
+  "criticalFindings": 0
+}

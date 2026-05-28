@@ -1,0 +1,25 @@
+{
+  "id": "investor_missing_org",
+  "title": "Risk - organisation investisseur manquante",
+  "template": {
+    "key": "investor_introduction",
+    "name": "Investor Introduction",
+    "aiInstructions": "Clarifier l'organisation avant qualification."
+  },
+  "relation": {
+    "type": "investor"
+  },
+  "messages": [
+    "Votre projet nous interesse, pouvez-vous envoyer plus d'informations ?"
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "riskSignals": [
+      {
+        "type": "MISSING_ORGANIZATION",
+        "severity": "medium"
+      }
+    ]
+  }
+}

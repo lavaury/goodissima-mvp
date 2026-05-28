@@ -1,0 +1,33 @@
+{
+  "id": "timeline_inactive_7_days",
+  "title": "Timeline - conversation inactive 7 jours",
+  "template": {
+    "key": "timeline_intelligence",
+    "name": "Timeline Intelligence",
+    "aiInstructions": "Detecter les relances utiles sans creer d'action automatiquement."
+  },
+  "relation": {
+    "type": "timeline",
+    "lastActivityDaysAgo": 7
+  },
+  "messages": [
+    "Dernier echange il y a sept jours."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "timelineStatusMustContain": [
+      "inactive"
+    ],
+    "inactiveSinceDaysMin": 7,
+    "blockersMustContain": [
+      "aucun echange recent"
+    ],
+    "alertsMustContain": [
+      "conversation inactive"
+    ],
+    "nextBestActionTypes": [
+      "FOLLOW_UP"
+    ]
+  }
+}

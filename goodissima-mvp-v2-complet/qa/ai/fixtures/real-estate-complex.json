@@ -1,0 +1,96 @@
+{
+  "id": "fixture-ai-001-real-estate-complex",
+  "feature": "AI Summary",
+  "provider": "mock",
+  "relationType": "real_estate_rental",
+  "rawRelationCase": {
+    "listing": {
+      "title": "Appartement T3 Lille",
+      "surfaceSqm": 72,
+      "rentEur": 980,
+      "chargesEur": 90,
+      "availability": "Disponible sous 2 mois"
+    },
+    "candidate": {
+      "pseudonym": "Candidat A"
+    },
+    "messages": [
+      {
+        "author": "contact",
+        "body": "Je suis independant depuis 18 mois et interesse par le logement."
+      },
+      {
+        "author": "contact",
+        "body": "Mes revenus varient entre 2 800 EUR et 4 500 EUR selon les mois."
+      },
+      {
+        "author": "contact",
+        "body": "J'ai un garant potentiel, mais il n'est pas encore confirme."
+      },
+      {
+        "author": "contact",
+        "body": "Serait-il possible d'organiser une visite samedi ?"
+      }
+    ],
+    "documents": [
+      {
+        "kind": "identity",
+        "status": "present",
+        "fileName": "piece-identite.pdf"
+      },
+      {
+        "kind": "income_proof",
+        "status": "missing"
+      },
+      {
+        "kind": "guarantor",
+        "status": "missing"
+      }
+    ]
+  },
+  "aiContext": {
+    "title": "Appartement T3 Lille, 72 m2, loyer 980 EUR, charges 90 EUR, disponible sous 2 mois",
+    "template": {
+      "key": "real_estate_rental",
+      "name": "Location immobiliere",
+      "status": "PUBLISHED",
+      "aiInstructions": null
+    },
+    "status": "IN_DISCUSSION",
+    "currentStep": "CONVERSATION",
+    "steps": [
+      "Step 1: Identite",
+      "Step 2: Revenus",
+      "Step 3: Garant"
+    ],
+    "openActions": [],
+    "recentMessages": [
+      {
+        "author": "contact",
+        "body": "Je suis independant depuis 18 mois et interesse par le logement.",
+        "createdAt": "2026-05-20T09:00:00.000Z"
+      },
+      {
+        "author": "contact",
+        "body": "Mes revenus varient entre 2 800 EUR et 4 500 EUR selon les mois.",
+        "createdAt": "2026-05-20T09:05:00.000Z"
+      },
+      {
+        "author": "contact",
+        "body": "J'ai un garant potentiel, mais il n'est pas encore confirme.",
+        "createdAt": "2026-05-20T09:10:00.000Z"
+      },
+      {
+        "author": "contact",
+        "body": "Serait-il possible d'organiser une visite samedi ?",
+        "createdAt": "2026-05-20T09:15:00.000Z"
+      }
+    ],
+    "documents": [
+      {
+        "fileName": "piece-identite.pdf",
+        "mimeType": "application/pdf"
+      }
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "recrutement_profil_complet",
+  "title": "Recrutement - profil complet",
+  "template": {
+    "key": "recruitment",
+    "name": "Recrutement",
+    "aiInstructions": "Proposer uniquement des prochaines etapes verifiables."
+  },
+  "relation": {
+    "type": "recruitment",
+    "role": "Full-stack Engineer",
+    "candidate": "pseudonyme:candidat_engineer"
+  },
+  "messages": [
+    "Mon CV et mon portfolio sont disponibles.",
+    "Je suis disponible sous un mois.",
+    "Je suis interesse par un echange technique."
+  ],
+  "documents": [
+    {
+      "type": "cv",
+      "status": "present"
+    },
+    {
+      "type": "portfolio",
+      "status": "present"
+    }
+  ],
+  "actions": [],
+  "expected": {
+    "summaryMustContain": [
+      "profil complet",
+      "CV",
+      "portfolio",
+      "disponibilite"
+    ],
+    "keyPointsMustContain": [
+      "CV present",
+      "portfolio present",
+      "disponibilite indiquee"
+    ],
+    "risksMustContain": [
+      "verifier l'adequation"
+    ],
+    "missingDocumentsMustContain": [],
+    "suggestedActionTypes": [
+      "SCHEDULE_EXCHANGE",
+      "FOLLOW_UP"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "semantic_bank_ai_match": {
+    "mustMatchAcrossVocabulary": true,
+    "minSemanticSignals": 1
+  },
+  "semantic_false_positive": {
+    "mustNotBePrioritized": true
+  },
+  "semantic_ambiguous": {
+    "minClarificationsNeeded": 1
+  },
+  "privacy_preserved": {
+    "noIdentityLeak": true
+  },
+  "explainability_present": {
+    "minReasons": 1
+  }
+}

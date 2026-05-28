@@ -1,0 +1,47 @@
+{
+  "id": "recrutement_cv_manquant",
+  "title": "Recrutement - CV manquant",
+  "template": {
+    "key": "recruitment",
+    "name": "Recrutement",
+    "aiInstructions": "Qualifier les informations verifiables du candidat."
+  },
+  "relation": {
+    "type": "recruitment",
+    "role": "Product Designer",
+    "candidate": "pseudonyme:candidat_design"
+  },
+  "messages": [
+    "Je suis tres motive par le poste.",
+    "J'ai cinq ans d'experience sur des produits SaaS.",
+    "Je peux partager plus d'informations si besoin."
+  ],
+  "documents": [
+    {
+      "type": "cv",
+      "status": "missing"
+    }
+  ],
+  "actions": [],
+  "expected": {
+    "summaryMustContain": [
+      "motive",
+      "experience pertinente",
+      "CV manque"
+    ],
+    "keyPointsMustContain": [
+      "motivation",
+      "experience pertinente"
+    ],
+    "risksMustContain": [
+      "profil incomplet"
+    ],
+    "missingDocumentsMustContain": [
+      "CV"
+    ],
+    "suggestedActionTypes": [
+      "REQUEST_DOCUMENT",
+      "REQUEST_CLARIFICATION"
+    ]
+  }
+}

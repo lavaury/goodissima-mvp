@@ -1,0 +1,17 @@
+{
+  "id": "AI-QA-006",
+  "name": "Dossier trop leger",
+  "features": [
+    "AI Summary"
+  ],
+  "fixture": "../fixtures/insufficient-context.json",
+  "expected": "../expected/insufficient-context.expected.json",
+  "provider": "mock",
+  "automatedChecks": [
+    "valid_json",
+    "insufficient_context_error"
+  ],
+  "manualAcceptanceCriteria": [
+    "le retour contient exactement le message: Pas assez de contenu pour une analyse IA pertinente."
+  ]
+}

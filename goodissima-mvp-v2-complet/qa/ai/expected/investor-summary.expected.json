@@ -1,0 +1,31 @@
+{
+  "id": "expected-ai-002-investor-summary",
+  "responseShape": "AISummary",
+  "summaryMustMention": [
+    "interet strategique investisseur",
+    "focus IA europeenne",
+    "interet banque",
+    "B2B SaaS"
+  ],
+  "keyPointsMustInclude": [
+    "investisseur early-stage",
+    "Europe",
+    "B2B SaaS",
+    "privacy-first",
+    "banque"
+  ],
+  "risksMustInclude": [
+    "besoin de clarifier stade investissement",
+    "besoin de clarifier timing",
+    "besoin de clarifier attentes"
+  ],
+  "suggestedActionTypesMustInclude": [
+    "INVESTOR_FOLLOW_UP",
+    "REQUEST_CLARIFICATION",
+    "SCHEDULE_EXCHANGE"
+  ],
+  "mustNotCreateAutomatically": [
+    "RelationAction",
+    "email"
+  ]
+}

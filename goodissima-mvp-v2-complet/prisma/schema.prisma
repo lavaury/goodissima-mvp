@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum LinkStatus {
@@ -21,6 +22,23 @@ enum CaseStatus {
   CLOSED
 }
 
+enum RelationPriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum RelationStatus {
+  NEW
+  WAITING_CANDIDATE
+  WAITING_OWNER
+  REVIEWING
+  VALIDATED
+  REJECTED
+  CLOSED
+  ARCHIVED
+}
+
 enum SenderType {
   OWNER
   CANDIDATE
@@ -34,41 +52,279 @@ model User {
   role      String   @default("OWNER")
   createdAt DateTime @default(now())
 
-  links GLink[]
-  cases RelationCase[] @relation("OwnerCases")
+  links                   GLink[]
+  cases                   RelationCase[]              @relation("OwnerCases")
+  notificationPreferences UserNotificationPreference?
+}
+
+model UserNotificationPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  emailNotificationsEnabled Boolean @default(false)
+  newMessagesEnabled        Boolean @default(false)
+  newRequestsEnabled        Boolean @default(false)
+  newDocumentsEnabled       Boolean @default(false)
+  validationsEnabled        Boolean @default(false)
+  relationalPrivacyEnabled  Boolean @default(true)
+  pseudonymizationEnabled   Boolean @default(true)
+  frequency                 String  @default("IMMEDIATE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model GLink {
-  id          String     @id @default(cuid())
-  ownerId     String
-  slug        String     @unique
-  title       String
-  city        String?
-  description String?
-  rules       Json?
-  status      LinkStatus @default(ACTIVE)
-  createdAt   DateTime   @default(now())
-  expiresAt   DateTime?
+  id                String     @id @default(cuid())
+  ownerId           String
+  templateId        String?
+  templateVersionId String?
+  slug              String     @unique
+  title             String
+  city              String?
+  description       String?
+  rules             Json?
+  status            LinkStatus @default(ACTIVE)
+  createdAt         DateTime   @default(now())
+  expiresAt         DateTime?
 
-  owner User @relation(fields: [ownerId], references: [id])
-  cases RelationCase[]
+  owner           User              @relation(fields: [ownerId], references: [id])
+  template        RelationTemplate? @relation(fields: [templateId], references: [id])
+  templateVersion TemplateVersion?  @relation(fields: [templateVersionId], references: [id])
+  cases           RelationCase[]
 }
 
 model RelationCase {
-  id             String     @id @default(cuid())
-  gLinkId         String
-  ownerId         String
-  candidateName   String
-  candidateEmail  String
-  status          CaseStatus @default(NEW)
-  createdAt       DateTime   @default(now())
-  closedAt        DateTime?
+  id                       String           @id @default(cuid())
+  gLinkId                  String
+  ownerId                  String
+  templateId               String?
+  candidateAccessToken     String           @unique
+  candidateAccessExpiresAt DateTime?
+  candidateAccessRevokedAt DateTime?
+  candidateName            String
+  candidateEmail           String
+  candidateEmailNotificationsEnabled Boolean @default(false)
+  matchingEnabled          Boolean          @default(false)
+  embeddingStatus          String           @default("fresh")
+  embeddingUpdatedAt       DateTime?
+  priority                 RelationPriority @default(NORMAL)
+  status                   RelationStatus   @default(NEW)
+  currentStep              String?          @default("CONVERSATION")
+  createdAt                DateTime         @default(now())
+  closedAt                 DateTime?
 
-  gLink     GLink @relation(fields: [gLinkId], references: [id])
-  owner     User  @relation("OwnerCases", fields: [ownerId], references: [id])
-  messages  Message[]
-  documents Document[]
-  auditLogs AuditLog[]
+  gLink           GLink             @relation(fields: [gLinkId], references: [id])
+  owner           User              @relation("OwnerCases", fields: [ownerId], references: [id])
+  template        RelationTemplate? @relation(fields: [templateId], references: [id])
+  messages        Message[]
+  documents       Document[]
+  auditLogs       AuditLog[]
+  relationEvents  RelationEvent[]
+  relationActions RelationAction[]
+  formSubmissions FormSubmission[]
+  aiEvents        AIEvent[]
+  embeddings      RelationEmbedding[]
+  embeddingJobs   EmbeddingJob[]
+}
+
+model EmbeddingJob {
+  id String @id @default(cuid())
+
+  relationCaseId String
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  status      String @default("pending")
+  triggerType String
+  attempts    Int    @default(0)
+  lastError   String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([relationCaseId, status])
+}
+
+model RelationEmbedding {
+  id String @id @default(cuid())
+
+  relationCaseId String
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  embeddingType String
+  contentHash   String
+  vector        Unsupported("vector")?
+
+  createdAt DateTime @default(now())
+
+  @@index([relationCaseId, embeddingType])
+  @@index([contentHash])
+}
+
+model RelationTemplate {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  name        String
+  description String?
+  isDefault   Boolean @default(false)
+  status      String  @default("DRAFT")
+  aiInstructions String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationCases RelationCase[]
+  links         GLink[]
+  formTemplates FormTemplate[]
+  versions      TemplateVersion[]
+}
+
+model AIEvent {
+  id String @id @default(cuid())
+
+  caseId String?
+  case   RelationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  provider String
+  model    String?
+  action   String
+  status   String
+
+  promptVersion String?
+  outputSummary String?
+  errorCode     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([caseId, createdAt])
+  @@index([provider, action, createdAt])
+}
+
+model TemplateVersion {
+  id String @id @default(cuid())
+
+  templateId String
+  template   RelationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  version Int
+
+  name        String
+  description String?
+
+  snapshot Json
+
+  isPublished Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  links GLink[]
+
+  @@unique([templateId, version])
+}
+
+model FormTemplate {
+  id String @id @default(cuid())
+
+  key         String  @unique
+  name        String
+  description String?
+
+  relationTemplateId String?
+  relationTemplate   RelationTemplate? @relation(fields: [relationTemplateId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fields      FormField[]
+  submissions FormSubmission[]
+}
+
+model FormField {
+  id String @id @default(cuid())
+
+  formTemplateId String
+  formTemplate   FormTemplate @relation(fields: [formTemplateId], references: [id], onDelete: Cascade)
+
+  key   String
+  label String
+
+  type     String
+  required Boolean @default(false)
+
+  placeholder  String?
+  defaultValue String?
+
+  position Int @default(0)
+  step     Int @default(1)
+
+  options          Json?
+  validationRules  Json?
+  conditionalRules Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([formTemplateId, position])
+}
+
+model FormSubmission {
+  id String @id @default(cuid())
+
+  formTemplateId String
+  formTemplate   FormTemplate @relation(fields: [formTemplateId], references: [id])
+
+  caseId String?
+  case   RelationCase? @relation(fields: [caseId], references: [id])
+
+  answers Json
+
+  createdAt DateTime @default(now())
+}
+
+model RelationEvent {
+  id String @id @default(cuid())
+
+  caseId String
+  case   RelationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  type      String
+  actorType String?
+  actorId   String?
+
+  payload Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([caseId, createdAt])
+}
+
+model RelationAction {
+  id String @id @default(cuid())
+
+  relationCaseId String
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  type String
+
+  status String @default("PENDING")
+
+  title       String
+  description String?
+
+  payload Json?
+
+  createdByRole String
+
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([relationCaseId, status])
+  @@index([relationCaseId, createdAt])
 }
 
 model Message {
@@ -84,12 +340,12 @@ model Message {
 
 model Document {
   id              String   @id @default(cuid())
-  caseId           String
-  uploadedByEmail  String
-  fileName         String
-  fileUrl          String
-  mimeType         String?
-  createdAt        DateTime @default(now())
+  caseId          String
+  uploadedByEmail String
+  fileName        String
+  fileUrl         String
+  mimeType        String?
+  createdAt       DateTime @default(now())
 
   relationCase RelationCase @relation(fields: [caseId], references: [id])
 }

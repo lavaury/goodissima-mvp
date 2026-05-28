@@ -1,0 +1,25 @@
+{
+  "id": "immobilier_variable_income",
+  "title": "Risk - revenus variables",
+  "template": {
+    "key": "real_estate_rental",
+    "name": "Location immobiliere",
+    "aiInstructions": "Signaler les points a clarifier sans decision."
+  },
+  "relation": {
+    "type": "real_estate"
+  },
+  "messages": [
+    "Mes revenus varient entre 2800 EUR et 4500 EUR selon les mois."
+  ],
+  "documents": [],
+  "actions": [],
+  "expected": {
+    "riskSignals": [
+      {
+        "type": "VARIABLE_INCOME",
+        "severity": "medium"
+      }
+    ]
+  }
+}

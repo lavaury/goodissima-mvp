@@ -1,0 +1,39 @@
+{
+  "id": "fixture-ai-004-template-instructions",
+  "feature": "Template AI Instructions",
+  "provider": "mock",
+  "template": {
+    "key": "fact_based_follow_up",
+    "name": "Suivi factuel",
+    "aiInstructions": "Rester factuel, ne jamais prendre de decision, signaler uniquement les etapes verifiables."
+  },
+  "aiContext": {
+    "title": "Dossier a qualifier",
+    "template": {
+      "key": "fact_based_follow_up",
+      "name": "Suivi factuel",
+      "status": "PUBLISHED",
+      "aiInstructions": "Rester factuel, ne jamais prendre de decision, signaler uniquement les etapes verifiables."
+    },
+    "status": "IN_DISCUSSION",
+    "currentStep": "REVIEW",
+    "steps": [
+      "Step 1: Verification",
+      "Step 2: Echange"
+    ],
+    "openActions": [],
+    "recentMessages": [
+      {
+        "author": "contact",
+        "body": "Voici les premiers elements. Je peux completer si besoin.",
+        "createdAt": "2026-05-23T11:00:00.000Z"
+      },
+      {
+        "author": "owner",
+        "body": "Merci, nous verifierons uniquement les informations disponibles.",
+        "createdAt": "2026-05-23T11:10:00.000Z"
+      }
+    ],
+    "documents": []
+  }
+}
