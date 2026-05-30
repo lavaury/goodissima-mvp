@@ -47,6 +47,7 @@ type RelationCaseWorkspaceItem = {
       fields: Array<{
         key: string;
         label: string;
+        options?: Prisma.JsonValue | null;
         step: number;
         position: number;
         createdAt: Date | string;
@@ -184,6 +185,30 @@ function getHumanizedRelationEventType(eventType: string) {
   return humanizeRelationEvent(eventType).category ?? "Dossier";
 }
 
+const technicalAnswerFieldKeys = new Set(["notificationOptIn", "notificationEmail"]);
+const technicalAnswerFieldPrefixes = ["notification", "_", "internal"];
+
+function isTechnicalAnswerField(key: string) {
+  return technicalAnswerFieldKeys.has(key) || technicalAnswerFieldPrefixes.some((prefix) => key.startsWith(prefix));
+}
+
+function getOptionLabel(options: Prisma.JsonValue | null | undefined, value: Prisma.JsonValue) {
+  if (typeof value !== "string" || !Array.isArray(options)) return null;
+
+  for (const option of options) {
+    if (!option || typeof option !== "object" || Array.isArray(option)) continue;
+
+    const optionValue = option.value;
+    const optionLabel = option.label;
+
+    if (optionValue === value && typeof optionLabel === "string") {
+      return optionLabel;
+    }
+  }
+
+  return null;
+}
+
 function getSubmissionAnswerEntries(submission: NonNullable<RelationCaseWorkspaceItem["formSubmissions"]>[number]) {
   if (!submission.answers || typeof submission.answers !== "object" || Array.isArray(submission.answers)) {
     return [];
@@ -192,17 +217,19 @@ function getSubmissionAnswerEntries(submission: NonNullable<RelationCaseWorkspac
   const answers = submission.answers as Record<string, Prisma.JsonValue>;
   const displayedKeys = new Set<string>();
   const knownEntries = submission.formTemplate.fields
+    .filter((field) => !isTechnicalAnswerField(field.key))
     .filter((field) => Object.prototype.hasOwnProperty.call(answers, field.key))
     .map((field) => {
       displayedKeys.add(field.key);
       return {
         key: field.key,
         label: field.label || field.key,
-        value: answers[field.key],
+        value: getOptionLabel(field.options, answers[field.key]) ?? answers[field.key],
       };
     });
   const extraEntries = Object.entries(answers)
     .filter(([key]) => !displayedKeys.has(key))
+    .filter(([key]) => !isTechnicalAnswerField(key))
     .map(([key, value]) => ({ key, label: key, value }));
 
   return [...knownEntries, ...extraEntries];

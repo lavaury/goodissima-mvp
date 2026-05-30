@@ -4,43 +4,43 @@ const prisma = new PrismaClient();
 
 const TEMPLATE_DEFINITION = {
   key: "INVESTOR_INTRODUCTION",
-  name: "Investor Introduction",
-  description: "Secure relationship entry point for investors and strategic partners.",
+  name: "Introduction investisseur",
+  description: "Parcours de qualification sécurisé pour investisseurs et partenaires stratégiques.",
   status: "PUBLISHED",
   isDefault: false,
   aiInstructions:
-    "Identify strategic interest, open questions and possible next steps without promising an outcome. Stay factual, privacy-first and human-in-the-loop.",
+    "Identifier l'intérêt stratégique, les questions ouvertes et les prochaines étapes possibles sans promettre de résultat. Rester factuel, privacy-first et human-in-the-loop.",
   formTemplate: {
     key: "INVESTOR_INTRODUCTION_FORM",
-    name: "Investor Introduction",
-    description: "Secure relationship entry point for investors and strategic partners.",
+    name: "Introduction investisseur",
+    description: "Parcours de qualification sécurisé pour investisseurs et partenaires stratégiques.",
   },
   fields: [
-    { key: "name", label: "Name", type: "TEXT", required: true, step: 1, position: 1 },
-    { key: "organization", label: "Organization", type: "TEXT", required: false, step: 1, position: 2 },
-    { key: "role", label: "Role", type: "TEXT", required: false, step: 1, position: 3 },
-    { key: "country", label: "Country", type: "TEXT", required: false, step: 1, position: 4 },
+    { key: "name", label: "Nom et prénom", type: "TEXT", required: true, step: 1, position: 1 },
+    { key: "organization", label: "Organisation / Fonds d’investissement", type: "TEXT", required: false, step: 1, position: 2 },
+    { key: "role", label: "Fonction", type: "TEXT", required: false, step: 1, position: 3 },
+    { key: "country", label: "Pays", type: "TEXT", required: false, step: 1, position: 4 },
     {
       key: "interestType",
-      label: "Interest type",
+      label: "Nature de votre intérêt",
       type: "SELECT",
       required: true,
       step: 2,
       position: 1,
       options: [
-        { label: "Investment", value: "investment" },
-        { label: "Strategic partnership", value: "strategic_partnership" },
-        { label: "Banking", value: "banking" },
-        { label: "AI", value: "ai" },
+        { label: "Investissement", value: "investment" },
+        { label: "Partenariat stratégique", value: "strategic_partnership" },
+        { label: "Banque / Finance", value: "banking" },
+        { label: "IA", value: "ai" },
         { label: "Marketplace", value: "marketplace" },
-        { label: "Enterprise", value: "enterprise" },
-        { label: "Media", value: "media" },
-        { label: "Other", value: "other" },
+        { label: "Entreprise", value: "enterprise" },
+        { label: "Média", value: "media" },
+        { label: "Autre", value: "other" },
       ],
     },
     {
       key: "message",
-      label: "Why would you like to connect with Goodissima?",
+      label: "Présentez votre intérêt pour Goodissima",
       type: "TEXTAREA",
       required: true,
       step: 2,
@@ -48,7 +48,7 @@ const TEMPLATE_DEFINITION = {
     },
     {
       key: "notificationOptIn",
-      label: "I would like to receive notifications about this secure relationship.",
+      label: "Je souhaite être informé des mises à jour de cet échange sécurisé.",
       type: "CHECKBOX",
       required: false,
       step: 3,
@@ -56,7 +56,7 @@ const TEMPLATE_DEFINITION = {
     },
     {
       key: "notificationEmail",
-      label: "Notification email",
+      label: "Adresse email de notification",
       type: "EMAIL",
       required: false,
       step: 3,
@@ -94,8 +94,9 @@ function redactedDatabaseUrl() {
 }
 
 function assertExecutionIsConfirmed() {
-  const targetEnv = process.env.GOODISSIMA_ENV ?? "undefined";
-  const confirmed = process.env.CONFIRM_PROD_TEMPLATE_IMPORT === "true";
+  const targetEnv = (process.env.GOODISSIMA_ENV ?? "undefined").toLowerCase();
+  const confirmed = process.env.CONFIRM_TEMPLATE_IMPORT === "true";
+  const allowedEnvironments = new Set(["staging", "production"]);
 
   console.log("[investor-template] Target environment", {
     GOODISSIMA_ENV: targetEnv,
@@ -103,15 +104,9 @@ function assertExecutionIsConfirmed() {
     database: redactedDatabaseUrl(),
   });
 
-  if (targetEnv !== "production" && !confirmed) {
+  if (!allowedEnvironments.has(targetEnv) && !confirmed) {
     throw new Error(
-      'Refusing to run outside production without explicit confirmation. Set CONFIRM_PROD_TEMPLATE_IMPORT=true.',
-    );
-  }
-
-  if (targetEnv === "production" && !confirmed) {
-    throw new Error(
-      'Refusing to import into production without explicit confirmation. Set CONFIRM_PROD_TEMPLATE_IMPORT=true.',
+      'Refusing to run outside staging/production without explicit confirmation. Set CONFIRM_TEMPLATE_IMPORT=true.',
     );
   }
 }

@@ -132,57 +132,57 @@ const defaultSecureConversationFields: Record<string, LocalizedDefaultField> = {
 const investorIntroductionCopy = {
   name: {
     fr: "Introduction investisseur",
-    en: "Investor Introduction",
+    en: "Introduction investisseur",
   },
   description: {
-    fr: "Point d'entree relationnel securise pour investisseurs et partenaires strategiques.",
-    en: "Secure relationship entry point for investors and strategic partners.",
+    fr: "Parcours de qualification sécurisé pour investisseurs et partenaires stratégiques.",
+    en: "Parcours de qualification sécurisé pour investisseurs et partenaires stratégiques.",
   },
 };
 
 const investorIntroductionFields: Record<string, LocalizedDefaultField> = {
   name: {
-    label: { fr: "Nom", en: "Name" },
+    label: { fr: "Nom et prénom", en: "Nom et prénom" },
   },
   organization: {
-    label: { fr: "Organisation", en: "Organization" },
+    label: { fr: "Organisation / Fonds d’investissement", en: "Organisation / Fonds d’investissement" },
   },
   role: {
-    label: { fr: "Role", en: "Role" },
+    label: { fr: "Fonction", en: "Fonction" },
   },
   country: {
-    label: { fr: "Pays", en: "Country" },
+    label: { fr: "Pays", en: "Pays" },
   },
   interestType: {
-    label: { fr: "Type d'interet", en: "Interest type" },
+    label: { fr: "Nature de votre intérêt", en: "Nature de votre intérêt" },
   },
   message: {
     label: {
-      fr: "Pourquoi souhaitez-vous echanger avec Goodissima ?",
-      en: "Why would you like to connect with Goodissima?",
+      fr: "Présentez votre intérêt pour Goodissima",
+      en: "Présentez votre intérêt pour Goodissima",
     },
   },
   notificationOptIn: {
     label: {
-      fr: "Je souhaite recevoir des notifications concernant cette relation securisee.",
-      en: "I would like to receive notifications about this secure relationship.",
+      fr: "Je souhaite être informé des mises à jour de cet échange sécurisé.",
+      en: "Je souhaite être informé des mises à jour de cet échange sécurisé.",
     },
   },
   notificationEmail: {
-    label: { fr: "Email de notification", en: "Notification email" },
+    label: { fr: "Adresse email de notification", en: "Adresse email de notification" },
   },
 };
 
 const investorIntroductionOptions: Record<string, Record<string, LocalizedText>> = {
   interestType: {
-    investment: { fr: "Investissement", en: "Investment" },
-    strategic_partnership: { fr: "Partenariat strategique", en: "Strategic partnership" },
-    banking: { fr: "Banque", en: "Banking" },
-    ai: { fr: "IA", en: "AI" },
+    investment: { fr: "Investissement", en: "Investissement" },
+    strategic_partnership: { fr: "Partenariat stratégique", en: "Partenariat stratégique" },
+    banking: { fr: "Banque / Finance", en: "Banque / Finance" },
+    ai: { fr: "IA", en: "IA" },
     marketplace: { fr: "Marketplace", en: "Marketplace" },
-    enterprise: { fr: "Entreprise", en: "Enterprise" },
-    media: { fr: "Media", en: "Media" },
-    other: { fr: "Autre", en: "Other" },
+    enterprise: { fr: "Entreprise", en: "Entreprise" },
+    media: { fr: "Média", en: "Média" },
+    other: { fr: "Autre", en: "Autre" },
   },
 };
 

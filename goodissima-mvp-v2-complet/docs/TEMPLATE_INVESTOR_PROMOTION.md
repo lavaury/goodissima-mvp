@@ -1,14 +1,14 @@
 # Promotion du template investisseur
 
-Ce document decrit la promotion du template global `INVESTOR_INTRODUCTION` depuis le referentiel dev/local vers la production Goodissima.
+Ce document decrit la promotion du template global `INVESTOR_INTRODUCTION` depuis le referentiel dev/local vers staging ou production Goodissima.
 
 ## Source identifiee
 
 Le template existant cote dev/local est le template applicatif global :
 
 - `RelationTemplate.key` : `INVESTOR_INTRODUCTION`
-- Nom : `Investor Introduction`
-- Description : `Secure relationship entry point for investors and strategic partners.`
+- Nom : `Introduction investisseur`
+- Description : `Parcours de qualification sécurisé pour investisseurs et partenaires stratégiques.`
 - Statut cible : `PUBLISHED`
 - Form template : `INVESTOR_INTRODUCTION_FORM`
 - Version active cible : version publiee construite depuis la structure importee
@@ -35,34 +35,47 @@ Note : dans le schema actuel, les actions relationnelles sont portees par `Relat
 
 Le parcours contient les champs suivants :
 
-- `name`, texte requis, etape 1 ;
-- `organization`, texte optionnel, etape 1 ;
-- `role`, texte optionnel, etape 1 ;
-- `country`, texte optionnel, etape 1 ;
-- `interestType`, select requis, etape 2 ;
-- `message`, textarea requis, etape 2 ;
-- `notificationOptIn`, checkbox optionnelle, etape 3 ;
-- `notificationEmail`, email conditionnel, affiche et requis si `notificationOptIn=true`, etape 3.
+- `name` : Nom et prénom, texte requis, etape 1 ;
+- `organization` : Organisation / Fonds d’investissement, texte optionnel, etape 1 ;
+- `role` : Fonction, texte optionnel, etape 1 ;
+- `country` : Pays, texte optionnel, etape 1 ;
+- `interestType` : Nature de votre intérêt, select requis, etape 2 ;
+- `message` : Présentez votre intérêt pour Goodissima, textarea requis, etape 2 ;
+- `notificationOptIn` : Je souhaite être informé des mises à jour de cet échange sécurisé, checkbox optionnelle, etape 3 ;
+- `notificationEmail` : Adresse email de notification, email conditionnel, affiche et requis si `notificationOptIn=true`, etape 3.
 
 ## Script
 
 Script prepare :
 
 ```powershell
-scripts/promote-investor-template-prod.mjs
+scripts/promote-investor-template.mjs
 ```
 
-Commande production recommandee :
+Commande staging :
 
 ```powershell
-npx.cmd dotenv -e .env.production -- npx.cmd cross-env CONFIRM_PROD_TEMPLATE_IMPORT=true node scripts/promote-investor-template-prod.mjs
+npx dotenv -e .env.staging -- node scripts/promote-investor-template.mjs
 ```
 
-Alternative Windows sans `cross-env` :
+Commande production :
 
 ```powershell
-$env:CONFIRM_PROD_TEMPLATE_IMPORT="true"
-npx.cmd dotenv -e .env.production -- node scripts/promote-investor-template-prod.mjs
+npx dotenv -e .env.production -- node scripts/promote-investor-template.mjs
+```
+
+Equivalent Windows explicite :
+
+```powershell
+npx.cmd dotenv -e .env.staging -- node scripts/promote-investor-template.mjs
+npx.cmd dotenv -e .env.production -- node scripts/promote-investor-template.mjs
+```
+
+Execution locale/dev volontaire :
+
+```powershell
+$env:CONFIRM_TEMPLATE_IMPORT="true"
+npx.cmd dotenv -e .env.local -- node scripts/promote-investor-template.mjs
 ```
 
 ## Garde-fous
@@ -70,8 +83,8 @@ npx.cmd dotenv -e .env.production -- node scripts/promote-investor-template-prod
 Le script :
 
 - affiche `GOODISSIMA_ENV`, `NODE_ENV` et la cible base de donnees sans secret ;
-- refuse l'execution sans `CONFIRM_PROD_TEMPLATE_IMPORT=true` ;
-- refuse aussi un environnement non-production sans confirmation explicite ;
+- accepte `GOODISSIMA_ENV=staging` et `GOODISSIMA_ENV=production` ;
+- refuse local/dev/indefini sans `CONFIRM_TEMPLATE_IMPORT=true` ;
 - cree le template s'il n'existe pas ;
 - met a jour le template s'il existe ;
 - recree les champs du formulaire lie au template ;
@@ -85,7 +98,7 @@ Le script :
 Verification technique locale :
 
 ```powershell
-node --check scripts/promote-investor-template-prod.mjs
+node --check scripts/promote-investor-template.mjs
 npm.cmd run build
 ```
 
