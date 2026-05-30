@@ -6,7 +6,7 @@ import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewDocumentEmail } from "@/lib/email";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
-import { isNotificationEnabled } from "@/lib/privacy";
+import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -161,26 +161,29 @@ export async function POST(req: Request) {
 
   revalidatePath("/dashboard");
   revalidatePath(`/cases/${relationCase.id}`);
-  if (
-    typeof candidateAccessToken === "string" &&
-    candidateAccessToken &&
-    isNotificationEnabled(relationCase.owner.notificationPreferences, "documents")
-  ) {
+  if (typeof candidateAccessToken === "string" && candidateAccessToken) {
     revalidatePath(`/secure/${candidateAccessToken}`);
   }
 
   if (typeof candidateAccessToken === "string" && candidateAccessToken) {
-    try {
-      await sendNewDocumentEmail({
-        ownerEmail: relationCase.owner.email,
-        candidateEmail: relationCase.candidateEmail,
+    if (isNotificationEnabled(relationCase.owner.notificationPreferences, "documents")) {
+      try {
+        await sendNewDocumentEmail({
+          ownerEmail: relationCase.owner.email,
+          candidateEmail: relationCase.candidateEmail,
+          caseId: relationCase.id,
+          caseTitle: relationCase.gLink.title,
+          candidateName: relationCase.candidateName,
+          fileName: document.fileName,
+        });
+      } catch (error) {
+        console.error("Unable to send new document email", error);
+      }
+    } else {
+      logNotificationSkipped(relationCase.owner.notificationPreferences, "documents", {
         caseId: relationCase.id,
-        caseTitle: relationCase.gLink.title,
-        candidateName: relationCase.candidateName,
-        fileName: document.fileName,
+        event: "candidate_document_upload",
       });
-    } catch (error) {
-      console.error("Unable to send new document email", error);
     }
   }
 
