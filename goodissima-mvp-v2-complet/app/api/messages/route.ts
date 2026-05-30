@@ -6,7 +6,7 @@ import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
-import { isNotificationEnabled } from "@/lib/privacy";
+import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -136,20 +136,27 @@ export async function POST(req: Request) {
     revalidatePath(`/secure/${body.candidateAccessToken}`);
   }
 
-  if (body.senderType === "CANDIDATE" && isNotificationEnabled(relationCase.owner.notificationPreferences, "messages")) {
-    console.info("[owner-email] New candidate message email trigger", {
-      caseId: relationCase.id,
-      hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
-    });
+  if (body.senderType === "CANDIDATE") {
+    if (isNotificationEnabled(relationCase.owner.notificationPreferences, "messages")) {
+      console.info("[owner-email] New candidate message email trigger", {
+        caseId: relationCase.id,
+        hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
+      });
 
-    await sendNewMessageEmail({
-      ownerEmail: relationCase.owner.email,
-      candidateEmail: relationCase.candidateEmail,
-      caseId: relationCase.id,
-      caseTitle: relationCase.gLink.title,
-      candidateName: relationCase.candidateName,
-      messageBody: message.body,
-    });
+      await sendNewMessageEmail({
+        ownerEmail: relationCase.owner.email,
+        candidateEmail: relationCase.candidateEmail,
+        caseId: relationCase.id,
+        caseTitle: relationCase.gLink.title,
+        candidateName: relationCase.candidateName,
+        messageBody: message.body,
+      });
+    } else {
+      logNotificationSkipped(relationCase.owner.notificationPreferences, "messages", {
+        caseId: relationCase.id,
+        event: "candidate_message",
+      });
+    }
   }
 
   if (body.senderType === "OWNER" && relationCase.candidateEmailNotificationsEnabled) {

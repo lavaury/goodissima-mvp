@@ -6,10 +6,10 @@ import {
   createCandidateAccessExpiresAt,
   createCandidateAccessToken,
 } from "@/lib/candidate-access";
-import { sendNewDocumentEmail, sendNewMessageEmail } from "@/lib/email";
+import { sendNewDocumentEmail, sendNewMessageEmail, sendNewRelationCaseEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { createFormSubmission } from "@/lib/forms";
-import { isNotificationEnabled } from "@/lib/privacy";
+import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 
@@ -165,6 +165,11 @@ export async function POST(req: Request) {
         candidateName: existingRelationCase.candidateName,
         messageBody,
       });
+    } else {
+      logNotificationSkipped(existingRelationCase.owner.notificationPreferences, "messages", {
+        caseId: existingRelationCase.id,
+        event: "candidate_message_existing_case",
+      });
     }
 
     if (body.documentName && body.documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
@@ -175,6 +180,11 @@ export async function POST(req: Request) {
         caseTitle: existingRelationCase.gLink.title,
         candidateName: existingRelationCase.candidateName,
         fileName: String(body.documentName),
+      });
+    } else if (body.documentName && body.documentUrl) {
+      logNotificationSkipped(existingRelationCase.owner.notificationPreferences, "documents", {
+        caseId: existingRelationCase.id,
+        event: "candidate_document_existing_case",
       });
     }
 
@@ -272,14 +282,19 @@ export async function POST(req: Request) {
     });
   }
 
-  if (isNotificationEnabled(relationCase.owner.notificationPreferences, "messages")) {
-    await sendNewMessageEmail({
+  if (isNotificationEnabled(relationCase.owner.notificationPreferences, "requests")) {
+    await sendNewRelationCaseEmail({
       ownerEmail: relationCase.owner.email,
       candidateEmail,
       caseId: relationCase.id,
       caseTitle: relationCase.gLink.title,
       candidateName: relationCase.candidateName,
       messageBody,
+    });
+  } else {
+    logNotificationSkipped(relationCase.owner.notificationPreferences, "requests", {
+      caseId: relationCase.id,
+      event: "candidate_case_created",
     });
   }
 
@@ -291,6 +306,11 @@ export async function POST(req: Request) {
       caseTitle: relationCase.gLink.title,
       candidateName: relationCase.candidateName,
       fileName: document.fileName,
+    });
+  } else if (document) {
+    logNotificationSkipped(relationCase.owner.notificationPreferences, "documents", {
+      caseId: relationCase.id,
+      event: "candidate_document_new_case",
     });
   }
 

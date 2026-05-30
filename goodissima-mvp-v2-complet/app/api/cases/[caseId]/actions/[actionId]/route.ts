@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { sendRelationActionCompletedEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
+import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
+import { getRelationActionTypeLabel } from "@/lib/relation-actions";
 
 export async function PATCH(
   req: Request,
@@ -43,6 +46,15 @@ export async function PATCH(
         type: true,
         title: true,
         status: true,
+        relationCase: {
+          select: {
+            id: true,
+            candidateEmail: true,
+            candidateName: true,
+            gLink: { select: { title: true } },
+            owner: { select: { email: true, notificationPreferences: true } },
+          },
+        },
       },
     });
 
@@ -73,6 +85,26 @@ export async function PATCH(
         title: action.title,
       },
     });
+
+    if (candidateAccessToken) {
+      if (isNotificationEnabled(action.relationCase.owner.notificationPreferences, "validations")) {
+        await sendRelationActionCompletedEmail({
+          ownerEmail: action.relationCase.owner.email,
+          candidateEmail: action.relationCase.candidateEmail,
+          caseId: action.relationCase.id,
+          caseTitle: action.relationCase.gLink.title,
+          candidateName: action.relationCase.candidateName,
+          actionTitle: action.title,
+          actionType: getRelationActionTypeLabel(action.type),
+        });
+      } else {
+        logNotificationSkipped(action.relationCase.owner.notificationPreferences, "validations", {
+          caseId: action.relationCase.id,
+          event: "candidate_action_completed",
+          actionId: action.id,
+        });
+      }
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

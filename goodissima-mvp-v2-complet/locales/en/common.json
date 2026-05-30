@@ -197,7 +197,7 @@
   "settings.notifications.frequencyImmediate": "Immediate",
   "settings.notifications.frequencyDaily": "Daily digest",
   "settings.notifications.frequencyWeekly": "Weekly digest",
-  "settings.notifications.allOff": "Email notifications are off by default. They are never enabled implicitly.",
+  "settings.notifications.allOff": "Email notifications are disabled for this account. You can turn them back on at any time.",
   "settings.privacy.privateChannels": "Emails remain private technical channels, never visible relationship identities.",
   "settings.privacy.relational": "Relationship privacy",
   "settings.privacy.relationalHelp": "Hides technical channels from dashboards, timelines and visible APIs.",

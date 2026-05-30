@@ -402,6 +402,101 @@ export async function sendNewDocumentEmail({
   });
 }
 
+export async function sendNewRelationCaseEmail({
+  ownerEmail,
+  candidateEmail,
+  caseId,
+  caseTitle,
+  candidateName,
+  messageBody,
+}: TransactionalEmailInput & {
+  candidateEmail?: string;
+  messageBody?: string;
+}) {
+  if (sameEmail(ownerEmail, candidateEmail)) {
+    console.info("[owner-email] Skipped new relation case email: sender and recipient match", {
+      caseId,
+    });
+    return { ok: false, skipped: true };
+  }
+
+  const primaryCta = { label: "Ouvrir le nouveau dossier", href: relationUrl(caseId) };
+
+  console.info("[owner-email] Sending new relation case email", {
+    caseId,
+  });
+
+  return sendTransactionalEmail({
+    to: ownerEmail,
+    subject: `Nouveau dossier candidat - ${caseTitle}`,
+    title: "Nouveau dossier candidat",
+    previewText: `Nouveau dossier candidat concernant ${caseTitle}`,
+    eyebrow: "Dossier Goodissima",
+    intro: `Un nouveau dossier candidat a ete cree concernant : ${caseTitle}`,
+    details: [
+      { label: "Relation", value: caseTitle },
+      { label: "Candidat", value: candidateName },
+      { label: "Action", value: "Nouveau dossier" },
+      { label: "Message", value: messageBody ? truncate(messageBody) : null },
+    ],
+    primaryCta,
+    links: [
+      { label: "Consulter votre dossier securise", href: dashboardUrl() },
+      { label: "Acceder a la conversation securisee", href: conversationUrl(caseId) },
+      primaryCta,
+    ],
+  });
+}
+
+export async function sendRelationActionCompletedEmail({
+  ownerEmail,
+  candidateEmail,
+  caseId,
+  caseTitle,
+  candidateName,
+  actionTitle,
+  actionType,
+}: TransactionalEmailInput & {
+  candidateEmail?: string;
+  actionTitle: string;
+  actionType: string;
+}) {
+  if (sameEmail(ownerEmail, candidateEmail)) {
+    console.info("[owner-email] Skipped completed action email: sender and recipient match", {
+      caseId,
+    });
+    return { ok: false, skipped: true };
+  }
+
+  const primaryCta = { label: "Verifier le dossier", href: relationUrl(caseId) };
+
+  console.info("[owner-email] Sending completed action email", {
+    caseId,
+    actionType,
+  });
+
+  return sendTransactionalEmail({
+    to: ownerEmail,
+    subject: `Action completee - ${caseTitle}`,
+    title: "Action completee par le candidat",
+    previewText: `Action completee concernant ${caseTitle}`,
+    eyebrow: "Validation Goodissima",
+    intro: `Une action a ete completee concernant : ${caseTitle}`,
+    details: [
+      { label: "Relation", value: caseTitle },
+      { label: "Candidat", value: candidateName },
+      { label: "Action", value: actionTitle },
+      { label: "Type", value: actionType },
+    ],
+    primaryCta,
+    links: [
+      { label: "Consulter votre dossier securise", href: dashboardUrl() },
+      { label: "Acceder a la conversation securisee", href: conversationUrl(caseId) },
+      primaryCta,
+    ],
+  });
+}
+
 export async function sendNewRelationActionEmail({
   candidateEmail,
   ownerEmail,

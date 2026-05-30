@@ -197,7 +197,7 @@
   "settings.notifications.frequencyImmediate": "Immédiat",
   "settings.notifications.frequencyDaily": "Résumé quotidien",
   "settings.notifications.frequencyWeekly": "Résumé hebdomadaire",
-  "settings.notifications.allOff": "Les notifications email sont coupées par défaut. Elles ne seront jamais activées implicitement.",
+  "settings.notifications.allOff": "Les notifications email sont désactivées pour ce compte. Vous pouvez les réactiver à tout moment.",
   "settings.privacy.privateChannels": "Les emails restent des canaux techniques privés, jamais des identités relationnelles visibles.",
   "settings.privacy.relational": "Confidentialité relationnelle",
   "settings.privacy.relationalHelp": "Masque les canaux techniques dans les tableaux de bord, timelines et API visibles.",

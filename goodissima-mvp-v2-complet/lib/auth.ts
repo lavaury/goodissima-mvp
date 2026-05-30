@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { defaultNotificationPreferences } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,9 +27,20 @@ export async function getCurrentPrismaUser() {
   const email = user.email!;
   const name = user.user_metadata?.name || email;
 
-  return prisma.user.upsert({
+  const owner = await prisma.user.upsert({
     where: { email },
     update: { name },
     create: { email, name },
   });
+
+  await prisma.userNotificationPreference.upsert({
+    where: { userId: owner.id },
+    create: {
+      userId: owner.id,
+      ...defaultNotificationPreferences,
+    },
+    update: {},
+  });
+
+  return owner;
 }

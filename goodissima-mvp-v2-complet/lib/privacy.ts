@@ -1,15 +1,23 @@
 export type NotificationKind = "messages" | "requests" | "documents" | "validations";
 
 export const defaultNotificationPreferences = {
-  emailNotificationsEnabled: false,
-  newMessagesEnabled: false,
-  newRequestsEnabled: false,
-  newDocumentsEnabled: false,
-  validationsEnabled: false,
+  emailNotificationsEnabled: true,
+  newMessagesEnabled: true,
+  newRequestsEnabled: true,
+  newDocumentsEnabled: true,
+  validationsEnabled: true,
   relationalPrivacyEnabled: true,
   pseudonymizationEnabled: true,
   frequency: "IMMEDIATE",
 };
+
+type NotificationPreferences = {
+  emailNotificationsEnabled: boolean;
+  newMessagesEnabled: boolean;
+  newRequestsEnabled: boolean;
+  newDocumentsEnabled: boolean;
+  validationsEnabled: boolean;
+} | null | undefined;
 
 export function getRelationIdentity(params: {
   name?: string | null;
@@ -30,16 +38,7 @@ export function redactEmail(value: string | null | undefined) {
 }
 
 export function isNotificationEnabled(
-  preferences:
-    | {
-        emailNotificationsEnabled: boolean;
-        newMessagesEnabled: boolean;
-        newRequestsEnabled: boolean;
-        newDocumentsEnabled: boolean;
-        validationsEnabled: boolean;
-      }
-    | null
-    | undefined,
+  preferences: NotificationPreferences,
   kind: NotificationKind,
 ) {
   if (!preferences?.emailNotificationsEnabled) return false;
@@ -50,4 +49,27 @@ export function isNotificationEnabled(
   if (kind === "validations") return preferences.validationsEnabled;
 
   return false;
+}
+
+export function logNotificationSkipped(
+  preferences: NotificationPreferences,
+  kind: NotificationKind,
+  context: Record<string, unknown>,
+) {
+  const reason = !preferences
+    ? "missing_preferences"
+    : !preferences.emailNotificationsEnabled
+      ? "email_notifications_disabled"
+      : `${kind}_disabled`;
+
+  console.info("[owner-email] Notification skipped by owner preferences", {
+    kind,
+    reason,
+    emailNotificationsEnabled: preferences?.emailNotificationsEnabled ?? null,
+    newMessagesEnabled: preferences?.newMessagesEnabled ?? null,
+    newRequestsEnabled: preferences?.newRequestsEnabled ?? null,
+    newDocumentsEnabled: preferences?.newDocumentsEnabled ?? null,
+    validationsEnabled: preferences?.validationsEnabled ?? null,
+    ...context,
+  });
 }
