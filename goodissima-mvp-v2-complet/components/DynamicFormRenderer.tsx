@@ -55,6 +55,43 @@ export function normalizeFieldType(type: string) {
   return type.toUpperCase();
 }
 
+function FieldLabel({ field, required }: { field: DynamicFormField; required: boolean }) {
+  return (
+    <span className="block text-sm font-medium text-slate-800">
+      {field.label}
+      {required ? (
+        <span className="ml-1 text-red-600" aria-label="obligatoire">
+          *
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function FieldHelp({ placeholder }: { placeholder: string | null }) {
+  if (!placeholder) return null;
+
+  return <span className="mt-1 block text-xs text-slate-500">{placeholder}</span>;
+}
+
+function FieldShell({
+  field,
+  required,
+  children,
+}: {
+  field: DynamicFormField;
+  required: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <label key={field.key} className="block space-y-2">
+      <FieldLabel field={field} required={required} />
+      {children}
+      <FieldHelp placeholder={field.placeholder} />
+    </label>
+  );
+}
+
 export function DynamicFormRenderer({
   fields,
   values,
@@ -83,33 +120,35 @@ export function DynamicFormRenderer({
     switch (fieldType) {
       case "TEXTAREA":
         return (
-          <textarea
-            key={field.key}
-            className="min-h-32 w-full rounded-xl border px-4 py-3"
-            placeholder={field.placeholder ?? undefined}
-            value={getStringFieldValue(values[field.key])}
-            required={required}
-            disabled={disabled}
-            onChange={(e) => onChange(field.key, e.target.value)}
-          />
+          <FieldShell key={field.key} field={field} required={required}>
+            <textarea
+              className="min-h-32 w-full rounded-xl border px-4 py-3"
+              placeholder={field.placeholder ?? undefined}
+              value={getStringFieldValue(values[field.key])}
+              required={required}
+              disabled={disabled}
+              onChange={(e) => onChange(field.key, e.target.value)}
+            />
+          </FieldShell>
         );
       case "SELECT":
         return (
-          <select
-            key={field.key}
-            className="w-full rounded-xl border px-4 py-3"
-            value={getStringFieldValue(values[field.key])}
-            required={required}
-            disabled={disabled}
-            onChange={(e) => onChange(field.key, e.target.value)}
-          >
-            <option value="">{field.placeholder ?? field.label}</option>
-            {field.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <FieldShell key={field.key} field={field} required={required}>
+            <select
+              className="w-full rounded-xl border px-4 py-3"
+              value={getStringFieldValue(values[field.key])}
+              required={required}
+              disabled={disabled}
+              onChange={(e) => onChange(field.key, e.target.value)}
+            >
+              <option value="">{field.placeholder || "Selectionner une option"}</option>
+              {field.options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FieldShell>
         );
       case "CHECKBOX":
         return (
@@ -122,15 +161,24 @@ export function DynamicFormRenderer({
               disabled={disabled}
               onChange={(e) => onChange(field.key, e.target.checked)}
             />
-            <span className="text-sm text-slate-700">{field.label}</span>
+            <span className="text-sm text-slate-700">
+              {field.label}
+              {required ? (
+                <span className="ml-1 text-red-600" aria-label="obligatoire">
+                  *
+                </span>
+              ) : null}
+              <FieldHelp placeholder={field.placeholder} />
+            </span>
           </label>
         );
       case "FILE":
         return (
           <div key={field.key} className="rounded-xl border px-4 py-3">
-            <p className="mb-2 text-sm font-medium">{field.label}</p>
+            <FieldLabel field={field} required={required} />
+            <FieldHelp placeholder={field.placeholder} />
             <input
-              className="w-full text-sm"
+              className="mt-3 w-full text-sm"
               type="file"
               required={required}
               disabled={disabled}
@@ -141,9 +189,9 @@ export function DynamicFormRenderer({
         );
       default:
         return (
-          <input
-            key={field.key}
-            className="w-full rounded-xl border px-4 py-3"
+          <FieldShell key={field.key} field={field} required={required}>
+            <input
+              className="w-full rounded-xl border px-4 py-3"
               type={
               fieldType === "EMAIL"
                 ? "email"
@@ -160,7 +208,8 @@ export function DynamicFormRenderer({
             required={required}
             disabled={disabled}
             onChange={(e) => onChange(field.key, e.target.value)}
-          />
+            />
+          </FieldShell>
         );
     }
   }
