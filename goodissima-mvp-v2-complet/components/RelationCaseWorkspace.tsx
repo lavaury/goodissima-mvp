@@ -38,6 +38,21 @@ type RelationCaseWorkspaceItem = {
     fileName: string;
     createdAt?: Date | string;
   }>;
+  formSubmissions?: Array<{
+    id: string;
+    answers: Prisma.JsonValue;
+    createdAt: Date | string;
+    formTemplate: {
+      name: string;
+      fields: Array<{
+        key: string;
+        label: string;
+        step: number;
+        position: number;
+        createdAt: Date | string;
+      }>;
+    };
+  }>;
   relationActions: Array<{
     id: string;
     type: string;
@@ -169,6 +184,39 @@ function getHumanizedRelationEventType(eventType: string) {
   return humanizeRelationEvent(eventType).category ?? "Dossier";
 }
 
+function getSubmissionAnswerEntries(submission: NonNullable<RelationCaseWorkspaceItem["formSubmissions"]>[number]) {
+  if (!submission.answers || typeof submission.answers !== "object" || Array.isArray(submission.answers)) {
+    return [];
+  }
+
+  const answers = submission.answers as Record<string, Prisma.JsonValue>;
+  const displayedKeys = new Set<string>();
+  const knownEntries = submission.formTemplate.fields
+    .filter((field) => Object.prototype.hasOwnProperty.call(answers, field.key))
+    .map((field) => {
+      displayedKeys.add(field.key);
+      return {
+        key: field.key,
+        label: field.label || field.key,
+        value: answers[field.key],
+      };
+    });
+  const extraEntries = Object.entries(answers)
+    .filter(([key]) => !displayedKeys.has(key))
+    .map(([key, value]) => ({ key, label: key, value }));
+
+  return [...knownEntries, ...extraEntries];
+}
+
+function formatSubmissionAnswer(value: Prisma.JsonValue): string {
+  if (value === null || value === undefined || value === "") return "Non renseigné";
+  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map((item) => formatSubmissionAnswer(item)).join(", ");
+
+  return JSON.stringify(value);
+}
+
 function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
   const eventMessageIds = new Set(
     item.relationEvents
@@ -245,6 +293,7 @@ export function RelationCaseWorkspace({
 }) {
   const activityEvents = getActivityEvents(item);
   const isCandidateView = senderType === "CANDIDATE";
+  const formSubmissions = item.formSubmissions ?? [];
 
   return (
     <main className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
@@ -344,6 +393,48 @@ export function RelationCaseWorkspace({
             editable={senderType === "OWNER"}
             candidateAccessToken={candidateAccessToken}
           />
+          {senderType === "OWNER" ? (
+            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+                Réponses candidat
+                <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+              </summary>
+              <div className="mt-3 space-y-3">
+                {formSubmissions.length === 0 ? (
+                  <p className="rounded-lg bg-[#f6f0e8] px-3 py-2 text-xs text-[#766f68]">
+                    Aucune réponse de formulaire enregistrée.
+                  </p>
+                ) : (
+                  formSubmissions.map((submission) => {
+                    const entries = getSubmissionAnswerEntries(submission);
+
+                    return (
+                      <div key={submission.id} className="rounded-xl bg-[#f6f0e8] p-3 text-xs">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold text-[#2f3437]">{submission.formTemplate.name}</p>
+                          <span className="text-[11px] text-[#766f68]">{formatActivityDate(submission.createdAt)}</span>
+                        </div>
+                        {entries.length === 0 ? (
+                          <p className="text-[#766f68]">Aucune réponse exploitable.</p>
+                        ) : (
+                          <dl className="space-y-2">
+                            {entries.map((entry) => (
+                              <div key={entry.key} className="border-t border-[#e6ded3] pt-2 first:border-t-0 first:pt-0">
+                                <dt className="font-medium text-[#766f68]">{entry.label}</dt>
+                                <dd className="mt-0.5 whitespace-pre-wrap break-words text-[#2f3437]">
+                                  {formatSubmissionAnswer(entry.value)}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </details>
+          ) : null}
           {senderType === "OWNER" ? (
             <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">

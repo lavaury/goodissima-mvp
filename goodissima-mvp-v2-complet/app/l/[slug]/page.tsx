@@ -132,13 +132,13 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
       ? parseTemplateSnapshot(activeFallbackVersion.snapshot)
       : null;
   const templateKey = snapshot?.relationTemplate.key ?? relationTemplate?.key ?? null;
-  const formTemplate = snapshot
-    ? { id: snapshot.formTemplate.id }
-    : relationTemplate
-      ? await prisma.formTemplate.findFirst({
-          where: { relationTemplateId: relationTemplate.id },
-          orderBy: { createdAt: "asc" },
-        })
+  const formTemplate = relationTemplate
+    ? await prisma.formTemplate.findFirst({
+        where: { relationTemplateId: relationTemplate.id },
+        orderBy: { createdAt: "asc" },
+      })
+    : snapshot?.formTemplate.key
+      ? await prisma.formTemplate.findUnique({ where: { key: snapshot.formTemplate.key } })
       : null;
   const formFields = !snapshot && formTemplate ? await getFormFields(formTemplate.id) : [];
   const candidateFieldsSource = snapshot

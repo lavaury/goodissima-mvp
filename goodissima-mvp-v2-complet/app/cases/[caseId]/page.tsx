@@ -19,6 +19,16 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
       relationActions: { orderBy: [{ status: "asc" }, { createdAt: "desc" }] },
+      formSubmissions: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          formTemplate: {
+            include: {
+              fields: { orderBy: [{ step: "asc" }, { position: "asc" }, { createdAt: "asc" }] },
+            },
+          },
+        },
+      },
       auditLogs: { orderBy: { createdAt: "desc" } },
       relationEvents: { orderBy: { createdAt: "desc" } },
     },
