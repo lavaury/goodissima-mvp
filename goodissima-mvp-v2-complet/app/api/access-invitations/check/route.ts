@@ -1,5 +1,22 @@
 import { NextResponse } from "next/server";
-import { assertSignupAllowed, normalizeInvitationEmail } from "@/lib/access-invitations";
+import {
+  assertSignupAllowed,
+  getPrivateAccessModeEnv,
+  isPrivateAccessMode,
+  normalizeInvitationEmail,
+} from "@/lib/access-invitations";
+
+export async function GET() {
+  return NextResponse.json({
+    privateAccessMode: isPrivateAccessMode(),
+    envValue: getPrivateAccessModeEnv(),
+    envName: process.env.PRIVATE_ACCESS_MODE
+      ? "PRIVATE_ACCESS_MODE"
+      : process.env.PRIVATE_ACCES_MODE
+        ? "PRIVATE_ACCES_MODE"
+        : null,
+  });
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));

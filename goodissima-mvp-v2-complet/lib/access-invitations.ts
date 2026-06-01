@@ -7,8 +7,12 @@ export const ACCESS_INVITATION_EVENTS = {
   REVOKED: "ACCESS_INVITATION_REVOKED",
 } as const;
 
+export function getPrivateAccessModeEnv() {
+  return process.env.PRIVATE_ACCESS_MODE ?? process.env.PRIVATE_ACCES_MODE ?? "false";
+}
+
 export function isPrivateAccessMode() {
-  return process.env.PRIVATE_ACCESS_MODE === "true";
+  return getPrivateAccessModeEnv().toLowerCase() === "true";
 }
 
 export function normalizeInvitationEmail(email: string) {
