@@ -1,4 +1,10 @@
 import { redirect } from "next/navigation";
+import {
+  acceptInvitationForEmail,
+  assertSignupAllowed,
+  isPrivateAccessMode,
+  normalizeInvitationEmail,
+} from "@/lib/access-invitations";
 import { defaultNotificationPreferences } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
@@ -24,13 +30,33 @@ export async function requireCurrentUser() {
 
 export async function getCurrentPrismaUser() {
   const user = await requireCurrentUser();
-  const email = user.email!;
+  const email = normalizeInvitationEmail(user.email!);
   const name = user.user_metadata?.name || email;
 
-  const owner = await prisma.user.upsert({
+  const existingOwner = await prisma.user.findUnique({
     where: { email },
-    update: { name },
-    create: { email, name },
+  });
+
+  if (!existingOwner && isPrivateAccessMode()) {
+    const access = await assertSignupAllowed(email);
+
+    if (!access.allowed) {
+      redirect("/private-access");
+    }
+  }
+
+  const owner = await prisma.$transaction(async (tx) => {
+    const savedOwner = await tx.user.upsert({
+      where: { email },
+      update: { name },
+      create: { email, name },
+    });
+
+    if (isPrivateAccessMode()) {
+      await acceptInvitationForEmail(tx, email, email);
+    }
+
+    return savedOwner;
   });
 
   await prisma.userNotificationPreference.upsert({

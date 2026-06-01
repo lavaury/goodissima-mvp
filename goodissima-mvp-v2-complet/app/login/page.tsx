@@ -9,6 +9,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/dashboard";
+  const privateAccessDenied = searchParams.get("private_access") === "denied";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +59,11 @@ function LoginForm() {
           onChange={(event) => setPassword(event.target.value)}
           required
         />
+        {privateAccessDenied ? (
+          <p className="text-sm text-red-600">
+            Acces prive actif: votre email doit etre invite pour creer un espace proprietaire.
+          </p>
+        ) : null}
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <button
           className="w-full rounded-2xl bg-slate-900 px-5 py-3 font-medium text-white disabled:opacity-60"

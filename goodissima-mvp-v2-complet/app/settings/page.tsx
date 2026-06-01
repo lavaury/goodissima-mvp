@@ -5,6 +5,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
+import { isPrivateAccessMode } from "@/lib/access-invitations";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getAIProviderLabel, getRuntimeEnvironmentLabel } from "@/lib/ai-runtime";
 import { getI18n } from "@/lib/i18n";
@@ -67,7 +68,7 @@ export default async function SettingsPage() {
   const aiProvider = getAIGovernanceProvider();
   const environmentLabel = getRuntimeEnvironmentLabel();
   const aiProviderLabel = getAIProviderLabel();
-  const [scenarioCount, recentAIEvents] = await Promise.all([
+  const [scenarioCount, recentAIEvents, accessInvitations] = await Promise.all([
     countAIScenarios(),
     prisma.aIEvent.findMany({
       orderBy: { createdAt: "desc" },
@@ -86,6 +87,10 @@ export default async function SettingsPage() {
           },
         },
       },
+    }),
+    prisma.accessInvitation.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
     }),
   ]);
 
@@ -184,6 +189,16 @@ export default async function SettingsPage() {
       <SettingsPanel
         organizationName={organizationName}
         initialNotificationPreferences={notificationPreferences ?? defaultNotificationPreferences}
+        privateAccessMode={isPrivateAccessMode()}
+        initialAccessInvitations={accessInvitations.map((invitation) => ({
+          id: invitation.id,
+          email: invitation.email,
+          status: invitation.status,
+          note: invitation.note,
+          expiresAt: invitation.expiresAt?.toISOString() ?? null,
+          acceptedAt: invitation.acceptedAt?.toISOString() ?? null,
+          createdAt: invitation.createdAt.toISOString(),
+        }))}
       />
     </main>
   );
