@@ -20,8 +20,22 @@ function LoginForm() {
     setError(null);
     setIsLoading(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const accessRes = await fetch("/api/access-invitations/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+
+    if (!accessRes.ok) {
+      const access = await accessRes.json().catch(() => null);
+      setIsLoading(false);
+      setError(access?.reason ?? "Acces non autorise.");
+      return;
+    }
+
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     setIsLoading(false);
 
