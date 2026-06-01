@@ -23,7 +23,10 @@ export function isInvitationUsable(invitation: {
   status: AccessInvitationStatus;
   expiresAt: Date | null;
 }) {
-  return invitation.status !== "REVOKED" && (!invitation.expiresAt || invitation.expiresAt > new Date());
+  return (
+    (invitation.status === "PENDING" || invitation.status === "ACCEPTED") &&
+    (!invitation.expiresAt || invitation.expiresAt > new Date())
+  );
 }
 
 export async function findUsableInvitation(email: string) {
@@ -39,30 +42,65 @@ export async function findUsableInvitation(email: string) {
 }
 
 export async function assertSignupAllowed(email: string) {
-  if (!isPrivateAccessMode()) {
-    return { allowed: true as const };
-  }
+  const decision = await getAccessInvitationDecision(email);
 
-  const normalizedEmail = normalizeInvitationEmail(email);
-  const existingUser = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
-    select: { id: true },
-  });
-
-  if (existingUser) {
-    return { allowed: true as const };
-  }
-
-  const invitation = await findUsableInvitation(normalizedEmail);
-
-  if (!invitation) {
+  if (!decision.allowed) {
     return {
       allowed: false as const,
-      reason: "Goodissima est en acces prive. Demandez une invitation pour creer un compte.",
+      reason: decision.reason,
     };
   }
 
-  return { allowed: true as const, invitation };
+  return { allowed: true as const };
+}
+
+export async function getAccessInvitationDecision(email: string) {
+  const privateAccessMode = isPrivateAccessMode();
+  const normalizedEmail = normalizeInvitationEmail(email);
+  const [existingUser, invitation] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    }),
+    prisma.accessInvitation.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        status: true,
+        expiresAt: true,
+      },
+    }),
+  ]);
+  const userExists = Boolean(existingUser);
+  const invitationUsable = invitation ? isInvitationUsable(invitation) : false;
+  const invitationExpired = Boolean(invitation?.expiresAt && invitation.expiresAt <= new Date());
+
+  let allowed = true;
+  let reason = "Mode acces prive inactif.";
+
+  if (privateAccessMode) {
+    allowed = userExists || invitationUsable;
+
+    if (userExists) {
+      reason = "Utilisateur existant autorise.";
+    } else if (invitationUsable) {
+      reason = "Invitation valide.";
+    } else if (invitation?.status === "REVOKED") {
+      reason = "Invitation revoquee.";
+    } else if (invitationExpired) {
+      reason = "Invitation expiree.";
+    } else {
+      reason = "Goodissima est en acces prive. Demandez une invitation pour creer un compte.";
+    }
+  }
+
+  return {
+    privateAccessMode,
+    allowed,
+    reason,
+    userExists,
+    invitationStatus: invitation?.status ?? null,
+    invitationExpiresAt: invitation?.expiresAt?.toISOString() ?? null,
+  };
 }
 
 export async function acceptInvitationForEmail(

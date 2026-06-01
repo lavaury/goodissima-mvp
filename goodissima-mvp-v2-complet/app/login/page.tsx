@@ -27,8 +27,9 @@ function LoginForm() {
       body: JSON.stringify({ email: normalizedEmail }),
     });
 
-    if (!accessRes.ok) {
-      const access = await accessRes.json().catch(() => null);
+    const access = await accessRes.json().catch(() => null);
+
+    if (!accessRes.ok || access?.allowed === false) {
       setIsLoading(false);
       setError(access?.reason ?? "Acces non autorise.");
       return;
