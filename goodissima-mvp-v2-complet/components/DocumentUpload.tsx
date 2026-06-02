@@ -6,6 +6,15 @@ import { useToast } from "@/components/ToastProvider";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
+async function getApiErrorMessage(res: Response) {
+  try {
+    const body = await res.json();
+    return typeof body.error === "string" ? body.error : "Erreur lors de l'ajout du document";
+  } catch {
+    return "Erreur lors de l'ajout du document";
+  }
+}
+
 export function DocumentUpload({
   caseId,
   candidateAccessToken,
@@ -51,7 +60,7 @@ export function DocumentUpload({
     setLoading(false);
 
     if (!res.ok) {
-      toast.error("Erreur lors de l'ajout du document");
+      toast.error(await getApiErrorMessage(res));
       return;
     }
 

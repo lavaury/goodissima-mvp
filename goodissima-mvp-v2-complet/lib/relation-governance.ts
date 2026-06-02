@@ -2,12 +2,20 @@ import { RelationGovernanceStatus } from "@prisma/client";
 
 export const relationGovernanceStatuses = Object.values(RelationGovernanceStatus);
 
+export type RelationGovernanceStatusLike = RelationGovernanceStatus | string | null | undefined;
+
 export function isRelationGovernanceStatus(value: unknown): value is RelationGovernanceStatus {
   return typeof value === "string" && relationGovernanceStatuses.includes(value as RelationGovernanceStatus);
 }
 
-export function getRelationGovernanceStatusLabel(status: RelationGovernanceStatus | string) {
-  switch (status) {
+export function normalizeRelationGovernanceStatus(status: RelationGovernanceStatusLike) {
+  return isRelationGovernanceStatus(status) ? status : RelationGovernanceStatus.ACTIVE;
+}
+
+export function getRelationGovernanceStatusLabel(status: RelationGovernanceStatusLike) {
+  const normalizedStatus = normalizeRelationGovernanceStatus(status);
+
+  switch (normalizedStatus) {
     case RelationGovernanceStatus.ACTIVE:
       return "Active";
     case RelationGovernanceStatus.SUSPENDED:
@@ -21,8 +29,10 @@ export function getRelationGovernanceStatusLabel(status: RelationGovernanceStatu
   }
 }
 
-export function getRelationGovernanceStatusDescription(status: RelationGovernanceStatus | string) {
-  switch (status) {
+export function getRelationGovernanceStatusDescription(status: RelationGovernanceStatusLike) {
+  const normalizedStatus = normalizeRelationGovernanceStatus(status);
+
+  switch (normalizedStatus) {
     case RelationGovernanceStatus.ACTIVE:
       return "Les echanges et documents sont autorises.";
     case RelationGovernanceStatus.SUSPENDED:
@@ -36,16 +46,18 @@ export function getRelationGovernanceStatusDescription(status: RelationGovernanc
   }
 }
 
-export function canWriteInRelation(status: RelationGovernanceStatus | string) {
-  return status === RelationGovernanceStatus.ACTIVE;
+export function canWriteInRelation(status: RelationGovernanceStatusLike) {
+  return normalizeRelationGovernanceStatus(status) === RelationGovernanceStatus.ACTIVE;
 }
 
-export function canCandidateWriteInRelation(status: RelationGovernanceStatus | string) {
-  return status === RelationGovernanceStatus.ACTIVE;
+export function canCandidateWriteInRelation(status: RelationGovernanceStatusLike) {
+  return normalizeRelationGovernanceStatus(status) === RelationGovernanceStatus.ACTIVE;
 }
 
-export function getRelationGovernanceBlockedMessage(status: RelationGovernanceStatus | string) {
-  switch (status) {
+export function getRelationGovernanceBlockedMessage(status: RelationGovernanceStatusLike) {
+  const normalizedStatus = normalizeRelationGovernanceStatus(status);
+
+  switch (normalizedStatus) {
     case RelationGovernanceStatus.SUSPENDED:
       return "Relation suspendue: les echanges sont temporairement bloques.";
     case RelationGovernanceStatus.CLOSED:

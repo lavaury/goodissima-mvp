@@ -8,7 +8,11 @@ import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
-import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import {
+  canWriteInRelation,
+  getRelationGovernanceBlockedMessage,
+  normalizeRelationGovernanceStatus,
+} from "@/lib/relation-governance";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET_NAME = "case-documents";
@@ -110,9 +114,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
   }
 
-  if (!canWriteInRelation(relationCase.governanceStatus)) {
+  const governanceStatus = normalizeRelationGovernanceStatus(relationCase.governanceStatus);
+
+  if (!canWriteInRelation(governanceStatus)) {
+    const reason = getRelationGovernanceBlockedMessage(governanceStatus);
+    console.warn("[documents] Document upload blocked by governance", {
+      route: "app/api/documents/upload/route.ts",
+      caseId: relationCase.id,
+      governanceStatus,
+      reason,
+    });
+
     return NextResponse.json(
-      { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+      {
+        error: reason,
+        route: "app/api/documents/upload/route.ts",
+        caseId: relationCase.id,
+        governanceStatus,
+        reason,
+      },
       { status: 409 },
     );
   }

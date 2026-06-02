@@ -5,7 +5,11 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
-import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import {
+  canWriteInRelation,
+  getRelationGovernanceBlockedMessage,
+  normalizeRelationGovernanceStatus,
+} from "@/lib/relation-governance";
 
 export const dynamic = "force-dynamic";
 
@@ -78,9 +82,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
   }
 
-  if (!canWriteInRelation(relationCase.governanceStatus)) {
+  const governanceStatus = normalizeRelationGovernanceStatus(relationCase.governanceStatus);
+
+  if (!canWriteInRelation(governanceStatus)) {
+    const reason = getRelationGovernanceBlockedMessage(governanceStatus);
+    console.warn("[documents] Document creation blocked by governance", {
+      route: "app/api/documents/route.ts",
+      caseId: relationCase.id,
+      governanceStatus,
+      reason,
+    });
+
     return NextResponse.json(
-      { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+      {
+        error: reason,
+        route: "app/api/documents/route.ts",
+        caseId: relationCase.id,
+        governanceStatus,
+        reason,
+      },
       { status: 409 },
     );
   }
