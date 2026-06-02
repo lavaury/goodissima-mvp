@@ -21,7 +21,10 @@ const privateFieldKeys = new Set(["notificationEmail"]);
 async function getApiErrorMessage(res: Response) {
   try {
     const body = await res.json();
-    return typeof body.error === "string" ? body.error : "Erreur lors de l'ajout du document";
+    const message = typeof body.error === "string" ? body.error : "Erreur lors de l'ajout du document";
+    const stage = typeof body.stage === "string" ? body.stage : null;
+    const code = typeof body.code === "string" ? body.code : null;
+    return [stage ? `Etape ${stage}` : null, code, message].filter(Boolean).join(" - ");
   } catch {
     return "Erreur lors de l'ajout du document";
   }
