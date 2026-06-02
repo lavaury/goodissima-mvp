@@ -20,11 +20,29 @@ export default function SignupPage() {
     setMessage(null);
     setIsLoading(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const accessRes = await fetch("/api/access-invitations/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+
+    const access = await accessRes.json().catch(() => null);
+
+    if (!accessRes.ok || access?.allowed === false) {
+      setIsLoading(false);
+      setError(access?.reason ?? "Creation de compte non autorisee.");
+      return;
+    }
+
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
-      options: { data: { name } },
+      options: {
+        data: { name },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     setIsLoading(false);

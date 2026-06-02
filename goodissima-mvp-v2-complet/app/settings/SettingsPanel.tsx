@@ -15,6 +15,16 @@ type NotificationPreferences = {
   frequency: string;
 };
 
+type AccessInvitation = {
+  id: string;
+  email: string;
+  status: "PENDING" | "ACCEPTED" | "REVOKED";
+  note: string | null;
+  expiresAt: string | null;
+  acceptedAt: string | null;
+  createdAt: string;
+};
+
 type ToggleRowProps = {
   title: string;
   help: string;
@@ -71,9 +81,13 @@ function SectionCard({
 export function SettingsPanel({
   organizationName,
   initialNotificationPreferences,
+  privateAccessMode,
+  initialAccessInvitations,
 }: {
   organizationName: string;
   initialNotificationPreferences: NotificationPreferences;
+  privateAccessMode: boolean;
+  initialAccessInvitations: AccessInvitation[];
 }) {
   const toast = useToast();
   const { t } = useI18n();
@@ -92,7 +106,17 @@ export function SettingsPanel({
     documentRetention: "90",
   });
   const [notifications, setNotifications] = useState(initialNotificationPreferences);
+  const [invitations, setInvitations] = useState(initialAccessInvitations);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteNote, setInviteNote] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const colors = ["#0f172a", "#2563eb", "#059669", "#7c3aed", "#dc2626", "#d97706"];
+  const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   async function save() {
     setSaving(true);
@@ -117,6 +141,72 @@ export function SettingsPanel({
     }
   }
 
+  async function refreshInvitations() {
+    const res = await fetch("/api/access-invitations");
+
+    if (!res.ok) {
+      toast.error(t("common.error"));
+      return;
+    }
+
+    const data = (await res.json()) as Array<AccessInvitation & {
+      expiresAt?: string | null;
+      acceptedAt?: string | null;
+      createdAt: string;
+    }>;
+
+    setInvitations(data);
+  }
+
+  async function inviteAccess(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setInviting(true);
+
+    try {
+      const res = await fetch("/api/access-invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail, note: inviteNote }),
+      });
+
+      if (!res.ok) {
+        toast.error(t("common.error"));
+        return;
+      }
+
+      setInviteEmail("");
+      setInviteNote("");
+      await refreshInvitations();
+      toast.success("Invitation ajoutee.");
+    } catch {
+      toast.error(t("common.error"));
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function revokeInvitation(invitationId: string) {
+    setRevokingId(invitationId);
+
+    try {
+      const res = await fetch(`/api/access-invitations/${invitationId}/revoke`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        toast.error(t("common.error"));
+        return;
+      }
+
+      await refreshInvitations();
+      toast.success("Invitation revoquee.");
+    } catch {
+      toast.error(t("common.error"));
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border bg-slate-950 p-5 text-white shadow-sm">
@@ -135,6 +225,99 @@ export function SettingsPanel({
           </div>
         </div>
       </div>
+
+      <section className="rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Acces prive</p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">Invitations proprietaires</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Mode invitation {privateAccessMode ? "actif" : "inactif"}. Les comptes existants restent autorises,
+              et les liens candidats publics ne sont pas concernes.
+            </p>
+          </div>
+          <span
+            className={[
+              "w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase",
+              privateAccessMode ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600",
+            ].join(" ")}
+          >
+            PRIVATE_ACCESS_MODE={privateAccessMode ? "true" : "false"}
+          </span>
+        </div>
+
+        <form onSubmit={inviteAccess} className="mt-5 grid gap-3 lg:grid-cols-[1fr_1.2fr_auto]">
+          <input
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+            type="email"
+            placeholder="email@exemple.com"
+            required
+          />
+          <input
+            value={inviteNote}
+            onChange={(event) => setInviteNote(event.target.value)}
+            className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+            placeholder="Note interne optionnelle"
+          />
+          <button
+            type="submit"
+            disabled={inviting}
+            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            {inviting ? "Ajout..." : "Inviter"}
+          </button>
+        </form>
+
+        <div className="mt-5 overflow-hidden rounded-xl border">
+          {invitations.length === 0 ? (
+            <p className="bg-slate-50 p-4 text-sm text-slate-500">Aucune invitation pour le moment.</p>
+          ) : (
+            <div className="divide-y">
+              {invitations.map((invitation) => (
+                <article
+                  key={invitation.id}
+                  className="grid gap-3 bg-white p-4 text-sm lg:grid-cols-[1.2fr_auto_auto]"
+                >
+                  <div>
+                    <p className="font-medium text-slate-900">{invitation.email}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Creee le {dateFormatter.format(new Date(invitation.createdAt))}
+                      {invitation.acceptedAt
+                        ? ` - acceptee le ${dateFormatter.format(new Date(invitation.acceptedAt))}`
+                        : ""}
+                    </p>
+                    {invitation.note ? (
+                      <p className="mt-2 text-xs text-slate-500">{invitation.note}</p>
+                    ) : null}
+                  </div>
+                  <span
+                    className={[
+                      "h-fit w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase",
+                      invitation.status === "ACCEPTED"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : invitation.status === "REVOKED"
+                          ? "bg-red-50 text-red-700"
+                          : "bg-amber-50 text-amber-700",
+                    ].join(" ")}
+                  >
+                    {invitation.status}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => revokeInvitation(invitation.id)}
+                    disabled={invitation.status === "REVOKED" || revokingId === invitation.id}
+                    className="h-fit rounded-2xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {revokingId === invitation.id ? "Revocation..." : "Revoquer"}
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <SectionCard title={t("settings.org.title")} eyebrow={t("settings.org.eyebrow")}>
