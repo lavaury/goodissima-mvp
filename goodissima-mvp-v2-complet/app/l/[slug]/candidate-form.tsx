@@ -18,6 +18,15 @@ import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateFieldKeys = new Set(["notificationEmail"]);
 
+async function getApiErrorMessage(res: Response) {
+  try {
+    const body = await res.json();
+    return typeof body.error === "string" ? body.error : "Erreur lors de l'ajout du document";
+  } catch {
+    return "Erreur lors de l'ajout du document";
+  }
+}
+
 export default function CandidateForm({
   gLinkId,
   formTemplateId,
@@ -145,7 +154,7 @@ export default function CandidateForm({
       });
 
       if (!res.ok) {
-        throw new Error("Unable to upload file");
+        throw new Error(await getApiErrorMessage(res));
       }
     }
   }
@@ -211,8 +220,8 @@ export default function CandidateForm({
 
       toast.success(copy.messageSentToast);
       router.push(`/secure/${encodeURIComponent(relationCase.candidateAccessToken)}`);
-    } catch {
-      toast.error("Erreur lors de l'action");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors de l'action");
     } finally {
       setLoading(false);
     }
