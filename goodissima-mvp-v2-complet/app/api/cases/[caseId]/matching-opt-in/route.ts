@@ -4,6 +4,7 @@ import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { createRelationEvent } from "@/lib/events";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { prisma } from "@/lib/prisma";
+import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 export async function PATCH(req: Request, { params }: { params: { caseId: string } }) {
   try {
@@ -14,14 +15,14 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
       return NextResponse.json({ error: "matchingEnabled invalide" }, { status: 400 });
     }
 
-    let relationCase: { id: string; matchingEnabled: boolean } | null = null;
+    let relationCase: { id: string; matchingEnabled: boolean; governanceStatus: string } | null = null;
     let actorType = "OWNER";
     let actorId: string | null = null;
 
     if (typeof body.candidateAccessToken === "string") {
       relationCase = await prisma.relationCase.findFirst({
         where: { ...activeCandidateAccessWhere(body.candidateAccessToken), id: params.caseId },
-        select: { id: true, matchingEnabled: true },
+        select: { id: true, matchingEnabled: true, governanceStatus: true },
       });
       actorType = "CANDIDATE";
       actorId = "CANDIDATE";
@@ -29,13 +30,20 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
       const owner = await getCurrentPrismaUser();
       relationCase = await prisma.relationCase.findFirst({
         where: { id: params.caseId, ownerId: owner.id },
-        select: { id: true, matchingEnabled: true },
+        select: { id: true, matchingEnabled: true, governanceStatus: true },
       });
       actorId = owner.id;
     }
 
     if (!relationCase) {
       return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+    }
+
+    if (actorType === "CANDIDATE" && !canCandidateWriteInRelation(relationCase.governanceStatus)) {
+      return NextResponse.json(
+        { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+        { status: 409 },
+      );
     }
 
     const updated = await prisma.relationCase.update({

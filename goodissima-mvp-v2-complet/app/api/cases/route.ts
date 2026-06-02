@@ -12,6 +12,7 @@ import { createFormSubmission } from "@/lib/forms";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
+import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -88,12 +89,20 @@ export async function POST(req: Request) {
       candidateAccessToken: true,
       candidateName: true,
       candidateEmailNotificationsEnabled: true,
+      governanceStatus: true,
       owner: { select: { email: true, notificationPreferences: true } },
       gLink: { select: { title: true } },
     },
   });
 
   if (existingRelationCase) {
+    if (!canCandidateWriteInRelation(existingRelationCase.governanceStatus)) {
+      return NextResponse.json(
+        { error: getRelationGovernanceBlockedMessage(existingRelationCase.governanceStatus) },
+        { status: 409 },
+      );
+    }
+
     const message = await prisma.message.create({
       data: {
         caseId: existingRelationCase.id,

@@ -5,6 +5,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { isPrivateAccessMode } from "@/lib/access-invitations";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getAIProviderLabel, getRuntimeEnvironmentLabel } from "@/lib/ai-runtime";
@@ -98,13 +99,14 @@ export default async function SettingsPage() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
+          <DashboardBackLink className="mb-4" />
           <h1 className="text-3xl font-bold">{t("settings.title")}</h1>
           <p className="mt-1 text-slate-500">{t("settings.subtitle")}</p>
         </div>
         <LogoutButton />
       </div>
 
-      <PlatformNavigation active="settings" />
+      <PlatformNavigation active="settings" organizationName={organizationName} />
       <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -115,7 +117,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div className="rounded-2xl bg-slate-950 px-4 py-3 text-white">
-            <p className="text-xs uppercase tracking-wide text-slate-400">Provider actif</p>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Fournisseur actif</p>
             <p className="mt-1 text-sm font-semibold">{aiProvider.provider}</p>
             <p className="mt-1 text-xs text-slate-300">{aiProvider.model}</p>
           </div>

@@ -39,6 +39,13 @@ enum RelationStatus {
   ARCHIVED
 }
 
+enum RelationGovernanceStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+  BLOCKED
+}
+
 enum SenderType {
   OWNER
   CANDIDATE
@@ -133,6 +140,9 @@ model RelationCase {
   embeddingUpdatedAt       DateTime?
   priority                 RelationPriority @default(NORMAL)
   status                   RelationStatus   @default(NEW)
+  governanceStatus         RelationGovernanceStatus @default(ACTIVE)
+  governanceUpdatedAt      DateTime?
+  governanceReason         String?
   currentStep              String?          @default("CONVERSATION")
   createdAt                DateTime         @default(now())
   closedAt                 DateTime?
@@ -149,6 +159,8 @@ model RelationCase {
   aiEvents        AIEvent[]
   embeddings      RelationEmbedding[]
   embeddingJobs   EmbeddingJob[]
+
+  @@index([governanceStatus])
 }
 
 model EmbeddingJob {

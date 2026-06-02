@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
+import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { LogoutButton } from "@/components/LogoutButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -11,6 +13,7 @@ export default async function CasesPage() {
   noStore();
 
   const owner = await getCurrentPrismaUser();
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const cases = await prisma.relationCase.findMany({
     where: { ownerId: owner.id },
     include: {
@@ -23,8 +26,14 @@ export default async function CasesPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold">Dossiers relationnels</h1>
-        <LogoutButton />
+        <div>
+          <DashboardBackLink className="mb-4" />
+          <h1 className="text-3xl font-bold">Dossiers relationnels</h1>
+        </div>
+        <div className="flex flex-col items-start gap-3 sm:items-end">
+          <ActiveOrganizationBadge organizationName={organizationName} />
+          <LogoutButton />
+        </div>
       </div>
       <div className="mt-8 overflow-hidden rounded-2xl border bg-white">
         {cases.length === 0 ? (

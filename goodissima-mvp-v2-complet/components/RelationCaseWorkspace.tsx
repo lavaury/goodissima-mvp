@@ -1,18 +1,22 @@
 import { CandidateAccessControls } from "@/components/CandidateAccessControls";
+import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 import { AIWorkspace } from "@/components/AIWorkspace";
 import { ChatBox } from "@/components/ChatBox";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
+import { RelationGovernanceBadge, RelationGovernanceControls } from "@/components/RelationGovernanceControls";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
   getRelationActionStatusLabel,
   getRelationActionTypeLabel,
 } from "@/lib/relation-actions";
 import { humanizeAIEvent, humanizeRelationEvent } from "@/lib/events/humanize";
-import type { Prisma, RelationPriority, RelationStatus } from "@prisma/client";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import type { Prisma, RelationGovernanceStatus, RelationPriority, RelationStatus } from "@prisma/client";
 import Image from "next/image";
 
 type RelationCaseWorkspaceItem = {
@@ -25,6 +29,9 @@ type RelationCaseWorkspaceItem = {
   matchingEnabled: boolean;
   priority: RelationPriority;
   status: RelationStatus;
+  governanceStatus: RelationGovernanceStatus;
+  governanceUpdatedAt?: Date | string | null;
+  governanceReason?: string | null;
   gLink: { title: string; slug?: string | null };
   createdAt: Date | string;
   messages: Array<{
@@ -98,6 +105,36 @@ const parisDateFormatter = new Intl.DateTimeFormat("fr-FR", {
 function formatActivityDate(date: Date | string) {
   return parisDateFormatter.format(new Date(date));
 }
+
+const governanceAuditEventTypes = new Set([
+  "ACCESS_INVITATION_CREATED",
+  "ACCESS_INVITATION_ACCEPTED",
+  "ACCESS_INVITATION_REVOKED",
+  "DOCUMENT_UPLOADED",
+  "CASE_CLOSED",
+  "CASE_ARCHIVED",
+  "CASE_RESTORED",
+  "CANDIDATE_ACCESS_REVOKED",
+  "CANDIDATE_ACCESS_REGENERATED",
+  "DEBUG_TEST_CASE_CREATED",
+  "GOVERNANCE_STATUS_CHANGED",
+]);
+
+const importantTimelineRelationEventTypes = new Set([
+  "DOCUMENT_UPLOADED",
+  "DOCUMENT_REQUEST_CREATED",
+  "ACTION_CREATED",
+  "ACTION_COMPLETED",
+  "STATUS_CHANGED",
+  "PRIORITY_CHANGED",
+  "CASE_ARCHIVED",
+  "CASE_RESTORED",
+  "MATCHING_OPT_IN_CHANGED",
+  "MATCHING_PROPOSED",
+  "AI_SUGGESTED_ACTION_ACCEPTED",
+  "AI_TIMELINE_SUGGESTION_ACCEPTED",
+  "GOVERNANCE_STATUS_CHANGED",
+]);
 
 function formatRelativeActivityDate(date: Date | string) {
   const diffMs = Date.now() - new Date(date).getTime();
@@ -245,11 +282,6 @@ function formatSubmissionAnswer(value: Prisma.JsonValue): string {
 }
 
 function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
-  const eventMessageIds = new Set(
-    item.relationEvents
-      .map((event) => getPayloadString(event.payload, "messageId"))
-      .filter(Boolean),
-  );
   const eventDocumentIds = new Set(
     item.relationEvents
       .map((event) => getPayloadString(event.payload, "documentId"))
@@ -263,26 +295,17 @@ function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
       date: item.createdAt,
       type: "Dossier",
     },
-    ...item.relationEvents.map((event) => ({
-      id: `relation-event-${event.id}`,
-      label: getHumanizedRelationEventLabel(event),
-      date: event.createdAt,
-      type: getHumanizedRelationEventType(event.type),
-      icon: humanizeRelationEvent(
-        event.type,
-        event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload : null,
-      ).icon,
-    })),
-    ...item.messages
-      .filter((message) => !eventMessageIds.has(message.id))
-      .map((message) => ({
-        id: `message-${message.id}`,
-        label:
-          message.senderType === "OWNER"
-            ? "Message envoye par proprietaire"
-            : "Message envoye par candidat",
-        date: message.createdAt,
-        type: "Message",
+    ...item.relationEvents
+      .filter((event) => importantTimelineRelationEventTypes.has(event.type))
+      .map((event) => ({
+        id: `relation-event-${event.id}`,
+        label: getHumanizedRelationEventLabel(event),
+        date: event.createdAt,
+        type: getHumanizedRelationEventType(event.type),
+        icon: humanizeRelationEvent(
+          event.type,
+          event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload : null,
+        ).icon,
       })),
     ...item.documents
       .filter((document) => document.createdAt)
@@ -311,16 +334,21 @@ export function RelationCaseWorkspace({
   item,
   senderType,
   candidateAccessToken,
+  organizationName,
   debugMode = false,
 }: {
   item: RelationCaseWorkspaceItem;
   senderType: "OWNER" | "CANDIDATE";
   candidateAccessToken?: string;
+  organizationName?: string | null;
   debugMode?: boolean;
 }) {
   const activityEvents = getActivityEvents(item);
+  const governanceAuditLogs = item.auditLogs.filter((log) => governanceAuditEventTypes.has(log.eventType));
   const isCandidateView = senderType === "CANDIDATE";
   const formSubmissions = item.formSubmissions ?? [];
+  const relationWritable = canWriteInRelation(item.governanceStatus);
+  const governanceBlockedMessage = getRelationGovernanceBlockedMessage(item.governanceStatus);
 
   return (
     <main className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
@@ -340,11 +368,20 @@ export function RelationCaseWorkspace({
           </div>
         </div>
       ) : null}
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#247f88]">Goodissima relation workspace</p>
+      {!isCandidateView ? (
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <DashboardBackLink />
+          <ActiveOrganizationBadge organizationName={organizationName} className="border-[#d6e7e8] bg-[#fffcf8]" />
+        </div>
+      ) : null}
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#247f88]">Espace relationnel Goodissima</p>
       <h1 className="mt-2 text-2xl font-bold leading-tight text-[#2f3437] sm:text-3xl">{item.gLink.title}</h1>
       <p className="mt-1 text-sm leading-relaxed text-[#766f68] sm:text-base">
         Dossier avec {item.candidateName}
       </p>
+      <div className="mt-4 max-w-xl">
+        <RelationGovernanceBadge status={item.governanceStatus} reason={item.governanceReason} />
+      </div>
       {debugMode && senderType === "OWNER" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
@@ -371,6 +408,8 @@ export function RelationCaseWorkspace({
           <ChatBox
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
+            readOnly={!relationWritable}
+            readOnlyReason={governanceBlockedMessage}
             senderType={senderType}
           />
           <div className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)] transition hover:shadow-[0_18px_40px_rgba(47,52,55,0.08)]">
@@ -394,6 +433,8 @@ export function RelationCaseWorkspace({
           <DocumentUpload
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
+            disabled={!relationWritable}
+            disabledReason={governanceBlockedMessage}
           />
         </section>
         {senderType === "OWNER" ? (
@@ -410,15 +451,26 @@ export function RelationCaseWorkspace({
                 caseId={item.id}
                 initialMatchingEnabled={item.matchingEnabled}
                 candidateAccessToken={candidateAccessToken}
+                disabled={isCandidateView && !relationWritable}
+                disabledReason={governanceBlockedMessage}
                 senderType={senderType}
               />
             </div>
           </details>
+          {senderType === "OWNER" ? (
+            <RelationGovernanceControls
+              caseId={item.id}
+              status={item.governanceStatus}
+              reason={item.governanceReason}
+            />
+          ) : null}
           <RelationActionsPanel
             caseId={item.id}
             actions={item.relationActions}
             editable={senderType === "OWNER"}
             candidateAccessToken={candidateAccessToken}
+            disabled={!relationWritable}
+            disabledReason={governanceBlockedMessage}
           />
           {senderType === "OWNER" ? (
             <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
@@ -480,7 +532,7 @@ export function RelationCaseWorkspace({
           ) : null}
           <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
-              Activite recente
+              Chronologie
               <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
             </summary>
             <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
@@ -504,7 +556,12 @@ export function RelationCaseWorkspace({
                 <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
               </summary>
               <div className="mt-3 max-h-[40vh] space-y-2 overflow-y-auto pr-2 lg:max-h-80">
-                {item.auditLogs.map((log) => (
+                {governanceAuditLogs.length === 0 ? (
+                  <p className="rounded-xl bg-[#f6f0e8] p-3 text-xs text-[#766f68]">
+                    Aucun evenement de gouvernance a afficher.
+                  </p>
+                ) : null}
+                {governanceAuditLogs.map((log) => (
                   <div key={log.id} className="rounded-xl bg-[#f6f0e8] p-2 text-xs">
                     <p className="font-medium text-[#2f3437]">{humanizeAIEvent(log.eventType).title}</p>
                     <p className="text-[#766f68]">

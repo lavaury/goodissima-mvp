@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
+import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { PublishTemplateButton } from "@/components/PublishTemplateButton";
 import { TemplateLifecycleActions } from "@/components/TemplateLifecycleActions";
 import { TemplateFieldManager } from "@/components/TemplateFieldManager";
@@ -38,9 +40,9 @@ function statusClasses(status: string) {
 }
 
 function statusLabel(status: string) {
-  if (status === "PUBLISHED") return "Published";
-  if (status === "ARCHIVED") return "Archived";
-  return "Draft";
+  if (status === "PUBLISHED") return "Publie";
+  if (status === "ARCHIVED") return "Archive";
+  return "Brouillon";
 }
 
 function ReadableList({
@@ -71,7 +73,8 @@ function ReadableList({
 export default async function TemplateDetailPage({ params }: { params: { templateId: string } }) {
   noStore();
   const { locale, t } = getI18n();
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const template = await prisma.formTemplate.findUnique({
     where: { id: params.templateId },
@@ -108,9 +111,15 @@ export default async function TemplateDetailPage({ params }: { params: { templat
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <Link href="/templates" className="text-sm font-medium text-slate-500 hover:text-slate-900">
-        {t("studio.back")}
-      </Link>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-wrap gap-3">
+          <DashboardBackLink />
+          <Link href="/templates" className="inline-flex min-h-10 items-center rounded-xl border px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-900">
+            {t("studio.back")}
+          </Link>
+        </div>
+        <ActiveOrganizationBadge organizationName={organizationName} />
+      </div>
 
       <section className="mt-6 rounded-2xl border bg-white p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -285,8 +294,8 @@ export default async function TemplateDetailPage({ params }: { params: { templat
               <tr>
                 <th className="py-2">Position</th>
                 <th className="py-2">Étape</th>
-                <th className="py-2">Key</th>
-                <th className="py-2">Label</th>
+                <th className="py-2">Cle</th>
+                <th className="py-2">Libelle</th>
                 <th className="py-2">Type</th>
                 <th className="py-2">Obligatoire</th>
                 <th className="py-2">Règles</th>

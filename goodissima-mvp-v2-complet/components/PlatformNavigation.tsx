@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 import { useI18n } from "@/components/I18nProvider";
 
 const items = [
@@ -12,8 +13,10 @@ const items = [
 
 export function PlatformNavigation({
   active,
+  organizationName,
 }: {
   active: "relations" | "studio" | "analytics" | "settings";
+  organizationName?: string | null;
 }) {
   const { t } = useI18n();
   const activeHref =
@@ -42,6 +45,7 @@ export function PlatformNavigation({
           </Link>
         ))}
       </nav>
+      <ActiveOrganizationBadge organizationName={organizationName} />
     </div>
   );
 }

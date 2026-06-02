@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
@@ -142,6 +143,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     <main className="mx-auto max-w-5xl px-6 py-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
+          <DashboardBackLink className="mb-4" />
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
             {t("links.created.eyebrow")}
           </p>
@@ -151,7 +153,10 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         <LogoutButton />
       </div>
 
-      <PlatformNavigation active="relations" />
+      <PlatformNavigation
+        active="relations"
+        organizationName={owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima"}
+      />
 
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-2xl border bg-white p-5 shadow-sm">
@@ -267,7 +272,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           prefetch={false}
           className="rounded-2xl border px-5 py-3 text-center text-sm font-medium text-slate-700"
         >
-          {t("links.created.backDashboard")}
+          ← Retour au Dashboard
         </Link>
       </div>
     </main>

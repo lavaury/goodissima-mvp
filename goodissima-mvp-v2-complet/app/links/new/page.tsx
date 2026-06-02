@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { unstable_noStore as noStore } from "next/cache";
+import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { DEFAULT_RELATION_TEMPLATE_KEY } from "@/lib/relation-templates";
@@ -16,7 +18,8 @@ import { NewLinkForm } from "./NewLinkForm";
 export default async function NewLinkPage({ searchParams }: { searchParams?: { templateId?: string } }) {
   noStore();
   const { locale, t } = getI18n();
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const templates = await prisma.relationTemplate.findMany({
     where: { status: { not: "ARCHIVED" } },
@@ -107,7 +110,13 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="text-3xl font-bold">{t("links.new.title")}</h1>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <DashboardBackLink className="mb-4" />
+          <h1 className="text-3xl font-bold">{t("links.new.title")}</h1>
+        </div>
+        <ActiveOrganizationBadge organizationName={organizationName} />
+      </div>
       <NewLinkForm
         templates={templateOptions}
         defaultTemplateId={

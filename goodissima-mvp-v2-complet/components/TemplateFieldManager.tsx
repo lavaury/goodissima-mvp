@@ -324,7 +324,7 @@ export function TemplateFieldManager({
             <div key={index} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
               <input
                 className="rounded-xl border px-3 py-2"
-                placeholder="Label"
+                placeholder="Libelle"
                 value={option.label}
                 onChange={(e) => {
                   const options = [...value.options];
@@ -501,7 +501,7 @@ export function TemplateFieldManager({
         />
         <input
           className="rounded-xl border px-4 py-3"
-          placeholder={value.type === "CHECKBOX" ? "Texte de consentement" : "Label visible"}
+          placeholder={value.type === "CHECKBOX" ? "Texte de consentement" : "Libelle visible"}
           value={value.label}
           onChange={(e) => onChange({ ...value, label: e.target.value })}
         />

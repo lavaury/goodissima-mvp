@@ -51,8 +51,9 @@ export default async function DashboardPage({
 
   const { t } = getI18n();
   const owner = await getCurrentPrismaUser();
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const debugMode = isGoodissimaDebugMode();
-  const [links, cases, recentCases, recentMessages, recentDocuments] = await Promise.all([
+  const [links, cases, recentCases, recentDocuments] = await Promise.all([
     prisma.gLink.findMany({
       where: { ownerId: owner.id },
       include: {
@@ -103,22 +104,6 @@ export default async function DashboardPage({
         id: true,
         createdAt: true,
         gLink: { select: { title: true } },
-      },
-    }),
-    prisma.message.findMany({
-      where: { relationCase: { ownerId: owner.id } },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: {
-        id: true,
-        senderType: true,
-        createdAt: true,
-        relationCase: {
-          select: {
-            id: true,
-            gLink: { select: { title: true } },
-          },
-        },
       },
     }),
     prisma.document.findMany({
@@ -201,16 +186,6 @@ export default async function DashboardPage({
       caseName: item.gLink.title,
       date: item.createdAt,
     })),
-    ...recentMessages.map((item) => ({
-      id: `message-${item.id}`,
-      caseId: item.relationCase.id,
-      label:
-        item.senderType === "OWNER"
-          ? t("dashboard.activity.ownerMessage")
-          : t("dashboard.activity.candidateMessage"),
-      caseName: item.relationCase.gLink.title,
-      date: item.createdAt,
-    })),
     ...recentDocuments.map((item) => ({
       id: `document-${item.id}`,
       caseId: item.relationCase.id,
@@ -242,7 +217,7 @@ export default async function DashboardPage({
           <LogoutButton />
         </div>
       </div>
-      <PlatformNavigation active="relations" />
+      <PlatformNavigation active="relations" organizationName={organizationName} />
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -254,7 +229,7 @@ export default async function DashboardPage({
       <div className="mb-8 rounded-2xl border bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">{t("dashboard.recentActivity.title")}</h2>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Live</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{t("common.live")}</span>
         </div>
         <div className="mt-3 max-h-80 divide-y overflow-y-auto pr-2">
           {recentActivities.length === 0 ? (

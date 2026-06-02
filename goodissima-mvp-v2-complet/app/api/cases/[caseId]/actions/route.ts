@@ -5,6 +5,7 @@ import { sendNewRelationActionEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 import { getRelationActionTypeLabel, isRelationActionType } from "@/lib/relation-actions";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 export async function POST(req: Request, { params }: { params: { caseId: string } }) {
   try {
@@ -29,12 +30,20 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
         candidateEmail: true,
         candidateEmailNotificationsEnabled: true,
         candidateName: true,
+        governanceStatus: true,
         gLink: { select: { title: true } },
       },
     });
 
     if (!relationCase) {
       return NextResponse.json({ error: "dossier introuvable" }, { status: 404 });
+    }
+
+    if (!canWriteInRelation(relationCase.governanceStatus)) {
+      return NextResponse.json(
+        { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+        { status: 409 },
+      );
     }
 
     const action = await prisma.relationAction.create({

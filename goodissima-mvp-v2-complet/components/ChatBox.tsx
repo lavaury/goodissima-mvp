@@ -11,14 +11,30 @@ type ChatMessage = {
   createdAt: Date | string;
 };
 
+const messageDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function formatMessageDate(date: Date | string) {
+  return messageDateFormatter.format(new Date(date));
+}
+
 export function ChatBox({
   caseId,
   candidateAccessToken,
+  readOnly = false,
+  readOnlyReason,
   senderEmail,
   senderType,
 }: {
   caseId?: string;
   candidateAccessToken?: string;
+  readOnly?: boolean;
+  readOnlyReason?: string;
   senderEmail?: string;
   senderType: "OWNER" | "CANDIDATE";
 }) {
@@ -148,7 +164,7 @@ export function ChatBox({
   }, [messages, scrollToLatestMessage, updateNearBottomState]);
 
   async function sendMessage() {
-    if (!body.trim() || sending) return;
+    if (!body.trim() || sending || readOnly) return;
 
     setSending(true);
     const res = await fetch("/api/messages", {
@@ -234,9 +250,16 @@ export function ChatBox({
                         : "rounded-bl-lg border border-[#e7e0d6] bg-[#f6f0e8] text-[#2f3437]",
                     ].join(" ")}
                   >
-                    <p className={isOwnerMessage ? "text-xs text-[#c9e7ea]" : "text-xs text-[#746d66]"}>
-                      {isOwnerMessage ? "Proprietaire" : "Candidat"}
-                    </p>
+                    <div
+                      className={`flex flex-col gap-0.5 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-3 ${
+                        isOwnerMessage ? "text-[#c9e7ea]" : "text-[#746d66]"
+                      }`}
+                    >
+                      <span>{isOwnerMessage ? "Proprietaire" : "Candidat"}</span>
+                      <time dateTime={new Date(message.createdAt).toISOString()} className="whitespace-nowrap">
+                        {formatMessageDate(message.createdAt)}
+                      </time>
+                    </div>
                     <p className="mt-1 whitespace-pre-wrap break-words">{message.body}</p>
                   </div>
                 </div>
@@ -256,23 +279,29 @@ export function ChatBox({
       </div>
 
       <div data-sticky-input="true" className="sticky bottom-0 flex gap-2 border-t border-[#e7e0d6] bg-[#fffcf8]/95 p-3 backdrop-blur sm:p-4">
-        <input
-          ref={inputRef}
-          className="min-h-12 flex-1 rounded-2xl border border-[#d6e7e8] bg-white px-4 py-3 text-base text-[#2f3437] outline-none transition placeholder:text-[#9a928a] focus:border-[#2fb8c4] focus:ring-2 focus:ring-[#2fb8c4]/20 sm:text-sm"
-          placeholder="Ecrire un message..."
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              void sendMessage();
-            }
-          }}
-        />
+        {readOnly ? (
+          <div className="flex-1 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+            {readOnlyReason ?? "Les nouveaux messages sont bloques pour cette relation."}
+          </div>
+        ) : (
+          <input
+            ref={inputRef}
+            className="min-h-12 flex-1 rounded-2xl border border-[#d6e7e8] bg-white px-4 py-3 text-base text-[#2f3437] outline-none transition placeholder:text-[#9a928a] focus:border-[#2fb8c4] focus:ring-2 focus:ring-[#2fb8c4]/20 sm:text-sm"
+            placeholder="Ecrire un message..."
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void sendMessage();
+              }
+            }}
+          />
+        )}
 
         <button
           onClick={sendMessage}
-          disabled={sending || !body.trim()}
+          disabled={readOnly || sending || !body.trim()}
           className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#263846] px-5 py-3 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30 disabled:translate-y-0 disabled:opacity-60"
         >
           <SendIcon />

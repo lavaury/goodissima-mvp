@@ -19,7 +19,7 @@
   "dashboard.kpi.highPriority": "Prioritaires",
   "dashboard.kpi.urgent": "Urgents",
   "dashboard.kpi.closed": "Clôturés",
-  "dashboard.recentActivity.title": "Activité récente",
+  "dashboard.recentActivity.title": "Chronologie",
   "dashboard.recentActivity.empty": "Aucune activité récente.",
   "dashboard.activity.newCase": "Nouveau dossier créé",
   "dashboard.activity.ownerMessage": "Message envoyé par propriétaire",

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -20,7 +21,7 @@ function formatRelativeDate(date: Date) {
 }
 
 function formatDuration(minutes: number | null) {
-  if (minutes === null) return "N/A";
+  if (minutes === null) return "Non disponible";
   if (minutes < 60) return `${Math.max(1, Math.round(minutes))} min`;
 
   const hours = minutes / 60;
@@ -39,14 +40,14 @@ function average(values: number[]) {
 
 function statusLabel(status: string) {
   const labels: Record<string, string> = {
-    NEW: "New",
-    WAITING_CANDIDATE: "Waiting candidate",
-    WAITING_OWNER: "Waiting team",
-    REVIEWING: "Reviewing",
-    VALIDATED: "Validated",
-    REJECTED: "Rejected",
-    CLOSED: "Finalized",
-    ARCHIVED: "Archived",
+    NEW: "Nouveau",
+    WAITING_CANDIDATE: "En attente candidat",
+    WAITING_OWNER: "En attente equipe",
+    REVIEWING: "En revue",
+    VALIDATED: "Valide",
+    REJECTED: "Rejete",
+    CLOSED: "Finalise",
+    ARCHIVED: "Archive",
   };
 
   return labels[status] ?? status;
@@ -57,6 +58,7 @@ export default async function AnalyticsPage() {
 
   const { t } = getI18n();
   const owner = await getCurrentPrismaUser();
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const links = await prisma.gLink.findMany({
     where: { ownerId: owner.id },
     orderBy: { createdAt: "desc" },
@@ -159,13 +161,6 @@ export default async function AnalyticsPage() {
       date: document.createdAt,
       badge: "Document",
     })),
-    ...messages.map((message) => ({
-      id: `message-${message.id}`,
-      label: message.senderType === "OWNER" ? t("analytics.activity.teamMessage") : t("analytics.activity.candidateMessage"),
-      detail: message.relationCase.link.title,
-      date: message.createdAt,
-      badge: "Message",
-    })),
     ...completedActions.map((action) => ({
       id: `action-${action.id}`,
       label: t("analytics.activity.completedAction"),
@@ -199,6 +194,7 @@ export default async function AnalyticsPage() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
+          <DashboardBackLink className="mb-4" />
           <h1 className="text-3xl font-bold">{t("analytics.title")}</h1>
           <p className="mt-1 text-slate-500">{t("analytics.subtitle")}</p>
         </div>
@@ -210,7 +206,7 @@ export default async function AnalyticsPage() {
         </div>
       </div>
 
-      <PlatformNavigation active="analytics" />
+      <PlatformNavigation active="analytics" organizationName={organizationName} />
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {kpis.map((kpi) => (
@@ -232,7 +228,7 @@ export default async function AnalyticsPage() {
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">{t("analytics.funnel.title")}</h2>
             <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
-              Demo ready
+              Pret pour demo
             </span>
           </div>
           <div className="mt-5 space-y-4">

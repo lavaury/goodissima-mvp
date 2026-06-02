@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { RelationPriority, RelationStatus } from "@prisma/client";
+import { RelationGovernanceStatus, RelationPriority, RelationStatus } from "@prisma/client";
+import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { sendRelationStatusEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
+import { isRelationGovernanceStatus } from "@/lib/relation-governance";
 
 const relationPriorities = new Set<string>(Object.values(RelationPriority));
 const relationStatuses = new Set<string>(Object.values(RelationStatus));
@@ -24,7 +26,15 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
   try {
     const owner = await getCurrentPrismaUser();
     const body = await req.json();
-    const data: { priority?: RelationPriority; status?: RelationStatus; matchingEnabled?: boolean } = {};
+    const data: {
+      priority?: RelationPriority;
+      status?: RelationStatus;
+      matchingEnabled?: boolean;
+      governanceStatus?: RelationGovernanceStatus;
+      governanceUpdatedAt?: Date;
+      governanceReason?: string | null;
+      closedAt?: Date | null;
+    } = {};
 
     if (body.priority !== undefined) {
       if (typeof body.priority !== "string" || !relationPriorities.has(body.priority)) {
@@ -50,7 +60,21 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
       data.matchingEnabled = body.matchingEnabled;
     }
 
-    if (!data.priority && !data.status && data.matchingEnabled === undefined) {
+    if (body.governanceStatus !== undefined) {
+      if (!isRelationGovernanceStatus(body.governanceStatus)) {
+        return NextResponse.json({ error: "Invalid governanceStatus" }, { status: 400 });
+      }
+
+      data.governanceStatus = body.governanceStatus;
+      data.governanceUpdatedAt = new Date();
+      data.governanceReason =
+        typeof body.governanceReason === "string" && body.governanceReason.trim()
+          ? body.governanceReason.trim().slice(0, 500)
+          : null;
+      data.closedAt = body.governanceStatus === RelationGovernanceStatus.CLOSED ? new Date() : null;
+    }
+
+    if (!data.priority && !data.status && data.matchingEnabled === undefined && !data.governanceStatus) {
       return NextResponse.json({ error: "No changes provided" }, { status: 400 });
     }
 
@@ -64,6 +88,8 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         candidateName: true,
         priority: true,
         status: true,
+        governanceStatus: true,
+        governanceReason: true,
         matchingEnabled: true,
         gLink: { select: { title: true } },
       },
@@ -80,6 +106,9 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         id: true,
         priority: true,
         status: true,
+        governanceStatus: true,
+        governanceUpdatedAt: true,
+        governanceReason: true,
         matchingEnabled: true,
       },
     });
@@ -128,6 +157,31 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
           statusLabel: getStatusEmailLabel(data.status),
         });
       }
+    }
+
+    if (data.governanceStatus && data.governanceStatus !== relationCase.governanceStatus) {
+      await createRelationEvent({
+        caseId: relationCase.id,
+        type: "GOVERNANCE_STATUS_CHANGED",
+        actorType: "OWNER",
+        actorId: owner.id,
+        payload: {
+          from: relationCase.governanceStatus,
+          to: data.governanceStatus,
+          reason: data.governanceReason,
+        },
+      });
+
+      await auditLog({
+        caseId: relationCase.id,
+        actorEmail: owner.email,
+        eventType: "GOVERNANCE_STATUS_CHANGED",
+        metadata: {
+          from: relationCase.governanceStatus,
+          to: data.governanceStatus,
+          reason: data.governanceReason,
+        },
+      });
     }
 
     if (data.matchingEnabled !== undefined && data.matchingEnabled !== relationCase.matchingEnabled) {

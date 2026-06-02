@@ -36,5 +36,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
 
   if (!item) notFound();
 
-  return <RelationCaseWorkspace item={item} senderType="OWNER" debugMode={debugMode} />;
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
+
+  return <RelationCaseWorkspace item={item} senderType="OWNER" organizationName={organizationName} debugMode={debugMode} />;
 }

@@ -7,11 +7,15 @@ export function MatchingOptInPanel({
   caseId,
   initialMatchingEnabled,
   candidateAccessToken,
+  disabled = false,
+  disabledReason,
   senderType,
 }: {
   caseId: string;
   initialMatchingEnabled: boolean;
   candidateAccessToken?: string;
+  disabled?: boolean;
+  disabledReason?: string;
   senderType: "OWNER" | "CANDIDATE";
 }) {
   const toast = useToast();
@@ -20,6 +24,7 @@ export function MatchingOptInPanel({
   const isCandidate = senderType === "CANDIDATE";
 
   async function update(nextEnabled: boolean) {
+    if (disabled) return;
     setSaving(true);
     const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/matching-opt-in`, {
       method: "PATCH",
@@ -53,12 +58,17 @@ export function MatchingOptInPanel({
           <p className="mt-2 text-xs text-slate-500">
             Opt-in uniquement. Aucune identite n'est revelee automatiquement.
           </p>
+          {disabled ? (
+            <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+              {disabledReason ?? "Le matching est bloque pour cette relation."}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={enabled}
-          disabled={saving}
+          disabled={disabled || saving}
           onClick={() => void update(!enabled)}
           className={["relative h-7 w-12 shrink-0 rounded-full transition", enabled ? "bg-slate-900" : "bg-slate-200"].join(" ")}
         >

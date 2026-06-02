@@ -62,11 +62,15 @@ function statusClasses(status: string) {
 export function RelationActionsPanel({
   caseId,
   candidateAccessToken,
+  disabled = false,
+  disabledReason,
   actions,
   editable,
 }: {
   caseId: string;
   candidateAccessToken?: string;
+  disabled?: boolean;
+  disabledReason?: string;
   actions: RelationActionItem[];
   editable: boolean;
 }) {
@@ -84,6 +88,7 @@ export function RelationActionsPanel({
 
   async function createAction(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (disabled) return;
     setCreating(true);
 
     const res = await fetch(`/api/cases/${caseId}/actions`, {
@@ -105,6 +110,7 @@ export function RelationActionsPanel({
   }
 
   async function completeAction(actionId: string) {
+    if (disabled) return;
     setCompletingId(actionId);
 
     const res = await fetch(`/api/cases/${caseId}/actions/${actionId}`, {
@@ -132,6 +138,11 @@ export function RelationActionsPanel({
             {editable ? t("actions.subtitleOwner") : t("actions.subtitleCandidate")}
         </p>
       </div>
+      {disabled ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+          {disabledReason ?? "Les demandes sont bloquees pour cette relation."}
+        </p>
+      ) : null}
 
       {editable ? (
         <form onSubmit={createAction} className="mt-4 space-y-3 rounded-xl bg-slate-50 p-3">
@@ -160,7 +171,7 @@ export function RelationActionsPanel({
           />
           <button
             type="submit"
-            disabled={creating}
+            disabled={disabled || creating}
             className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
             {creating ? t("actions.creating") : t("actions.create")}
@@ -198,7 +209,7 @@ export function RelationActionsPanel({
                 <button
                   type="button"
                   onClick={() => void completeAction(action.id)}
-                  disabled={completingId === action.id}
+                  disabled={disabled || completingId === action.id}
                   className="mt-3 rounded-xl border px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-60"
                 >
                   {completingId === action.id ? "Validation..." : t("actions.markCompleted")}
@@ -208,7 +219,7 @@ export function RelationActionsPanel({
                 <button
                   type="button"
                   onClick={() => void completeAction(action.id)}
-                  disabled={completingId === action.id}
+                  disabled={disabled || completingId === action.id}
                   className="mt-3 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
                 >
                   {completingId === action.id

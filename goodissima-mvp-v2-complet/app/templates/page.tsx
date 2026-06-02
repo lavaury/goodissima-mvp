@@ -5,6 +5,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NewTemplateButton } from "@/components/NewTemplateButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +27,8 @@ function statusLabel(status: string, t: (key: string) => string) {
 export default async function TemplatesPage() {
   noStore();
   const { locale, t } = getI18n();
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const templates = await prisma.formTemplate.findMany({
     include: {
@@ -45,13 +47,14 @@ export default async function TemplatesPage() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-center justify-between gap-4">
         <div>
+          <DashboardBackLink className="mb-4" />
           <h1 className="text-3xl font-bold">{t("studio.title")}</h1>
           <p className="text-slate-500">{t("studio.subtitle")}</p>
         </div>
         <LogoutButton />
       </div>
       <div className="mt-8">
-        <PlatformNavigation active="studio" />
+        <PlatformNavigation active="studio" organizationName={organizationName} />
       </div>
       <div className="mt-6">
         <NewTemplateButton />

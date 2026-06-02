@@ -52,9 +52,9 @@ function LoginForm() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Goodissima Banque
+        Goodissima
       </p>
-      <h1 className="mt-3 text-3xl font-bold">Connexion conseiller</h1>
+      <h1 className="mt-3 text-3xl font-bold">Connexion</h1>
       <form onSubmit={submit} className="mt-8 space-y-4 rounded-2xl border bg-white p-6">
         <input
           className="w-full rounded-xl border px-4 py-3"

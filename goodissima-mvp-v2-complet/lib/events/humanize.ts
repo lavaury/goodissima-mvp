@@ -118,6 +118,12 @@ export function humanizeRelationEvent(eventType: string, payload?: EventPayload)
         category: "Dossier",
         icon: "refresh",
       };
+    case "GOVERNANCE_STATUS_CHANGED":
+      return {
+        title: "Gouvernance relationnelle modifiee",
+        category: "Validation",
+        icon: "shield",
+      };
     default:
       return technicalFallback(eventType);
   }
@@ -125,6 +131,72 @@ export function humanizeRelationEvent(eventType: string, payload?: EventPayload)
 
 export function humanizeAIEvent(action: string): HumanizedEvent {
   switch (action) {
+    case "ACCESS_INVITATION_CREATED":
+      return {
+        title: "Invitation creee",
+        category: "Dossier",
+        icon: "mail-plus",
+      };
+    case "ACCESS_INVITATION_ACCEPTED":
+      return {
+        title: "Invitation acceptee",
+        category: "Dossier",
+        icon: "mail-check",
+      };
+    case "ACCESS_INVITATION_REVOKED":
+      return {
+        title: "Invitation revoquee",
+        category: "Dossier",
+        icon: "mail-x",
+      };
+    case "DOCUMENT_UPLOADED":
+      return {
+        title: "Document ajoute",
+        category: "Documents",
+        icon: "file",
+      };
+    case "CASE_CLOSED":
+      return {
+        title: "Relation cloturee",
+        category: "Validation",
+        icon: "check",
+      };
+    case "CASE_ARCHIVED":
+      return {
+        title: "Dossier archive",
+        category: "Dossier",
+        icon: "archive",
+      };
+    case "CASE_RESTORED":
+      return {
+        title: "Dossier reactive",
+        category: "Dossier",
+        icon: "refresh",
+      };
+    case "CANDIDATE_ACCESS_REVOKED":
+      return {
+        title: "Acces utilisateur bloque",
+        category: "Dossier",
+        icon: "lock",
+      };
+    case "CANDIDATE_ACCESS_REGENERATED":
+      return {
+        title: "Acces utilisateur regenere",
+        category: "Dossier",
+        icon: "key",
+      };
+    case "DEBUG_TEST_CASE_CREATED":
+      return {
+        title: "Action administrative executee",
+        category: "Dossier",
+        icon: "tool",
+      };
+    case "GOVERNANCE_STATUS_CHANGED":
+      return {
+        title: "Gouvernance relationnelle modifiee",
+        category: "Validation",
+        icon: "shield",
+      };
     case "semantic_matching_analysis":
       return {
         title: "Analyse semantique des correspondances effectuee",

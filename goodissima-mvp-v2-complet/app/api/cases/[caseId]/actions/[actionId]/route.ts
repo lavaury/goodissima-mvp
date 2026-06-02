@@ -6,6 +6,7 @@ import { createRelationEvent } from "@/lib/events";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { getRelationActionTypeLabel } from "@/lib/relation-actions";
+import { canCandidateWriteInRelation, canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 export async function PATCH(
   req: Request,
@@ -26,11 +27,18 @@ export async function PATCH(
     if (candidateAccessToken) {
       const relationCase = await prisma.relationCase.findFirst({
         where: { id: params.caseId, ...activeCandidateAccessWhere(candidateAccessToken) },
-        select: { id: true },
+        select: { id: true, governanceStatus: true },
       });
 
       if (!relationCase) {
         return NextResponse.json({ error: "acces candidat invalide" }, { status: 404 });
+      }
+
+      if (!canCandidateWriteInRelation(relationCase.governanceStatus)) {
+        return NextResponse.json(
+          { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+          { status: 409 },
+        );
       }
     }
 
@@ -49,6 +57,7 @@ export async function PATCH(
         relationCase: {
           select: {
             id: true,
+            governanceStatus: true,
             candidateEmail: true,
             candidateName: true,
             gLink: { select: { title: true } },
@@ -60,6 +69,13 @@ export async function PATCH(
 
     if (!action) {
       return NextResponse.json({ error: "action introuvable" }, { status: 404 });
+    }
+
+    if (!candidateAccessToken && !canWriteInRelation(action.relationCase.governanceStatus)) {
+      return NextResponse.json(
+        { error: getRelationGovernanceBlockedMessage(action.relationCase.governanceStatus) },
+        { status: 409 },
+      );
     }
 
     if (action.status === "COMPLETED") {

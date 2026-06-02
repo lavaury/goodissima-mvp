@@ -3,6 +3,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { cleanAITimelineAction, mapAITimelineActionToRelationActionType } from "@/lib/ai/actions";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 export async function POST(req: Request, { params }: { params: { caseId: string } }) {
   try {
@@ -16,11 +17,18 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
 
     const relationCase = await prisma.relationCase.findFirst({
       where: { id: params.caseId, ownerId: owner.id },
-      select: { id: true },
+      select: { id: true, governanceStatus: true },
     });
 
     if (!relationCase) {
       return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+    }
+
+    if (!canWriteInRelation(relationCase.governanceStatus)) {
+      return NextResponse.json(
+        { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+        { status: 409 },
+      );
     }
 
     const relationActionType = mapAITimelineActionToRelationActionType(suggestion.type);

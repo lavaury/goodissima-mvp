@@ -5,6 +5,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ async function resolveCaseForAccess(params: {
   if (params.candidateAccessToken) {
     return prisma.relationCase.findFirst({
       where: activeCandidateAccessWhere(params.candidateAccessToken),
-      select: { id: true, candidateEmail: true, owner: { select: { email: true } } },
+      select: { id: true, candidateEmail: true, governanceStatus: true, owner: { select: { email: true } } },
     });
   }
 
@@ -30,7 +31,7 @@ async function resolveCaseForAccess(params: {
 
   return prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
-    select: { id: true, candidateEmail: true, owner: { select: { email: true } } },
+    select: { id: true, candidateEmail: true, governanceStatus: true, owner: { select: { email: true } } },
   });
 }
 
@@ -75,6 +76,13 @@ export async function POST(req: Request) {
 
   if (!relationCase) {
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
+  }
+
+  if (!canWriteInRelation(relationCase.governanceStatus)) {
+    return NextResponse.json(
+      { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+      { status: 409 },
+    );
   }
 
   const uploadedByEmail = body.candidateAccessToken

@@ -8,6 +8,7 @@ import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ async function resolveCaseForAccess(params: {
         candidateEmail: true,
         candidateEmailNotificationsEnabled: true,
         candidateName: true,
+        governanceStatus: true,
         gLink: { select: { title: true } },
         owner: { select: { email: true, notificationPreferences: true } },
       },
@@ -47,6 +49,7 @@ async function resolveCaseForAccess(params: {
       candidateEmail: true,
       candidateEmailNotificationsEnabled: true,
       candidateName: true,
+      governanceStatus: true,
       gLink: { select: { title: true } },
       owner: { select: { email: true, notificationPreferences: true } },
     },
@@ -96,6 +99,13 @@ export async function POST(req: Request) {
 
   if (!relationCase) {
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
+  }
+
+  if (!canWriteInRelation(relationCase.governanceStatus)) {
+    return NextResponse.json(
+      { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
+      { status: 409 },
+    );
   }
 
   const senderEmail =
