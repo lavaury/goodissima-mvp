@@ -8,6 +8,7 @@ import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
+import { StatusBadge } from "@/components/StatusBadge";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import type { ConditionalRule } from "@/lib/form-rules";
@@ -71,6 +72,13 @@ function getAppUrl() {
   return process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 }
 
+function formatDateTime(date: Date) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export default async function LinkCreatedPage({ params }: { params: { linkId: string } }) {
   noStore();
 
@@ -83,8 +91,22 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
       templateVersion: true,
       cases: {
         orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { candidateAccessToken: true },
+        select: {
+          id: true,
+          candidateAccessToken: true,
+          candidateName: true,
+          candidateEmail: true,
+          candidateEmailNotificationsEnabled: true,
+          createdAt: true,
+          status: true,
+          governanceStatus: true,
+          _count: {
+            select: {
+              messages: true,
+              documents: true,
+            },
+          },
+        },
       },
     },
   });
@@ -209,6 +231,77 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           </div>
         </section>
       ) : null}
+
+      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-wide text-slate-500">Reponses recues</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Dossiers issus de ce lien</h2>
+            <p className="mt-1 text-sm text-slate-500">Chaque candidat dispose de son propre dossier.</p>
+          </div>
+          <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+            {link.cases.length} dossier{link.cases.length > 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {link.cases.length === 0 ? (
+          <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucun dossier pour ce lien.</p>
+        ) : (
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <div className="hidden grid-cols-[1.5fr_1.6fr_1fr_1fr_1fr_1fr_auto] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid">
+              <span>Candidat</span>
+              <span>Email</span>
+              <span>Date</span>
+              <span>Statut</span>
+              <span>Gouvernance</span>
+              <span>Activite</span>
+              <span className="text-right">Action</span>
+            </div>
+            <div className="divide-y">
+              {link.cases.map((relationCase) => {
+                const candidateEmail =
+                  relationCase.candidateEmailNotificationsEnabled ||
+                  relationCase.candidateEmail.endsWith("@goodissima.local")
+                    ? "Canal prive"
+                    : relationCase.candidateEmail;
+
+                return (
+                  <div
+                    key={relationCase.id}
+                    className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.5fr_1.6fr_1fr_1fr_1fr_1fr_auto] lg:items-center"
+                  >
+                    <div>
+                      <p className="font-medium text-slate-950">{relationCase.candidateName}</p>
+                      <p className="mt-1 text-xs text-slate-500 lg:hidden">{candidateEmail}</p>
+                    </div>
+                    <p className="hidden break-all text-slate-600 lg:block">{candidateEmail}</p>
+                    <p className="text-slate-600">{formatDateTime(relationCase.createdAt)}</p>
+                    <div>
+                      <StatusBadge status={relationCase.status} />
+                    </div>
+                    <div>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                        {relationCase.governanceStatus}
+                      </span>
+                    </div>
+                    <p className="text-slate-600">
+                      {relationCase._count.messages} message{relationCase._count.messages > 1 ? "s" : ""} -{" "}
+                      {relationCase._count.documents} document{relationCase._count.documents > 1 ? "s" : ""}
+                    </p>
+                    <Link
+                      href={`/cases/${relationCase.id}?refresh=1`}
+                      prefetch={false}
+                      className="rounded-xl bg-slate-900 px-4 py-2 text-center text-sm font-medium text-white"
+                    >
+                      Ouvrir le dossier
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
 
       <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

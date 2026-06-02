@@ -30,6 +30,7 @@ export function LinkCard({
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
   const latestCase = item.cases?.[0];
   const latestCasePath = latestCase ? `/cases/${latestCase.id}?refresh=1` : null;
+  const linkCasesPath = `/links/${item.id}`;
   const caseCount = item.cases?.length ?? 0;
   const [shared, setShared] = useState(false);
   const toast = useToast();
@@ -93,7 +94,10 @@ export function LinkCard({
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
           Tester parcours
         </Link>
-        {!debugMode && latestCase ? (
+        {!debugMode && caseCount === 0 ? (
+          <span className="px-4 py-2 text-sm text-slate-500">Aucun dossier</span>
+        ) : null}
+        {!debugMode && caseCount === 1 && latestCase ? (
           <Link
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
             href={latestCasePath!}
@@ -102,8 +106,14 @@ export function LinkCard({
             Ouvrir le dossier
           </Link>
         ) : null}
-        {!debugMode && !latestCase ? (
-          <span className="px-4 py-2 text-sm text-slate-500">En attente de contact</span>
+        {!debugMode && caseCount > 1 ? (
+          <Link
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
+            href={linkCasesPath}
+            prefetch={false}
+          >
+            Voir les {caseCount} dossiers
+          </Link>
         ) : null}
       </div>
 
