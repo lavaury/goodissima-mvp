@@ -68,6 +68,11 @@ export function DocumentUpload({
     }
 
     toast.success("Document ajoute");
+    window.dispatchEvent(
+      new CustomEvent("goodissima:documents-updated", {
+        detail: { caseId, candidateAccessToken },
+      }),
+    );
     if (photoInputRef.current) photoInputRef.current.value = "";
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (mobileDocumentInputRef.current) mobileDocumentInputRef.current.value = "";

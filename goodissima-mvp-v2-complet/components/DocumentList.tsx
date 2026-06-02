@@ -59,6 +59,24 @@ export function DocumentList({
     void loadDocuments();
   }, [loadDocuments]);
 
+  useEffect(() => {
+    setFreshDocuments(documents);
+  }, [documents]);
+
+  useEffect(() => {
+    function refreshDocuments(event: Event) {
+      const detail = (event as CustomEvent<{ caseId?: string; candidateAccessToken?: string }>).detail;
+      const sameOwnerCase = Boolean(caseId && detail?.caseId === caseId);
+      const sameCandidateCase = Boolean(candidateAccessToken && detail?.candidateAccessToken === candidateAccessToken);
+
+      if (!sameOwnerCase && !sameCandidateCase) return;
+      void loadDocuments();
+    }
+
+    window.addEventListener("goodissima:documents-updated", refreshDocuments);
+    return () => window.removeEventListener("goodissima:documents-updated", refreshDocuments);
+  }, [caseId, candidateAccessToken, loadDocuments]);
+
   async function openDocument(documentId: string) {
     const res = await fetch(`/api/documents/${encodeURIComponent(documentId)}/signed-url`, {
       method: "POST",
