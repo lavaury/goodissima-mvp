@@ -13,6 +13,10 @@ import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import {
+  evaluateRelationAdmissionPolicyV1,
+  resolveAdmissionTrustPolicyForLink,
+} from "@/lib/trust-policy";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -201,27 +205,81 @@ export async function POST(req: Request) {
   }
 
   const relationTemplate = await getRelationTemplateForLink(gLink.templateId);
+  const admissionTrustPolicy = await resolveAdmissionTrustPolicyForLink(prisma, {
+    gLinkId: gLink.id,
+    templateId: relationTemplate?.id,
+  });
+  const admissionEvaluation = evaluateRelationAdmissionPolicyV1({
+    policy: admissionTrustPolicy.policy,
+    candidateEmail,
+    candidateConsentAccepted: false,
+  });
 
-  const relationCase = await prisma.relationCase.create({
-    data: {
+  if (!admissionEvaluation.allowed) {
+    console.warn("[trust-policy] Relation admission blocked", {
+      route: "app/api/cases/route.ts",
       gLinkId: gLink.id,
-      ownerId: gLink.ownerId,
-      templateId: relationTemplate?.id,
-      candidateAccessToken: createCandidateAccessToken(),
-      candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
-      candidateName,
-      candidateEmail,
-      candidateEmailNotificationsEnabled: wantsCandidateNotifications,
-      status: RelationStatus.NEW,
-    },
-    select: {
-      id: true,
-      candidateAccessToken: true,
-      candidateName: true,
-      candidateEmailNotificationsEnabled: true,
-      owner: { select: { email: true, notificationPreferences: true } },
-      gLink: { select: { title: true } },
-    },
+      templateId: relationTemplate?.id ?? null,
+      source: admissionTrustPolicy.source,
+      reasons: admissionEvaluation.reasons,
+      missingRequirements: admissionEvaluation.missingRequirements,
+    });
+
+    return NextResponse.json(
+      {
+        error: "Admission dans la relation bloquée par la Trust Policy.",
+        reasons: admissionEvaluation.reasons,
+        missingRequirements: admissionEvaluation.missingRequirements,
+      },
+      { status: 403 },
+    );
+  }
+
+  const relationCase = await prisma.$transaction(async (tx) => {
+    const createdRelationCase = await tx.relationCase.create({
+      data: {
+        gLinkId: gLink.id,
+        ownerId: gLink.ownerId,
+        templateId: relationTemplate?.id,
+        candidateAccessToken: createCandidateAccessToken(),
+        candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
+        candidateName,
+        candidateEmail,
+        candidateEmailNotificationsEnabled: wantsCandidateNotifications,
+        status: RelationStatus.NEW,
+      },
+      select: {
+        id: true,
+        candidateAccessToken: true,
+        candidateName: true,
+        candidateEmailNotificationsEnabled: true,
+        owner: { select: { email: true, notificationPreferences: true } },
+        gLink: { select: { title: true } },
+      },
+    });
+
+    if (admissionTrustPolicy.policy && admissionTrustPolicy.source) {
+      await tx.trustPolicy.create({
+        data: {
+          scope: "RELATION_CASE",
+          relationCaseId: createdRelationCase.id,
+          accessMode: admissionTrustPolicy.policy.accessMode,
+          candidateCanRead: admissionTrustPolicy.policy.candidateCanRead,
+          candidateCanWrite: admissionTrustPolicy.policy.candidateCanWrite,
+          ownerCanRead: admissionTrustPolicy.policy.ownerCanRead,
+          ownerCanWrite: admissionTrustPolicy.policy.ownerCanWrite,
+          requireCandidateEmail: admissionTrustPolicy.policy.requireCandidateEmail,
+          requireCandidateConsent: admissionTrustPolicy.policy.requireCandidateConsent,
+          allowDocuments: admissionTrustPolicy.policy.allowDocuments,
+          candidateTokenTtlDays: admissionTrustPolicy.policy.candidateTokenTtlDays,
+          status: admissionTrustPolicy.policy.status,
+          version: admissionTrustPolicy.policy.version,
+          reason: `Snapshot admission ${admissionTrustPolicy.source}`,
+        },
+      });
+    }
+
+    return createdRelationCase;
   });
 
   const message = await prisma.message.create({

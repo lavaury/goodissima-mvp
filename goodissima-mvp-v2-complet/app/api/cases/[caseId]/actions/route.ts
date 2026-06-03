@@ -6,6 +6,7 @@ import { createRelationEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
 import { getRelationActionTypeLabel, isRelationActionType } from "@/lib/relation-actions";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import { evaluateTrustPolicyV1, resolveRelationCaseTrustPolicy } from "@/lib/trust-policy";
 
 export async function POST(req: Request, { params }: { params: { caseId: string } }) {
   try {
@@ -43,6 +44,33 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       return NextResponse.json(
         { error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) },
         { status: 409 },
+      );
+    }
+
+    const trustPolicy = await resolveRelationCaseTrustPolicy(prisma, relationCase.id);
+    const trustPolicyEvaluation = evaluateTrustPolicyV1({
+      policy: trustPolicy,
+      actorRole: "OWNER",
+      action: "WRITE",
+    });
+
+    if (!trustPolicyEvaluation.allowed) {
+      console.warn("[trust-policy] Relation action creation blocked", {
+        route: "app/api/cases/[caseId]/actions/route.ts",
+        caseId: relationCase.id,
+        actorRole: "OWNER",
+        action: "WRITE",
+        reasons: trustPolicyEvaluation.reasons,
+        missingRequirements: trustPolicyEvaluation.missingRequirements,
+      });
+
+      return NextResponse.json(
+        {
+          error: "Création d'action bloquée par la Trust Policy.",
+          reasons: trustPolicyEvaluation.reasons,
+          missingRequirements: trustPolicyEvaluation.missingRequirements,
+        },
+        { status: 403 },
       );
     }
 

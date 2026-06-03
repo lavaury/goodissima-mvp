@@ -58,6 +58,24 @@ enum AccessInvitationStatus {
   REVOKED
 }
 
+enum TrustPolicyScope {
+  TEMPLATE
+  GLINK
+  RELATION_CASE
+}
+
+enum TrustPolicyAccessMode {
+  PUBLIC_LINK
+  INVITED_OWNER_ONLY
+  TOKEN_HOLDER
+  MANUAL_REVIEW
+}
+
+enum TrustPolicyStatus {
+  ACTIVE
+  DISABLED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -122,6 +140,7 @@ model GLink {
   template        RelationTemplate? @relation(fields: [templateId], references: [id])
   templateVersion TemplateVersion?  @relation(fields: [templateVersionId], references: [id])
   cases           RelationCase[]
+  trustPolicies   TrustPolicy[]
 }
 
 model RelationCase {
@@ -159,6 +178,7 @@ model RelationCase {
   aiEvents        AIEvent[]
   embeddings      RelationEmbedding[]
   embeddingJobs   EmbeddingJob[]
+  trustPolicies   TrustPolicy[]
 
   @@index([governanceStatus])
 }
@@ -214,6 +234,41 @@ model RelationTemplate {
   links         GLink[]
   formTemplates FormTemplate[]
   versions      TemplateVersion[]
+  trustPolicies TrustPolicy[]
+}
+
+model TrustPolicy {
+  id String @id @default(cuid())
+
+  scope          TrustPolicyScope
+  templateId     String?
+  gLinkId        String?
+  relationCaseId String?
+
+  accessMode              TrustPolicyAccessMode @default(PUBLIC_LINK)
+  candidateCanRead        Boolean               @default(true)
+  candidateCanWrite       Boolean               @default(true)
+  ownerCanRead            Boolean               @default(true)
+  ownerCanWrite           Boolean               @default(true)
+  requireCandidateEmail   Boolean               @default(true)
+  requireCandidateConsent Boolean               @default(false)
+  allowDocuments          Boolean               @default(true)
+  candidateTokenTtlDays   Int                   @default(30)
+  status                  TrustPolicyStatus     @default(ACTIVE)
+  reason                  String?
+  version                 Int                   @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template     RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  gLink        GLink?            @relation(fields: [gLinkId], references: [id], onDelete: SetNull)
+  relationCase RelationCase?     @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+
+  @@index([scope, status])
+  @@index([templateId])
+  @@index([gLinkId])
+  @@index([relationCaseId])
 }
 
 model AIEvent {
