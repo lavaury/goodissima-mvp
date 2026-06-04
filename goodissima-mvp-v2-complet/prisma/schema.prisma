@@ -100,6 +100,23 @@ enum IdentityStatus {
   REVOKED
 }
 
+enum TrustCredentialStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  REVOKED
+}
+
+enum TrustClaimType {
+  STRING
+  BOOLEAN
+  INTEGER
+  DECIMAL
+  DATE
+  DATETIME
+  JSON
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -303,6 +320,8 @@ model CredentialType {
   status      CredentialTypeStatus
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
+
+  credentials TrustCredential[]
 }
 
 model TrustedOrganization {
@@ -315,6 +334,8 @@ model TrustedOrganization {
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
+  issuedCredentials TrustCredential[]
+
   @@index([organizationId])
   @@index([status])
 }
@@ -325,6 +346,47 @@ model GoodissimaIdentity {
   status    IdentityStatus
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+
+  credentials TrustCredential[]
+}
+
+model TrustCredential {
+  id                          String                @id @default(cuid())
+  identityId                  String
+  credentialTypeId            String
+  issuerTrustedOrganizationId String
+  status                      TrustCredentialStatus
+  issuedAt                    DateTime
+  expiresAt                   DateTime?
+  revokedAt                   DateTime?
+  revocationReason            String?
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+
+  identity                  GoodissimaIdentity   @relation(fields: [identityId], references: [id])
+  credentialType            CredentialType       @relation(fields: [credentialTypeId], references: [id])
+  issuerTrustedOrganization TrustedOrganization  @relation(fields: [issuerTrustedOrganizationId], references: [id])
+  claims                    TrustClaim[]
+
+  @@index([identityId])
+  @@index([credentialTypeId])
+  @@index([issuerTrustedOrganizationId])
+  @@index([status])
+}
+
+model TrustClaim {
+  id           String         @id @default(cuid())
+  credentialId String
+  claimKey     String
+  claimType    TrustClaimType
+  claimValue   Json
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  credential TrustCredential @relation(fields: [credentialId], references: [id])
+
+  @@index([credentialId])
+  @@index([claimKey])
 }
 
 model AIEvent {
