@@ -76,6 +76,30 @@ enum TrustPolicyStatus {
   DISABLED
 }
 
+enum CredentialTypeStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TrustedOrganizationStatus {
+  PENDING
+  TRUSTED
+  SUSPENDED
+  REVOKED
+}
+
+enum IdentityType {
+  PERSON
+  ORGANIZATION
+}
+
+enum IdentityStatus {
+  UNVERIFIED
+  VERIFIED
+  SUSPENDED
+  REVOKED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -269,6 +293,38 @@ model TrustPolicy {
   @@index([templateId])
   @@index([gLinkId])
   @@index([relationCaseId])
+}
+
+model CredentialType {
+  id          String               @id @default(cuid())
+  code        String               @unique
+  name        String
+  description String?
+  status      CredentialTypeStatus
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model TrustedOrganization {
+  id             String                    @id @default(cuid())
+  organizationId String
+  status         TrustedOrganizationStatus
+  approvedAt     DateTime?
+  approvedBy     String?
+  reason         String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model GoodissimaIdentity {
+  id        String         @id @default(cuid())
+  type      IdentityType
+  status    IdentityStatus
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 model AIEvent {
