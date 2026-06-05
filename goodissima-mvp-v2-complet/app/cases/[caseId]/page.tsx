@@ -16,6 +16,16 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
     where: { id: params.caseId, ownerId: owner.id },
     include: {
       gLink: true,
+      candidateIdentity: {
+        select: {
+          id: true,
+          status: true,
+          credentials: {
+            where: { status: "ACTIVE" },
+            select: { id: true },
+          },
+        },
+      },
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
       relationActions: { orderBy: [{ status: "asc" }, { createdAt: "desc" }] },

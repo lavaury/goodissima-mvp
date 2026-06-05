@@ -16,7 +16,7 @@ import {
 } from "@/lib/relation-actions";
 import { humanizeAIEvent, humanizeRelationEvent } from "@/lib/events/humanize";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
-import type { Prisma, RelationGovernanceStatus, RelationPriority, RelationStatus } from "@prisma/client";
+import type { IdentityStatus, Prisma, RelationGovernanceStatus, RelationPriority, RelationStatus } from "@prisma/client";
 import Image from "next/image";
 
 type RelationCaseWorkspaceItem = {
@@ -32,6 +32,11 @@ type RelationCaseWorkspaceItem = {
   governanceStatus: RelationGovernanceStatus;
   governanceUpdatedAt?: Date | string | null;
   governanceReason?: string | null;
+  candidateIdentity?: {
+    id: string;
+    status: IdentityStatus;
+    credentials: Array<{ id: string }>;
+  } | null;
   gLink: { title: string; slug?: string | null };
   createdAt: Date | string;
   messages: Array<{
@@ -281,6 +286,10 @@ function formatSubmissionAnswer(value: Prisma.JsonValue): string {
   return JSON.stringify(value);
 }
 
+function getActiveCredentialCountLabel(count: number) {
+  return `${count} credential${count > 1 ? "s" : ""} actif${count > 1 ? "s" : ""}`;
+}
+
 function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
   const eventDocumentIds = new Set(
     item.relationEvents
@@ -463,6 +472,39 @@ export function RelationCaseWorkspace({
               status={item.governanceStatus}
               reason={item.governanceReason}
             />
+          ) : null}
+          {senderType === "OWNER" ? (
+            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+                Confiance
+                <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+              </summary>
+              <div className="mt-3 space-y-2 text-xs">
+                {!item.candidateIdentity ? (
+                  <p className="rounded-lg bg-[#f6f0e8] px-3 py-2 text-[#766f68]">
+                    Identite candidat non rattachee
+                  </p>
+                ) : (
+                  <>
+                    <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
+                      <p className="font-medium text-[#766f68]">Statut identite</p>
+                      <p className="mt-0.5 font-semibold text-[#2f3437]">{item.candidateIdentity.status}</p>
+                    </div>
+                    <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
+                      <p className="font-medium text-[#766f68]">Credentials actifs</p>
+                      <p className="mt-0.5 font-semibold text-[#2f3437]">
+                        {getActiveCredentialCountLabel(item.candidateIdentity.credentials.length)}
+                      </p>
+                    </div>
+                    {debugMode ? (
+                      <p className="break-all rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                        Identity ID: {item.candidateIdentity.id}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </details>
           ) : null}
           <RelationActionsPanel
             caseId={item.id}
