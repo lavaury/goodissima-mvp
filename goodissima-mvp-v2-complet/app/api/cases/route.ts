@@ -291,11 +291,19 @@ export async function POST(req: Request) {
   }
 
   const relationCase = await prisma.$transaction(async (tx) => {
+    const candidateIdentity = await tx.goodissimaIdentity.create({
+      data: {
+        type: "PERSON",
+        status: "UNVERIFIED",
+      },
+    });
+
     const createdRelationCase = await tx.relationCase.create({
       data: {
         gLinkId: gLink.id,
         ownerId: gLink.ownerId,
         templateId: relationTemplate?.id,
+        candidateIdentityId: candidateIdentity.id,
         candidateAccessToken: createCandidateAccessToken(),
         candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
         candidateName,
@@ -311,6 +319,12 @@ export async function POST(req: Request) {
         owner: { select: { email: true, notificationPreferences: true } },
         gLink: { select: { title: true } },
       },
+    });
+
+    console.info("[trust-identity] Candidate identity created for relation case", {
+      relationCaseId: createdRelationCase.id,
+      candidateIdentityId: candidateIdentity.id,
+      identityCreated: true,
     });
 
     if (admissionTrustPolicy.policy && admissionTrustPolicy.source) {
