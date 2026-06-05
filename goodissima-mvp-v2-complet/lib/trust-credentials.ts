@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 
 export type TrustCredentialServiceClient = Pick<PrismaClient, "$transaction">;
+export type TrustCredentialTransactionClient = Prisma.TransactionClient;
 
 export type IssueTrustClaimInput = {
   claimKey: string;
@@ -30,6 +31,12 @@ export type RevokeTrustCredentialInput = {
 
 export type ExpireTrustCredentialInput = {
   credentialId: string;
+};
+
+export type IssueCandidateCreatedCredentialInput = {
+  identityId: string;
+  relationCaseId: string;
+  source?: string;
 };
 
 export type TrustCredentialWithDetails = Prisma.TrustCredentialGetPayload<{
@@ -61,55 +68,116 @@ export async function issueTrustCredential(
   prisma: TrustCredentialServiceClient,
   input: IssueTrustCredentialInput,
 ): Promise<TrustCredentialWithDetails> {
-  return prisma.$transaction(async (tx) => {
-    const [identity, credentialType, issuerTrustedOrganization] = await Promise.all([
-      tx.goodissimaIdentity.findUnique({
-        where: { id: input.identityId },
-        select: { id: true },
-      }),
-      tx.credentialType.findUnique({
-        where: { id: input.credentialTypeId },
-        select: { id: true },
-      }),
-      tx.trustedOrganization.findUnique({
-        where: { id: input.issuerTrustedOrganizationId },
-        select: { id: true },
-      }),
-    ]);
+  return prisma.$transaction((tx) => issueTrustCredentialInTransaction(tx, input));
+}
 
-    if (!identity) {
-      throw new TrustCredentialReferenceError("GoodissimaIdentity", input.identityId);
-    }
+export async function issueTrustCredentialInTransaction(
+  tx: TrustCredentialTransactionClient,
+  input: IssueTrustCredentialInput,
+): Promise<TrustCredentialWithDetails> {
+  const [identity, credentialType, issuerTrustedOrganization] = await Promise.all([
+    tx.goodissimaIdentity.findUnique({
+      where: { id: input.identityId },
+      select: { id: true },
+    }),
+    tx.credentialType.findUnique({
+      where: { id: input.credentialTypeId },
+      select: { id: true },
+    }),
+    tx.trustedOrganization.findUnique({
+      where: { id: input.issuerTrustedOrganizationId },
+      select: { id: true },
+    }),
+  ]);
 
-    if (!credentialType) {
-      throw new TrustCredentialReferenceError("CredentialType", input.credentialTypeId);
-    }
+  if (!identity) {
+    throw new TrustCredentialReferenceError("GoodissimaIdentity", input.identityId);
+  }
 
-    if (!issuerTrustedOrganization) {
-      throw new TrustCredentialReferenceError(
-        "TrustedOrganization",
-        input.issuerTrustedOrganizationId,
-      );
-    }
+  if (!credentialType) {
+    throw new TrustCredentialReferenceError("CredentialType", input.credentialTypeId);
+  }
 
-    return tx.trustCredential.create({
-      data: {
-        identityId: input.identityId,
-        credentialTypeId: input.credentialTypeId,
-        issuerTrustedOrganizationId: input.issuerTrustedOrganizationId,
-        status: TrustCredentialStatus.ACTIVE,
-        issuedAt: input.issuedAt ?? new Date(),
-        expiresAt: input.expiresAt ?? null,
-        claims: {
-          create: (input.claims ?? []).map((claim) => ({
-            claimKey: claim.claimKey,
-            claimType: claim.claimType,
-            claimValue: claim.claimValue,
-          })),
-        },
+  if (!issuerTrustedOrganization) {
+    throw new TrustCredentialReferenceError(
+      "TrustedOrganization",
+      input.issuerTrustedOrganizationId,
+    );
+  }
+
+  return tx.trustCredential.create({
+    data: {
+      identityId: input.identityId,
+      credentialTypeId: input.credentialTypeId,
+      issuerTrustedOrganizationId: input.issuerTrustedOrganizationId,
+      status: TrustCredentialStatus.ACTIVE,
+      issuedAt: input.issuedAt ?? new Date(),
+      expiresAt: input.expiresAt ?? null,
+      claims: {
+        create: (input.claims ?? []).map((claim) => ({
+          claimKey: claim.claimKey,
+          claimType: claim.claimType,
+          claimValue: claim.claimValue,
+        })),
       },
-      include: trustCredentialDetailsInclude,
-    });
+    },
+    include: trustCredentialDetailsInclude,
+  });
+}
+
+export async function issueCandidateCreatedCredentialInTransaction(
+  tx: TrustCredentialTransactionClient,
+  input: IssueCandidateCreatedCredentialInput,
+): Promise<TrustCredentialWithDetails> {
+  const [credentialType, issuerTrustedOrganization] = await Promise.all([
+    tx.credentialType.findUnique({
+      where: { code: "CANDIDATE_CREATED" },
+      select: { id: true },
+    }),
+    tx.trustedOrganization.findFirst({
+      where: {
+        organizationId: "GOODISSIMA_SYSTEM",
+        status: "TRUSTED",
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!credentialType) {
+    throw new TrustCredentialReferenceError("CredentialType", "CANDIDATE_CREATED");
+  }
+
+  if (!issuerTrustedOrganization) {
+    throw new TrustCredentialReferenceError("TrustedOrganization", "GOODISSIMA_SYSTEM");
+  }
+
+  return issueTrustCredentialInTransaction(tx, {
+    identityId: input.identityId,
+    credentialTypeId: credentialType.id,
+    issuerTrustedOrganizationId: issuerTrustedOrganization.id,
+    claims: [
+      {
+        claimKey: "source",
+        claimType: TrustClaimType.STRING,
+        claimValue: input.source ?? "RELATION_CASE_ADMISSION",
+      },
+      {
+        claimKey: "relationCaseId",
+        claimType: TrustClaimType.STRING,
+        claimValue: input.relationCaseId,
+      },
+      {
+        claimKey: "identityStatusAtCreation",
+        claimType: TrustClaimType.STRING,
+        claimValue: "UNVERIFIED",
+      },
+      {
+        claimKey: "createdBySystem",
+        claimType: TrustClaimType.BOOLEAN,
+        claimValue: true,
+      },
+    ],
   });
 }
 

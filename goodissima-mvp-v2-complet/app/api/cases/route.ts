@@ -14,6 +14,7 @@ import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import { evaluateTrustAdmission } from "@/lib/trust-admission";
+import { issueCandidateCreatedCredentialInTransaction } from "@/lib/trust-credentials";
 import {
   evaluateRelationAdmissionPolicyV1,
   resolveAdmissionTrustPolicyForLink,
@@ -326,6 +327,28 @@ export async function POST(req: Request) {
       candidateIdentityId: candidateIdentity.id,
       identityCreated: true,
     });
+
+    try {
+      const candidateCreatedCredential = await issueCandidateCreatedCredentialInTransaction(tx, {
+        identityId: candidateIdentity.id,
+        relationCaseId: createdRelationCase.id,
+        source: "RELATION_CASE_ADMISSION",
+      });
+
+      console.info("[trust-credential] Candidate-created credential issued", {
+        relationCaseId: createdRelationCase.id,
+        candidateIdentityId: candidateIdentity.id,
+        credentialType: "CANDIDATE_CREATED",
+        credentialId: candidateCreatedCredential.id,
+      });
+    } catch (error) {
+      console.warn("[trust-credential] Candidate-created credential not issued", {
+        relationCaseId: createdRelationCase.id,
+        candidateIdentityId: candidateIdentity.id,
+        credentialType: "CANDIDATE_CREATED",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     if (admissionTrustPolicy.policy && admissionTrustPolicy.source) {
       await tx.trustPolicy.create({
