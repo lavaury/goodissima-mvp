@@ -13,6 +13,7 @@ import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import { evaluateTrustAdmission } from "@/lib/trust-admission";
 import {
   evaluateRelationAdmissionPolicyV1,
   resolveAdmissionTrustPolicyForLink,
@@ -50,6 +51,25 @@ function withCandidateCookie(token: string, gLinkId: string) {
   });
 
   return response;
+}
+
+function isTrustAdmissionDryRunEnabledForGLink(gLinkId: string) {
+  if (process.env.TRUST_ADMISSION_CREDENTIALS_DRY_RUN !== "true") {
+    return false;
+  }
+
+  const pilotGLinkIds = (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return pilotGLinkIds.includes(gLinkId);
+}
+
+function getCandidateIdentityIdFromBody(body: Record<string, unknown>) {
+  return typeof body.candidateIdentityId === "string" && body.candidateIdentityId.trim()
+    ? body.candidateIdentityId.trim()
+    : null;
 }
 
 export async function POST(req: Request) {
@@ -233,6 +253,41 @@ export async function POST(req: Request) {
       },
       { status: 403 },
     );
+  }
+
+  if (
+    admissionTrustPolicy.policy &&
+    isTrustAdmissionDryRunEnabledForGLink(gLink.id)
+  ) {
+    const candidateIdentityId = getCandidateIdentityIdFromBody(body);
+
+    try {
+      const credentialAdmissionEvaluation = await evaluateTrustAdmission(prisma, {
+        trustPolicyId: admissionTrustPolicy.policy.id,
+        candidateIdentityId,
+      });
+
+      console.info("[trust-admission] Credential admission dry-run", {
+        route: "app/api/cases/route.ts",
+        gLinkId: gLink.id,
+        trustPolicyId: admissionTrustPolicy.policy.id,
+        candidateIdentityId,
+        allowed: credentialAdmissionEvaluation.allowed,
+        requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+        satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
+        missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+        reasons: credentialAdmissionEvaluation.reasons,
+        missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+      });
+    } catch (error) {
+      console.warn("[trust-admission] Credential admission dry-run failed", {
+        route: "app/api/cases/route.ts",
+        gLinkId: gLink.id,
+        trustPolicyId: admissionTrustPolicy.policy.id,
+        candidateIdentityId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   const relationCase = await prisma.$transaction(async (tx) => {

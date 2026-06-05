@@ -6,6 +6,7 @@ export type TrustPolicyAction = "READ" | "WRITE" | "UPLOAD_DOCUMENT";
 
 export type TrustPolicyV1Policy = Pick<
   TrustPolicy,
+  | "id"
   | "status"
   | "candidateCanRead"
   | "candidateCanWrite"
@@ -63,6 +64,7 @@ type TrustPolicyResolverClient = {
 };
 
 const trustPolicyV1Select: Record<keyof TrustPolicyV1Policy, true> = {
+  id: true,
   status: true,
   candidateCanRead: true,
   candidateCanWrite: true,
