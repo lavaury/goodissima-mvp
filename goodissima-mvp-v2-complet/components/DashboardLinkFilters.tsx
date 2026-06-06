@@ -11,6 +11,7 @@ type DashboardLink = {
   templateName?: string | null;
   templateStatus?: string | null;
   templateVersion?: number | null;
+  isTrustAdmissionPilot?: boolean;
   openActionCount?: number;
   cases?: Array<{
     id: string;
@@ -96,9 +97,11 @@ function matchesSearch(item: DashboardLink, query: string) {
 export function DashboardLinkFilters({
   links,
   debugMode = false,
+  showVerifiedAdmissionLinkPanel = false,
 }: {
   links: DashboardLink[];
   debugMode?: boolean;
+  showVerifiedAdmissionLinkPanel?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
@@ -151,7 +154,12 @@ export function DashboardLinkFilters({
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filteredLinks.map((item) => (
-            <LinkCard key={item.id} item={item} debugMode={debugMode} />
+            <LinkCard
+              key={item.id}
+              item={item}
+              debugMode={debugMode}
+              showVerifiedAdmissionLinkPanel={showVerifiedAdmissionLinkPanel}
+            />
           ))}
         </div>
       )}

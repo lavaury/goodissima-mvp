@@ -53,6 +53,14 @@ export default async function DashboardPage({
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const debugMode = isGoodissimaDebugMode();
+  const showVerifiedAdmissionLinkPanel =
+    process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
+  const trustAdmissionPilotGLinkIds = new Set(
+    (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
   const [links, cases, recentCases, recentDocuments] = await Promise.all([
     prisma.gLink.findMany({
       where: { ownerId: owner.id },
@@ -156,6 +164,7 @@ export default async function DashboardPage({
     templateName: item.template?.name ?? null,
     templateStatus: item.template?.status ?? null,
     templateVersion: item.templateVersion?.version ?? null,
+    isTrustAdmissionPilot: trustAdmissionPilotGLinkIds.has(item.id),
     openActionCount: item.cases.reduce(
       (count, relationCase) =>
         count + relationCase.relationActions.filter((action) => action.status !== "COMPLETED").length,
@@ -253,7 +262,11 @@ export default async function DashboardPage({
           )}
         </div>
       </div>
-      <DashboardLinkFilters links={dashboardLinks} debugMode={debugMode} />
+      <DashboardLinkFilters
+        links={dashboardLinks}
+        debugMode={debugMode}
+        showVerifiedAdmissionLinkPanel={showVerifiedAdmissionLinkPanel}
+      />
     </main>
   );
 }
