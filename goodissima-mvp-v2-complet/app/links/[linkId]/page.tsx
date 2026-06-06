@@ -9,6 +9,7 @@ import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButto
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { StatusBadge } from "@/components/StatusBadge";
+import { VerifiedAdmissionLinkPanel } from "@/components/VerifiedAdmissionLinkPanel";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import type { ConditionalRule } from "@/lib/form-rules";
@@ -160,6 +161,8 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
   const secureToken = link.cases[0]?.candidateAccessToken ?? null;
+  const showVerifiedAdmissionLinkPanel =
+    process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -204,6 +207,10 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           </div>
         </div>
       </section>
+
+      {showVerifiedAdmissionLinkPanel ? (
+        <VerifiedAdmissionLinkPanel gLinkId={link.id} />
+      ) : null}
 
       {debugMode ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
