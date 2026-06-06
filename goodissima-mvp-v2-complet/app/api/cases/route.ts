@@ -23,6 +23,7 @@ import {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
+type TrustAdmissionMode = "OBSERVE" | "SIMULATE_BLOCK";
 type ResolvedTrustAdmissionToken = { identityId: string; tokenId: string } | null;
 
 function getFormSubmissionData(body: Record<string, unknown>) {
@@ -56,17 +57,27 @@ function withCandidateCookie(token: string, gLinkId: string) {
   return response;
 }
 
-function isTrustAdmissionDryRunEnabledForGLink(gLinkId: string) {
-  if (process.env.TRUST_ADMISSION_CREDENTIALS_DRY_RUN !== "true") {
-    return false;
-  }
-
+function getTrustAdmissionModeForGLink(gLinkId: string): TrustAdmissionMode | null {
   const pilotGLinkIds = (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 
-  return pilotGLinkIds.includes(gLinkId);
+  if (!pilotGLinkIds.includes(gLinkId)) {
+    return null;
+  }
+
+  const configuredMode = process.env.TRUST_ADMISSION_MODE;
+
+  if (configuredMode === "OBSERVE" || configuredMode === "SIMULATE_BLOCK") {
+    return configuredMode;
+  }
+
+  if (!configuredMode && process.env.TRUST_ADMISSION_CREDENTIALS_DRY_RUN === "true") {
+    return "OBSERVE";
+  }
+
+  return null;
 }
 
 function getTrustAdmissionTokenFromBody(body: Record<string, unknown>) {
@@ -295,10 +306,9 @@ export async function POST(req: Request) {
     );
   }
 
-  if (
-    admissionTrustPolicy.policy &&
-    isTrustAdmissionDryRunEnabledForGLink(gLink.id)
-  ) {
+  const trustAdmissionMode = getTrustAdmissionModeForGLink(gLink.id);
+
+  if (admissionTrustPolicy.policy && trustAdmissionMode) {
     const candidateIdentityId = resolvedCandidateIdentityId ?? null;
 
     try {
@@ -307,26 +317,46 @@ export async function POST(req: Request) {
         candidateIdentityId,
       });
 
-      console.info("[trust-admission] Credential admission dry-run", {
-        route: "app/api/cases/route.ts",
-        gLinkId: gLink.id,
-        trustPolicyId: admissionTrustPolicy.policy.id,
-        resolvedCandidateIdentityId,
-        candidateIdentityId,
-        allowed: credentialAdmissionEvaluation.allowed,
-        requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
-        satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
-        missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
-        reasons: credentialAdmissionEvaluation.reasons,
-        missingRequirements: credentialAdmissionEvaluation.missingRequirements,
-      });
+      if (trustAdmissionMode === "SIMULATE_BLOCK") {
+        console.warn("[trust-admission] Credential admission simulated block", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          wouldHaveBlocked: !credentialAdmissionEvaluation.allowed,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+      } else {
+        console.info("[trust-admission] Credential admission observe", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+      }
     } catch (error) {
-      console.warn("[trust-admission] Credential admission dry-run failed", {
+      console.warn("[trust-admission] Credential admission evaluation failed", {
         route: "app/api/cases/route.ts",
         gLinkId: gLink.id,
         trustPolicyId: admissionTrustPolicy.policy.id,
         resolvedCandidateIdentityId,
         candidateIdentityId,
+        mode: trustAdmissionMode,
         error: error instanceof Error ? error.message : String(error),
       });
     }
