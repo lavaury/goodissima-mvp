@@ -68,12 +68,6 @@ function isTrustAdmissionDryRunEnabledForGLink(gLinkId: string) {
   return pilotGLinkIds.includes(gLinkId);
 }
 
-function getCandidateIdentityIdFromBody(body: Record<string, unknown>) {
-  return typeof body.candidateIdentityId === "string" && body.candidateIdentityId.trim()
-    ? body.candidateIdentityId.trim()
-    : null;
-}
-
 function getTrustAdmissionTokenFromBody(body: Record<string, unknown>) {
   return typeof body.trustAdmissionToken === "string" && body.trustAdmissionToken.trim()
     ? body.trustAdmissionToken.trim()
@@ -83,7 +77,7 @@ function getTrustAdmissionTokenFromBody(body: Record<string, unknown>) {
 async function observeTrustAdmissionToken(body: Record<string, unknown>, gLinkId: string) {
   const trustAdmissionToken = getTrustAdmissionTokenFromBody(body);
 
-  if (!trustAdmissionToken) return;
+  if (!trustAdmissionToken) return null;
 
   const resolution = await resolveTrustAdmissionToken(prisma, {
     token: trustAdmissionToken,
@@ -96,13 +90,14 @@ async function observeTrustAdmissionToken(body: Record<string, unknown>, gLinkId
       identityId: resolution.identityId,
       tokenId: resolution.tokenId,
     });
-    return;
+    return resolution.identityId;
   }
 
   console.warn("[trust-admission-token] Invalid", {
     gLinkId,
     reasons: resolution.reasons,
   });
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -135,7 +130,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Link not found" }, { status: 404 });
   }
 
-  await observeTrustAdmissionToken(body, gLink.id);
+  const resolvedCandidateIdentityId = await observeTrustAdmissionToken(body, gLink.id);
 
   const existingRelationCase = await prisma.relationCase.findFirst({
     where: {
@@ -294,7 +289,7 @@ export async function POST(req: Request) {
     admissionTrustPolicy.policy &&
     isTrustAdmissionDryRunEnabledForGLink(gLink.id)
   ) {
-    const candidateIdentityId = getCandidateIdentityIdFromBody(body);
+    const candidateIdentityId = resolvedCandidateIdentityId ?? null;
 
     try {
       const credentialAdmissionEvaluation = await evaluateTrustAdmission(prisma, {
@@ -306,6 +301,7 @@ export async function POST(req: Request) {
         route: "app/api/cases/route.ts",
         gLinkId: gLink.id,
         trustPolicyId: admissionTrustPolicy.policy.id,
+        resolvedCandidateIdentityId,
         candidateIdentityId,
         allowed: credentialAdmissionEvaluation.allowed,
         requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
@@ -319,6 +315,7 @@ export async function POST(req: Request) {
         route: "app/api/cases/route.ts",
         gLinkId: gLink.id,
         trustPolicyId: admissionTrustPolicy.policy.id,
+        resolvedCandidateIdentityId,
         candidateIdentityId,
         error: error instanceof Error ? error.message : String(error),
       });
