@@ -22,7 +22,22 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
           status: true,
           credentials: {
             where: { status: "ACTIVE" },
-            select: { id: true },
+            orderBy: { issuedAt: "desc" },
+            select: {
+              id: true,
+              issuedAt: true,
+              credentialType: {
+                select: {
+                  code: true,
+                  name: true,
+                },
+              },
+              issuerTrustedOrganization: {
+                select: {
+                  organizationId: true,
+                },
+              },
+            },
           },
         },
       },
