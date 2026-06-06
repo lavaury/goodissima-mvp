@@ -14,7 +14,7 @@ import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import { evaluateTrustAdmission } from "@/lib/trust-admission";
-import { resolveTrustAdmissionToken } from "@/lib/trust-admission-tokens";
+import { markTrustAdmissionTokenUsed, resolveTrustAdmissionToken } from "@/lib/trust-admission-tokens";
 import { issueCandidateCreatedCredentialInTransaction } from "@/lib/trust-credentials";
 import {
   evaluateRelationAdmissionPolicyV1,
@@ -23,6 +23,7 @@ import {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
+type ResolvedTrustAdmissionToken = { identityId: string; tokenId: string } | null;
 
 function getFormSubmissionData(body: Record<string, unknown>) {
   if (typeof body.formTemplateId !== "string" || !body.formTemplateId) {
@@ -74,7 +75,10 @@ function getTrustAdmissionTokenFromBody(body: Record<string, unknown>) {
     : null;
 }
 
-async function observeTrustAdmissionToken(body: Record<string, unknown>, gLinkId: string) {
+async function observeTrustAdmissionToken(
+  body: Record<string, unknown>,
+  gLinkId: string,
+): Promise<ResolvedTrustAdmissionToken> {
   const trustAdmissionToken = getTrustAdmissionTokenFromBody(body);
 
   if (!trustAdmissionToken) return null;
@@ -90,7 +94,12 @@ async function observeTrustAdmissionToken(body: Record<string, unknown>, gLinkId
       identityId: resolution.identityId,
       tokenId: resolution.tokenId,
     });
-    return resolution.identityId;
+    if (resolution.identityId && resolution.tokenId) {
+      return {
+        identityId: resolution.identityId,
+        tokenId: resolution.tokenId,
+      };
+    }
   }
 
   console.warn("[trust-admission-token] Invalid", {
@@ -130,7 +139,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Link not found" }, { status: 404 });
   }
 
-  const resolvedCandidateIdentityId = await observeTrustAdmissionToken(body, gLink.id);
+  const resolvedTrustAdmissionToken = await observeTrustAdmissionToken(body, gLink.id);
+  const resolvedCandidateIdentityId = resolvedTrustAdmissionToken?.identityId ?? null;
 
   const existingRelationCase = await prisma.relationCase.findFirst({
     where: {
@@ -323,19 +333,27 @@ export async function POST(req: Request) {
   }
 
   const relationCase = await prisma.$transaction(async (tx) => {
-    const candidateIdentity = await tx.goodissimaIdentity.create({
-      data: {
-        type: "PERSON",
-        status: "UNVERIFIED",
-      },
-    });
+    const identitySource = resolvedTrustAdmissionToken ? "TRUST_ADMISSION_TOKEN" : "AUTO_CREATED";
+    let tokenMarkedUsed = false;
+    let candidateIdentityId = resolvedTrustAdmissionToken?.identityId ?? null;
+
+    if (!candidateIdentityId) {
+      const candidateIdentity = await tx.goodissimaIdentity.create({
+        data: {
+          type: "PERSON",
+          status: "UNVERIFIED",
+        },
+      });
+
+      candidateIdentityId = candidateIdentity.id;
+    }
 
     const createdRelationCase = await tx.relationCase.create({
       data: {
         gLinkId: gLink.id,
         ownerId: gLink.ownerId,
         templateId: relationTemplate?.id,
-        candidateIdentityId: candidateIdentity.id,
+        candidateIdentityId,
         candidateAccessToken: createCandidateAccessToken(),
         candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
         candidateName,
@@ -353,33 +371,42 @@ export async function POST(req: Request) {
       },
     });
 
-    console.info("[trust-identity] Candidate identity created for relation case", {
-      relationCaseId: createdRelationCase.id,
-      candidateIdentityId: candidateIdentity.id,
-      identityCreated: true,
-    });
-
     try {
       const candidateCreatedCredential = await issueCandidateCreatedCredentialInTransaction(tx, {
-        identityId: candidateIdentity.id,
+        identityId: candidateIdentityId,
         relationCaseId: createdRelationCase.id,
         source: "RELATION_CASE_ADMISSION",
       });
 
       console.info("[trust-credential] Candidate-created credential issued", {
         relationCaseId: createdRelationCase.id,
-        candidateIdentityId: candidateIdentity.id,
+        candidateIdentityId,
+        identitySource,
         credentialType: "CANDIDATE_CREATED",
         credentialId: candidateCreatedCredential.id,
       });
     } catch (error) {
       console.warn("[trust-credential] Candidate-created credential not issued", {
         relationCaseId: createdRelationCase.id,
-        candidateIdentityId: candidateIdentity.id,
+        candidateIdentityId,
+        identitySource,
         credentialType: "CANDIDATE_CREATED",
         error: error instanceof Error ? error.message : String(error),
       });
     }
+
+    if (resolvedTrustAdmissionToken) {
+      await markTrustAdmissionTokenUsed(tx, resolvedTrustAdmissionToken.tokenId);
+      tokenMarkedUsed = true;
+    }
+
+    console.info("[trust-identity] Candidate identity attached to relation case", {
+      identitySource,
+      relationCaseId: createdRelationCase.id,
+      candidateIdentityId,
+      tokenId: resolvedTrustAdmissionToken?.tokenId ?? null,
+      tokenMarkedUsed,
+    });
 
     if (admissionTrustPolicy.policy && admissionTrustPolicy.source) {
       await tx.trustPolicy.create({
