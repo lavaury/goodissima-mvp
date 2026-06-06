@@ -14,6 +14,7 @@ import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import { evaluateTrustAdmission } from "@/lib/trust-admission";
+import { resolveTrustAdmissionToken } from "@/lib/trust-admission-tokens";
 import { issueCandidateCreatedCredentialInTransaction } from "@/lib/trust-credentials";
 import {
   evaluateRelationAdmissionPolicyV1,
@@ -73,6 +74,37 @@ function getCandidateIdentityIdFromBody(body: Record<string, unknown>) {
     : null;
 }
 
+function getTrustAdmissionTokenFromBody(body: Record<string, unknown>) {
+  return typeof body.trustAdmissionToken === "string" && body.trustAdmissionToken.trim()
+    ? body.trustAdmissionToken.trim()
+    : null;
+}
+
+async function observeTrustAdmissionToken(body: Record<string, unknown>, gLinkId: string) {
+  const trustAdmissionToken = getTrustAdmissionTokenFromBody(body);
+
+  if (!trustAdmissionToken) return;
+
+  const resolution = await resolveTrustAdmissionToken(prisma, {
+    token: trustAdmissionToken,
+    gLinkId,
+  });
+
+  if (resolution.resolved) {
+    console.info("[trust-admission-token] Resolved", {
+      gLinkId,
+      identityId: resolution.identityId,
+      tokenId: resolution.tokenId,
+    });
+    return;
+  }
+
+  console.warn("[trust-admission-token] Invalid", {
+    gLinkId,
+    reasons: resolution.reasons,
+  });
+}
+
 export async function POST(req: Request) {
   const body = await req.json();
   const submittedCandidateEmail =
@@ -102,6 +134,8 @@ export async function POST(req: Request) {
   if (!gLink) {
     return NextResponse.json({ error: "Link not found" }, { status: 404 });
   }
+
+  await observeTrustAdmissionToken(body, gLink.id);
 
   const existingRelationCase = await prisma.relationCase.findFirst({
     where: {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import {
   DynamicFormRenderer,
@@ -59,6 +59,7 @@ export default function CandidateForm({
   };
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState<Record<string, DynamicFieldValue>>(() =>
@@ -78,6 +79,7 @@ export default function CandidateForm({
   const hasTemplateNotificationFields = fields.some((field) =>
     ["notificationOptIn", "notificationEmail"].includes(field.key),
   );
+  const trustAdmissionToken = searchParams.get("trustAdmissionToken")?.trim() ?? "";
 
   function validateFields(fieldsToValidate: DynamicFormField[]) {
     const ruleValues = toRuleValues(answers);
@@ -202,6 +204,7 @@ export default function CandidateForm({
       formTemplateId,
       answers: submissionAnswers,
       emailNotificationsConsent: wantsNotifications,
+      ...(trustAdmissionToken ? { trustAdmissionToken } : {}),
     };
 
     setLoading(true);
