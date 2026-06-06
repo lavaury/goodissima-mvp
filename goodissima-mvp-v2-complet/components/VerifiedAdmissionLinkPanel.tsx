@@ -32,14 +32,14 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
       });
 
       if (!res.ok) {
-        toast.error("Lien d'admission vérifié non généré");
+        toast.error("Lien d'admission vérifiée non généré");
         return;
       }
 
       const body = (await res.json()) as VerifiedAdmissionLinkResponse;
       setAdmissionLink(body);
       setCopied(false);
-      toast.success("Lien d'admission vérifié généré");
+      toast.success("Lien d'admission vérifiée créé");
     } catch {
       toast.error("Erreur lors de l'action");
     } finally {
@@ -65,11 +65,14 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
-            Admission vérifiée pilote
+            Admission vérifiée
           </p>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-950">
-            Ce lien permet de créer une candidature avec une identité de démonstration déjà porteuse du
-            credential VERIFIED_IDENTITY.
+            Utilisez ce lien lorsque vous souhaitez recevoir une candidature provenant d'une personne déjà
+            vérifiée.
+          </p>
+          <p className="mt-2 text-xs text-emerald-800">
+            Version pilote : ce parcours est destiné aux tests et démonstrations.
           </p>
         </div>
         <button
@@ -78,15 +81,15 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
           disabled={loading}
           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Génération..." : "Générer un lien d'admission vérifié"}
+          {loading ? "Génération..." : "Générer un lien d'admission vérifiée"}
         </button>
       </div>
 
       {admissionLink ? (
         <div className="mt-5 rounded-xl border border-emerald-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-950">Lien d'admission vérifié</p>
+          <p className="text-sm font-semibold text-slate-950">Lien d'admission vérifiée créé</p>
           <p className="mt-1 text-sm text-slate-600">
-            Expire le : {dateFormatter.format(new Date(admissionLink.expiresAt))}
+            Valable jusqu'au : {dateFormatter.format(new Date(admissionLink.expiresAt))}
           </p>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
             <input
