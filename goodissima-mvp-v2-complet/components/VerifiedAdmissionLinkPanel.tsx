@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
+
+type VerifiedAdmissionTokenStatus = "ACTIVE" | "USED" | "EXPIRED" | "REVOKED";
+
+type VerifiedAdmissionTokenSummary = {
+  id: string;
+  status: string;
+  expiresAt: Date | string;
+  usedAt?: Date | string | null;
+  createdAt: Date | string;
+};
 
 type VerifiedAdmissionLinkResponse = {
   tokenId: string;
@@ -15,11 +26,44 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   timeStyle: "short",
 });
 
-export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
+function getTokenStatus(token: VerifiedAdmissionTokenSummary): VerifiedAdmissionTokenStatus {
+  if (token.status === "ACTIVE" && new Date(token.expiresAt).getTime() <= Date.now()) {
+    return "EXPIRED";
+  }
+
+  if (
+    token.status === "ACTIVE" ||
+    token.status === "USED" ||
+    token.status === "EXPIRED" ||
+    token.status === "REVOKED"
+  ) {
+    return token.status;
+  }
+
+  return "EXPIRED";
+}
+
+function getLatestToken(tokens: VerifiedAdmissionTokenSummary[]) {
+  return [...tokens].sort(
+    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  )[0] ?? null;
+}
+
+export function VerifiedAdmissionLinkPanel({
+  gLinkId,
+  tokens = [],
+}: {
+  gLinkId: string;
+  tokens?: VerifiedAdmissionTokenSummary[];
+}) {
+  const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [admissionLink, setAdmissionLink] = useState<VerifiedAdmissionLinkResponse | null>(null);
+  const latestToken = getLatestToken(tokens);
+  const latestTokenStatus = latestToken ? getTokenStatus(latestToken) : null;
 
   async function generateLink() {
     setLoading(true);
@@ -40,6 +84,7 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
       setAdmissionLink(body);
       setCopied(false);
       toast.success("Lien d'admission vérifiée créé");
+      router.refresh();
     } catch {
       toast.error("Erreur lors de l'action");
     } finally {
@@ -57,6 +102,32 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Erreur lors de l'action");
+    }
+  }
+
+  async function revokeLink(tokenId: string) {
+    setRevokingTokenId(tokenId);
+
+    try {
+      const res = await fetch(`/api/trust-admission-tokens/${encodeURIComponent(tokenId)}/revoke`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        toast.error("Lien vérifié non révoqué");
+        return;
+      }
+
+      if (admissionLink?.tokenId === tokenId) {
+        setAdmissionLink(null);
+      }
+
+      toast.success("Lien vérifié révoqué");
+      router.refresh();
+    } catch {
+      toast.error("Erreur lors de l'action");
+    } finally {
+      setRevokingTokenId(null);
     }
   }
 
@@ -104,9 +175,51 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
             >
               {copied ? "Lien copié" : "Copier le lien"}
             </button>
+            <button
+              type="button"
+              onClick={() => revokeLink(admissionLink.tokenId)}
+              disabled={revokingTokenId === admissionLink.tokenId}
+              className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {revokingTokenId === admissionLink.tokenId ? "Révocation..." : "Révoquer"}
+            </button>
           </div>
         </div>
-      ) : null}
+      ) : latestToken ? (
+        <div className="mt-5 rounded-xl border border-emerald-200 bg-white p-4">
+          {latestTokenStatus === "ACTIVE" ? (
+            <>
+              <p className="text-sm font-semibold text-slate-950">Lien vérifié actif</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Valable jusqu'au : {dateFormatter.format(new Date(latestToken.expiresAt))}
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Ce lien ne peut être copié qu'au moment de sa création.
+              </p>
+              <button
+                type="button"
+                onClick={() => revokeLink(latestToken.id)}
+                disabled={revokingTokenId === latestToken.id}
+                className="mt-3 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {revokingTokenId === latestToken.id ? "Révocation..." : "Révoquer"}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-slate-950">
+              {latestTokenStatus === "USED"
+                ? "Dernier lien utilisé"
+                : latestTokenStatus === "REVOKED"
+                  ? "Dernier lien révoqué"
+                  : "Dernier lien expiré"}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-xl border border-emerald-200 bg-white p-4">
+          <p className="text-sm font-semibold text-slate-950">Aucun lien vérifié actif</p>
+        </div>
+      )}
     </section>
   );
 }

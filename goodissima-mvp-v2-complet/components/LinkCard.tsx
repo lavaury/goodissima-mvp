@@ -24,6 +24,13 @@ export function LinkCard({
     templateStatus?: string | null;
     templateVersion?: number | null;
     isTrustAdmissionPilot?: boolean;
+    verifiedAdmissionTokens?: Array<{
+      id: string;
+      status: string;
+      expiresAt: Date | string;
+      usedAt?: Date | string | null;
+      createdAt: Date | string;
+    }>;
     openActionCount?: number;
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
@@ -122,7 +129,10 @@ export function LinkCard({
       </div>
 
       {showVerifiedAdmissionLinkPanel && item.isTrustAdmissionPilot ? (
-        <VerifiedAdmissionLinkPanel gLinkId={item.id} />
+        <VerifiedAdmissionLinkPanel
+          gLinkId={item.id}
+          tokens={item.verifiedAdmissionTokens ?? []}
+        />
       ) : null}
 
       {debugMode ? (
