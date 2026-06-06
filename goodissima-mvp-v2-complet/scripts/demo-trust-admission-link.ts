@@ -1,6 +1,17 @@
-import { IdentityStatus, IdentityType, PrismaClient } from "@prisma/client";
+import {
+  CredentialTypeStatus,
+  IdentityStatus,
+  IdentityType,
+  PrismaClient,
+  TrustedOrganizationStatus,
+  TrustClaimType,
+} from "@prisma/client";
 
 import { createTrustAdmissionToken } from "../lib/trust-admission-tokens";
+import { issueTrustCredential } from "../lib/trust-credentials";
+
+const VERIFIED_IDENTITY = "VERIFIED_IDENTITY";
+const DEMO_ISSUER_ORGANIZATION_ID = "GOODISSIMA_DEMO_AUTHORITY";
 
 const prisma = new PrismaClient();
 
@@ -40,6 +51,98 @@ function createTokenPreview(token: string) {
   return `${token.slice(0, 6)}...${token.slice(-6)}`;
 }
 
+function shouldIncludeVerifiedIdentityCredential() {
+  return process.env.TRUST_ADMISSION_LINK_INCLUDE_VERIFIED_IDENTITY === "true";
+}
+
+async function ensureVerifiedIdentityCredentialType() {
+  return prisma.credentialType.upsert({
+    where: { code: VERIFIED_IDENTITY },
+    update: {
+      name: "Identite verifiee",
+      status: CredentialTypeStatus.ACTIVE,
+    },
+    create: {
+      code: VERIFIED_IDENTITY,
+      name: "Identite verifiee",
+      status: CredentialTypeStatus.ACTIVE,
+    },
+  });
+}
+
+async function ensureDemoTrustedOrganization() {
+  const existingOrganization = await prisma.trustedOrganization.findFirst({
+    where: { organizationId: DEMO_ISSUER_ORGANIZATION_ID },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (existingOrganization) {
+    return prisma.trustedOrganization.update({
+      where: { id: existingOrganization.id },
+      data: {
+        status: TrustedOrganizationStatus.TRUSTED,
+        reason: "Demo authority for trust framework validation",
+      },
+    });
+  }
+
+  return prisma.trustedOrganization.create({
+    data: {
+      organizationId: DEMO_ISSUER_ORGANIZATION_ID,
+      status: TrustedOrganizationStatus.TRUSTED,
+      reason: "Demo authority for trust framework validation",
+      approvedAt: new Date(),
+    },
+  });
+}
+
+async function maybeIssueVerifiedIdentityCredential(identityId: string) {
+  if (!shouldIncludeVerifiedIdentityCredential()) {
+    return {
+      verifiedIdentityCredentialIssued: false,
+      verifiedIdentityCredentialId: null,
+    };
+  }
+
+  const [credentialType, trustedOrganization] = await Promise.all([
+    ensureVerifiedIdentityCredentialType(),
+    ensureDemoTrustedOrganization(),
+  ]);
+  const verifiedAt = new Date().toISOString();
+  const credential = await issueTrustCredential(prisma, {
+    identityId,
+    credentialTypeId: credentialType.id,
+    issuerTrustedOrganizationId: trustedOrganization.id,
+    claims: [
+      {
+        claimKey: "identityVerified",
+        claimType: TrustClaimType.BOOLEAN,
+        claimValue: true,
+      },
+      {
+        claimKey: "country",
+        claimType: TrustClaimType.STRING,
+        claimValue: "FR",
+      },
+      {
+        claimKey: "verificationLevel",
+        claimType: TrustClaimType.STRING,
+        claimValue: "HIGH",
+      },
+      {
+        claimKey: "verifiedAt",
+        claimType: TrustClaimType.DATETIME,
+        claimValue: verifiedAt,
+      },
+    ],
+  });
+
+  return {
+    verifiedIdentityCredentialIssued: true,
+    verifiedIdentityCredentialId: credential.id,
+  };
+}
+
 async function main() {
   assertDemoScriptAllowed();
 
@@ -63,6 +166,7 @@ async function main() {
       status: IdentityStatus.UNVERIFIED,
     },
   });
+  const verifiedIdentityCredential = await maybeIssueVerifiedIdentityCredential(identity.id);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const createdToken = await createTrustAdmissionToken(prisma, {
     identityId: identity.id,
@@ -81,6 +185,10 @@ async function main() {
         tokenId: createdToken.tokenId,
         tokenPreview: createTokenPreview(createdToken.token),
         expiresAt: createdToken.expiresAt,
+        verifiedIdentityCredentialIssued:
+          verifiedIdentityCredential.verifiedIdentityCredentialIssued,
+        verifiedIdentityCredentialId:
+          verifiedIdentityCredential.verifiedIdentityCredentialId,
         admissionUrl: createAdmissionUrl({
           slug: gLink.slug,
           token: createdToken.token,
