@@ -72,7 +72,7 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
             vérifiée.
           </p>
           <p className="mt-2 text-xs text-emerald-800">
-            Version pilote : ce parcours est destiné aux tests et démonstrations.
+            Fonctionnalité en test : ce parcours est destiné aux démonstrations et aux premiers essais.
           </p>
         </div>
         <button
@@ -81,13 +81,13 @@ export function VerifiedAdmissionLinkPanel({ gLinkId }: { gLinkId: string }) {
           disabled={loading}
           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Génération..." : "Générer un lien d'admission vérifiée"}
+          {loading ? "Génération..." : "Créer un lien vérifié"}
         </button>
       </div>
 
       {admissionLink ? (
         <div className="mt-5 rounded-xl border border-emerald-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-950">Lien d'admission vérifiée créé</p>
+          <p className="text-sm font-semibold text-slate-950">Lien vérifié créé</p>
           <p className="mt-1 text-sm text-slate-600">
             Valable jusqu'au : {dateFormatter.format(new Date(admissionLink.expiresAt))}
           </p>
