@@ -17,6 +17,8 @@ import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateFieldKeys = new Set(["notificationEmail"]);
+const trustAdmissionBlockedMessage =
+  "Cette relation nécessite une identité vérifiée. Utilisez un lien d’admission vérifié ou complétez la vérification demandée avant de réessayer.";
 
 async function getApiErrorMessage(res: Response) {
   try {
@@ -28,6 +30,20 @@ async function getApiErrorMessage(res: Response) {
   } catch {
     return "Erreur lors de l'ajout du document";
   }
+}
+
+async function getCaseSubmissionErrorMessage(res: Response) {
+  try {
+    const body = await res.json();
+
+    if (body && typeof body === "object" && "code" in body && body.code === "TRUST_ADMISSION_BLOCKED") {
+      return trustAdmissionBlockedMessage;
+    }
+  } catch {
+    // Keep the generic candidate-facing fallback when the API response is not JSON.
+  }
+
+  return "Erreur lors de l'action";
 }
 
 export default function CandidateForm({
@@ -73,6 +89,7 @@ export default function CandidateForm({
   });
   const [emailNotificationsConsent, setEmailNotificationsConsent] = useState(false);
   const [notificationEmail, setNotificationEmail] = useState("");
+  const [admissionErrorMessage, setAdmissionErrorMessage] = useState("");
   const stepCount = getStepCount(fields);
   const isMultiStep = stepCount > 1;
   const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
@@ -166,6 +183,7 @@ export default function CandidateForm({
 
   async function submit() {
     if (!validateForm()) {
+      setAdmissionErrorMessage("");
       toast.error(copy.fieldErrorToast);
       return;
     }
@@ -208,6 +226,7 @@ export default function CandidateForm({
     };
 
     setLoading(true);
+    setAdmissionErrorMessage("");
 
     try {
       const res = await fetch("/api/cases", {
@@ -217,7 +236,9 @@ export default function CandidateForm({
       });
 
       if (!res.ok) {
-        toast.error("Erreur lors de l'action");
+        const errorMessage = await getCaseSubmissionErrorMessage(res);
+        setAdmissionErrorMessage(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -338,6 +359,11 @@ export default function CandidateForm({
           </button>
         )}
       </div>
+      {admissionErrorMessage ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {admissionErrorMessage}
+        </p>
+      ) : null}
     </div>
   );
 }
