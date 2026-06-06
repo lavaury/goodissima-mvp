@@ -23,7 +23,7 @@ import {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
-type TrustAdmissionMode = "OBSERVE" | "SIMULATE_BLOCK";
+type TrustAdmissionMode = "OBSERVE" | "SIMULATE_BLOCK" | "ENFORCE";
 type ResolvedTrustAdmissionToken = { identityId: string; tokenId: string } | null;
 
 function getFormSubmissionData(body: Record<string, unknown>) {
@@ -69,7 +69,11 @@ function getTrustAdmissionModeForGLink(gLinkId: string): TrustAdmissionMode | nu
 
   const configuredMode = process.env.TRUST_ADMISSION_MODE;
 
-  if (configuredMode === "OBSERVE" || configuredMode === "SIMULATE_BLOCK") {
+  if (
+    configuredMode === "OBSERVE" ||
+    configuredMode === "SIMULATE_BLOCK" ||
+    configuredMode === "ENFORCE"
+  ) {
     return configuredMode;
   }
 
@@ -317,7 +321,51 @@ export async function POST(req: Request) {
         candidateIdentityId,
       });
 
-      if (trustAdmissionMode === "SIMULATE_BLOCK") {
+      if (trustAdmissionMode === "ENFORCE" && !credentialAdmissionEvaluation.allowed) {
+        console.warn("[trust-admission] Credential admission blocked", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+
+        return NextResponse.json(
+          {
+            error: "Admission blocked by Trust Admission requirements.",
+            code: "TRUST_ADMISSION_BLOCKED",
+            trustPolicyId: admissionTrustPolicy.policy.id,
+            requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+            missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+            reasons: credentialAdmissionEvaluation.reasons,
+            missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+          },
+          { status: 403 },
+        );
+      }
+
+      if (trustAdmissionMode === "ENFORCE") {
+        console.info("[trust-admission] Credential admission enforce allowed", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+      } else if (trustAdmissionMode === "SIMULATE_BLOCK") {
         console.warn("[trust-admission] Credential admission simulated block", {
           route: "app/api/cases/route.ts",
           gLinkId: gLink.id,
@@ -359,6 +407,17 @@ export async function POST(req: Request) {
         mode: trustAdmissionMode,
         error: error instanceof Error ? error.message : String(error),
       });
+
+      if (trustAdmissionMode === "ENFORCE") {
+        return NextResponse.json(
+          {
+            error: "Trust Admission evaluation failed.",
+            code: "TRUST_ADMISSION_EVALUATION_FAILED",
+            trustPolicyId: admissionTrustPolicy.policy.id,
+          },
+          { status: 500 },
+        );
+      }
     }
   }
 
