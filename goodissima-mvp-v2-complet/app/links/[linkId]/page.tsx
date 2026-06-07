@@ -6,6 +6,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
+import { LinkAdmissionPanel, type LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -33,6 +34,8 @@ type FieldOption = {
 };
 
 type TrustLevel = "VERIFIED" | "IDENTIFIED" | "UNKNOWN";
+
+const VERIFIED_IDENTITY = "VERIFIED_IDENTITY";
 
 type CandidateIdentityForTrustLevel = {
   credentials: Array<{
@@ -65,9 +68,35 @@ function getTrustLevel(candidateIdentity: CandidateIdentityForTrustLevel): Trust
 
   if (activeCredentials.length === 0) return "UNKNOWN";
 
-  return activeCredentials.some((credential) => credential.credentialType.code === "VERIFIED_IDENTITY")
+  return activeCredentials.some((credential) => credential.credentialType.code === VERIFIED_IDENTITY)
     ? "VERIFIED"
     : "IDENTIFIED";
+}
+
+function getPilotGLinkIds() {
+  return (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getAdmissionMode(
+  trustPolicy:
+    | {
+        credentialRequirements: Array<{
+          credentialType: {
+            code: string;
+          };
+        }>;
+      }
+    | null
+    | undefined,
+): LinkAdmissionMode {
+  return trustPolicy?.credentialRequirements.some(
+    (requirement) => requirement.credentialType.code === VERIFIED_IDENTITY,
+  )
+    ? "VERIFIED_ONLY"
+    : "OPEN";
 }
 
 function parseFieldOptions(options: unknown): FieldOption[] {
@@ -128,6 +157,25 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     include: {
       template: true,
       templateVersion: true,
+      trustPolicies: {
+        where: {
+          scope: "GLINK",
+          status: "ACTIVE",
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          credentialRequirements: {
+            select: {
+              credentialType: {
+                select: {
+                  code: true,
+                },
+              },
+            },
+          },
+        },
+      },
       cases: {
         orderBy: { createdAt: "desc" },
         select: {
@@ -217,6 +265,9 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
   const secureToken = link.cases[0]?.candidateAccessToken ?? null;
   const showVerifiedAdmissionLinkPanel =
     process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
+  const isTrustAdmissionPilot = getPilotGLinkIds().includes(link.id);
+  const showAdmissionPanel = showVerifiedAdmissionLinkPanel && isTrustAdmissionPilot;
+  const admissionMode = getAdmissionMode(link.trustPolicies[0]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -262,8 +313,12 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         </div>
       </section>
 
-      {showVerifiedAdmissionLinkPanel ? (
+      {showVerifiedAdmissionLinkPanel && isTrustAdmissionPilot ? (
         <VerifiedAdmissionLinkPanel gLinkId={link.id} />
+      ) : null}
+
+      {showAdmissionPanel ? (
+        <LinkAdmissionPanel linkId={link.id} initialMode={admissionMode} />
       ) : null}
 
       {debugMode ? (
