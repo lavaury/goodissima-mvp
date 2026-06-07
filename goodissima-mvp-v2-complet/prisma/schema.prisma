@@ -88,6 +88,22 @@ enum TrustedOrganizationStatus {
   REVOKED
 }
 
+enum TrustConnectorStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TrustConnectorProviderType {
+  DEMO
+  GOVERNMENT
+  EUROPEAN_WALLET
+  BANK
+  INSURANCE
+  EDUCATION
+  PROFESSIONAL_BODY
+  OTHER
+}
+
 enum IdentityType {
   PERSON
   ORGANIZATION
@@ -352,9 +368,28 @@ model TrustedOrganization {
   updatedAt      DateTime                  @updatedAt
 
   issuedCredentials TrustCredential[]
+  trustConnectors   TrustConnector[]
 
   @@index([organizationId])
   @@index([status])
+}
+
+model TrustConnector {
+  id                    String                     @id @default(cuid())
+  code                  String                     @unique
+  name                  String
+  description           String?
+  status                TrustConnectorStatus
+  providerType          TrustConnectorProviderType
+  trustedOrganizationId String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  trustedOrganization TrustedOrganization? @relation(fields: [trustedOrganizationId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([providerType])
+  @@index([trustedOrganizationId])
 }
 
 model GoodissimaIdentity {
