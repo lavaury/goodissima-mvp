@@ -8,7 +8,6 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type {
   TrustConnectorProviderType,
-  TrustConnectorStatus,
   TrustedOrganizationStatus,
 } from "@prisma/client";
 
@@ -31,15 +30,42 @@ const providerTypeLabels: Record<TrustConnectorProviderType, string> = {
   OTHER: "Autre source",
 };
 
-const statusLabels: Record<TrustConnectorStatus, { label: string; className: string }> = {
-  ACTIVE: {
-    label: "Disponible",
-    className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  },
-  DISABLED: {
-    label: "Indisponible",
-    className: "bg-slate-100 text-slate-700 ring-slate-200",
-  },
+const connectorJourneySteps: Record<string, string[]> = {
+  GOODISSIMA_DEMO_AUTHORITY: [
+    "Goodissima",
+    "Autorité de démonstration",
+    "Émission d'une attestation de test",
+    "Candidat vérifié en environnement pilote",
+  ],
+  FRANCE_IDENTITE: [
+    "Goodissima",
+    "France Identité",
+    "Vérification d'identité",
+    "Attestation d'identité",
+    "Retour Goodissima",
+    "Candidat vérifié",
+  ],
+  EIDAS_WALLET: [
+    "Goodissima",
+    "Portefeuille d'identité européen",
+    "Partage d'attestation",
+    "Retour Goodissima",
+    "Candidat vérifié",
+  ],
+  BANK_CONNECT: [
+    "Goodissima",
+    "Connecteur bancaire",
+    "Confirmation du statut client",
+    "Attestation bancaire",
+    "Retour Goodissima",
+  ],
+  EDUCATION_PROVIDER: [
+    "Goodissima",
+    "Établissement d'enseignement",
+    "Confirmation du diplôme ou statut étudiant",
+    "Attestation",
+    "Retour Goodissima",
+  ],
 };
 
 const trustedOrganizationStatusLabels: Record<TrustedOrganizationStatus, string> = {
@@ -55,6 +81,29 @@ function getConnectorName(code: string, name: string) {
 
 function getTrustedOrganizationLabel(organizationId: string) {
   return connectorNameLabels[organizationId] ?? "Source de confiance associée";
+}
+
+function getConnectorDisplayStatus(code: string) {
+  if (code === "GOODISSIMA_DEMO_AUTHORITY") {
+    return {
+      label: "Disponible",
+      className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+    };
+  }
+
+  return {
+    label: "Prévu",
+    className: "bg-sky-50 text-sky-800 ring-sky-200",
+  };
+}
+
+function getConnectorJourneySteps(code: string) {
+  return connectorJourneySteps[code] ?? [
+    "Goodissima",
+    "Source de confiance",
+    "Attestation",
+    "Retour Goodissima",
+  ];
 }
 
 export default async function TrustConnectorsPage() {
@@ -98,6 +147,13 @@ export default async function TrustConnectorsPage() {
 
       <PlatformNavigation active="trust" organizationName={organizationName} />
 
+      <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <p className="text-sm font-semibold text-amber-950">
+          Seule l'autorité de démonstration est active aujourd'hui. Les autres connecteurs illustrent les
+          intégrations prévues.
+        </p>
+      </section>
+
       {connectors.length === 0 ? (
         <section className="rounded-2xl border bg-white p-8 text-center shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">Aucun connecteur référencé</h2>
@@ -108,7 +164,8 @@ export default async function TrustConnectorsPage() {
       ) : (
         <section className="grid gap-4 md:grid-cols-2">
           {connectors.map((connector) => {
-            const status = statusLabels[connector.status];
+            const status = getConnectorDisplayStatus(connector.code);
+            const journeySteps = getConnectorJourneySteps(connector.code);
 
             return (
               <article key={connector.code} className="rounded-2xl border bg-white p-5 shadow-sm">
@@ -149,6 +206,23 @@ export default async function TrustConnectorsPage() {
                     <p className="mt-2 text-sm text-slate-500">Aucun émetteur associé pour le moment.</p>
                   )}
                 </div>
+
+                <details className="group mt-4 rounded-xl border bg-white px-4 py-3">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-slate-900">
+                    Voir le parcours
+                    <span className="text-xs text-slate-500 transition group-open:rotate-180">v</span>
+                  </summary>
+                  <ol className="mt-4 space-y-3">
+                    {journeySteps.map((step, index) => (
+                      <li key={`${connector.code}-${step}`} className="flex gap-3 text-sm">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <span className="pt-0.5 text-slate-700">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
               </article>
             );
           })}
