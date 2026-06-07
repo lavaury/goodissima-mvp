@@ -32,6 +32,44 @@ type FieldOption = {
   value: string;
 };
 
+type TrustLevel = "VERIFIED" | "IDENTIFIED" | "UNKNOWN";
+
+type CandidateIdentityForTrustLevel = {
+  credentials: Array<{
+    credentialType: {
+      code: string;
+    };
+  }>;
+} | null;
+
+const trustLevelDisplay: Record<TrustLevel, { label: string; className: string; dotClassName: string }> = {
+  VERIFIED: {
+    label: "Vérifié",
+    className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+    dotClassName: "bg-emerald-500",
+  },
+  IDENTIFIED: {
+    label: "Identifié",
+    className: "bg-amber-50 text-amber-800 ring-amber-200",
+    dotClassName: "bg-amber-400",
+  },
+  UNKNOWN: {
+    label: "Non vérifié",
+    className: "bg-slate-100 text-slate-700 ring-slate-200",
+    dotClassName: "bg-slate-400",
+  },
+};
+
+function getTrustLevel(candidateIdentity: CandidateIdentityForTrustLevel): TrustLevel {
+  const activeCredentials = candidateIdentity?.credentials ?? [];
+
+  if (activeCredentials.length === 0) return "UNKNOWN";
+
+  return activeCredentials.some((credential) => credential.credentialType.code === "VERIFIED_IDENTITY")
+    ? "VERIFIED"
+    : "IDENTIFIED";
+}
+
 function parseFieldOptions(options: unknown): FieldOption[] {
   if (!Array.isArray(options)) return [];
 
@@ -101,6 +139,22 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           createdAt: true,
           status: true,
           governanceStatus: true,
+          candidateIdentity: {
+            select: {
+              credentials: {
+                where: {
+                  status: "ACTIVE",
+                },
+                select: {
+                  credentialType: {
+                    select: {
+                      code: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
           _count: {
             select: {
               messages: true,
@@ -255,12 +309,13 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucun dossier pour ce lien.</p>
         ) : (
           <div className="mt-5 overflow-hidden rounded-xl border">
-            <div className="hidden grid-cols-[1.5fr_1.6fr_1fr_1fr_1fr_1fr_auto] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid">
+            <div className="hidden grid-cols-[1.35fr_1.4fr_0.95fr_0.9fr_1fr_1fr_1.1fr_auto] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid">
               <span>Candidat</span>
               <span>Email</span>
               <span>Date</span>
               <span>Statut</span>
               <span>Gouvernance</span>
+              <span>Confiance</span>
               <span>Activite</span>
               <span className="text-right">Action</span>
             </div>
@@ -271,11 +326,13 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
                   relationCase.candidateEmail.endsWith("@goodissima.local")
                     ? "Canal prive"
                     : relationCase.candidateEmail;
+                const trustLevel = getTrustLevel(relationCase.candidateIdentity);
+                const trustDisplay = trustLevelDisplay[trustLevel];
 
                 return (
                   <div
                     key={relationCase.id}
-                    className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.5fr_1.6fr_1fr_1fr_1fr_1fr_auto] lg:items-center"
+                    className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.35fr_1.4fr_0.95fr_0.9fr_1fr_1fr_1.1fr_auto] lg:items-center"
                   >
                     <div>
                       <p className="font-medium text-slate-950">{relationCase.candidateName}</p>
@@ -289,6 +346,14 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
                     <div>
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
                         {relationCase.governanceStatus}
+                      </span>
+                    </div>
+                    <div>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 ${trustDisplay.className}`}
+                      >
+                        <span className={`h-2 w-2 rounded-full ${trustDisplay.dotClassName}`} aria-hidden="true" />
+                        {trustDisplay.label}
                       </span>
                     </div>
                     <p className="text-slate-600">
