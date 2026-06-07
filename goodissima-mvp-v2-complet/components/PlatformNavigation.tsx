@@ -8,6 +8,7 @@ const items = [
   { labelKey: "nav.relations", href: "/dashboard" },
   { labelKey: "nav.studio", href: "/templates" },
   { labelKey: "nav.analytics", href: "/analytics" },
+  { labelKey: "nav.trust", href: "/trust/connectors" },
   { labelKey: "nav.settings", href: "/settings" },
 ];
 
@@ -15,7 +16,7 @@ export function PlatformNavigation({
   active,
   organizationName,
 }: {
-  active: "relations" | "studio" | "analytics" | "settings";
+  active: "relations" | "studio" | "analytics" | "trust" | "settings";
   organizationName?: string | null;
 }) {
   const { t } = useI18n();
@@ -26,7 +27,9 @@ export function PlatformNavigation({
         ? "/templates"
         : active === "analytics"
           ? "/analytics"
-          : "/settings";
+          : active === "trust"
+            ? "/trust/connectors"
+            : "/settings";
 
   return (
     <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
