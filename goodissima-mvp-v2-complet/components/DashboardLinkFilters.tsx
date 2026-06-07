@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { LinkCard } from "@/components/LinkCard";
+import type { LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
 
 type DashboardLink = {
   id: string;
@@ -12,6 +13,7 @@ type DashboardLink = {
   templateStatus?: string | null;
   templateVersion?: number | null;
   isTrustAdmissionPilot?: boolean;
+  admissionMode?: LinkAdmissionMode;
   verifiedAdmissionTokens?: Array<{
     id: string;
     status: string;

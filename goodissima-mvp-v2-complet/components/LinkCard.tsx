@@ -6,6 +6,7 @@ import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DebugDeleteLinkButton } from "@/components/DebugDeleteLinkButton";
+import { LinkAdmissionPanel, type LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
 import { QRCodeBox } from "@/components/QRCodeBox";
 import { useToast } from "@/components/ToastProvider";
 import { VerifiedAdmissionLinkPanel } from "@/components/VerifiedAdmissionLinkPanel";
@@ -24,6 +25,7 @@ export function LinkCard({
     templateStatus?: string | null;
     templateVersion?: number | null;
     isTrustAdmissionPilot?: boolean;
+    admissionMode?: LinkAdmissionMode;
     verifiedAdmissionTokens?: Array<{
       id: string;
       status: string;
@@ -132,6 +134,13 @@ export function LinkCard({
         <VerifiedAdmissionLinkPanel
           gLinkId={item.id}
           tokens={item.verifiedAdmissionTokens ?? []}
+        />
+      ) : null}
+
+      {showVerifiedAdmissionLinkPanel && item.isTrustAdmissionPilot ? (
+        <LinkAdmissionPanel
+          linkId={item.id}
+          initialMode={item.admissionMode ?? "OPEN"}
         />
       ) : null}
 

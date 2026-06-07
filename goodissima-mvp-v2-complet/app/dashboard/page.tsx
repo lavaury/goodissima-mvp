@@ -12,6 +12,10 @@ import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { DashboardRealtimeRefresh } from "./DashboardRealtimeRefresh";
 
+type LinkAdmissionMode = "OPEN" | "VERIFIED_ONLY";
+
+const VERIFIED_IDENTITY = "VERIFIED_IDENTITY";
+
 function formatRelativeDate(date: Date) {
   const diffMs = Date.now() - date.getTime();
   const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
@@ -38,6 +42,25 @@ function getCaseLastActivityAt(relationCase: {
       relationCase.relationActions[0]?.createdAt.getTime() ??
       0,
   );
+}
+
+function getAdmissionMode(
+  trustPolicy:
+    | {
+        credentialRequirements: Array<{
+          credentialType: {
+            code: string;
+          };
+        }>;
+      }
+    | null
+    | undefined,
+): LinkAdmissionMode {
+  return trustPolicy?.credentialRequirements.some(
+    (requirement) => requirement.credentialType.code === VERIFIED_IDENTITY,
+  )
+    ? "VERIFIED_ONLY"
+    : "OPEN";
 }
 
 export default async function DashboardPage({
@@ -67,6 +90,25 @@ export default async function DashboardPage({
       include: {
         template: { select: { name: true, status: true } },
         templateVersion: { select: { version: true } },
+        trustPolicies: {
+          where: {
+            scope: "GLINK",
+            status: "ACTIVE",
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            credentialRequirements: {
+              select: {
+                credentialType: {
+                  select: {
+                    code: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         cases: {
           orderBy: { createdAt: "desc" },
           select: {
@@ -208,6 +250,7 @@ export default async function DashboardPage({
     templateStatus: item.template?.status ?? null,
     templateVersion: item.templateVersion?.version ?? null,
     isTrustAdmissionPilot: trustAdmissionPilotGLinkIds.has(item.id),
+    admissionMode: getAdmissionMode(item.trustPolicies[0]),
     verifiedAdmissionTokens: trustAdmissionTokensByGLinkId.get(item.id) ?? [],
     openActionCount: item.cases.reduce(
       (count, relationCase) =>
