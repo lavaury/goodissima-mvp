@@ -10,7 +10,6 @@ import { LinkAdmissionPanel, type LinkAdmissionMode } from "@/components/LinkAdm
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { StatusBadge } from "@/components/StatusBadge";
-import { VerifiedAdmissionLinkPanel } from "@/components/VerifiedAdmissionLinkPanel";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import type { ConditionalRule } from "@/lib/form-rules";
@@ -263,10 +262,10 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
   const secureToken = link.cases[0]?.candidateAccessToken ?? null;
-  const showVerifiedAdmissionLinkPanel =
+  const isAdmissionPanelEnabled =
     process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
   const isTrustAdmissionPilot = getPilotGLinkIds().includes(link.id);
-  const showAdmissionPanel = showVerifiedAdmissionLinkPanel && isTrustAdmissionPilot;
+  const showAdmissionPanel = isAdmissionPanelEnabled && isTrustAdmissionPilot;
   const admissionMode = getAdmissionMode(link.trustPolicies[0]);
 
   return (
@@ -312,10 +311,6 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           </div>
         </div>
       </section>
-
-      {showVerifiedAdmissionLinkPanel && isTrustAdmissionPilot ? (
-        <VerifiedAdmissionLinkPanel gLinkId={link.id} />
-      ) : null}
 
       {showAdmissionPanel ? (
         <LinkAdmissionPanel linkId={link.id} initialMode={admissionMode} />

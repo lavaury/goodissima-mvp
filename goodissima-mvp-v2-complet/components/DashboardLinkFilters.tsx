@@ -14,13 +14,6 @@ type DashboardLink = {
   templateVersion?: number | null;
   isTrustAdmissionPilot?: boolean;
   admissionMode?: LinkAdmissionMode;
-  verifiedAdmissionTokens?: Array<{
-    id: string;
-    status: string;
-    expiresAt: Date | string;
-    usedAt?: Date | string | null;
-    createdAt: Date | string;
-  }>;
   openActionCount?: number;
   cases?: Array<{
     id: string;
@@ -106,11 +99,11 @@ function matchesSearch(item: DashboardLink, query: string) {
 export function DashboardLinkFilters({
   links,
   debugMode = false,
-  showVerifiedAdmissionLinkPanel = false,
+  showAdmissionPanel = false,
 }: {
   links: DashboardLink[];
   debugMode?: boolean;
-  showVerifiedAdmissionLinkPanel?: boolean;
+  showAdmissionPanel?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
@@ -167,7 +160,7 @@ export function DashboardLinkFilters({
               key={item.id}
               item={item}
               debugMode={debugMode}
-              showVerifiedAdmissionLinkPanel={showVerifiedAdmissionLinkPanel}
+              showAdmissionPanel={showAdmissionPanel}
             />
           ))}
         </div>

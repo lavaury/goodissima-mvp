@@ -76,7 +76,7 @@ export default async function DashboardPage({
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const debugMode = isGoodissimaDebugMode();
-  const showVerifiedAdmissionLinkPanel =
+  const showAdmissionPanel =
     process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
   const trustAdmissionPilotGLinkIds = new Set(
     (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
@@ -174,49 +174,6 @@ export default async function DashboardPage({
       },
     }),
   ]);
-  const pilotGLinkIds = links
-    .map((item) => item.id)
-    .filter((id) => trustAdmissionPilotGLinkIds.has(id));
-  const trustAdmissionTokens =
-    pilotGLinkIds.length > 0
-      ? await prisma.trustAdmissionToken.findMany({
-          where: { gLinkId: { in: pilotGLinkIds } },
-          orderBy: { createdAt: "desc" },
-          select: {
-            id: true,
-            gLinkId: true,
-            status: true,
-            expiresAt: true,
-            usedAt: true,
-            createdAt: true,
-          },
-        })
-      : [];
-  const trustAdmissionTokensByGLinkId = new Map<
-    string,
-    Array<{
-      id: string;
-      status: string;
-      expiresAt: Date;
-      usedAt: Date | null;
-      createdAt: Date;
-    }>
-  >();
-
-  for (const token of trustAdmissionTokens) {
-    if (!token.gLinkId) continue;
-
-    trustAdmissionTokensByGLinkId.set(token.gLinkId, [
-      ...(trustAdmissionTokensByGLinkId.get(token.gLinkId) ?? []),
-      {
-        id: token.id,
-        status: token.status,
-        expiresAt: token.expiresAt,
-        usedAt: token.usedAt,
-        createdAt: token.createdAt,
-      },
-    ]);
-  }
   const activeLinkIds = new Set(
     cases
       .filter((item) => item.status !== "CLOSED" && item.status !== "ARCHIVED")
@@ -251,7 +208,6 @@ export default async function DashboardPage({
     templateVersion: item.templateVersion?.version ?? null,
     isTrustAdmissionPilot: trustAdmissionPilotGLinkIds.has(item.id),
     admissionMode: getAdmissionMode(item.trustPolicies[0]),
-    verifiedAdmissionTokens: trustAdmissionTokensByGLinkId.get(item.id) ?? [],
     openActionCount: item.cases.reduce(
       (count, relationCase) =>
         count + relationCase.relationActions.filter((action) => action.status !== "COMPLETED").length,
@@ -352,7 +308,7 @@ export default async function DashboardPage({
       <DashboardLinkFilters
         links={dashboardLinks}
         debugMode={debugMode}
-        showVerifiedAdmissionLinkPanel={showVerifiedAdmissionLinkPanel}
+        showAdmissionPanel={showAdmissionPanel}
       />
     </main>
   );

@@ -9,12 +9,11 @@ import { DebugDeleteLinkButton } from "@/components/DebugDeleteLinkButton";
 import { LinkAdmissionPanel, type LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
 import { QRCodeBox } from "@/components/QRCodeBox";
 import { useToast } from "@/components/ToastProvider";
-import { VerifiedAdmissionLinkPanel } from "@/components/VerifiedAdmissionLinkPanel";
 
 export function LinkCard({
   item,
   debugMode = false,
-  showVerifiedAdmissionLinkPanel = false,
+  showAdmissionPanel = false,
 }: {
   item: {
     id: string;
@@ -26,18 +25,11 @@ export function LinkCard({
     templateVersion?: number | null;
     isTrustAdmissionPilot?: boolean;
     admissionMode?: LinkAdmissionMode;
-    verifiedAdmissionTokens?: Array<{
-      id: string;
-      status: string;
-      expiresAt: Date | string;
-      usedAt?: Date | string | null;
-      createdAt: Date | string;
-    }>;
     openActionCount?: number;
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
   debugMode?: boolean;
-  showVerifiedAdmissionLinkPanel?: boolean;
+  showAdmissionPanel?: boolean;
 }) {
   const publicPath = `/l/${item.slug}`;
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
@@ -130,14 +122,7 @@ export function LinkCard({
         ) : null}
       </div>
 
-      {showVerifiedAdmissionLinkPanel && item.isTrustAdmissionPilot ? (
-        <VerifiedAdmissionLinkPanel
-          gLinkId={item.id}
-          tokens={item.verifiedAdmissionTokens ?? []}
-        />
-      ) : null}
-
-      {showVerifiedAdmissionLinkPanel && item.isTrustAdmissionPilot ? (
+      {showAdmissionPanel && item.isTrustAdmissionPilot ? (
         <LinkAdmissionPanel
           linkId={item.id}
           initialMode={item.admissionMode ?? "OPEN"}
