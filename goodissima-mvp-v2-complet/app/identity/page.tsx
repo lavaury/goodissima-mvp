@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { unstable_noStore as noStore } from "next/cache";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
+import { DemoIdentityVerificationButton } from "@/components/DemoIdentityVerificationButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -142,6 +143,29 @@ export default async function IdentityPage() {
           </span>
         </div>
       </section>
+
+      {identity.status !== "VERIFIED" ? (
+        <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
+                Vérification démo
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">
+                Vérifier mon identité
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-950">
+                Cette démonstration simule une vérification par une source de confiance externe,
+                comme France Identité ou le futur portefeuille européen.
+              </p>
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">
+                Fonctionnalité de démonstration : aucune vérification officielle n’est réalisée.
+              </p>
+            </div>
+            <DemoIdentityVerificationButton />
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
