@@ -145,14 +145,16 @@ enum TrustAdmissionTokenPurpose {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      String   @default("OWNER")
-  createdAt DateTime @default(now())
+  id                   String   @id @default(cuid())
+  email                String   @unique
+  name                 String?
+  role                 String   @default("OWNER")
+  goodissimaIdentityId String?  @unique
+  createdAt            DateTime @default(now())
 
   links                   GLink[]
   cases                   RelationCase[]              @relation("OwnerCases")
+  goodissimaIdentity      GoodissimaIdentity?         @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
   notificationPreferences UserNotificationPreference?
 }
 
@@ -399,6 +401,7 @@ model GoodissimaIdentity {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
+  user                   User?
   credentials            TrustCredential[]
   trustAdmissionTokens   TrustAdmissionToken[]
   candidateRelationCases RelationCase[]
