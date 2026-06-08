@@ -7,9 +7,16 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  demoTrustConnectorCode,
+  getConnectorDescription,
+  getConnectorDisplayStatus,
+  getConnectorJourneySteps,
+  getConnectorName,
+} from "@/lib/trust-connectors-display";
 import { getActiveCredentialsForIdentity } from "@/lib/trust-credentials";
 import { getOrCreateGoodissimaIdentityForUser } from "@/lib/user-identity";
-import type { IdentityStatus } from "@prisma/client";
+import { TrustConnectorStatus, type IdentityStatus } from "@prisma/client";
 
 const identityStatusDisplay: Record<
   IdentityStatus,
@@ -87,7 +94,7 @@ export default async function IdentityPage() {
   const identityLink = await getOrCreateGoodissimaIdentityForUser(prisma, {
     userId: currentUser.id,
   });
-  const [identity, activeCredentials] = await Promise.all([
+  const [identity, activeCredentials, trustConnectors] = await Promise.all([
     prisma.goodissimaIdentity.findUnique({
       where: { id: identityLink.identityId },
       select: {
@@ -97,6 +104,15 @@ export default async function IdentityPage() {
       },
     }),
     getActiveCredentialsForIdentity(prisma, identityLink.identityId),
+    prisma.trustConnector.findMany({
+      where: { status: TrustConnectorStatus.ACTIVE },
+      orderBy: [{ providerType: "asc" }, { name: "asc" }],
+      select: {
+        code: true,
+        name: true,
+        description: true,
+      },
+    }),
   ]);
 
   if (!identity) {
@@ -145,25 +161,86 @@ export default async function IdentityPage() {
       </section>
 
       {identity.status !== "VERIFIED" ? (
-        <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
-                Vérification démo
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                Vérifier mon identité
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-950">
-                Cette démonstration simule une vérification par une source de confiance externe,
-                comme France Identité ou le futur portefeuille européen.
-              </p>
-              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">
-                Fonctionnalité de démonstration : aucune vérification officielle n’est réalisée.
-              </p>
-            </div>
-            <DemoIdentityVerificationButton />
+        <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Sources de confiance
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">
+              Comment devenir vérifié ?
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Vous pouvez obtenir une attestation auprès d’une source de confiance. Certaines sont déjà
+              disponibles, d’autres seront proposées prochainement.
+            </p>
+            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">
+              Fonctionnalité de démonstration : aucune vérification officielle n’est réalisée.
+            </p>
           </div>
+
+          {trustConnectors.length === 0 ? (
+            <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+              Aucune source de confiance référencée pour le moment.
+            </p>
+          ) : (
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {trustConnectors.map((connector) => {
+                const status = getConnectorDisplayStatus(connector.code);
+                const journeySteps = getConnectorJourneySteps(connector.code);
+                const isDemoConnector = connector.code === demoTrustConnectorCode;
+
+                return (
+                  <article
+                    key={connector.code}
+                    className={
+                      isDemoConnector
+                        ? "rounded-xl border border-emerald-200 bg-emerald-50 p-4"
+                        : "rounded-xl border bg-slate-50 p-4"
+                    }
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-950">
+                          {getConnectorName(connector.code, connector.name)}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          {getConnectorDescription(connector.code, connector.description)}
+                        </p>
+                      </div>
+                      <span
+                        className={`self-start rounded-full px-3 py-1 text-xs font-medium ring-1 ${status.className}`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+
+                    {isDemoConnector ? (
+                      <div className="mt-4">
+                        <DemoIdentityVerificationButton />
+                      </div>
+                    ) : (
+                      <details className="group mt-4 rounded-xl border bg-white px-4 py-3">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-slate-900">
+                          Flux prévu
+                          <span className="text-xs text-slate-500 transition group-open:rotate-180">v</span>
+                        </summary>
+                        <ol className="mt-4 space-y-3">
+                          {journeySteps.map((step, index) => (
+                            <li key={`${connector.code}-${step}`} className="flex gap-3 text-sm">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                                {index + 1}
+                              </span>
+                              <span className="pt-0.5 text-slate-700">{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
       ) : null}
 

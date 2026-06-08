@@ -6,105 +6,15 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type {
-  TrustConnectorProviderType,
-  TrustedOrganizationStatus,
-} from "@prisma/client";
-
-const connectorNameLabels: Record<string, string> = {
-  GOODISSIMA_DEMO_AUTHORITY: "Autorité de démonstration Goodissima",
-  FRANCE_IDENTITE: "France Identité",
-  EIDAS_WALLET: "Portefeuille d'identité européen",
-  BANK_CONNECT: "Connecteur bancaire",
-  EDUCATION_PROVIDER: "Établissement d'enseignement",
-};
-
-const providerTypeLabels: Record<TrustConnectorProviderType, string> = {
-  DEMO: "Démonstration",
-  GOVERNMENT: "Administration publique",
-  EUROPEAN_WALLET: "Portefeuille européen",
-  BANK: "Banque",
-  INSURANCE: "Assurance",
-  EDUCATION: "Éducation",
-  PROFESSIONAL_BODY: "Ordre professionnel",
-  OTHER: "Autre source",
-};
-
-const connectorJourneySteps: Record<string, string[]> = {
-  GOODISSIMA_DEMO_AUTHORITY: [
-    "Goodissima",
-    "Autorité de démonstration",
-    "Émission d'une attestation de test",
-    "Candidat vérifié en environnement pilote",
-  ],
-  FRANCE_IDENTITE: [
-    "Goodissima",
-    "France Identité",
-    "Vérification d'identité",
-    "Attestation d'identité",
-    "Retour Goodissima",
-    "Candidat vérifié",
-  ],
-  EIDAS_WALLET: [
-    "Goodissima",
-    "Portefeuille d'identité européen",
-    "Partage d'attestation",
-    "Retour Goodissima",
-    "Candidat vérifié",
-  ],
-  BANK_CONNECT: [
-    "Goodissima",
-    "Connecteur bancaire",
-    "Confirmation du statut client",
-    "Attestation bancaire",
-    "Retour Goodissima",
-  ],
-  EDUCATION_PROVIDER: [
-    "Goodissima",
-    "Établissement d'enseignement",
-    "Confirmation du diplôme ou statut étudiant",
-    "Attestation",
-    "Retour Goodissima",
-  ],
-};
-
-const trustedOrganizationStatusLabels: Record<TrustedOrganizationStatus, string> = {
-  PENDING: "En attente",
-  TRUSTED: "Source de confiance",
-  SUSPENDED: "Suspendue",
-  REVOKED: "Révoquée",
-};
-
-function getConnectorName(code: string, name: string) {
-  return connectorNameLabels[code] ?? name;
-}
-
-function getTrustedOrganizationLabel(organizationId: string) {
-  return connectorNameLabels[organizationId] ?? "Source de confiance associée";
-}
-
-function getConnectorDisplayStatus(code: string) {
-  if (code === "GOODISSIMA_DEMO_AUTHORITY") {
-    return {
-      label: "Disponible",
-      className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-    };
-  }
-
-  return {
-    label: "Prévu",
-    className: "bg-sky-50 text-sky-800 ring-sky-200",
-  };
-}
-
-function getConnectorJourneySteps(code: string) {
-  return connectorJourneySteps[code] ?? [
-    "Goodissima",
-    "Source de confiance",
-    "Attestation",
-    "Retour Goodissima",
-  ];
-}
+import {
+  getConnectorDescription,
+  getConnectorDisplayStatus,
+  getConnectorJourneySteps,
+  getConnectorName,
+  getTrustedOrganizationLabel,
+  providerTypeLabels,
+  trustedOrganizationStatusLabels,
+} from "@/lib/trust-connectors-display";
 
 export default async function TrustConnectorsPage() {
   noStore();
@@ -186,7 +96,7 @@ export default async function TrustConnectorsPage() {
                 </div>
 
                 <p className="mt-4 min-h-12 text-sm leading-6 text-slate-600">
-                  {connector.description ?? "Source de confiance prévue pour de futures attestations."}
+                  {getConnectorDescription(connector.code, connector.description)}
                 </p>
 
                 <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
