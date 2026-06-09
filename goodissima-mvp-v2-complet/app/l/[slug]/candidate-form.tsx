@@ -30,6 +30,24 @@ async function getApiErrorMessage(res: Response) {
   }
 }
 
+async function getCaseSubmissionErrorMessage(res: Response) {
+  try {
+    const body = await res.json();
+    const code =
+      body && typeof body === "object" && "code" in body && typeof body.code === "string"
+        ? body.code
+        : null;
+
+    if (code) {
+      return `La demande n'a pas pu être envoyée. Code : ${code}`;
+    }
+  } catch {
+    // Keep the current generic fallback when the API response is not JSON.
+  }
+
+  return "Erreur lors de l'action";
+}
+
 export default function CandidateForm({
   gLinkId,
   formTemplateId,
@@ -214,7 +232,7 @@ export default function CandidateForm({
       });
 
       if (!res.ok) {
-        toast.error("Erreur lors de l'action");
+        toast.error(await getCaseSubmissionErrorMessage(res));
         return;
       }
 

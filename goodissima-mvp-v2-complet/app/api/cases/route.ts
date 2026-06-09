@@ -20,6 +20,45 @@ import {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
+type CaseErrorCode =
+  | "INVALID_REQUEST_BODY"
+  | "INVALID_NOTIFICATION_EMAIL"
+  | "REQUIRED_FIELD_MISSING"
+  | "GLINK_NOT_FOUND";
+
+function logCaseRequestWarning({
+  code,
+  gLinkId,
+  reasons,
+}: {
+  code: CaseErrorCode;
+  gLinkId?: unknown;
+  reasons: string[];
+}) {
+  console.warn("[api/cases] Bad request", {
+    code,
+    route: "app/api/cases/route.ts",
+    gLinkId: typeof gLinkId === "string" ? gLinkId : null,
+    slug: null,
+    reasons,
+  });
+}
+
+function badRequest({
+  code,
+  error,
+  gLinkId,
+  reasons,
+}: {
+  code: CaseErrorCode;
+  error: string;
+  gLinkId?: unknown;
+  reasons: string[];
+}) {
+  logCaseRequestWarning({ code, gLinkId, reasons });
+
+  return NextResponse.json({ error, code, reasons }, { status: 400 });
+}
 
 function getFormSubmissionData(body: Record<string, unknown>) {
   if (typeof body.formTemplateId !== "string" || !body.formTemplateId) {
@@ -53,7 +92,26 @@ function withCandidateCookie(token: string, gLinkId: string) {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  let body;
+
+  try {
+    body = await req.json();
+  } catch {
+    return badRequest({
+      code: "INVALID_REQUEST_BODY",
+      error: "Invalid request body",
+      reasons: ["invalid_json"],
+    });
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return badRequest({
+      code: "INVALID_REQUEST_BODY",
+      error: "Invalid request body",
+      reasons: ["body_must_be_object"],
+    });
+  }
+
   const submittedCandidateEmail =
     typeof body.candidateEmail === "string" ? body.candidateEmail.trim().toLowerCase() : "";
   const candidateNotificationEmail =
@@ -66,11 +124,26 @@ export async function POST(req: Request) {
   const messageBody = typeof body.message === "string" ? body.message.trim() : "";
 
   if (wantsCandidateNotifications && (!candidateNotificationEmail || !emailPattern.test(candidateNotificationEmail))) {
-    return NextResponse.json({ error: "Valid notification email required" }, { status: 400 });
+    return badRequest({
+      code: "INVALID_NOTIFICATION_EMAIL",
+      error: "Valid notification email required",
+      gLinkId: body.gLinkId,
+      reasons: ["candidate_notification_email_invalid"],
+    });
   }
 
   if (!body.gLinkId || !candidateName || !candidateEmail || !messageBody) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    return badRequest({
+      code: "REQUIRED_FIELD_MISSING",
+      error: "Missing required fields",
+      gLinkId: body.gLinkId,
+      reasons: [
+        body.gLinkId ? null : "gLinkId_missing",
+        candidateName ? null : "candidateName_missing",
+        candidateEmail ? null : "candidateEmail_missing",
+        messageBody ? null : "message_missing",
+      ].filter((reason): reason is string => Boolean(reason)),
+    });
   }
 
   const gLink = await prisma.gLink.findUnique({
@@ -79,7 +152,16 @@ export async function POST(req: Request) {
   });
 
   if (!gLink) {
-    return NextResponse.json({ error: "Link not found" }, { status: 404 });
+    logCaseRequestWarning({
+      code: "GLINK_NOT_FOUND",
+      gLinkId: body.gLinkId,
+      reasons: ["gLink_not_found"],
+    });
+
+    return NextResponse.json(
+      { error: "Link not found", code: "GLINK_NOT_FOUND", reasons: ["gLink_not_found"] },
+      { status: 404 },
+    );
   }
 
   const existingRelationCase = await prisma.relationCase.findFirst({
