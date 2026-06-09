@@ -25,6 +25,49 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
 type TrustAdmissionMode = "OBSERVE" | "SIMULATE_BLOCK" | "ENFORCE";
 type ResolvedTrustAdmissionToken = { identityId: string; tokenId: string } | null;
+type BadRequestCode =
+  | "INVALID_REQUEST_BODY"
+  | "INVALID_NOTIFICATION_EMAIL"
+  | "REQUIRED_FIELD_MISSING"
+  | "GLINK_NOT_FOUND";
+
+function warnBadRequest({
+  code,
+  gLinkId,
+  slug,
+  reasons,
+}: {
+  code: BadRequestCode;
+  gLinkId?: unknown;
+  slug?: string | null;
+  reasons: string[];
+}) {
+  console.warn("[api/cases] Bad request", {
+    code,
+    route: "app/api/cases/route.ts",
+    gLinkId: typeof gLinkId === "string" ? gLinkId : null,
+    slug: slug ?? null,
+    reasons,
+  });
+}
+
+function badRequest({
+  code,
+  error,
+  gLinkId,
+  slug,
+  reasons,
+}: {
+  code: BadRequestCode;
+  error: string;
+  gLinkId?: unknown;
+  slug?: string | null;
+  reasons: string[];
+}) {
+  warnBadRequest({ code, gLinkId, slug, reasons });
+
+  return NextResponse.json({ error, code, reasons }, { status: 400 });
+}
 
 function getFormSubmissionData(body: Record<string, unknown>) {
   if (typeof body.formTemplateId !== "string" || !body.formTemplateId) {
@@ -125,7 +168,28 @@ async function observeTrustAdmissionToken(
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  let body: Record<string, unknown>;
+
+  try {
+    const parsedBody = await req.json();
+
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+      return badRequest({
+        code: "INVALID_REQUEST_BODY",
+        error: "Invalid request body",
+        reasons: ["body_must_be_object"],
+      });
+    }
+
+    body = parsedBody as Record<string, unknown>;
+  } catch {
+    return badRequest({
+      code: "INVALID_REQUEST_BODY",
+      error: "Invalid request body",
+      reasons: ["invalid_json"],
+    });
+  }
+
   const submittedCandidateEmail =
     typeof body.candidateEmail === "string" ? body.candidateEmail.trim().toLowerCase() : "";
   const candidateNotificationEmail =
@@ -136,22 +200,49 @@ export async function POST(req: Request) {
   const candidateEmail = wantsCandidateNotifications ? candidateNotificationEmail : submittedCandidateEmail;
   const candidateName = typeof body.candidateName === "string" ? body.candidateName.trim() : "";
   const messageBody = typeof body.message === "string" ? body.message.trim() : "";
+  const gLinkId = typeof body.gLinkId === "string" ? body.gLinkId : "";
+  const documentName = typeof body.documentName === "string" ? body.documentName : "";
+  const documentUrl = typeof body.documentUrl === "string" ? body.documentUrl : "";
 
   if (wantsCandidateNotifications && (!candidateNotificationEmail || !emailPattern.test(candidateNotificationEmail))) {
-    return NextResponse.json({ error: "Valid notification email required" }, { status: 400 });
+    return badRequest({
+      code: "INVALID_NOTIFICATION_EMAIL",
+      error: "Valid notification email required",
+      gLinkId,
+      reasons: ["candidate_notification_email_invalid"],
+    });
   }
 
-  if (!body.gLinkId || !candidateName || !candidateEmail || !messageBody) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  if (!gLinkId || !candidateName || !candidateEmail || !messageBody) {
+    return badRequest({
+      code: "REQUIRED_FIELD_MISSING",
+      error: "Missing required fields",
+      gLinkId,
+      reasons: [
+        gLinkId ? null : "gLinkId_missing",
+        candidateName ? null : "candidateName_missing",
+        candidateEmail ? null : "candidateEmail_missing",
+        messageBody ? null : "message_missing",
+      ].filter((reason): reason is string => Boolean(reason)),
+    });
   }
 
   const gLink = await prisma.gLink.findUnique({
-    where: { id: body.gLinkId },
+    where: { id: gLinkId },
     include: { owner: { select: { email: true, notificationPreferences: true } } },
   });
 
   if (!gLink) {
-    return NextResponse.json({ error: "Link not found" }, { status: 404 });
+    warnBadRequest({
+      code: "GLINK_NOT_FOUND",
+      gLinkId,
+      reasons: ["gLink_not_found"],
+    });
+
+    return NextResponse.json(
+      { error: "Link not found", code: "GLINK_NOT_FOUND", reasons: ["gLink_not_found"] },
+      { status: 404 },
+    );
   }
 
   const resolvedTrustAdmissionToken = await observeTrustAdmissionToken(body, gLink.id);
@@ -199,13 +290,13 @@ export async function POST(req: Request) {
       payload: { existing: true, messageId: message.id },
     });
 
-    if (body.documentName && body.documentUrl) {
+    if (documentName && documentUrl) {
       const document = await prisma.document.create({
         data: {
           caseId: existingRelationCase.id,
           uploadedByEmail: candidateEmail,
-          fileName: body.documentName,
-          fileUrl: body.documentUrl,
+          fileName: documentName,
+          fileUrl: documentUrl,
           mimeType: "application/octet-stream",
         },
       });
@@ -215,7 +306,7 @@ export async function POST(req: Request) {
         type: "DOCUMENT_UPLOADED",
         actorType: "CANDIDATE",
         actorId: "CANDIDATE",
-        payload: { documentId: document.id, fileName: body.documentName },
+        payload: { documentId: document.id, fileName: documentName },
       });
     }
 
@@ -226,12 +317,12 @@ export async function POST(req: Request) {
       metadata: { existing: true },
     });
 
-    if (body.documentName && body.documentUrl) {
+    if (documentName && documentUrl) {
       await auditLog({
         caseId: existingRelationCase.id,
         actorEmail: candidateEmail,
         eventType: "DOCUMENT_UPLOADED",
-        metadata: { fileName: body.documentName },
+        metadata: { fileName: documentName },
       });
     }
 
@@ -260,16 +351,16 @@ export async function POST(req: Request) {
       });
     }
 
-    if (body.documentName && body.documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
+    if (documentName && documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
       await sendNewDocumentEmail({
         ownerEmail: existingRelationCase.owner.email,
         candidateEmail,
         caseId: existingRelationCase.id,
         caseTitle: existingRelationCase.gLink.title,
         candidateName: existingRelationCase.candidateName,
-        fileName: String(body.documentName),
+        fileName: documentName,
       });
-    } else if (body.documentName && body.documentUrl) {
+    } else if (documentName && documentUrl) {
       logNotificationSkipped(existingRelationCase.owner.notificationPreferences, "documents", {
         caseId: existingRelationCase.id,
         event: "candidate_document_existing_case",
@@ -531,13 +622,13 @@ export async function POST(req: Request) {
   });
 
   const document =
-    body.documentName && body.documentUrl
+    documentName && documentUrl
       ? await prisma.document.create({
           data: {
             caseId: relationCase.id,
             uploadedByEmail: candidateEmail,
-            fileName: body.documentName,
-            fileUrl: body.documentUrl,
+            fileName: documentName,
+            fileUrl: documentUrl,
             mimeType: "application/octet-stream",
           },
         })
@@ -568,14 +659,14 @@ export async function POST(req: Request) {
       caseId: relationCase.id,
       actorEmail: candidateEmail,
       eventType: "DOCUMENT_UPLOADED",
-      metadata: { fileName: body.documentName },
+      metadata: { fileName: documentName },
     });
     await createRelationEvent({
       caseId: relationCase.id,
       type: "DOCUMENT_UPLOADED",
       actorType: "CANDIDATE",
       actorId: "CANDIDATE",
-      payload: { documentId: document.id, fileName: body.documentName },
+      payload: { documentId: document.id, fileName: documentName },
     });
   }
 

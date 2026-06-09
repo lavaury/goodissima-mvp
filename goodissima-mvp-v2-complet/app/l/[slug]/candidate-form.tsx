@@ -35,9 +35,16 @@ async function getApiErrorMessage(res: Response) {
 async function getCaseSubmissionError(res: Response) {
   try {
     const body = await res.json();
+    const code = body && typeof body === "object" && "code" in body && typeof body.code === "string"
+      ? body.code
+      : null;
 
-    if (body && typeof body === "object" && "code" in body && body.code === trustAdmissionBlockedCode) {
+    if (code === trustAdmissionBlockedCode) {
       return { code: trustAdmissionBlockedCode, message: "Cette relation nécessite une attestation." };
+    }
+
+    if (code) {
+      return { code, message: `La demande n'a pas pu être envoyée. Code : ${code}` };
     }
   } catch {
     // Keep the generic candidate-facing fallback when the API response is not JSON.
