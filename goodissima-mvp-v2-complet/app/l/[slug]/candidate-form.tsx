@@ -48,6 +48,15 @@ async function getCaseSubmissionErrorMessage(res: Response) {
   return "Erreur lors de l'action";
 }
 
+function getFirstAnswer(answers: Record<string, DynamicFieldValue>, keys: string[]) {
+  for (const key of keys) {
+    const value = getStringFieldValue(answers[key]).trim();
+    if (value) return value;
+  }
+
+  return "";
+}
+
 export default function CandidateForm({
   gLinkId,
   formTemplateId,
@@ -186,8 +195,8 @@ export default function CandidateForm({
       return;
     }
 
-    const fullName = (getStringFieldValue(answers.fullName) || getStringFieldValue(answers.name)).trim();
-    const email = getStringFieldValue(answers.email).trim();
+    const fullName = getFirstAnswer(answers, ["fullName", "name", "candidateName", "nom"]);
+    const email = getFirstAnswer(answers, ["email", "candidateEmail"]);
     const templateNotificationOptIn = answers.notificationOptIn === true;
     const wantsNotifications = hasTemplateNotificationFields
       ? templateNotificationOptIn
@@ -197,7 +206,7 @@ export default function CandidateForm({
     )
       .trim()
       .toLowerCase();
-    const message = getStringFieldValue(answers.message).trim();
+    const message = getFirstAnswer(answers, ["message", "content", "request", "description", "demande"]);
     const ruleValues = toRuleValues(answers);
     const submissionAnswers = fields.reduce<Record<string, DynamicFieldValue>>((result, field) => {
       if (!supportedFieldTypes.has(field.type)) return result;
