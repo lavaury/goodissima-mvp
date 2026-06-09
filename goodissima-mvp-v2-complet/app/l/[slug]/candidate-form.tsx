@@ -48,9 +48,22 @@ async function getCaseSubmissionErrorMessage(res: Response) {
   return "Erreur lors de l'action";
 }
 
+function normalizeAnswerKey(key: string) {
+  return key
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function getFirstAnswer(answers: Record<string, DynamicFieldValue>, keys: string[]) {
+  const normalizedAnswers = new Map(
+    Object.entries(answers).map(([key, value]) => [normalizeAnswerKey(key), value]),
+  );
+
   for (const key of keys) {
-    const value = getStringFieldValue(answers[key]).trim();
+    const value = getStringFieldValue(
+      answers[key] ?? normalizedAnswers.get(normalizeAnswerKey(key)),
+    ).trim();
     if (value) return value;
   }
 
@@ -195,7 +208,7 @@ export default function CandidateForm({
       return;
     }
 
-    const fullName = getFirstAnswer(answers, ["fullName", "name", "candidateName", "nom"]);
+    const fullName = getFirstAnswer(answers, ["Nom", "nom", "fullName", "name", "candidateName"]);
     const email = getFirstAnswer(answers, ["email", "candidateEmail"]);
     const templateNotificationOptIn = answers.notificationOptIn === true;
     const wantsNotifications = hasTemplateNotificationFields
@@ -206,7 +219,7 @@ export default function CandidateForm({
     )
       .trim()
       .toLowerCase();
-    const message = getFirstAnswer(answers, ["message", "content", "request", "description", "demande"]);
+    const message = getFirstAnswer(answers, ["Message", "message", "content", "request", "description", "demande"]);
     const ruleValues = toRuleValues(answers);
     const submissionAnswers = fields.reduce<Record<string, DynamicFieldValue>>((result, field) => {
       if (!supportedFieldTypes.has(field.type)) return result;
@@ -217,10 +230,11 @@ export default function CandidateForm({
       return result;
     }, {});
     const candidateEmail = email || `private-${crypto.randomUUID()}@goodissima.local`;
+    const candidateName = fullName || candidateEmail || privateNotificationEmail || "Candidat";
 
     const payload = {
       gLinkId,
-      candidateName: fullName,
+      candidateName,
       candidateEmail,
       candidateNotificationEmail: wantsNotifications ? privateNotificationEmail : "",
       message,

@@ -133,14 +133,6 @@ export async function POST(req: Request) {
   }
 
   if (!body.gLinkId || !candidateName || !candidateEmail || !messageBody) {
-    console.warn("[api/cases] Missing required field payload shape", {
-      gLinkId: body.gLinkId,
-      answerKeys: body?.answers && typeof body.answers === "object" ? Object.keys(body.answers) : null,
-      hasCandidateName: Boolean(body?.candidateName),
-      hasMessage: Boolean(body?.message),
-      bodyKeys: body && typeof body === "object" ? Object.keys(body) : null,
-    });
-
     return badRequest({
       code: "REQUIRED_FIELD_MISSING",
       error: "Missing required fields",
