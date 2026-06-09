@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import {
   DynamicFormRenderer,
@@ -17,8 +18,7 @@ import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateFieldKeys = new Set(["notificationEmail"]);
-const trustAdmissionBlockedMessage =
-  "Cette relation nécessite une identité vérifiée. Utilisez un lien d’admission vérifié ou complétez la vérification demandée avant de réessayer.";
+const trustAdmissionBlockedCode = "TRUST_ADMISSION_BLOCKED";
 
 async function getApiErrorMessage(res: Response) {
   try {
@@ -32,18 +32,18 @@ async function getApiErrorMessage(res: Response) {
   }
 }
 
-async function getCaseSubmissionErrorMessage(res: Response) {
+async function getCaseSubmissionError(res: Response) {
   try {
     const body = await res.json();
 
-    if (body && typeof body === "object" && "code" in body && body.code === "TRUST_ADMISSION_BLOCKED") {
-      return trustAdmissionBlockedMessage;
+    if (body && typeof body === "object" && "code" in body && body.code === trustAdmissionBlockedCode) {
+      return { code: trustAdmissionBlockedCode, message: "Cette relation nécessite une attestation." };
     }
   } catch {
     // Keep the generic candidate-facing fallback when the API response is not JSON.
   }
 
-  return "Erreur lors de l'action";
+  return { code: null, message: "Erreur lors de l'action" };
 }
 
 export default function CandidateForm({
@@ -75,6 +75,7 @@ export default function CandidateForm({
   };
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
@@ -90,6 +91,7 @@ export default function CandidateForm({
   const [emailNotificationsConsent, setEmailNotificationsConsent] = useState(false);
   const [notificationEmail, setNotificationEmail] = useState("");
   const [admissionErrorMessage, setAdmissionErrorMessage] = useState("");
+  const [isAdmissionBlocked, setIsAdmissionBlocked] = useState(false);
   const stepCount = getStepCount(fields);
   const isMultiStep = stepCount > 1;
   const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
@@ -97,6 +99,9 @@ export default function CandidateForm({
     ["notificationOptIn", "notificationEmail"].includes(field.key),
   );
   const trustAdmissionToken = searchParams.get("trustAdmissionToken")?.trim() ?? "";
+  const search = searchParams.toString();
+  const returnPath = `${pathname}${search ? `?${search}` : ""}`;
+  const authNext = encodeURIComponent(returnPath);
 
   function validateFields(fieldsToValidate: DynamicFormField[]) {
     const ruleValues = toRuleValues(answers);
@@ -184,6 +189,7 @@ export default function CandidateForm({
   async function submit() {
     if (!validateForm()) {
       setAdmissionErrorMessage("");
+      setIsAdmissionBlocked(false);
       toast.error(copy.fieldErrorToast);
       return;
     }
@@ -227,6 +233,7 @@ export default function CandidateForm({
 
     setLoading(true);
     setAdmissionErrorMessage("");
+    setIsAdmissionBlocked(false);
 
     try {
       const res = await fetch("/api/cases", {
@@ -236,9 +243,16 @@ export default function CandidateForm({
       });
 
       if (!res.ok) {
-        const errorMessage = await getCaseSubmissionErrorMessage(res);
-        setAdmissionErrorMessage(errorMessage);
-        toast.error(errorMessage);
+        const submissionError = await getCaseSubmissionError(res);
+
+        if (submissionError.code === trustAdmissionBlockedCode) {
+          setIsAdmissionBlocked(true);
+          toast.error(submissionError.message);
+          return;
+        }
+
+        setAdmissionErrorMessage(submissionError.message);
+        toast.error(submissionError.message);
         return;
       }
 
@@ -359,7 +373,29 @@ export default function CandidateForm({
           </button>
         )}
       </div>
-      {admissionErrorMessage ? (
+      {isAdmissionBlocked ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <h3 className="font-semibold text-amber-950">Cette relation nécessite une attestation.</h3>
+          <p className="mt-2 leading-6">
+            Pour envoyer votre demande, vous devez disposer d'une identité Goodissima et obtenir
+            l'attestation demandée.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Link
+              className="rounded-xl bg-slate-900 px-4 py-3 text-center font-medium text-white"
+              href={`/signup?next=${authNext}`}
+            >
+              Créer mon identité Goodissima
+            </Link>
+            <Link
+              className="rounded-xl border border-amber-300 bg-white px-4 py-3 text-center font-medium text-slate-900"
+              href={`/login?next=${authNext}`}
+            >
+              J'ai déjà un compte
+            </Link>
+          </div>
+        </div>
+      ) : admissionErrorMessage ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {admissionErrorMessage}
         </p>

@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
+  const nextParam = searchParams.get("next");
+  const next = nextParam?.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/dashboard";
   const privateAccessDenied = searchParams.get("private_access") === "denied";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -94,7 +95,7 @@ function LoginForm() {
       </p>
       <p className="mt-4 text-center text-sm text-slate-600">
         Pas encore de compte ?{" "}
-        <Link className="font-medium text-slate-900 underline" href="/signup">
+        <Link className="font-medium text-slate-900 underline" href={`/signup?next=${encodeURIComponent(next)}`}>
           Créer un accès
         </Link>
       </p>
