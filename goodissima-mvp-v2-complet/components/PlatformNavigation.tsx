@@ -8,7 +8,6 @@ const items = [
   { labelKey: "nav.relations", href: "/dashboard" },
   { labelKey: "nav.studio", href: "/templates" },
   { labelKey: "nav.analytics", href: "/analytics" },
-  { labelKey: "nav.trust", href: "/trust/connectors" },
   { labelKey: "nav.identity", href: "/identity" },
   { labelKey: "nav.settings", href: "/settings" },
 ];

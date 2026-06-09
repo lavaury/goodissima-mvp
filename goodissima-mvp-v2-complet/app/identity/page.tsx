@@ -16,7 +16,7 @@ import {
 } from "@/lib/trust-connectors-display";
 import { getActiveCredentialsForIdentity } from "@/lib/trust-credentials";
 import { getOrCreateGoodissimaIdentityForUser } from "@/lib/user-identity";
-import { TrustConnectorStatus, type IdentityStatus } from "@prisma/client";
+import { type IdentityStatus } from "@prisma/client";
 
 const identityStatusDisplay: Record<
   IdentityStatus,
@@ -83,6 +83,14 @@ function getIssuerLabel(organizationId: string) {
   return issuerLabels[organizationId] ?? humanizeCode(organizationId);
 }
 
+const attestationExamples = [
+  "Identité vérifiée",
+  "Attestation bancaire",
+  "Diplôme ou statut étudiant",
+  "Assurance",
+  "Statut professionnel",
+];
+
 export default async function IdentityPage() {
   noStore();
 
@@ -105,7 +113,6 @@ export default async function IdentityPage() {
     }),
     getActiveCredentialsForIdentity(prisma, identityLink.identityId),
     prisma.trustConnector.findMany({
-      where: { status: TrustConnectorStatus.ACTIVE },
       orderBy: [{ providerType: "asc" }, { name: "asc" }],
       select: {
         code: true,
@@ -127,11 +134,11 @@ export default async function IdentityPage() {
         <div>
           <DashboardBackLink className="mb-4" />
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
-            Identité Goodissima
+            Mon identité
           </p>
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Mon identité</h1>
           <p className="mt-2 max-w-3xl text-slate-500">
-            Cette page affiche l'identité rattachée à votre compte connecté.
+            Gérez votre identité Goodissima et les attestations utilisables dans vos parcours relationnels.
           </p>
         </div>
         <LogoutButton />
@@ -160,19 +167,28 @@ export default async function IdentityPage() {
         </div>
       </section>
 
-      {identity.status !== "VERIFIED" ? (
-        <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Sources de confiance
+              Mes attestations
             </p>
             <h2 className="mt-1 text-xl font-semibold text-slate-950">
-              Comment devenir vérifié ?
+              Obtenir une attestation
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Vous pouvez obtenir une attestation auprès d’une source de confiance. Certaines sont déjà
-              disponibles, d’autres seront proposées prochainement.
+              Vous pouvez obtenir une attestation auprès d'une source de confiance. Certaines sont déjà
+              disponibles, d'autres seront proposées prochainement.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {attestationExamples.map((example) => (
+                <span
+                  key={example}
+                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700"
+                >
+                  {example}
+                </span>
+              ))}
+            </div>
             <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">
               Fonctionnalité de démonstration : aucune vérification officielle n’est réalisée.
             </p>
@@ -241,8 +257,7 @@ export default async function IdentityPage() {
               })}
             </div>
           )}
-        </section>
-      ) : null}
+      </section>
 
       <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -251,7 +266,7 @@ export default async function IdentityPage() {
               Attestations
             </p>
             <h2 className="mt-1 text-xl font-semibold text-slate-950">
-              Attestations actives
+              Mes attestations
             </h2>
           </div>
           <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
