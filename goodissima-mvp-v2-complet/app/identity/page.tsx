@@ -14,9 +14,12 @@ import {
   getConnectorJourneySteps,
   getConnectorName,
 } from "@/lib/trust-connectors-display";
-import { getActiveCredentialsForIdentity } from "@/lib/trust-credentials";
+import {
+  getActiveCredentialsForIdentity,
+  getCredentialsForIdentityHistory,
+} from "@/lib/trust-credentials";
 import { getOrCreateGoodissimaIdentityForUser } from "@/lib/user-identity";
-import { type IdentityStatus } from "@prisma/client";
+import { TrustCredentialStatus, type IdentityStatus } from "@prisma/client";
 
 const identityStatusDisplay: Record<
   IdentityStatus,
@@ -65,6 +68,28 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   year: "numeric",
 });
 
+const credentialHistoryStatusDisplay: Record<
+  TrustCredentialStatus,
+  { label: string; className: string }
+> = {
+  ACTIVE: {
+    label: "Active",
+    className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  },
+  EXPIRED: {
+    label: "Expirée",
+    className: "bg-slate-100 text-slate-700 ring-slate-200",
+  },
+  SUSPENDED: {
+    label: "Suspendue",
+    className: "bg-orange-50 text-orange-900 ring-orange-200",
+  },
+  REVOKED: {
+    label: "Révoquée",
+    className: "bg-red-50 text-red-900 ring-red-200",
+  },
+};
+
 function humanizeCode(value: string) {
   const label = value
     .toLowerCase()
@@ -81,6 +106,21 @@ function getCredentialTypeLabel(code: string) {
 
 function getIssuerLabel(organizationId: string) {
   return issuerLabels[organizationId] ?? humanizeCode(organizationId);
+}
+
+function isCredentialExpiredByDate(credential: { expiresAt: Date | null }) {
+  return Boolean(credential.expiresAt && credential.expiresAt.getTime() <= Date.now());
+}
+
+function getCredentialHistoryStatusDisplay(credential: {
+  status: TrustCredentialStatus;
+  expiresAt: Date | null;
+}) {
+  if (credential.status === TrustCredentialStatus.ACTIVE && isCredentialExpiredByDate(credential)) {
+    return credentialHistoryStatusDisplay.EXPIRED;
+  }
+
+  return credentialHistoryStatusDisplay[credential.status];
 }
 
 const attestationExamples = [
@@ -102,7 +142,7 @@ export default async function IdentityPage() {
   const identityLink = await getOrCreateGoodissimaIdentityForUser(prisma, {
     userId: currentUser.id,
   });
-  const [identity, activeCredentials, trustConnectors] = await Promise.all([
+  const [identity, activeCredentials, credentialHistory, trustConnectors] = await Promise.all([
     prisma.goodissimaIdentity.findUnique({
       where: { id: identityLink.identityId },
       select: {
@@ -112,6 +152,7 @@ export default async function IdentityPage() {
       },
     }),
     getActiveCredentialsForIdentity(prisma, identityLink.identityId),
+    getCredentialsForIdentityHistory(prisma, identityLink.identityId),
     prisma.trustConnector.findMany({
       orderBy: [{ providerType: "asc" }, { name: "asc" }],
       select: {
@@ -127,6 +168,10 @@ export default async function IdentityPage() {
   }
 
   const statusDisplay = identityStatusDisplay[identity.status];
+  const inactiveCredentialHistory = credentialHistory.filter(
+    (credential) =>
+      credential.status !== TrustCredentialStatus.ACTIVE || isCredentialExpiredByDate(credential),
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -266,7 +311,7 @@ export default async function IdentityPage() {
               Attestations
             </p>
             <h2 className="mt-1 text-xl font-semibold text-slate-950">
-              Mes attestations
+              Attestations actives
             </h2>
           </div>
           <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
@@ -300,6 +345,66 @@ export default async function IdentityPage() {
                 </p>
               </article>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Historique
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">
+              Historique des attestations
+            </h2>
+          </div>
+          <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+            {inactiveCredentialHistory.length} historique{inactiveCredentialHistory.length > 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {inactiveCredentialHistory.length === 0 ? (
+          <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+            Aucun historique d'attestation non active pour le moment.
+          </p>
+        ) : (
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {inactiveCredentialHistory.map((credential) => {
+              const status = getCredentialHistoryStatusDisplay(credential);
+
+              return (
+                <article key={credential.id} className="rounded-xl border bg-slate-50 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {getCredentialTypeLabel(credential.credentialType.code)}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Emetteur : {getIssuerLabel(credential.issuerTrustedOrganization.organizationId)}
+                      </p>
+                    </div>
+                    <span
+                      className={`self-start rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${status.className}`}
+                    >
+                      {status.label}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1 text-xs text-slate-500">
+                    <p>Emise le {dateFormatter.format(credential.issuedAt)}</p>
+                    {credential.expiresAt ? (
+                      <p>Expiration le {dateFormatter.format(credential.expiresAt)}</p>
+                    ) : null}
+                    {credential.revokedAt ? (
+                      <p>Revoquee le {dateFormatter.format(credential.revokedAt)}</p>
+                    ) : null}
+                    {credential.revocationReason ? (
+                      <p>Raison : {credential.revocationReason}</p>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>

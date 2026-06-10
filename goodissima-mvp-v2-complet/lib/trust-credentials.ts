@@ -217,11 +217,25 @@ export async function getActiveCredentialsForIdentity(
   prisma: Prisma.TransactionClient | PrismaClient,
   identityId: string,
 ) {
+  const now = new Date();
+
   return prisma.trustCredential.findMany({
     where: {
       identityId,
       status: TrustCredentialStatus.ACTIVE,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
+    orderBy: { issuedAt: "desc" },
+    include: trustCredentialDetailsInclude,
+  });
+}
+
+export async function getCredentialsForIdentityHistory(
+  prisma: Prisma.TransactionClient | PrismaClient,
+  identityId: string,
+) {
+  return prisma.trustCredential.findMany({
+    where: { identityId },
     orderBy: { issuedAt: "desc" },
     include: trustCredentialDetailsInclude,
   });

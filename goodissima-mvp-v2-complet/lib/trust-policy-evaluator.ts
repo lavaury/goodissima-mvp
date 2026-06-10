@@ -17,10 +17,12 @@ export async function evaluateTrustPolicy(
   prisma: TrustPolicyEvaluatorClient,
   input: EvaluateTrustPolicyInput,
 ): Promise<EvaluateTrustPolicyResult> {
+  const now = new Date();
   const activeCredentials = await prisma.trustCredential.findMany({
     where: {
       identityId: input.identityId,
       status: TrustCredentialStatus.ACTIVE,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
     select: {
       credentialType: {
