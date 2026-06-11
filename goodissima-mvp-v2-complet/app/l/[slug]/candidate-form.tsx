@@ -19,6 +19,8 @@ import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateFieldKeys = new Set(["notificationEmail"]);
 const trustAdmissionBlockedCode = "TRUST_ADMISSION_BLOCKED";
+const trustAdmissionBlockedMessage =
+  "Cette relation nécessite une attestation valide. Elle peut être absente, expirée ou révoquée.";
 
 async function getApiErrorMessage(res: Response) {
   try {
@@ -40,7 +42,7 @@ async function getCaseSubmissionError(res: Response) {
       : null;
 
     if (code === trustAdmissionBlockedCode) {
-      return { code: trustAdmissionBlockedCode, message: "Cette relation nécessite une attestation." };
+      return { code: trustAdmissionBlockedCode, message: trustAdmissionBlockedMessage };
     }
 
     if (code) {
@@ -382,7 +384,7 @@ export default function CandidateForm({
       </div>
       {isAdmissionBlocked ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <h3 className="font-semibold text-amber-950">Cette relation nécessite une attestation.</h3>
+          <h3 className="font-semibold text-amber-950">{trustAdmissionBlockedMessage}</h3>
           <p className="mt-2 leading-6">
             Pour envoyer votre demande, vous devez disposer d'une identité Goodissima et obtenir
             l'attestation demandée.
