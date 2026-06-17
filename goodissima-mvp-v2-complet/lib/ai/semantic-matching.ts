@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { extractMatchingProfile, rankMatches, type AIMatchCandidate, type AIMatchingProfile } from "@/lib/ai/matching";
 import { deterministicEmbedding, getEmbeddingProvider, type EmbeddingType } from "@/lib/ai/embeddings";
+import { recordAIEvent } from "@/lib/ai/observability";
 
 const emailPattern = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 const urlPattern = /https?:\/\/[^\s]+/g;
@@ -92,7 +93,22 @@ export async function generateCaseEmbedding(caseId: string, embeddingType: Embed
       .join("\n"),
   );
   const provider = getEmbeddingProvider();
-  const result = await provider.embed({ input, metadata: { caseId, embeddingType } });
+  let result;
+  try {
+    result = await provider.embed({ input, metadata: { caseId, embeddingType } });
+  } catch (error) {
+    await recordAIEvent({
+      caseId: relationCase.id,
+      featureName: "semantic_embedding",
+      provider: provider.name,
+      model: provider.model,
+      action: "embedding_generated",
+      status: "error",
+      promptVersion: "semantic-matching-v2",
+      errorCode: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_EMBEDDING_ERROR",
+    });
+    throw error;
+  }
   const hash = contentHash(input);
 
   const embedding = await prisma.relationEmbedding.create({
@@ -110,16 +126,15 @@ export async function generateCaseEmbedding(caseId: string, embeddingType: Embed
     embedding.id,
   );
 
-  await prisma.aIEvent.create({
-    data: {
-      caseId: relationCase.id,
-      provider: result.provider,
-      model: result.model,
-      action: "embedding_generated",
-      status: "success",
-      promptVersion: "semantic-matching-v2",
-      outputSummary: `${embeddingType}:${hash.slice(0, 12)}`,
-    },
+  await recordAIEvent({
+    caseId: relationCase.id,
+    featureName: "semantic_embedding",
+    provider: result.provider,
+    model: result.model,
+    action: "embedding_generated",
+    status: "success",
+    promptVersion: "semantic-matching-v2",
+    outputSummary: `${embeddingType}:${hash.slice(0, 12)}`,
   });
 
   await prisma.relationCase.update({

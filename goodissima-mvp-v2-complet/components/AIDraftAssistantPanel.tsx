@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AIEmptyState } from "@/components/AIEmptyState";
 import { useToast } from "@/components/ToastProvider";
 import type { AIDraft, AIDraftType } from "@/lib/ai/types";
@@ -27,6 +27,20 @@ export function AIDraftAssistantPanel({ caseId, workspace = false }: { caseId: s
   const [loading, setLoading] = useState(false);
   const [usingDraft, setUsingDraft] = useState(false);
   const [result, setResult] = useState<DraftResponse | null>(null);
+
+  useEffect(() => {
+    function prefillDraft(event: Event) {
+      const detail = (event as CustomEvent<{ caseId?: string; draftType?: AIDraftType; instruction?: string }>).detail;
+      if (detail?.caseId !== caseId || !detail.draftType) return;
+
+      setDraftType(detail.draftType);
+      setInstruction(detail.instruction ?? "");
+      setResult(null);
+    }
+
+    window.addEventListener("goodissima:prepare-ai-draft", prefillDraft);
+    return () => window.removeEventListener("goodissima:prepare-ai-draft", prefillDraft);
+  }, [caseId]);
 
   async function generateDraft(nextType = draftType) {
     setLoading(true);

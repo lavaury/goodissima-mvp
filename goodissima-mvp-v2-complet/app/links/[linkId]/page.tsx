@@ -9,7 +9,9 @@ import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButto
 import { LinkAdmissionPanel, type LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
+import { ProductContextBanner, ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { StatusBadge } from "@/components/StatusBadge";
+import { AnnouncementActions } from "@/components/AnnouncementActions";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import type { ConditionalRule } from "@/lib/form-rules";
@@ -150,6 +152,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
   noStore();
 
   const owner = await getCurrentPrismaUser();
+  const now = new Date();
   const { locale, t } = getI18n();
   const link = await prisma.gLink.findFirst({
     where: { id: params.linkId, ownerId: owner.id },
@@ -191,6 +194,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
               credentials: {
                 where: {
                   status: "ACTIVE",
+                  OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
                 },
                 select: {
                   credentialType: {
@@ -267,6 +271,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
   const isTrustAdmissionPilot = getPilotGLinkIds().includes(link.id);
   const showAdmissionPanel = isAdmissionPanelEnabled && isTrustAdmissionPilot;
   const admissionMode = getAdmissionMode(link.trustPolicies[0]);
+  const sourceJourneyHref = snapshot?.formTemplate.id ? `/templates/${snapshot.formTemplate.id}` : formTemplate?.id ? `/templates/${formTemplate.id}` : null;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -286,6 +291,11 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         active="relations"
         organizationName={owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima"}
       />
+      <ProductLifecycle current="announcement" />
+      <ProductContextBanner object="announcement" />
+
+      <section className="mt-6 rounded-2xl border bg-white p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">Annonce : {link.title}</h2><ProductObjectDefinition object="announcement" /><p className="mt-2 text-sm text-slate-600">Parcours source : <strong>{templateName}</strong></p></div>{sourceJourneyHref ? <Link href={sourceJourneyHref} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-900">Voir le parcours</Link> : null}</div></section>
+      <AnnouncementActions linkId={link.id} publicUrl={publicUrl} initialTitle={link.title} initialCity={link.city ?? ""} initialDescription={link.description ?? ""} initialStatus={link.status} />
 
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-2xl border bg-white p-5 shadow-sm">

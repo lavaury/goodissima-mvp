@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "locale": "fr",
+  "labels": {
+    "PROPERTY_RENTAL": "Recherche de location",
+    "EMPLOYMENT": "Recherche d'emploi",
+    "TENANT": "Locataire",
+    "LANDLORD": "Propriétaire",
+    "CANDIDATE": "Candidat",
+    "EMPLOYER": "Recruteur / employeur",
+    "EXACT_MATCH": "Correspondance parfaite",
+    "STRONG_MATCH": "Correspondance forte",
+    "RELATED_OPPORTUNITY": "Opportunité pertinente",
+    "WEAK_SIGNAL": "Compatibilité faible",
+    "NO_MATCH": "Aucune correspondance"
+  },
+  "text": {
+    "requester": "Demandeur :",
+    "opportunities": "Opportunités détectées",
+    "score": "Score relationnel",
+    "reasons": "Raisons :"
+  },
+  "reasons": {
+    "relationship": { "matched": "Même relation", "unmatched": "Relation non compatible" },
+    "role": { "matched": "Rôles compatibles selon le score", "unmatched": "Rôles non compatibles selon le score" },
+    "trust": { "matched": "Politique de confiance compatible", "unmatched": "Politique de confiance différente" },
+    "family": { "matched": "Même domaine", "unmatched": "Domaine différent" }
+  }
+}

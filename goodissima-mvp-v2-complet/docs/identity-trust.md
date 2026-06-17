@@ -146,8 +146,10 @@ la route retourne :
 
 - HTTP `403` ;
 - `code: "TRUST_ADMISSION_BLOCKED"` ;
-- `error: "Admission blocked by Trust Admission requirements."` ;
-- les types requis et manquants.
+- `error: "Admission blocked by Trust Admission requirements."`.
+
+Les details internes de policy, comme les types requis ou manquants, restent
+dans les logs serveur et ne sont pas exposes dans la reponse publique.
 
 Le formulaire public candidat transforme ce code en message utilisateur :
 

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { unstable_noStore as noStore } from "next/cache";
+import Link from "next/link";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -120,6 +121,9 @@ export default async function SettingsPage() {
             <p className="text-xs uppercase tracking-wide text-slate-400">Fournisseur actif</p>
             <p className="mt-1 text-sm font-semibold">{aiProvider.provider}</p>
             <p className="mt-1 text-xs text-slate-300">{aiProvider.model}</p>
+            <Link href="/admin/ai-costs" className="mt-3 inline-flex rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-950">
+              Voir les coûts IA
+            </Link>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">

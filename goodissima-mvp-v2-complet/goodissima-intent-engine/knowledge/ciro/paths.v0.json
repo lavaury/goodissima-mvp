@@ -1,0 +1,125 @@
+{
+  "version": "1.0",
+  "paths": [
+    {
+      "intent": "PROPERTY_RENTAL",
+      "mode": "SEARCH",
+      "roleProjection": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "locataire et proprietaire",
+        "roles": ["locataire", "proprietaire"]
+      },
+      "relationshipResolution": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "REAL_ESTATE_RENTAL_POLICY",
+        "relationship": "PROPERTY_RENTAL"
+      },
+      "ciroProjection": {
+        "c": { "intent": "PROPERTY_RENTAL", "mode": "SEARCH" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "PROPERTY_RENTAL" }
+      }
+    },
+    {
+      "intent": "HOUSING",
+      "mode": "SEARCH",
+      "roleProjection": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "locataire et proprietaire",
+        "roles": ["locataire", "proprietaire"]
+      },
+      "relationshipResolution": {
+        "knowledgeId": "goodissima-matching-governance",
+        "expression": "immobilier",
+        "relationship": "HOUSING"
+      },
+      "ciroProjection": {
+        "c": { "intent": "HOUSING", "mode": "SEARCH" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "HOUSING" }
+      }
+    },
+    {
+      "intent": "EMPLOYMENT",
+      "mode": "SEARCH",
+      "roleProjection": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "candidat et recruteur",
+        "roles": ["candidat", "recruteur"]
+      },
+      "relationshipResolution": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "candidat et recruteur",
+        "relationship": "EMPLOYMENT"
+      },
+      "ciroProjection": {
+        "c": { "intent": "EMPLOYMENT", "mode": "SEARCH" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["candidat", "recruteur"] },
+        "o": { "relationship": "EMPLOYMENT" }
+      }
+    },
+    {
+      "intent": "PROPERTY_RENTAL",
+      "mode": "DOCUMENT_REQUEST",
+      "roleProjection": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "locataire et proprietaire",
+        "roles": ["locataire", "proprietaire"]
+      },
+      "relationshipResolution": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "REAL_ESTATE_RENTAL_POLICY",
+        "relationship": "PROPERTY_RENTAL"
+      },
+      "ciroProjection": {
+        "c": { "intent": "PROPERTY_RENTAL", "mode": "DOCUMENT_REQUEST" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "PROPERTY_RENTAL" }
+      }
+    },
+    {
+      "intent": "HOUSING",
+      "mode": "DOCUMENT_REQUEST",
+      "roleProjection": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "locataire et proprietaire",
+        "roles": ["locataire", "proprietaire"]
+      },
+      "relationshipResolution": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "un dossier locataire peut exiger des documents",
+        "relationship": "HOUSING"
+      },
+      "ciroProjection": {
+        "c": { "intent": "HOUSING", "mode": "DOCUMENT_REQUEST" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "HOUSING" }
+      }
+    },
+    {
+      "intent": "EMPLOYMENT",
+      "mode": "DOCUMENT_REQUEST",
+      "roleProjection": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "candidat et recruteur",
+        "roles": ["candidat", "recruteur"]
+      },
+      "relationshipResolution": {
+        "knowledgeId": "goodissima-trust-architecture",
+        "expression": "un candidat fournit un document",
+        "relationship": "EMPLOYMENT"
+      },
+      "ciroProjection": {
+        "c": { "intent": "EMPLOYMENT", "mode": "DOCUMENT_REQUEST" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["candidat", "recruteur"] },
+        "o": { "relationship": "EMPLOYMENT" }
+      }
+    }
+  ]
+}

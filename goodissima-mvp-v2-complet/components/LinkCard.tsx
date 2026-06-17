@@ -26,6 +26,7 @@ export function LinkCard({
     isTrustAdmissionPilot?: boolean;
     admissionMode?: LinkAdmissionMode;
     openActionCount?: number;
+    sourceJourneyHref?: string;
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
   debugMode?: boolean;
@@ -74,19 +75,20 @@ export function LinkCard({
           </span>
         ) : null}
       </div>
-      {item.templateName ? (
+      {debugMode && item.templateName ? (
         <p className="mt-1 text-xs text-slate-500">
           {item.templateName} {item.templateVersion ? `- v${item.templateVersion}` : "- version courante"}{" "}
           {item.templateStatus ? `(${item.templateStatus})` : ""}
         </p>
       ) : null}
+      {!debugMode && item.templateName ? <p className="mt-2 text-xs text-slate-500">Parcours source : <strong>{item.templateName}</strong>{item.sourceJourneyHref ? <> · <Link href={item.sourceJourneyHref} className="font-semibold text-[#247f88] underline">Voir le parcours</Link></> : null}</p> : null}
       {caseCount > 1 ? (
         <p className="mt-1 text-xs text-slate-500">{caseCount} dossiers</p>
       ) : null}
 
       <div className="mt-4 rounded-xl bg-slate-50 p-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Lien public candidat
+          Lien sécurisé vers l'annonce
         </p>
         <input value={publicUrl} readOnly className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
       </div>
@@ -97,7 +99,7 @@ export function LinkCard({
           {shared ? "Lien copie" : "Partager"}
         </button>
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
-          Tester parcours
+          Voir l'annonce publique
         </Link>
         {!debugMode && caseCount === 0 ? (
           <span className="px-4 py-2 text-sm text-slate-500">Aucun dossier</span>
@@ -138,7 +140,7 @@ export function LinkCard({
           <div className="flex flex-wrap gap-2">
             <CopyLinkButton value={publicUrl} />
             <Link className="rounded-xl border bg-white px-4 py-2 text-sm" href={publicPath}>
-              Tester parcours
+              Voir l'annonce publique
             </Link>
             <DebugCreateTestCaseButton linkId={item.id} />
           </div>

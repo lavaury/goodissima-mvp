@@ -12,6 +12,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
 
   const owner = await getCurrentPrismaUser();
   const debugMode = isGoodissimaDebugMode();
+  const now = new Date();
   const item = await prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
     include: {
@@ -21,7 +22,10 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
           id: true,
           status: true,
           credentials: {
-            where: { status: "ACTIVE" },
+            where: {
+              status: "ACTIVE",
+              OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+            },
             orderBy: { issuedAt: "desc" },
             select: {
               id: true,

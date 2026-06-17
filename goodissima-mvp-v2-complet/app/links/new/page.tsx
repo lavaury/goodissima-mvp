@@ -12,6 +12,7 @@ import {
   localizeTemplateName,
 } from "@/lib/template-localization";
 import { parseTemplateSnapshot, snapshotFieldsToDynamicFields } from "@/lib/template-snapshots";
+import { buildOpportunityPreview } from "@/lib/opportunity-preview";
 import { formatConditionalRule } from "@/lib/template-readable";
 import { NewLinkForm } from "./NewLinkForm";
 
@@ -56,12 +57,19 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
         take: 1,
         select: { version: true, createdAt: true, snapshot: true },
       },
+      trustPolicies: {
+        where: { scope: "TEMPLATE", status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { credentialRequirements: { select: { credentialType: { select: { code: true } } } } },
+      },
     },
   });
   const defaultTemplate = templates.find((template) => template.key === DEFAULT_RELATION_TEMPLATE_KEY);
   const templateOptions = templates.map((template) => {
     const activeVersion = template.versions[0] ?? null;
     const snapshot = activeVersion ? parseTemplateSnapshot(activeVersion.snapshot) : null;
+    const opportunity = snapshot?.design ? buildOpportunityPreview(snapshot) : null;
     const rawFields = snapshot
       ? snapshotFieldsToDynamicFields(snapshot)
       : template.formTemplates[0]?.fields.map((field) => ({
@@ -105,11 +113,19 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
         : null,
       steps,
       rules,
+      photos: opportunity?.photos ?? [],
+      attachments: opportunity?.attachments ?? [],
+      verifiedLinks: opportunity?.verifiedLinks ?? [],
+      announcementTitle: opportunity?.title ?? template.name,
+      announcementCity: opportunity?.city === "Localisation à préciser" ? "" : opportunity?.city ?? "",
+      announcementDescription: opportunity?.summary ?? "",
+      objectives: opportunity?.validationCriteria ?? [],
+      verificationRequired: template.trustPolicies[0]?.credentialRequirements.some((requirement) => requirement.credentialType.code === "VERIFIED_IDENTITY") ?? false,
     };
   });
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <main className="mx-auto max-w-5xl px-6 py-10">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <DashboardBackLink className="mb-4" />

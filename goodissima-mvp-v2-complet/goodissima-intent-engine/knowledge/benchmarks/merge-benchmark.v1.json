@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "cases": [
+    {
+      "id": "property-rental-exact",
+      "matrixEntryId": "property-rental-same-relationship",
+      "ciroA": { "schemaVersion": "1.0", "c": { "intent": "PROPERTY_RENTAL" }, "i": { "trustPolicy": "REAL_ESTATE_RENTAL_POLICY" }, "r": { "roles": ["locataire", "proprietaire"] }, "o": { "relationship": "PROPERTY_RENTAL" }, "sources": [{ "knowledgeId": "goodissima-trust-architecture" }] },
+      "ciroB": { "schemaVersion": "1.0", "c": { "intent": "PROPERTY_RENTAL" }, "i": { "trustPolicy": "REAL_ESTATE_RENTAL_POLICY" }, "r": { "roles": ["locataire", "proprietaire"] }, "o": { "relationship": "PROPERTY_RENTAL" }, "sources": [{ "knowledgeId": "goodissima-trust-architecture" }] },
+      "expected": { "relationshipScore": 1, "roleScore": 1, "trustScore": 1, "familyScore": 1, "totalScore": 4, "status": "EXACT_MATCH" }
+    },
+    {
+      "id": "housing-exact",
+      "matrixEntryId": "housing-same-relationship",
+      "ciroA": { "schemaVersion": "1.0", "c": { "intent": "HOUSING" }, "i": { "trustPolicy": "HOUSING_POLICY" }, "r": { "roles": ["locataire", "proprietaire"] }, "o": { "relationship": "HOUSING" }, "sources": [{ "knowledgeId": "goodissima-matching-governance" }] },
+      "ciroB": { "schemaVersion": "1.0", "c": { "intent": "HOUSING" }, "i": { "trustPolicy": "HOUSING_POLICY" }, "r": { "roles": ["locataire", "proprietaire"] }, "o": { "relationship": "HOUSING" }, "sources": [{ "knowledgeId": "goodissima-matching-governance" }] },
+      "expected": { "relationshipScore": 1, "roleScore": 1, "trustScore": 1, "familyScore": 1, "totalScore": 4, "status": "EXACT_MATCH" }
+    },
+    {
+      "id": "employment-exact",
+      "matrixEntryId": "employment-same-relationship",
+      "ciroA": { "schemaVersion": "1.0", "c": { "intent": "EMPLOYMENT" }, "i": { "trustPolicy": "EMPLOYMENT_POLICY" }, "r": { "roles": ["candidat", "recruteur"] }, "o": { "relationship": "EMPLOYMENT" }, "sources": [{ "knowledgeId": "goodissima-trust-architecture" }] },
+      "ciroB": { "schemaVersion": "1.0", "c": { "intent": "EMPLOYMENT" }, "i": { "trustPolicy": "EMPLOYMENT_POLICY" }, "r": { "roles": ["candidat", "recruteur"] }, "o": { "relationship": "EMPLOYMENT" }, "sources": [{ "knowledgeId": "goodissima-trust-architecture" }] },
+      "expected": { "relationshipScore": 1, "roleScore": 1, "trustScore": 1, "familyScore": 1, "totalScore": 4, "status": "EXACT_MATCH" }
+    }
+  ]
+}

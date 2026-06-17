@@ -13,6 +13,7 @@ import {
   type DynamicFieldValue,
   type DynamicFormField,
 } from "@/components/DynamicFormRenderer";
+import { deriveCandidateSubmissionFields } from "@/lib/candidate-form-safety";
 import { getFieldsForStep, getStepCount } from "@/lib/form-steps";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
 
@@ -45,8 +46,12 @@ async function getCaseSubmissionError(res: Response) {
       return { code: trustAdmissionBlockedCode, message: trustAdmissionBlockedMessage };
     }
 
+    if (typeof body.error === "string") {
+      return { code, message: body.error };
+    }
+
     if (code) {
-      return { code, message: `La demande n'a pas pu être envoyée. Code : ${code}` };
+      return { code, message: "La demande n'a pas pu être envoyée. Vérifiez les champs du formulaire." };
     }
   } catch {
     // Keep the generic candidate-facing fallback when the API response is not JSON.
@@ -58,11 +63,13 @@ async function getCaseSubmissionError(res: Response) {
 export default function CandidateForm({
   gLinkId,
   formTemplateId,
+  templateVersionId,
   fields,
   copy,
 }: {
   gLinkId: string;
   formTemplateId: string | null;
+  templateVersionId?: string | null;
   fields: DynamicFormField[];
   copy: {
     documentOptionalTitle: string;
@@ -203,8 +210,6 @@ export default function CandidateForm({
       return;
     }
 
-    const fullName = (getStringFieldValue(answers.fullName) || getStringFieldValue(answers.name)).trim();
-    const email = getStringFieldValue(answers.email).trim();
     const templateNotificationOptIn = answers.notificationOptIn === true;
     const wantsNotifications = hasTemplateNotificationFields
       ? templateNotificationOptIn
@@ -214,7 +219,6 @@ export default function CandidateForm({
     )
       .trim()
       .toLowerCase();
-    const message = getStringFieldValue(answers.message).trim();
     const ruleValues = toRuleValues(answers);
     const submissionAnswers = fields.reduce<Record<string, DynamicFieldValue>>((result, field) => {
       if (!supportedFieldTypes.has(field.type)) return result;
@@ -224,17 +228,18 @@ export default function CandidateForm({
       result[field.key] = field.type === "FILE" ? files[field.key]?.name ?? "" : answers[field.key] ?? "";
       return result;
     }, {});
-    const candidateEmail = email || `private-${crypto.randomUUID()}@goodissima.local`;
+    const derivedSubmission = deriveCandidateSubmissionFields(submissionAnswers);
 
     const payload = {
       gLinkId,
-      candidateName: fullName,
-      candidateEmail,
+      candidateName: derivedSubmission.candidateName,
+      candidateEmail: derivedSubmission.candidateEmail,
       candidateNotificationEmail: wantsNotifications ? privateNotificationEmail : "",
-      message,
+      message: derivedSubmission.message,
       documentName: documentFields.documentName,
       documentUrl: documentFields.documentUrl,
       formTemplateId,
+      templateVersionId,
       answers: submissionAnswers,
       emailNotificationsConsent: wantsNotifications,
       ...(trustAdmissionToken ? { trustAdmissionToken } : {}),

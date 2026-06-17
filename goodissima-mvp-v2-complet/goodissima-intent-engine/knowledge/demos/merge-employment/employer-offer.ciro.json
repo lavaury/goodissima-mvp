@@ -1,0 +1,11 @@
+{
+  "presentationId": "EMPLOYER",
+  "ciro": {
+    "schemaVersion": "1.0",
+    "c": { "intent": "EMPLOYMENT" },
+    "i": { "trustPolicy": "EMPLOYMENT_POLICY" },
+    "r": { "roles": ["candidat", "recruteur"] },
+    "o": { "relationship": "EMPLOYMENT" },
+    "sources": [{ "knowledgeId": "goodissima-trust-architecture" }]
+  }
+}

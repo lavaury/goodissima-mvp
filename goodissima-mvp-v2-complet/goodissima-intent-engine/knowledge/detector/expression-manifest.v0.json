@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "entries": [
+    {
+      "expression": "immobilier",
+      "knowledgeId": "goodissima-matching-governance",
+      "intent": "HOUSING"
+    },
+    {
+      "expression": "agence immobiliere",
+      "knowledgeId": "goodissima-trust-architecture",
+      "intent": "HOUSING"
+    },
+    {
+      "expression": "dossier locataire",
+      "knowledgeId": "goodissima-trust-architecture",
+      "intent": "PROPERTY_RENTAL"
+    },
+    {
+      "expression": "locataire et proprietaire",
+      "knowledgeId": "goodissima-trust-architecture",
+      "intent": "HOUSING"
+    },
+    {
+      "expression": "verification de revenus",
+      "knowledgeId": "goodissima-trust-architecture",
+      "intent": "HOUSING"
+    },
+    {
+      "expression": "recrutement",
+      "knowledgeId": "goodissima-matching-governance",
+      "intent": "EMPLOYMENT"
+    },
+    {
+      "expression": "candidat et recruteur",
+      "knowledgeId": "goodissima-trust-architecture",
+      "intent": "EMPLOYMENT"
+    },
+    {
+      "expression": "rechercher",
+      "knowledgeId": "goodissima-user-manual",
+      "mode": "SEARCH"
+    },
+    {
+      "expression": "DOCUMENT_REQUEST",
+      "knowledgeId": "goodissima-ai-governance",
+      "mode": "DOCUMENT_REQUEST"
+    },
+    {
+      "expression": "AI_TEST_MODE=scenario",
+      "knowledgeId": "goodissima-ai-governance",
+      "mode": "AI_TEST_MODE=scenario"
+    },
+    {
+      "expression": "TRUST_ADMISSION_MODE=ENFORCE",
+      "knowledgeId": "goodissima-identity-trust",
+      "mode": "TRUST_ADMISSION_MODE=ENFORCE"
+    },
+    {
+      "expression": "mode souverain",
+      "knowledgeId": "goodissima-trust-architecture",
+      "mode": "mode souverain"
+    }
+  ]
+}

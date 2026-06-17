@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "intents": [
+    { "id": "HOUSING" },
+    { "id": "PROPERTY_RENTAL" },
+    { "id": "EMPLOYMENT" },
+    { "id": "FREELANCE" },
+    { "id": "SERVICES" }
+  ],
+  "modes": [
+    { "id": "AI_TEST_MODE=scenario" },
+    { "id": "TRUST_ADMISSION_MODE=ENFORCE" },
+    { "id": "mode souverain" },
+    { "id": "SEARCH" },
+    { "id": "DOCUMENT_REQUEST" }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "c": { "intent": "PROPERTY_RENTAL" },
+  "i": { "trustPolicy": "REAL_ESTATE_RENTAL_POLICY" },
+  "r": { "roles": ["locataire", "proprietaire"] },
+  "o": { "relationship": "PROPERTY_RENTAL" },
+  "sources": [{ "knowledgeId": "goodissima-trust-architecture" }]
+}

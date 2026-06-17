@@ -10,8 +10,11 @@ const expectedSnippets = [
   "Suggestion IA de timeline acceptee",
   "Analyse IA des signaux de confiance effectuee",
   "Message envoye",
-  "Demande de document creee",
-  "Evenement technique conserve pour audit interne.",
+  "Demande de document",
+  "Evenement enregistre dans l'historique du dossier.",
+  "Suggestion IA validee",
+  "Suggestion IA creee",
+  "Demande de mise en relation",
   "category:",
   "icon:",
 ];

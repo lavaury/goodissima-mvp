@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "entries": [
+    {
+      "id": "property-rental-same-relationship",
+      "leftRelationship": "PROPERTY_RENTAL",
+      "rightRelationship": "PROPERTY_RENTAL",
+      "compatible": true,
+      "source": {
+        "knowledgeId": "goodissima-matching-governance",
+        "expression": "meme type/template de relation"
+      }
+    },
+    {
+      "id": "housing-same-relationship",
+      "leftRelationship": "HOUSING",
+      "rightRelationship": "HOUSING",
+      "compatible": true,
+      "source": {
+        "knowledgeId": "goodissima-matching-governance",
+        "expression": "meme type/template de relation"
+      }
+    },
+    {
+      "id": "employment-same-relationship",
+      "leftRelationship": "EMPLOYMENT",
+      "rightRelationship": "EMPLOYMENT",
+      "compatible": true,
+      "source": {
+        "knowledgeId": "goodissima-matching-governance",
+        "expression": "meme type/template de relation"
+      }
+    }
+  ]
+}

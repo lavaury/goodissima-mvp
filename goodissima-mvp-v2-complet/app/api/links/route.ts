@@ -53,16 +53,19 @@ export async function POST(req: Request) {
   revalidatePath("/");
   revalidatePath("/analytics");
   revalidatePath("/links/new");
+  revalidatePath("/opportunities");
 
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
-  await sendSecureLinkCreatedEmail({
-    ownerEmail: owner.email,
-    linkTitle: link.title,
-    publicUrl: `${appUrl}/l/${encodeURIComponent(link.slug)}`,
-  });
+  if (body.suppressNotification !== true) {
+    await sendSecureLinkCreatedEmail({
+      ownerEmail: owner.email,
+      linkTitle: link.title,
+      publicUrl: `${appUrl}/l/${encodeURIComponent(link.slug)}`,
+    });
+  }
 
   return NextResponse.json(link, {
     headers: {

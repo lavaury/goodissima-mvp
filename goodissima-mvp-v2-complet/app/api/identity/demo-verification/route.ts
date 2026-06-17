@@ -62,6 +62,7 @@ export async function POST() {
   const identityLink = await getOrCreateGoodissimaIdentityForUser(prisma, {
     userId: currentUser.id,
   });
+  const now = new Date();
 
   const result = await prisma.$transaction(async (tx) => {
     const [credentialType, trustedOrganization] = await Promise.all([
@@ -73,6 +74,7 @@ export async function POST() {
       where: {
         identityId: identityLink.identityId,
         status: TrustCredentialStatus.ACTIVE,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         credentialType: {
           code: VERIFIED_IDENTITY,
         },

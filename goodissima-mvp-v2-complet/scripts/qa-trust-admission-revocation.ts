@@ -168,11 +168,6 @@ function toPublicCandidateAdmissionResponse(
     body: {
       error: TRUST_ADMISSION_BLOCKED_API_MESSAGE,
       code: TRUST_ADMISSION_BLOCKED_CODE,
-      trustPolicyId: evaluation.trustPolicyId,
-      requiredCredentialTypes: evaluation.requiredCredentialTypes,
-      missingCredentialTypes: evaluation.missingCredentialTypes,
-      reasons: evaluation.reasons,
-      missingRequirements: evaluation.missingRequirements,
     },
   };
 }
@@ -279,6 +274,12 @@ async function main() {
     assert(
       publicResponseAfterRevocation.body.error === TRUST_ADMISSION_BLOCKED_API_MESSAGE,
       "Public candidate admission should expose the API admission-blocked message.",
+    );
+    assert(
+      !("trustPolicyId" in publicResponseAfterRevocation.body) &&
+        !("requiredCredentialTypes" in publicResponseAfterRevocation.body) &&
+        !("missingCredentialTypes" in publicResponseAfterRevocation.body),
+      "Public candidate admission should not expose Trust Admission internals.",
     );
     assert(
       toPublicCandidateUiMessage(publicResponseAfterRevocation) === TRUST_ADMISSION_BLOCKED_UI_MESSAGE,

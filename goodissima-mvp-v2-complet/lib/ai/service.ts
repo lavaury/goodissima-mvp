@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai-runtime";
 import { buildRelationSummaryPrompt, toPrismaJson } from "@/lib/ai/context";
 import { mockAIProvider } from "@/lib/ai/providers/mock";
 import { createMistralProvider } from "@/lib/ai/providers/mistral";
+import { getAIUsageFromError, recordAIEvent } from "@/lib/ai/observability";
 import type {
   AIProvider,
   AIProviderName,
@@ -20,7 +20,7 @@ const timelinePromptVersion = "timeline-intelligence-v1";
 const draftPromptVersion = "draft-assistant-v1";
 const riskPromptVersion = "risk-signals-v1";
 
-function getConfiguredProvider(): AIProvider {
+export function getConfiguredAIProvider(): AIProvider {
   const configured = getAIProvider() as AIProviderName;
   const mistralApiKey = process.env.MISTRAL_API_KEY;
   const mistralModel = process.env.MISTRAL_MODEL || defaultMistralModel;
@@ -111,7 +111,7 @@ export async function summarizeRelationWithAI({
   caseId: string;
   context: AIRelationContext;
 }) {
-  const provider = getConfiguredProvider();
+  const provider = getConfiguredAIProvider();
   const prompt = buildRelationSummaryPrompt(context);
 
   console.info("[ai] Relation summary requested", {
@@ -128,16 +128,16 @@ export async function summarizeRelationWithAI({
       metadata: { caseId, promptVersion: relationSummaryPromptVersion },
     });
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: result.provider,
-        model: result.model,
-        action: "summary",
-        status: "success",
-        promptVersion: relationSummaryPromptVersion,
-        outputSummary: summarizeOutputForAudit(result.output),
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "relation_summary",
+      provider: result.provider,
+      model: result.model,
+      action: "summary",
+      status: "success",
+      promptVersion: relationSummaryPromptVersion,
+      outputSummary: summarizeOutputForAudit(result.output),
+      usage: result,
     });
 
     console.info("[ai] Relation summary completed", {
@@ -158,16 +158,16 @@ export async function summarizeRelationWithAI({
   } catch (error) {
     const errorCode = error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_AI_ERROR";
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: provider.name,
-        model: provider.model,
-        action: "summary",
-        status: "error",
-        promptVersion: relationSummaryPromptVersion,
-        errorCode,
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "relation_summary",
+      provider: provider.name,
+      model: provider.model,
+      action: "summary",
+      status: "error",
+      promptVersion: relationSummaryPromptVersion,
+      errorCode,
+      usage: getAIUsageFromError(error),
     });
 
     console.info("[ai] Relation summary failed", {
@@ -190,7 +190,7 @@ export async function analyzeTimelineWithAI({
   caseId: string;
   context: unknown;
 }) {
-  const provider = getConfiguredProvider();
+  const provider = getConfiguredAIProvider();
   const prompt = buildTimelinePrompt(context);
 
   console.info("[ai] Timeline intelligence requested", {
@@ -207,16 +207,16 @@ export async function analyzeTimelineWithAI({
       metadata: { caseId, promptVersion: timelinePromptVersion },
     });
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: result.provider,
-        model: result.model,
-        action: "timeline_intelligence",
-        status: "success",
-        promptVersion: timelinePromptVersion,
-        outputSummary: summarizeTimelineForAudit(result.output),
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "timeline_intelligence",
+      provider: result.provider,
+      model: result.model,
+      action: "timeline_intelligence",
+      status: "success",
+      promptVersion: timelinePromptVersion,
+      outputSummary: summarizeTimelineForAudit(result.output),
+      usage: result,
     });
 
     return {
@@ -229,16 +229,16 @@ export async function analyzeTimelineWithAI({
   } catch (error) {
     const errorCode = error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_AI_TIMELINE_ERROR";
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: provider.name,
-        model: provider.model,
-        action: "timeline_intelligence",
-        status: "error",
-        promptVersion: timelinePromptVersion,
-        errorCode,
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "timeline_intelligence",
+      provider: provider.name,
+      model: provider.model,
+      action: "timeline_intelligence",
+      status: "error",
+      promptVersion: timelinePromptVersion,
+      errorCode,
+      usage: getAIUsageFromError(error),
     });
 
     throw error;
@@ -256,7 +256,7 @@ export async function generateDraftWithAI({
   instruction?: string | null;
   context: unknown;
 }) {
-  const provider = getConfiguredProvider();
+  const provider = getConfiguredAIProvider();
   const prompt = buildDraftPrompt({ draftType, instruction, context });
 
   console.info("[ai] Draft generation requested", {
@@ -273,16 +273,16 @@ export async function generateDraftWithAI({
       metadata: { caseId, draftType, promptVersion: draftPromptVersion },
     });
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: result.provider,
-        model: result.model,
-        action: "draft_generation",
-        status: "success",
-        promptVersion: draftPromptVersion,
-        outputSummary: summarizeDraftForAudit(result.output),
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "draft_assistant",
+      provider: result.provider,
+      model: result.model,
+      action: "draft_generation",
+      status: "success",
+      promptVersion: draftPromptVersion,
+      outputSummary: summarizeDraftForAudit(result.output),
+      usage: result,
     });
 
     return {
@@ -294,16 +294,16 @@ export async function generateDraftWithAI({
   } catch (error) {
     const errorCode = error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_AI_DRAFT_ERROR";
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: provider.name,
-        model: provider.model,
-        action: "draft_generation",
-        status: "error",
-        promptVersion: draftPromptVersion,
-        errorCode,
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "draft_assistant",
+      provider: provider.name,
+      model: provider.model,
+      action: "draft_generation",
+      status: "error",
+      promptVersion: draftPromptVersion,
+      errorCode,
+      usage: getAIUsageFromError(error),
     });
 
     throw error;
@@ -317,7 +317,7 @@ export async function analyzeRiskSignalsWithAI({
   caseId: string;
   context: unknown;
 }) {
-  const provider = getConfiguredProvider();
+  const provider = getConfiguredAIProvider();
   const prompt = buildRiskPrompt(context);
 
   console.info("[ai] Risk analysis requested", {
@@ -334,16 +334,16 @@ export async function analyzeRiskSignalsWithAI({
       metadata: { caseId, promptVersion: riskPromptVersion },
     });
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: result.provider,
-        model: result.model,
-        action: "risk_analysis",
-        status: "success",
-        promptVersion: riskPromptVersion,
-        outputSummary: summarizeRiskForAudit(result.output),
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "risk_signals",
+      provider: result.provider,
+      model: result.model,
+      action: "risk_analysis",
+      status: "success",
+      promptVersion: riskPromptVersion,
+      outputSummary: summarizeRiskForAudit(result.output),
+      usage: result,
     });
 
     return {
@@ -355,16 +355,16 @@ export async function analyzeRiskSignalsWithAI({
   } catch (error) {
     const errorCode = error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_AI_RISK_ERROR";
 
-    await prisma.aIEvent.create({
-      data: {
-        caseId,
-        provider: provider.name,
-        model: provider.model,
-        action: "risk_analysis",
-        status: "error",
-        promptVersion: riskPromptVersion,
-        errorCode,
-      },
+    await recordAIEvent({
+      caseId,
+      featureName: "risk_signals",
+      provider: provider.name,
+      model: provider.model,
+      action: "risk_analysis",
+      status: "error",
+      promptVersion: riskPromptVersion,
+      errorCode,
+      usage: getAIUsageFromError(error),
     });
 
     throw error;

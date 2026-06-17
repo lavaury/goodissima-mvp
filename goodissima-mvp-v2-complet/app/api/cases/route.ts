@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { RelationStatus } from "@prisma/client";
+import { Prisma, RelationStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
 import {
   CANDIDATE_ACCESS_TTL_DAYS,
@@ -8,11 +8,21 @@ import {
 } from "@/lib/candidate-access";
 import { sendNewDocumentEmail, sendNewMessageEmail, sendNewRelationCaseEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
-import { createFormSubmission } from "@/lib/forms";
+import {
+  buildCandidateMessageFallback,
+  deriveCandidateSubmissionFields,
+  findMissingRequiredCandidateField,
+  formatMissingRequiredFieldError,
+  getCandidateSystemFieldSubmissionPresence,
+  toCandidateFormField,
+  type MissingCandidateField,
+} from "@/lib/candidate-form-safety";
+import { buildHumanReadableFormMessage, createFormSubmission, getFormFields } from "@/lib/forms";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import { parseTemplateSnapshot } from "@/lib/template-snapshots";
 import { evaluateTrustAdmission } from "@/lib/trust-admission";
 import { markTrustAdmissionTokenUsed, resolveTrustAdmissionToken } from "@/lib/trust-admission-tokens";
 import { issueCandidateCreatedCredentialInTransaction } from "@/lib/trust-credentials";
@@ -20,6 +30,7 @@ import {
   evaluateRelationAdmissionPolicyV1,
   resolveAdmissionTrustPolicyForLink,
 } from "@/lib/trust-policy";
+import type { FormValues } from "@/lib/form-rules";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -57,16 +68,18 @@ function badRequest({
   gLinkId,
   slug,
   reasons,
+  missingField,
 }: {
   code: BadRequestCode;
   error: string;
   gLinkId?: unknown;
   slug?: string | null;
   reasons: string[];
+  missingField?: MissingCandidateField;
 }) {
   warnBadRequest({ code, gLinkId, slug, reasons });
 
-  return NextResponse.json({ error, code, reasons }, { status: 400 });
+  return NextResponse.json({ error, code, reasons, missingField }, { status: 400 });
 }
 
 function getFormSubmissionData(body: Record<string, unknown>) {
@@ -83,8 +96,48 @@ function getFormSubmissionData(body: Record<string, unknown>) {
     formTemplateId: body.formTemplateId,
     answers: Object.fromEntries(
       Object.entries(answers as Record<string, unknown>).filter(([key]) => !privateAnswerKeys.has(key)),
-    ) as Record<string, string>,
+    ) as FormValues,
   };
+}
+
+async function getSubmittedCandidateFormFields(formSubmission: ReturnType<typeof getFormSubmissionData>, body: Record<string, unknown>) {
+  if (!formSubmission) return [];
+
+  const templateVersionId = typeof body.templateVersionId === "string" && body.templateVersionId
+    ? body.templateVersionId
+    : null;
+
+  if (templateVersionId) {
+    const templateVersion = await prisma.templateVersion.findUnique({
+      where: { id: templateVersionId },
+      select: { snapshot: true },
+    });
+    const snapshot = templateVersion ? parseTemplateSnapshot(templateVersion.snapshot) : null;
+    if (snapshot?.formTemplate.id === formSubmission.formTemplateId) {
+      return snapshot.fields.map((field) => toCandidateFormField(field));
+    }
+  }
+
+  const fields = await getFormFields(formSubmission.formTemplateId);
+  return fields.map((field) => toCandidateFormField(field));
+}
+
+function missingFieldBadRequest({
+  field,
+  gLinkId,
+  reasons,
+}: {
+  field: MissingCandidateField;
+  gLinkId?: unknown;
+  reasons?: string[];
+}) {
+  return badRequest({
+    code: "REQUIRED_FIELD_MISSING",
+    error: formatMissingRequiredFieldError(field),
+    gLinkId,
+    reasons: reasons ?? [`${field.id}_missing`],
+    missingField: field,
+  });
 }
 
 function withCandidateCookie(token: string, gLinkId: string) {
@@ -197,12 +250,13 @@ export async function POST(req: Request) {
       ? body.candidateNotificationEmail.trim().toLowerCase()
       : "";
   const wantsCandidateNotifications = body.emailNotificationsConsent === true;
-  const candidateEmail = wantsCandidateNotifications ? candidateNotificationEmail : submittedCandidateEmail;
-  const candidateName = typeof body.candidateName === "string" ? body.candidateName.trim() : "";
-  const messageBody = typeof body.message === "string" ? body.message.trim() : "";
+  let candidateEmail = wantsCandidateNotifications ? candidateNotificationEmail : submittedCandidateEmail;
+  let candidateName = typeof body.candidateName === "string" ? body.candidateName.trim() : "";
+  let messageBody = typeof body.message === "string" ? body.message.trim() : "";
   const gLinkId = typeof body.gLinkId === "string" ? body.gLinkId : "";
   const documentName = typeof body.documentName === "string" ? body.documentName : "";
   const documentUrl = typeof body.documentUrl === "string" ? body.documentUrl : "";
+  const formSubmission = getFormSubmissionData(body);
 
   if (wantsCandidateNotifications && (!candidateNotificationEmail || !emailPattern.test(candidateNotificationEmail))) {
     return badRequest({
@@ -213,17 +267,13 @@ export async function POST(req: Request) {
     });
   }
 
-  if (!gLinkId || !candidateName || !candidateEmail || !messageBody) {
+  if (!gLinkId) {
     return badRequest({
       code: "REQUIRED_FIELD_MISSING",
-      error: "Missing required fields",
+      error: "Le champ obligatoire « lien sécurisé » est manquant.",
       gLinkId,
-      reasons: [
-        gLinkId ? null : "gLinkId_missing",
-        candidateName ? null : "candidateName_missing",
-        candidateEmail ? null : "candidateEmail_missing",
-        messageBody ? null : "message_missing",
-      ].filter((reason): reason is string => Boolean(reason)),
+      reasons: ["gLinkId_missing"],
+      missingField: { id: "gLinkId", label: "lien sécurisé", code: "REQUIRED_FIELD_MISSING" },
     });
   }
 
@@ -245,25 +295,78 @@ export async function POST(req: Request) {
     );
   }
 
+  const submittedFormFields = await getSubmittedCandidateFormFields(formSubmission, body);
+  const missingSubmittedField = formSubmission
+    ? findMissingRequiredCandidateField(submittedFormFields, formSubmission.answers)
+    : null;
+
+  if (missingSubmittedField) {
+    return missingFieldBadRequest({
+      field: missingSubmittedField,
+      gLinkId,
+    });
+  }
+
+  const derivedCandidateFields = deriveCandidateSubmissionFields(formSubmission?.answers ?? {}, {
+    candidateName,
+    candidateEmail,
+    message: messageBody,
+  });
+  const submittedSystemFields = getCandidateSystemFieldSubmissionPresence(formSubmission?.answers ?? {});
+
+  candidateName = derivedCandidateFields.candidateName;
+  candidateEmail = derivedCandidateFields.candidateEmail.trim().toLowerCase();
+  messageBody = derivedCandidateFields.message;
+
+  if (!candidateName && submittedSystemFields.candidateName) {
+    return missingFieldBadRequest({
+      field: { id: "candidateName", label: "Nom complet", code: "REQUIRED_FIELD_MISSING" },
+      gLinkId,
+      reasons: ["candidateName_missing"],
+    });
+  }
+
+  if (!candidateEmail && submittedSystemFields.candidateEmail) {
+    return missingFieldBadRequest({
+      field: { id: "candidateEmail", label: "Email", code: "REQUIRED_FIELD_MISSING" },
+      gLinkId,
+      reasons: ["candidateEmail_missing"],
+    });
+  }
+
+  if (!messageBody && submittedSystemFields.message) {
+    return missingFieldBadRequest({
+      field: { id: "message", label: "Message", code: "REQUIRED_FIELD_MISSING" },
+      gLinkId,
+      reasons: ["message_missing"],
+    });
+  }
+
+  messageBody = messageBody || (formSubmission
+    ? buildHumanReadableFormMessage(submittedFormFields, formSubmission.answers)
+    : buildCandidateMessageFallback({}));
+
   const resolvedTrustAdmissionToken = await observeTrustAdmissionToken(body, gLink.id);
   const resolvedCandidateIdentityId = resolvedTrustAdmissionToken?.identityId ?? null;
 
-  const existingRelationCase = await prisma.relationCase.findFirst({
-    where: {
-      gLinkId: gLink.id,
-      candidateEmail: { equals: candidateEmail, mode: "insensitive" },
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      candidateAccessToken: true,
-      candidateName: true,
-      candidateEmailNotificationsEnabled: true,
-      governanceStatus: true,
-      owner: { select: { email: true, notificationPreferences: true } },
-      gLink: { select: { title: true } },
-    },
-  });
+  const existingRelationCase = candidateEmail
+    ? await prisma.relationCase.findFirst({
+        where: {
+          gLinkId: gLink.id,
+          candidateEmail: { equals: candidateEmail, mode: "insensitive" },
+        },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          candidateAccessToken: true,
+          candidateName: true,
+          candidateEmailNotificationsEnabled: true,
+          governanceStatus: true,
+          owner: { select: { email: true, notificationPreferences: true } },
+          gLink: { select: { title: true } },
+        },
+      })
+    : null;
 
   if (existingRelationCase) {
     if (!canCandidateWriteInRelation(existingRelationCase.governanceStatus)) {
@@ -326,12 +429,11 @@ export async function POST(req: Request) {
       });
     }
 
-    const formSubmission = getFormSubmissionData(body);
     if (formSubmission) {
       await createFormSubmission({
         formTemplateId: formSubmission.formTemplateId,
         caseId: existingRelationCase.id,
-        answers: formSubmission.answers,
+        answers: formSubmission.answers as Prisma.InputJsonValue,
       });
     }
 
@@ -431,11 +533,6 @@ export async function POST(req: Request) {
           {
             error: "Admission blocked by Trust Admission requirements.",
             code: "TRUST_ADMISSION_BLOCKED",
-            trustPolicyId: admissionTrustPolicy.policy.id,
-            requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
-            missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
-            reasons: credentialAdmissionEvaluation.reasons,
-            missingRequirements: credentialAdmissionEvaluation.missingRequirements,
           },
           { status: 403 },
         );
@@ -670,12 +767,11 @@ export async function POST(req: Request) {
     });
   }
 
-  const formSubmission = getFormSubmissionData(body);
   if (formSubmission) {
     await createFormSubmission({
       formTemplateId: formSubmission.formTemplateId,
       caseId: relationCase.id,
-      answers: formSubmission.answers,
+      answers: formSubmission.answers as Prisma.InputJsonValue,
     });
   }
 

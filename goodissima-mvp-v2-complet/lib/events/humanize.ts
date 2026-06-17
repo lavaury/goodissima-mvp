@@ -7,26 +7,71 @@ export type HumanizedEvent = {
 
 type EventPayload = Record<string, unknown> | null | undefined;
 
+export const auditEventLabels: Record<string, HumanizedEvent> = {
+  AI_SUGGESTED_ACTION_ACCEPTED: {
+    title: "Suggestion IA validee",
+    description: "Une suggestion IA a ete validee par un utilisateur.",
+    category: "IA",
+    icon: "wand",
+  },
+  AI_SUGGESTED_ACTION_CREATED: {
+    title: "Suggestion IA creee",
+    description: "Une suggestion IA a ete preparee pour validation humaine.",
+    category: "IA",
+    icon: "wand",
+  },
+  DOCUMENT_REQUESTED: {
+    title: "Demande de document",
+    description: "Un document a ete demande pour completer le dossier.",
+    category: "Documents",
+    icon: "file-plus",
+  },
+  DOCUMENT_RECEIVED: {
+    title: "Document recu",
+    description: "Un document demande a ete recu.",
+    category: "Documents",
+    icon: "file",
+  },
+  RELATIONSHIP_REQUEST_CREATED: {
+    title: "Demande de mise en relation",
+    description: "Une demande de mise en relation a ete creee.",
+    category: "Matching",
+    icon: "link",
+  },
+  RELATIONSHIP_ACCEPTED: {
+    title: "Mise en relation acceptee",
+    description: "Une mise en relation a ete acceptee.",
+    category: "Matching",
+    icon: "link",
+  },
+  TEMPLATE_PUBLISHED: {
+    title: "Parcours publie",
+    description: "Un parcours a ete publie apres validation.",
+    category: "Dossier",
+    icon: "check",
+  },
+};
+
 function getPayloadBoolean(payload: EventPayload, key: string) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
   return typeof payload[key] === "boolean" ? payload[key] : null;
 }
 
-function technicalFallback(eventType: string): HumanizedEvent {
+function technicalFallback(eventType: string, includeRaw = false): HumanizedEvent {
   return {
-    title: eventType
-      .toLowerCase()
-      .split("_")
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" "),
-    description: "Evenement technique conserve pour audit interne.",
+    title: includeRaw ? eventType : "Evenement du dossier",
+    description: includeRaw
+      ? "Code technique conserve pour audit interne."
+      : "Evenement enregistre dans l'historique du dossier.",
     category: "Dossier",
     icon: "dot",
   };
 }
 
-export function humanizeRelationEvent(eventType: string, payload?: EventPayload): HumanizedEvent {
+export function humanizeRelationEvent(eventType: string, payload?: EventPayload, options?: { includeRaw?: boolean }): HumanizedEvent {
+  const sharedLabel = auditEventLabels[eventType];
+  if (sharedLabel) return sharedLabel;
+
   switch (eventType) {
     case "MESSAGE_SENT":
       return {
@@ -45,7 +90,7 @@ export function humanizeRelationEvent(eventType: string, payload?: EventPayload)
     case "DOCUMENT_REQUEST_CREATED":
     case "ACTION_CREATED":
       return {
-        title: "Demande de document creee",
+        title: "Demande de document",
         description: "Une demande a ete creee pour faire avancer le dossier.",
         category: "Documents",
         icon: "file-plus",
@@ -87,13 +132,6 @@ export function humanizeRelationEvent(eventType: string, payload?: EventPayload)
         category: "IA",
         icon: "wand",
       };
-    case "AI_SUGGESTED_ACTION_ACCEPTED":
-      return {
-        title: "Suggestion IA acceptee",
-        description: "Une suggestion IA a ete acceptee par un utilisateur.",
-        category: "IA",
-        icon: "wand",
-      };
     case "STATUS_CHANGED":
       return {
         title: "Statut du dossier modifie",
@@ -125,11 +163,14 @@ export function humanizeRelationEvent(eventType: string, payload?: EventPayload)
         icon: "shield",
       };
     default:
-      return technicalFallback(eventType);
+      return technicalFallback(eventType, options?.includeRaw);
   }
 }
 
-export function humanizeAIEvent(action: string): HumanizedEvent {
+export function humanizeAIEvent(action: string, options?: { includeRaw?: boolean }): HumanizedEvent {
+  const sharedLabel = auditEventLabels[action];
+  if (sharedLabel) return sharedLabel;
+
   switch (action) {
     case "ACCESS_INVITATION_CREATED":
       return {
@@ -228,6 +269,6 @@ export function humanizeAIEvent(action: string): HumanizedEvent {
         icon: "link",
       };
     default:
-      return technicalFallback(action);
+      return technicalFallback(action, options?.includeRaw);
   }
 }

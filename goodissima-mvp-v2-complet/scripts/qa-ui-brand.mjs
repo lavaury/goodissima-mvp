@@ -28,7 +28,7 @@ assert(chatBox.includes('data-sticky-input="true"'), "conversation sticky input 
 assert(matchingPanel.includes("Privacy-first"), "matching privacy-first badge missing");
 assert(matchingPanel.includes("NetworkIcon"), "matching network icon missing");
 
-for (const section of ["Matching", "Acces", "Activite recente", "Audit"]) {
+for (const section of ["Matching", "Acces", "Chronologie", "Audit"]) {
   assert(caseWorkspace.includes(section), `sidebar collapsible section missing: ${section}`);
 }
 

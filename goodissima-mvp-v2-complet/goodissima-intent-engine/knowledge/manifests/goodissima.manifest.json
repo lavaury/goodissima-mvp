@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "root": "../../..",
+  "entries": [
+    {
+      "id": "goodissima-ai-governance",
+      "path": "docs/ai-governance/AI_GOVERNANCE.md"
+    },
+    {
+      "id": "goodissima-matching-governance",
+      "path": "docs/matching-governance/MATCHING_GOVERNANCE.md"
+    },
+    {
+      "id": "goodissima-trust-architecture",
+      "path": "docs/GOODISSIMA_TRUST_ARCHITECTURE.md"
+    },
+    {
+      "id": "goodissima-identity-trust",
+      "path": "docs/identity-trust.md"
+    },
+    {
+      "id": "goodissima-user-manual",
+      "path": "docs/MANUEL_UTILISATEUR_GOODISSIMA.md"
+    },
+    {
+      "id": "goodissima-v1-bank-spec",
+      "path": "docs/V1-BANK-SPEC.md"
+    }
+  ]
+}

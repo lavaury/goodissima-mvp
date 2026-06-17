@@ -11,11 +11,59 @@ import type {
   AIProvider,
   AIProviderRequest,
   AIProviderResult,
+  AIProviderUsage,
   AISummary,
 } from "@/lib/ai/types";
 import { cleanAISuggestedAction } from "@/lib/ai/actions";
 
 const mistralEndpoint = "https://api.mistral.ai/v1/chat/completions";
+const inputCostEnvName = "MISTRAL_INPUT_EUR_PER_1M_TOKENS";
+const outputCostEnvName = "MISTRAL_OUTPUT_EUR_PER_1M_TOKENS";
+
+type MistralCallResult = AIProviderUsage & {
+  content: string;
+};
+
+function getOptionalPositiveNumberEnv(name: string) {
+  const raw = process.env[name];
+  if (!raw) return null;
+
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function getTokenCount(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : null;
+}
+
+function estimateMistralCostEur({
+  tokensInput,
+  tokensOutput,
+}: {
+  tokensInput: number | null;
+  tokensOutput: number | null;
+}) {
+  const inputRate = getOptionalPositiveNumberEnv(inputCostEnvName);
+  const outputRate = getOptionalPositiveNumberEnv(outputCostEnvName);
+
+  if (tokensInput === null || tokensOutput === null || inputRate === null || outputRate === null) {
+    return null;
+  }
+
+  return (tokensInput * inputRate + tokensOutput * outputRate) / 1_000_000;
+}
+
+function buildUsageFromPayload(payload: { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } }, latencyMs: number) {
+  const tokensInput = getTokenCount(payload.usage?.prompt_tokens);
+  const tokensOutput = getTokenCount(payload.usage?.completion_tokens);
+
+  return {
+    tokensInput,
+    tokensOutput,
+    estimatedCostEur: estimateMistralCostEur({ tokensInput, tokensOutput }),
+    latencyMs,
+  };
+}
 
 function parseSummary(content: string): AISummary {
   try {
@@ -193,7 +241,8 @@ async function callMistral({
   model: string;
   request: AIProviderRequest;
   responseFormat?: { type: "json_object" };
-}) {
+}): Promise<MistralCallResult> {
+  const startedAt = Date.now();
   const res = await fetch(mistralEndpoint, {
     method: "POST",
     headers: {
@@ -210,21 +259,43 @@ async function callMistral({
       ],
     }),
   });
+  const latencyMs = Date.now() - startedAt;
 
   if (!res.ok) {
-    throw new Error(`MISTRAL_${res.status}`);
+    throw Object.assign(new Error(`MISTRAL_${res.status}`), {
+      aiUsage: { latencyMs } satisfies AIProviderUsage,
+    });
   }
 
   const payload = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
+    usage?: {
+      prompt_tokens?: unknown;
+      completion_tokens?: unknown;
+    };
   };
+  const usage = buildUsageFromPayload(payload, latencyMs);
   const content = payload.choices?.[0]?.message?.content;
 
   if (!content) {
-    throw new Error("MISTRAL_EMPTY_RESPONSE");
+    throw Object.assign(new Error("MISTRAL_EMPTY_RESPONSE"), {
+      aiUsage: usage,
+    });
   }
 
-  return content;
+  return { content, ...usage };
+}
+
+function buildProviderResult<T>(model: string, output: T, result: MistralCallResult): AIProviderResult<T> {
+  return {
+    provider: "mistral",
+    model,
+    output,
+    tokensInput: result.tokensInput,
+    tokensOutput: result.tokensOutput,
+    estimatedCostEur: result.estimatedCostEur,
+    latencyMs: result.latencyMs,
+  };
 }
 
 export function createMistralProvider({
@@ -238,11 +309,11 @@ export function createMistralProvider({
     name: "mistral",
     model,
     async chat(request: AIProviderRequest): Promise<AIProviderResult<string>> {
-      const output = await callMistral({ apiKey, model, request });
-      return { provider: "mistral", model, output };
+      const result = await callMistral({ apiKey, model, request });
+      return buildProviderResult(model, result.content, result);
     },
     async summarize(request: AIProviderRequest): Promise<AIProviderResult<AISummary>> {
-      const output = await callMistral({
+      const result = await callMistral({
         apiKey,
         model,
         request: {
@@ -258,10 +329,10 @@ export function createMistralProvider({
         },
         responseFormat: { type: "json_object" },
       });
-      return { provider: "mistral", model, output: parseSummary(output) };
+      return buildProviderResult(model, parseSummary(result.content), result);
     },
     async analyzeTimeline(request: AIProviderRequest): Promise<AIProviderResult<AITimelineIntelligence>> {
-      const output = await callMistral({
+      const result = await callMistral({
         apiKey,
         model,
         request: {
@@ -278,10 +349,10 @@ export function createMistralProvider({
         },
         responseFormat: { type: "json_object" },
       });
-      return { provider: "mistral", model, output: parseTimelineIntelligence(output) };
+      return buildProviderResult(model, parseTimelineIntelligence(result.content), result);
     },
     async generateDraft(request: AIProviderRequest): Promise<AIProviderResult<AIDraft>> {
-      const output = await callMistral({
+      const result = await callMistral({
         apiKey,
         model,
         request: {
@@ -299,10 +370,10 @@ export function createMistralProvider({
         },
         responseFormat: { type: "json_object" },
       });
-      return { provider: "mistral", model, output: parseDraft(output) };
+      return buildProviderResult(model, parseDraft(result.content), result);
     },
     async analyzeRiskSignals(request: AIProviderRequest): Promise<AIProviderResult<AIRiskAnalysis>> {
-      const output = await callMistral({
+      const result = await callMistral({
         apiKey,
         model,
         request: {
@@ -319,10 +390,10 @@ export function createMistralProvider({
         },
         responseFormat: { type: "json_object" },
       });
-      return { provider: "mistral", model, output: parseRiskAnalysis(output) };
+      return buildProviderResult(model, parseRiskAnalysis(result.content), result);
     },
     async classify(request: AIProviderRequest): Promise<AIProviderResult<AIClassification>> {
-      const output = await callMistral({
+      const result = await callMistral({
         apiKey,
         model,
         request: {
@@ -331,15 +402,15 @@ export function createMistralProvider({
         },
         responseFormat: { type: "json_object" },
       });
-      const parsed = JSON.parse(output) as Partial<AIClassification>;
-      return {
-        provider: "mistral",
+      const parsed = JSON.parse(result.content) as Partial<AIClassification>;
+      return buildProviderResult(
         model,
-        output: {
+        {
           label: typeof parsed.label === "string" ? parsed.label : "unknown",
           confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
         },
-      };
+        result,
+      );
     },
   };
 }

@@ -1,0 +1,185 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { OPPORTUNITY_BUSINESS_WORDING, OPPORTUNITY_CATEGORY_VISUALS, OPPORTUNITY_EMPTY_STATES, OPPORTUNITY_PREVIEW_TABS, OPPORTUNITY_PRESENTATION_SCHEMAS, assistantReturnHref, buildOpportunityCategoryMetrics, buildOpportunityPreview, draftPreviewHref, enrichOpportunityPresentation, extractOpportunityHighlights, inferOpportunityCategory, inferOpportunityType, opportunityEditHref, opportunityHeroImage, opportunityReadiness } from "../lib/opportunity-preview.ts";
+import type { TemplateSnapshot } from "../lib/template-snapshots.ts";
+
+const snapshot: TemplateSnapshot = {
+  relationTemplate: { id: "rt1", key: "LOCATION_T3", name: "Location T3 Lyon", description: "Trouver un locataire certifié pour un T3." },
+  formTemplate: { id: "ft1", key: "LOCATION_T3_FORM", name: "Location T3 Lyon", description: "Trouver un locataire certifié pour un T3." },
+  fields: [],
+  design: {
+    actors: [{ name: "Propriétaire", role: "Valide le dossier" }, { name: "Locataire", role: "Fournit les justificatifs" }],
+    stages: [{ name: "Validation", objective: "Contrôler le dossier", exitCondition: "Dossier complet et relu" }],
+    documents: [{ name: "Justificatif de revenus", required: true, stage: 1 }, { name: "Présentation libre", required: false, stage: 1 }],
+    relationalRequests: [],
+    kpis: [{ name: "Délai de validation", unit: "jours", description: "Temps de revue" }],
+  },
+  metadata: {
+    snapshotVersion: 2,
+    generation: { inputDescription: "Je cherche un locataire pour un appartement à Lyon", provider: "mock" },
+    opportunityPresentation: { city: "Lyon", propertyType: "Appartement T3", surface: "67 m²", rent: "1 180 €", charges: "80 €", photos: ["photo-demo.jpg"], attachments: ["diagnostic.pdf"], verifiedLinks: ["https://example.test/annonce"] },
+  },
+};
+
+test("builds a complete draft opportunity preview from generated data", () => {
+  const preview = buildOpportunityPreview(snapshot);
+  assert.equal(preview.title, "Location T3 Lyon");
+  assert.equal(preview.summary, "Trouver un locataire certifié pour un T3.");
+  assert.equal(preview.opportunityType, "Immobilier et location");
+  assert.equal(preview.city, "Lyon");
+  assert.equal(preview.propertyType, "Appartement T3");
+  assert.deepEqual(preview.keyMetrics, [{ label: "Surface", value: "67 m²" }, { label: "Loyer", value: "1 180 €" }, { label: "Charges", value: "80 €" }, { label: "Pièces", value: "À préciser" }]);
+  assert.equal(preview.publicationStatus, "Brouillon · Non publiée");
+  assert.equal(preview.readiness, "Prêt à publier");
+  assert.equal(preview.status, "DRAFT");
+  assert.equal(preview.actors.length, 2);
+  assert.deepEqual(preview.requiredDocuments, ["Justificatif de revenus"]);
+  assert.ok(preview.validationCriteria.includes("Dossier complet et relu"));
+  assert.deepEqual(preview.photos, ["photo-demo.jpg"]);
+  assert.deepEqual(preview.attachments, ["diagnostic.pdf"]);
+  assert.deepEqual(preview.verifiedLinks, ["https://example.test/annonce"]);
+});
+
+test("builds a published opportunity preview from persisted version state", () => {
+  const publishedAt = "2026-06-15T10:30:00.000Z";
+  const preview = buildOpportunityPreview(snapshot, { isPublished: true, publishedAt });
+  assert.equal(preview.status, "PUBLISHED");
+  assert.equal(preview.publicationStatus, "Publiée");
+  assert.equal(preview.publishedAt, publishedAt);
+  assert.ok(preview.trustIndicators.includes("Publication enregistrée"));
+  assert.ok(preview.governance.validation.includes("Annonce publiée"));
+});
+
+test("separates public announcement, journey and governance content", () => {
+  assert.deepEqual(OPPORTUNITY_PREVIEW_TABS.map((tab) => tab.label), ["Annonce", "Parcours", "Gouvernance"]);
+  const preview = buildOpportunityPreview(snapshot);
+  assert.ok(preview.stages.includes("Dossier complet et relu"));
+  assert.ok(preview.kpis.includes("Délai de validation · jours"));
+  assert.ok(preview.governance.validation.includes("Validation humaine requise avant publication"));
+});
+
+test("uses a professional local placeholder when no photo exists", () => {
+  const preview = buildOpportunityPreview({ ...snapshot, metadata: { ...snapshot.metadata, opportunityPresentation: {} } });
+  assert.equal(opportunityHeroImage(preview), "/opportunity-housing.svg");
+  assert.equal(preview.city, "Lyon");
+});
+
+test("enriches a housing request into a professional title and subtitle", () => {
+  const enriched = enrichOpportunityPresentation({
+    name: "Recherche de locataire pour T2 neuf avec jardin et terrasse",
+    description: "Un logement agréable et récent.",
+  });
+  assert.equal(enriched.title, "T2 neuf avec jardin et terrasse");
+  assert.equal(enriched.subtitle, "Recherche d'un locataire");
+  assert.equal(enriched.category, "housing");
+});
+
+test("extracts opportunity highlights without changing source data", () => {
+  const source = "Recherche de locataire pour T2 neuf avec jardin et terrasse";
+  assert.deepEqual(extractOpportunityHighlights(source, "housing"), ["Jardin", "Terrasse", "Logement récent", "Location"]);
+  assert.equal(source, "Recherche de locataire pour T2 neuf avec jardin et terrasse");
+});
+
+test("selects a local visual for every opportunity category", () => {
+  assert.equal(inferOpportunityCategory("Je recrute un développeur"), "employment");
+  assert.equal(inferOpportunityCategory("Je recherche un investisseur"), "investment");
+  assert.equal(inferOpportunityCategory("Je recherche un partenaire"), "partnership");
+  assert.equal(inferOpportunityCategory("Projet pour une association de bénévoles"), "association");
+  for (const visual of Object.values(OPPORTUNITY_CATEGORY_VISUALS)) assert.match(visual, /^\/opportunity-.+\.svg$/);
+});
+
+test("defines a dedicated presentation schema for every category", () => {
+  assert.deepEqual(Object.keys(OPPORTUNITY_PRESENTATION_SCHEMAS), ["housing", "employment", "investment", "partnership", "association"]);
+  assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.housing.map((item) => item.label), ["Surface", "Loyer", "Charges", "Pièces"]);
+  assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.employment.map((item) => item.label), ["Intitulé du poste", "Type de contrat", "Expérience", "Localisation", "Télétravail"]);
+});
+
+test("renders housing metrics only for housing opportunities", () => {
+  assert.deepEqual(buildOpportunityCategoryMetrics("housing", { surface: "67 m²", rent: "1 180 €", charges: "80 €", rooms: "3 pièces" }, ""), [
+    { label: "Surface", value: "67 m²" }, { label: "Loyer", value: "1 180 €" }, { label: "Charges", value: "80 €" }, { label: "Pièces", value: "3 pièces" },
+  ]);
+});
+
+test("renders employment metrics without housing fields", () => {
+  const metrics = buildOpportunityCategoryMetrics("employment", { jobTitle: "Développeur TypeScript", contractType: "CDI", experience: "3 ans", location: "Lyon", remotePolicy: "Hybride" }, "");
+  assert.deepEqual(metrics, [
+    { label: "Intitulé du poste", value: "Développeur TypeScript" }, { label: "Type de contrat", value: "CDI" }, { label: "Expérience", value: "3 ans" }, { label: "Localisation", value: "Lyon" }, { label: "Télétravail", value: "Hybride" },
+  ]);
+  assert.ok(metrics.every((metric) => !["Surface", "Loyer", "Charges", "Pièces"].includes(metric.label)));
+});
+
+test("builds an employment card without leaking housing presentation values", () => {
+  const employmentSnapshot: TemplateSnapshot = {
+    ...snapshot,
+    relationTemplate: { ...snapshot.relationTemplate, name: "Développeur TypeScript", description: "Nous recrutons un développeur TypeScript en CDI à Lyon." },
+    metadata: {
+      ...snapshot.metadata,
+      generation: { inputDescription: "Nous recrutons un développeur TypeScript en CDI à Lyon, avec télétravail hybride.", provider: "mock" },
+      opportunityPresentation: { category: "employment", jobTitle: "Développeur TypeScript", contractType: "CDI", location: "Lyon", surface: "67 m²", rent: "1 180 €" },
+    },
+  };
+  const preview = buildOpportunityPreview(employmentSnapshot);
+  assert.equal(preview.category, "employment");
+  assert.deepEqual(preview.keyMetrics.map((metric) => metric.label), ["Intitulé du poste", "Type de contrat", "Expérience", "Localisation", "Télétravail"]);
+  assert.ok(preview.keyMetrics.every((metric) => !["Surface", "Loyer", "Charges", "Pièces"].includes(metric.label)));
+  assert.equal(preview.keyMetrics.find((metric) => metric.label === "Expérience")?.value, "À préciser");
+});
+
+test("renders investment, partnership and association schemas", () => {
+  assert.deepEqual(buildOpportunityCategoryMetrics("investment", { sector: "Santé", fundingStage: "Seed", targetAmount: "2 M€" }, ""), [
+    { label: "Secteur", value: "Santé" }, { label: "Stade de financement", value: "Seed" }, { label: "Montant recherché", value: "2 M€" },
+  ]);
+  assert.deepEqual(buildOpportunityCategoryMetrics("partnership", { activity: "Formation", collaborationType: "Co-développement" }, ""), [
+    { label: "Activité", value: "Formation" }, { label: "Type de collaboration", value: "Co-développement" },
+  ]);
+  assert.deepEqual(buildOpportunityCategoryMetrics("association", { mission: "Insertion professionnelle", volunteerNeeds: "Mentorat" }, ""), [
+    { label: "Mission", value: "Insertion professionnelle" }, { label: "Besoins bénévoles", value: "Mentorat" },
+  ]);
+});
+
+test("displays À préciser for missing category information", () => {
+  for (const category of Object.keys(OPPORTUNITY_PRESENTATION_SCHEMAS) as Array<keyof typeof OPPORTUNITY_PRESENTATION_SCHEMAS>) {
+    assert.ok(buildOpportunityCategoryMetrics(category, {}, "").every((metric) => metric.value === "À préciser"));
+  }
+});
+
+test("derives publication readiness from presentation completeness only", () => {
+  assert.equal(opportunityReadiness({ title: "T2", description: "", photos: [], attachments: [], verifiedLinks: [] }), "Brouillon");
+  assert.equal(opportunityReadiness({ title: "T2", description: "Avec jardin", photos: ["photo.jpg"], attachments: [], verifiedLinks: [] }), "Presque prêt");
+  assert.equal(opportunityReadiness({ title: "T2", description: "Avec jardin", photos: ["photo.jpg"], attachments: ["dpe.pdf"], verifiedLinks: ["https://example.test"] }), "Prêt à publier");
+});
+
+test("provides richer public empty states", () => {
+  assert.equal(OPPORTUNITY_EMPTY_STATES.attachments, "Aucun document partagé pour le moment.");
+  assert.equal(OPPORTUNITY_EMPTY_STATES.verifiedLinks, "Aucun lien vérifié ajouté.");
+});
+
+test("uses business wording for review and publication actions", () => {
+  assert.equal(OPPORTUNITY_BUSINESS_WORDING.validationCriteria, "Objectifs de la recherche");
+  assert.equal(OPPORTUNITY_BUSINESS_WORDING.publish, "Publier l'annonce");
+});
+
+test("keeps older generated snapshots compatible", () => {
+  const legacy = buildOpportunityPreview({ ...snapshot, metadata: { snapshotVersion: 2, generation: snapshot.metadata.generation } });
+  assert.equal(legacy.title, snapshot.relationTemplate.name);
+  assert.equal(legacy.status, "DRAFT");
+  assert.equal(legacy.attachments.length, 0);
+  assert.equal(opportunityHeroImage(legacy), "/opportunity-housing.svg");
+});
+
+test("creates the automatic navigation URL after draft creation", () => {
+  assert.equal(draftPreviewHref("template-123", "studio"), "/templates/template-123?created=1&assistant=studio");
+  assert.equal(draftPreviewHref("template-123", "experience"), "/templates/template-123?created=1&assistant=experience");
+});
+
+test("provides edit and assistant return destinations", () => {
+  assert.equal(opportunityEditHref(), "#opportunity-editor");
+  assert.equal(assistantReturnHref("studio"), "/templates#ai-assistant");
+  assert.equal(assistantReturnHref("experience"), "/experience");
+});
+
+test("infers opportunity types without changing generation workflows", () => {
+  assert.equal(inferOpportunityType("Je recrute un développeur"), "Emploi et recrutement");
+  assert.equal(inferOpportunityType("Je recherche un investisseur"), "Investissement");
+  assert.equal(inferOpportunityType("Je recherche un partenaire"), "Partenariat");
+});

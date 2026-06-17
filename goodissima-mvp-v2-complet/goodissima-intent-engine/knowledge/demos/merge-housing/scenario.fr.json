@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "requester": "tenant-search.ciro.json",
+  "requesterLabel": "Locataire recherchant une location",
+  "candidates": [
+    "landlord-offer.ciro.json",
+    "second-tenant.ciro.json",
+    "employment.ciro.json"
+  ]
+}
