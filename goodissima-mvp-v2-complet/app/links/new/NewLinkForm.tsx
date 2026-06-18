@@ -5,6 +5,7 @@ import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { useI18n } from "@/components/I18nProvider";
 import { useToast } from "@/components/ToastProvider";
 import { buildGeneratedSecureLink, buildSecureLinkListingPreview, secureLinkGenerationState } from "@/lib/secure-link-preview";
+import { SECURE_LINK_ADMISSION_LABELS } from "@/lib/secure-link-admission";
 
 type RelationTemplateOption = {
   id: string;
@@ -32,7 +33,7 @@ export function NewLinkForm({ templates, defaultTemplateId }: { templates: Relat
   const [creating, setCreating] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const initialTemplate = templates.find((template) => template.id === defaultTemplateId) ?? templates[0] ?? null;
-  const [form, setForm] = useState({ title: initialTemplate?.announcementTitle ?? "", city: initialTemplate?.announcementCity ?? "", description: initialTemplate?.announcementDescription ?? "", templateId: initialTemplate?.id ?? defaultTemplateId ?? "", requireEmail: true, requireMessage: true, allowDocument: true });
+  const [form, setForm] = useState({ title: initialTemplate?.announcementTitle ?? "", city: initialTemplate?.announcementCity ?? "", description: initialTemplate?.announcementDescription ?? "", templateId: initialTemplate?.id ?? defaultTemplateId ?? "", admissionMode: "OPEN" as "OPEN" | "VERIFIED_ONLY", requireEmail: false, requireMessage: true, allowDocument: true });
   const selectedTemplate = templates.find((template) => template.id === form.templateId) ?? templates[0] ?? null;
   const preview = buildSecureLinkListingPreview({ title: form.title, city: form.city, description: form.description, template: selectedTemplate });
   const generationState = secureLinkGenerationState(generatedUrl);
@@ -95,6 +96,16 @@ export function NewLinkForm({ templates, defaultTemplateId }: { templates: Relat
       {selectedTemplate ? <section className="rounded-2xl border bg-slate-50 p-5"><h2 className="text-lg font-semibold">Processus de suivi</h2><p className="mt-1 text-sm text-slate-500">Le parcours associé organise la réponse sans exposer sa structure technique.</p><div className="mt-4 grid gap-3 md:grid-cols-2"><AssetList title="Étapes prévues" items={selectedTemplate.steps.map((step) => `Étape ${step.step}`)} empty="Aucune étape prévue" /><AssetList title="Objectifs de la recherche" items={selectedTemplate.objectives} empty="Aucun objectif ajouté" /></div><details className="mt-4 rounded-xl border bg-white p-3 text-xs text-slate-600"><summary className="cursor-pointer font-semibold text-slate-700">Vue avancée du parcours</summary><p className="mt-2">Version et règles techniques réservées à l'administration du parcours.</p></details></section> : null}
 
       <section className="space-y-3 rounded-2xl border bg-white p-6">
+        <fieldset className="space-y-2">
+          <legend className="font-semibold text-slate-900">Admission</legend>
+          {(["OPEN", "VERIFIED_ONLY"] as const).map((mode) => (
+            <label key={mode} className="flex gap-2 rounded-xl border p-3">
+              <input type="radio" name="newLinkAdmissionMode" checked={form.admissionMode === mode} onChange={() => { setForm({ ...form, admissionMode: mode }); setGeneratedUrl(null); }} />
+              <span>{SECURE_LINK_ADMISSION_LABELS[mode]}</span>
+            </label>
+          ))}
+          <p className="text-xs text-slate-500">Le mode ouvert autorise les réponses anonymes lorsque le parcours ne demande pas explicitement l'identité.</p>
+        </fieldset>
         <label className="flex gap-2"><input type="checkbox" checked={form.requireEmail} onChange={(event) => { setForm({ ...form, requireEmail: event.target.checked }); setGeneratedUrl(null); }} />{t("links.new.requireEmail")}</label>
         <label className="flex gap-2"><input type="checkbox" checked={form.requireMessage} onChange={(event) => { setForm({ ...form, requireMessage: event.target.checked }); setGeneratedUrl(null); }} />{t("links.new.requireMessage")}</label>
         <label className="flex gap-2"><input type="checkbox" checked={form.allowDocument} onChange={(event) => { setForm({ ...form, allowDocument: event.target.checked }); setGeneratedUrl(null); }} />{t("links.new.allowDocument")}</label>

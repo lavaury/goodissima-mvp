@@ -189,6 +189,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
 
         <CandidateForm
           gLinkId={link.id}
+          admissionMode={link.admissionMode}
           formTemplateId={formTemplate?.id ?? null}
           templateVersionId={displayedTemplateVersionId}
           fields={candidateFields}

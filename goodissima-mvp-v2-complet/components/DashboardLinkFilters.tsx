@@ -12,7 +12,6 @@ type DashboardLink = {
   templateName?: string | null;
   templateStatus?: string | null;
   templateVersion?: number | null;
-  isTrustAdmissionPilot?: boolean;
   admissionMode?: LinkAdmissionMode;
   openActionCount?: number;
   cases?: Array<{
@@ -99,11 +98,9 @@ function matchesSearch(item: DashboardLink, query: string) {
 export function DashboardLinkFilters({
   links,
   debugMode = false,
-  showAdmissionPanel = false,
 }: {
   links: DashboardLink[];
   debugMode?: boolean;
-  showAdmissionPanel?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
@@ -160,7 +157,6 @@ export function DashboardLinkFilters({
               key={item.id}
               item={item}
               debugMode={debugMode}
-              showAdmissionPanel={showAdmissionPanel}
             />
           ))}
         </div>

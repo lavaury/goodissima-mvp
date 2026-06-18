@@ -6,7 +6,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
-import { LinkAdmissionPanel, type LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
+import { LinkAdmissionPanel } from "@/components/LinkAdmissionPanel";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { ProductContextBanner, ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
@@ -74,32 +74,6 @@ function getTrustLevel(candidateIdentity: CandidateIdentityForTrustLevel): Trust
     : "IDENTIFIED";
 }
 
-function getPilotGLinkIds() {
-  return (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function getAdmissionMode(
-  trustPolicy:
-    | {
-        credentialRequirements: Array<{
-          credentialType: {
-            code: string;
-          };
-        }>;
-      }
-    | null
-    | undefined,
-): LinkAdmissionMode {
-  return trustPolicy?.credentialRequirements.some(
-    (requirement) => requirement.credentialType.code === VERIFIED_IDENTITY,
-  )
-    ? "VERIFIED_ONLY"
-    : "OPEN";
-}
-
 function parseFieldOptions(options: unknown): FieldOption[] {
   if (!Array.isArray(options)) return [];
 
@@ -159,25 +133,6 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     include: {
       template: true,
       templateVersion: true,
-      trustPolicies: {
-        where: {
-          scope: "GLINK",
-          status: "ACTIVE",
-        },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          credentialRequirements: {
-            select: {
-              credentialType: {
-                select: {
-                  code: true,
-                },
-              },
-            },
-          },
-        },
-      },
       cases: {
         orderBy: { createdAt: "desc" },
         select: {
@@ -266,11 +221,6 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
   const secureToken = link.cases[0]?.candidateAccessToken ?? null;
-  const isAdmissionPanelEnabled =
-    process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
-  const isTrustAdmissionPilot = getPilotGLinkIds().includes(link.id);
-  const showAdmissionPanel = isAdmissionPanelEnabled && isTrustAdmissionPilot;
-  const admissionMode = getAdmissionMode(link.trustPolicies[0]);
   const sourceJourneyHref = snapshot?.formTemplate.id ? `/templates/${snapshot.formTemplate.id}` : formTemplate?.id ? `/templates/${formTemplate.id}` : null;
 
   return (
@@ -322,9 +272,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         </div>
       </section>
 
-      {showAdmissionPanel ? (
-        <LinkAdmissionPanel linkId={link.id} initialMode={admissionMode} />
-      ) : null}
+      <LinkAdmissionPanel linkId={link.id} initialMode={link.admissionMode} />
 
       {debugMode ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">

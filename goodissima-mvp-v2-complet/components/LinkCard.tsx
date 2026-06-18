@@ -14,7 +14,6 @@ import { announcementStatusLabel, type AnnouncementStatus } from "@/lib/announce
 export function LinkCard({
   item,
   debugMode = false,
-  showAdmissionPanel = false,
 }: {
   item: {
     id: string;
@@ -25,14 +24,12 @@ export function LinkCard({
     templateName?: string | null;
     templateStatus?: string | null;
     templateVersion?: number | null;
-    isTrustAdmissionPilot?: boolean;
     admissionMode?: LinkAdmissionMode;
     openActionCount?: number;
     sourceJourneyHref?: string;
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
   debugMode?: boolean;
-  showAdmissionPanel?: boolean;
 }) {
   const publicPath = `/l/${item.slug}`;
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
@@ -131,12 +128,10 @@ export function LinkCard({
         ) : null}
       </div>
 
-      {showAdmissionPanel && item.isTrustAdmissionPilot ? (
-        <LinkAdmissionPanel
-          linkId={item.id}
-          initialMode={item.admissionMode ?? "OPEN"}
-        />
-      ) : null}
+      <LinkAdmissionPanel
+        linkId={item.id}
+        initialMode={item.admissionMode ?? "OPEN"}
+      />
 
       {debugMode ? (
         <div className="mt-5 space-y-4 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200">

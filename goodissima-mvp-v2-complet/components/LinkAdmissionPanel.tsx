@@ -3,12 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
+import {
+  SECURE_LINK_ADMISSION_LABELS,
+  type SecureLinkAdmissionMode,
+} from "@/lib/secure-link-admission";
 
-export type LinkAdmissionMode = "OPEN" | "VERIFIED_ONLY";
+export type LinkAdmissionMode = SecureLinkAdmissionMode;
 
 const admissionOptions: Array<{ mode: LinkAdmissionMode; label: string }> = [
-  { mode: "OPEN", label: "Ouverte à tous" },
-  { mode: "VERIFIED_ONLY", label: "Réservée aux personnes vérifiées" },
+  { mode: "OPEN", label: SECURE_LINK_ADMISSION_LABELS.OPEN },
+  { mode: "VERIFIED_ONLY", label: SECURE_LINK_ADMISSION_LABELS.VERIFIED_ONLY },
 ];
 
 export function LinkAdmissionPanel({
@@ -90,7 +94,8 @@ export function LinkAdmissionPanel({
       </fieldset>
 
       <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-        Les personnes vérifiées disposent d'une identité vérifiée avant de pouvoir créer un dossier.
+        En mode ouvert, une réponse anonyme reste possible. En mode vérifié, une identité Goodissima
+        vérifiée est nécessaire avant de pouvoir créer un dossier.
       </p>
     </section>
   );

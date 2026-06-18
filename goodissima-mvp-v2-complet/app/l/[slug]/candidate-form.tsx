@@ -16,6 +16,10 @@ import {
 import { deriveCandidateSubmissionFields } from "@/lib/candidate-form-safety";
 import { getFieldsForStep, getStepCount } from "@/lib/form-steps";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
+import {
+  SECURE_LINK_ADMISSION_LABELS,
+  type SecureLinkAdmissionMode,
+} from "@/lib/secure-link-admission";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateFieldKeys = new Set(["notificationEmail"]);
@@ -62,12 +66,14 @@ async function getCaseSubmissionError(res: Response) {
 
 export default function CandidateForm({
   gLinkId,
+  admissionMode,
   formTemplateId,
   templateVersionId,
   fields,
   copy,
 }: {
   gLinkId: string;
+  admissionMode: SecureLinkAdmissionMode;
   formTemplateId: string | null;
   templateVersionId?: string | null;
   fields: DynamicFormField[];
@@ -284,6 +290,14 @@ export default function CandidateForm({
 
   return (
     <div className="mt-6 space-y-4">
+      <div className={`rounded-2xl border p-4 text-sm ${admissionMode === "VERIFIED_ONLY" ? "border-amber-200 bg-amber-50 text-amber-950" : "border-emerald-200 bg-emerald-50 text-emerald-950"}`}>
+        <p className="font-semibold">Admission · {SECURE_LINK_ADMISSION_LABELS[admissionMode]}</p>
+        <p className="mt-1">
+          {admissionMode === "VERIFIED_ONLY"
+            ? "Une identité Goodissima vérifiée sera demandée avant la création du dossier."
+            : "Vous pouvez répondre sans fournir votre identité, sauf si le parcours la demande explicitement."}
+        </p>
+      </div>
       <DynamicFormRenderer
         fields={currentFields}
         values={answers}
@@ -397,6 +411,12 @@ export default function CandidateForm({
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Link
               className="rounded-xl bg-slate-900 px-4 py-3 text-center font-medium text-white"
+              href={`/identity?next=${authNext}`}
+            >
+              Vérifier mon identité
+            </Link>
+            <Link
+              className="rounded-xl border border-amber-300 bg-white px-4 py-3 text-center font-medium text-slate-900"
               href={`/signup?next=${authNext}`}
             >
               Créer mon identité Goodissima

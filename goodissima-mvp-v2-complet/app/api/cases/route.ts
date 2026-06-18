@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma, RelationStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
+import { getCurrentUser } from "@/lib/auth";
 import {
   CANDIDATE_ACCESS_TTL_DAYS,
   createCandidateAccessExpiresAt,
@@ -30,6 +31,7 @@ import {
   resolveAdmissionTrustPolicyForLink,
 } from "@/lib/trust-policy";
 import type { FormValues } from "@/lib/form-rules";
+import { canSubmitToSecureLink } from "@/lib/secure-link-admission";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -320,7 +322,50 @@ export async function POST(req: Request) {
     : buildCandidateMessageFallback({}));
 
   const resolvedTrustAdmissionToken = await observeTrustAdmissionToken(body, gLink.id);
-  const resolvedCandidateIdentityId = resolvedTrustAdmissionToken?.identityId ?? null;
+  let resolvedCandidateIdentityId = resolvedTrustAdmissionToken?.identityId ?? null;
+
+  if (gLink.admissionMode === "VERIFIED_ONLY" && !resolvedCandidateIdentityId) {
+    const authenticatedUser = await getCurrentUser();
+    const authenticatedEmail = authenticatedUser?.email?.trim().toLowerCase();
+    if (authenticatedEmail) {
+      const authenticatedIdentity = await prisma.user.findUnique({
+        where: { email: authenticatedEmail },
+        select: { goodissimaIdentityId: true },
+      });
+      resolvedCandidateIdentityId = authenticatedIdentity?.goodissimaIdentityId ?? null;
+    }
+  }
+
+  const verifiedCandidateIdentity = resolvedCandidateIdentityId
+    ? await prisma.goodissimaIdentity.findFirst({
+        where: {
+          id: resolvedCandidateIdentityId,
+          status: "VERIFIED",
+          credentials: {
+            some: {
+              status: "ACTIVE",
+              credentialType: { code: "VERIFIED_IDENTITY" },
+              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+          },
+        },
+        select: { id: true },
+      })
+    : null;
+
+  if (!canSubmitToSecureLink({
+    mode: gLink.admissionMode,
+    hasVerifiedIdentity: Boolean(verifiedCandidateIdentity),
+  })) {
+    return NextResponse.json(
+      {
+        error: "Une identité Goodissima vérifiée est requise pour répondre à cette annonce.",
+        code: "TRUST_ADMISSION_BLOCKED",
+        verificationRequired: true,
+      },
+      { status: 403 },
+    );
+  }
 
   const existingRelationCase = candidateEmail
     ? await prisma.relationCase.findFirst({
@@ -583,9 +628,13 @@ export async function POST(req: Request) {
   }
 
   const relationCase = await prisma.$transaction(async (tx) => {
-    const identitySource = resolvedTrustAdmissionToken ? "TRUST_ADMISSION_TOKEN" : "AUTO_CREATED";
+    const identitySource = resolvedTrustAdmissionToken
+      ? "TRUST_ADMISSION_TOKEN"
+      : resolvedCandidateIdentityId
+        ? "AUTHENTICATED_VERIFIED_IDENTITY"
+        : "AUTO_CREATED";
     let tokenMarkedUsed = false;
-    let candidateIdentityId = resolvedTrustAdmissionToken?.identityId ?? null;
+    let candidateIdentityId = resolvedCandidateIdentityId;
 
     if (!candidateIdentityId) {
       const candidateIdentity = await tx.goodissimaIdentity.create({

@@ -13,10 +13,6 @@ import { isGoodissimaDebugMode } from "@/lib/debug";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { DashboardRealtimeRefresh } from "./DashboardRealtimeRefresh";
-
-type LinkAdmissionMode = "OPEN" | "VERIFIED_ONLY";
-
-const VERIFIED_IDENTITY = "VERIFIED_IDENTITY";
 const legacyJourneyMetricLabel = "Templates/parcours actifs";
 void legacyJourneyMetricLabel;
 
@@ -48,25 +44,6 @@ function getCaseLastActivityAt(relationCase: {
   );
 }
 
-function getAdmissionMode(
-  trustPolicy:
-    | {
-        credentialRequirements: Array<{
-          credentialType: {
-            code: string;
-          };
-        }>;
-      }
-    | null
-    | undefined,
-): LinkAdmissionMode {
-  return trustPolicy?.credentialRequirements.some(
-    (requirement) => requirement.credentialType.code === VERIFIED_IDENTITY,
-  )
-    ? "VERIFIED_ONLY"
-    : "OPEN";
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -81,42 +58,15 @@ export default async function DashboardPage({
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const showChampagneScenarios = canAccessChampagneWorkspace(owner.role);
   const debugMode = isGoodissimaDebugMode();
-  const showAdmissionPanel =
-    process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
-  const trustAdmissionPilotGLinkIds = new Set(
-    (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
-  );
   const [links, cases, recentCases, recentDocuments, activeJourneyCount, publishedAnnouncementCount, ongoingRelationCount, draftOpportunityCount, pendingRelationCount, openActionCount, monthlyAIEvents, generatedTemplateCount, validatedTemplateCount, optimizedVersionCount] = await Promise.all([
     prisma.gLink.findMany({
       where: { ownerId: owner.id, status: { not: "ARCHIVED" } },
       include: {
         template: { select: { name: true, status: true } },
         templateVersion: { select: { version: true } },
-        trustPolicies: {
-          where: {
-            scope: "GLINK",
-            status: "ACTIVE",
-          },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: {
-            credentialRequirements: {
-              select: {
-                credentialType: {
-                  select: {
-                    code: true,
-                  },
-                },
-              },
-            },
-          },
-        },
         cases: {
           orderBy: { createdAt: "desc" },
           select: {
@@ -237,8 +187,7 @@ export default async function DashboardPage({
     templateName: item.template?.name ?? null,
     templateStatus: item.template?.status ?? null,
     templateVersion: item.templateVersion?.version ?? null,
-    isTrustAdmissionPilot: trustAdmissionPilotGLinkIds.has(item.id),
-    admissionMode: getAdmissionMode(item.trustPolicies[0]),
+    admissionMode: item.admissionMode,
     openActionCount: item.cases.reduce(
       (count, relationCase) =>
         count + relationCase.relationActions.filter((action) => action.status !== "COMPLETED").length,
@@ -354,7 +303,6 @@ export default async function DashboardPage({
       <DashboardLinkFilters
         links={dashboardLinks}
         debugMode={debugMode}
-        showAdmissionPanel={showAdmissionPanel}
       />
     </main>
   );

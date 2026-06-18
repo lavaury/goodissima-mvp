@@ -107,6 +107,7 @@ export default async function OpportunitiesPage({
                 title: item.title,
                 city: item.city,
                 status: item.status,
+                admissionMode: item.admissionMode,
                 templateName: item.template?.name,
                 templateStatus: item.template?.status,
                 templateVersion: item.templateVersion?.version,

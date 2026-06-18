@@ -1,27 +1,12 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { CredentialTypeStatus, Prisma } from "@prisma/client";
 
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseSecureLinkAdmissionMode } from "@/lib/secure-link-admission";
 
 const VERIFIED_IDENTITY = "VERIFIED_IDENTITY";
-
-type AdmissionMode = "OPEN" | "VERIFIED_ONLY";
-
-function isVerifiedLinkUiEnabled() {
-  return process.env.TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED === "true";
-}
-
-function getPilotGLinkIds() {
-  return (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function parseAdmissionMode(value: unknown): AdmissionMode | null {
-  return value === "OPEN" || value === "VERIFIED_ONLY" ? value : null;
-}
 
 async function ensureVerifiedIdentityCredentialType(tx: Prisma.TransactionClient) {
   return tx.credentialType.upsert({
@@ -56,7 +41,8 @@ async function ensureActiveGLinkTrustPolicy(tx: Prisma.TransactionClient, gLinkI
       scope: "GLINK",
       gLinkId,
       status: "ACTIVE",
-      reason: "Trust admission pilot - owner admission setting",
+      requireCandidateEmail: false,
+      reason: "Secure link admission setting",
       version: 1,
     },
     select: { id: true },
@@ -66,14 +52,10 @@ async function ensureActiveGLinkTrustPolicy(tx: Prisma.TransactionClient, gLinkI
 export async function POST(req: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
   const body = await req.json();
-  const mode = parseAdmissionMode(body.mode);
+  const mode = parseSecureLinkAdmissionMode(body.mode);
 
-  if (!mode) {
+  if (body.mode !== "OPEN" && body.mode !== "VERIFIED_ONLY") {
     return NextResponse.json({ error: "Invalid admission mode" }, { status: 400 });
-  }
-
-  if (!isVerifiedLinkUiEnabled()) {
-    return NextResponse.json({ error: "Verified admission link UI disabled" }, { status: 403 });
   }
 
   const gLink = await prisma.gLink.findUnique({
@@ -92,12 +74,16 @@ export async function POST(req: Request, { params }: { params: { linkId: string 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!getPilotGLinkIds().includes(gLink.id)) {
-    return NextResponse.json({ error: "GLink is not enabled for Trust Admission pilot" }, { status: 403 });
-  }
-
   await prisma.$transaction(async (tx) => {
+    await tx.gLink.update({
+      where: { id: gLink.id },
+      data: { admissionMode: mode },
+    });
     const trustPolicy = await ensureActiveGLinkTrustPolicy(tx, gLink.id);
+    await tx.trustPolicy.update({
+      where: { id: trustPolicy.id },
+      data: { requireCandidateEmail: false },
+    });
 
     if (mode === "OPEN") {
       await tx.trustPolicyCredentialRequirement.deleteMany({
@@ -128,6 +114,10 @@ export async function POST(req: Request, { params }: { params: { linkId: string 
     ownerId: owner.id,
     mode,
   });
+
+  revalidatePath(`/links/${gLink.id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/opportunities");
 
   return NextResponse.json({
     linkId: gLink.id,
