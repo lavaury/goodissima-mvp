@@ -94,7 +94,7 @@ export default async function DashboardPage({
   );
   const [links, cases, recentCases, recentDocuments, activeJourneyCount, publishedAnnouncementCount, ongoingRelationCount, draftOpportunityCount, pendingRelationCount, openActionCount, monthlyAIEvents, generatedTemplateCount, validatedTemplateCount, optimizedVersionCount] = await Promise.all([
     prisma.gLink.findMany({
-      where: { ownerId: owner.id },
+      where: { ownerId: owner.id, status: { not: "ARCHIVED" } },
       include: {
         template: { select: { name: true, status: true } },
         templateVersion: { select: { version: true } },

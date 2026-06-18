@@ -12,6 +12,7 @@ enum LinkStatus {
   ACTIVE
   DISABLED
   EXPIRED
+  ARCHIVED
 }
 
 enum CaseStatus {

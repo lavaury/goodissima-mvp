@@ -9,6 +9,7 @@ import { DebugDeleteLinkButton } from "@/components/DebugDeleteLinkButton";
 import { LinkAdmissionPanel, type LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
 import { QRCodeBox } from "@/components/QRCodeBox";
 import { useToast } from "@/components/ToastProvider";
+import { announcementStatusLabel, type AnnouncementStatus } from "@/lib/announcement-archive";
 
 export function LinkCard({
   item,
@@ -20,6 +21,7 @@ export function LinkCard({
     slug: string;
     title: string;
     city?: string | null;
+    status?: AnnouncementStatus;
     templateName?: string | null;
     templateStatus?: string | null;
     templateVersion?: number | null;
@@ -72,6 +74,11 @@ export function LinkCard({
         {item.openActionCount ? (
           <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
             {item.openActionCount} demande{item.openActionCount > 1 ? "s" : ""}
+          </span>
+        ) : null}
+        {item.status ? (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
+            {announcementStatusLabel(item.status)}
           </span>
         ) : null}
       </div>
