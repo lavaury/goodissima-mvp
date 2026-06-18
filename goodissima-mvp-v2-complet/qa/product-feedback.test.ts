@@ -105,6 +105,7 @@ test("restricts feedback review to product administration roles", () => {
 
 test("adds Administration feedback review UI", () => {
   const page = source("app/administration/feedback/page.tsx");
+  const administration = source("app/administration/page.tsx");
   assert.match(page, /Revue des retours produit/);
   assert.match(page, /Tous les types/);
   assert.match(page, /Tous les statuts/);
@@ -113,7 +114,11 @@ test("adds Administration feedback review UI", () => {
   assert.match(page, /Captures d'écran/);
   assert.match(page, /Télécharger/);
   assert.match(page, /<img/);
-  assert.match(source("app/administration/page.tsx"), /\/administration\/feedback/);
+  assert.match(administration, /canAccessFeedbackAdmin\(owner\.role\)/);
+  assert.match(administration, /showFeedbackAdmin \?/);
+  assert.match(administration, /\/administration\/feedback/);
+  assert.match(administration, /Accès réservé/);
+  assert.match(administration, /aria-disabled="true"/);
 });
 
 test("adds opt-in screenshot and page-context controls to the feedback form", () => {

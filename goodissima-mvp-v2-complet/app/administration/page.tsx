@@ -6,11 +6,13 @@ import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { canAccessChampagneWorkspace } from "@/lib/champagne-workspace";
+import { canAccessFeedbackAdmin } from "@/lib/product-feedback";
 
 export default async function AdministrationPage() {
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const showChampagneScenarios = canAccessChampagneWorkspace(owner.role);
+  const showFeedbackAdmin = canAccessFeedbackAdmin(owner.role);
 
   return <main className="mx-auto max-w-6xl px-6 py-10">
     <DashboardBackLink className="mb-4" />
@@ -25,11 +27,21 @@ export default async function AdministrationPage() {
           <h2 className="mt-3 font-semibold text-violet-950">IA & Valeur</h2>
           <p className="mt-1 text-sm text-violet-800">Coûts IA, valeur estimée, ROI et exports CSV.</p>
         </Link>
-        <Link href="/administration/feedback" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold text-white">Admin produit</span>
-          <h2 className="mt-3 font-semibold text-emerald-950">Feedback produit</h2>
-          <p className="mt-1 text-sm text-emerald-800">Revue des retours, suivi de statut, notes internes et export CSV.</p>
-        </Link>
+        {showFeedbackAdmin ? (
+          <Link href="/administration/feedback" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+            <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold text-white">Admin produit</span>
+            <h2 className="mt-3 font-semibold text-emerald-950">Feedback produit</h2>
+            <p className="mt-1 text-sm text-emerald-800">Revue des retours, suivi de statut, notes internes et export CSV.</p>
+          </Link>
+        ) : (
+          <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5" aria-disabled="true">
+            <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">Accès réservé</span>
+            <h2 className="mt-3 font-semibold text-slate-800">Feedback produit</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              La revue des retours est réservée aux rôles Admin produit, Admin et Super Admin.
+            </p>
+          </section>
+        )}
         <Link href="/templates/demo" className="rounded-2xl border bg-white p-5">
           <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Démo · Expérimental</span>
           <h2 className="mt-3 font-semibold">Démo parcours IA</h2>
