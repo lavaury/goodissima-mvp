@@ -86,11 +86,14 @@ test("selects a local visual for every opportunity category", () => {
   assert.equal(inferOpportunityCategory("Je recherche un investisseur"), "investment");
   assert.equal(inferOpportunityCategory("Je recherche un partenaire"), "partnership");
   assert.equal(inferOpportunityCategory("Projet pour une association de bénévoles"), "association");
+  assert.equal(inferOpportunityCategory("Assurance emprunteur pour prêt immobilier"), "insurance");
+  assert.equal(inferOpportunityCategory("Je cherche un courtier immobilier"), "professional_services");
+  assert.equal(inferOpportunityCategory("Besoin encore imprécis"), "generic");
   for (const visual of Object.values(OPPORTUNITY_CATEGORY_VISUALS)) assert.match(visual, /^\/opportunity-.+\.svg$/);
 });
 
 test("defines a dedicated presentation schema for every category", () => {
-  assert.deepEqual(Object.keys(OPPORTUNITY_PRESENTATION_SCHEMAS), ["housing", "employment", "consulting", "investment", "partnership", "association"]);
+  assert.deepEqual(Object.keys(OPPORTUNITY_PRESENTATION_SCHEMAS), ["housing", "employment", "consulting", "professional_services", "insurance", "investment", "partnership", "association", "generic"]);
   assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.housing.map((item) => item.label), ["Surface", "Loyer", "Charges", "Pièces"]);
   assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.employment.map((item) => item.label), ["Poste", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"]);
   assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.consulting.map((item) => item.label), ["Mission", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"]);
@@ -197,6 +200,8 @@ test("preserves domain-specific fields through generation, validation, publicati
     { source: "Je cherche un appartement de 60 m² avec un loyer de 1200 €", category: "housing", requiredLabels: ["Surface", "Loyer", "Charges", "Pièces"], forbiddenLabels: ["Mission", "Compétences"] },
     { source: "Nous recrutons un candidat développeur backend en CDI", category: "employment", requiredLabels: ["Poste", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"], forbiddenLabels: ["Surface", "Loyer"] },
     { source: "Je cherche un expert Python freelance pour une mission", category: "consulting", requiredLabels: ["Mission", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"], forbiddenLabels: ["Surface", "Loyer", "Charges", "Pièces"] },
+    { source: "Je cherche un courtier immobilier", category: "professional_services", requiredLabels: ["Service recherché", "Expertise", "Zone d'intervention", "Disponibilité", "Budget"], forbiddenLabels: ["Surface", "Loyer", "Charges", "Pièces"] },
+    { source: "Assurance emprunteur pour prêt immobilier", category: "insurance", requiredLabels: ["Contrat recherché", "Besoin couvert", "Garanties souhaitées", "Échéance", "Budget"], forbiddenLabels: ["Surface", "Loyer", "Charges", "Pièces"] },
     { source: "Je recherche un investisseur pour une levée de fonds seed", category: "investment", requiredLabels: ["Secteur", "Stade de financement", "Montant recherché"], forbiddenLabels: ["Surface", "Poste"] },
     { source: "Je recherche un partenaire pour une alliance commerciale", category: "partnership", requiredLabels: ["Activité", "Type de collaboration"], forbiddenLabels: ["Surface", "Poste"] },
   ];
@@ -236,4 +241,47 @@ test("preserves domain-specific fields through generation, validation, publicati
       assert.ok(preview.keyMetrics.every((metric) => !scenario.forbiddenLabels.includes(metric.label)));
     }
   }
+});
+
+test("uses the AI-selected family instead of reclassifying the announcement text", () => {
+  const persistedPresentation = buildPersistedOpportunityPresentation({
+    presentation: { category: "housing", surface: "80 m²", rent: "1 500 €" },
+    generatedCategory: "insurance",
+    generatedCategoryConfidence: 0.94,
+    source: "Assurance emprunteur pour prêt immobilier",
+  });
+  const selectedSnapshot: TemplateSnapshot = {
+    ...snapshot,
+    relationTemplate: { ...snapshot.relationTemplate, name: "Assurance emprunteur", description: "Assurance pour un prêt immobilier." },
+    metadata: {
+      snapshotVersion: 2,
+      generation: { inputDescription: "Assurance emprunteur pour prêt immobilier" },
+      opportunityPresentation: persistedPresentation,
+    },
+  };
+  const preview = buildOpportunityPreview(selectedSnapshot);
+  assert.equal(preview.category, "insurance");
+  assert.equal(preview.opportunityType, "Assurance et services financiers");
+  assert.ok(preview.keyMetrics.every((metric) => !["Surface", "Loyer", "Charges", "Pièces"].includes(metric.label)));
+});
+
+test("falls back to the generic family instead of housing for an uncertain opportunity", () => {
+  const persistedPresentation = buildPersistedOpportunityPresentation({
+    generatedCategory: "generic",
+    generatedCategoryConfidence: 0.35,
+    source: "Je souhaite explorer une possibilité autour d'un projet",
+  });
+  const uncertainSnapshot: TemplateSnapshot = {
+    ...snapshot,
+    relationTemplate: { ...snapshot.relationTemplate, name: "Projet à préciser", description: "Besoin encore imprécis." },
+    metadata: {
+      snapshotVersion: 2,
+      generation: { inputDescription: "Je souhaite explorer une possibilité autour d'un projet" },
+      opportunityPresentation: persistedPresentation,
+    },
+  };
+  const preview = buildOpportunityPreview(uncertainSnapshot);
+  assert.equal(preview.category, "generic");
+  assert.deepEqual(preview.keyMetrics.map((metric) => metric.label), ["Objectif", "Besoin", "Modalités"]);
+  assert.ok(preview.keyMetrics.every((metric) => !["Surface", "Loyer", "Charges", "Pièces"].includes(metric.label)));
 });

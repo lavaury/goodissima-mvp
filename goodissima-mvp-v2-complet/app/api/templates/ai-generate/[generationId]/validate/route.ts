@@ -79,6 +79,7 @@ export async function POST(req: Request, { params }: { params: { generationId: s
     const opportunityPresentation = buildPersistedOpportunityPresentation({
       presentation,
       generatedCategory: draft.opportunityCategory,
+      generatedCategoryConfidence: draft.opportunityCategoryConfidence,
       source: generation.inputDescription,
     });
     const baseKey = normalizeKey(typeof body.key === "string" && body.key.trim() ? body.key : draft.name);

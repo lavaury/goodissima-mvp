@@ -16,6 +16,7 @@ export type TemplateDesignerDraft = {
   name: string;
   description: string;
   opportunityCategory: OpportunityCategory;
+  opportunityCategoryConfidence: number;
   identityRequired: boolean;
   actors: Array<{ name: string; role: string }>;
   stages: Array<{
@@ -74,6 +75,12 @@ function list(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
+function confidence(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.min(1, value))
+    : fallback;
+}
+
 function keyFromLabel(value: string, index: number) {
   const key = value
     .normalize("NFD")
@@ -92,9 +99,11 @@ export function parseTemplateDesignerDraft(value: unknown): TemplateDesignerDraf
   const source = value as Record<string, unknown>;
   const identityRequired = source.identityRequired === true;
   const requestedCategory = text(source.opportunityCategory);
-  const opportunityCategory = isOpportunityCategory(requestedCategory)
+  const requestedConfidence = confidence(source.opportunityCategoryConfidence);
+  const opportunityCategory = isOpportunityCategory(requestedCategory) && requestedConfidence >= 0.6
     ? requestedCategory
-    : inferOpportunityCategory([text(source.name), text(source.description)].filter(Boolean).join(" "));
+    : "generic";
+  const opportunityCategoryConfidence = requestedConfidence;
   const stages = list(source.stages).map((item) => {
     const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
     return {
@@ -126,6 +135,7 @@ export function parseTemplateDesignerDraft(value: unknown): TemplateDesignerDraf
     name: text(source.name),
     description: text(source.description),
     opportunityCategory,
+    opportunityCategoryConfidence,
     identityRequired,
     actors: list(source.actors).map((item) => {
       const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
@@ -155,10 +165,12 @@ export function parseTemplateDesignerDraft(value: unknown): TemplateDesignerDraf
 }
 
 function mockDraft(description: string): TemplateDesignerDraft {
+  const opportunityCategory = inferOpportunityCategory(description);
   return {
     name: "Parcours relationnel assisté",
     description: `Parcours proposé à partir du besoin suivant : ${description.slice(0, 220)}`,
-    opportunityCategory: inferOpportunityCategory(description),
+    opportunityCategory,
+    opportunityCategoryConfidence: opportunityCategory === "generic" ? 0.35 : 0.9,
     identityRequired: false,
     actors: [
       { name: "Responsable du parcours", role: "Pilote la relation et valide les décisions" },
@@ -219,8 +231,9 @@ function preserveAnonymousIdentityByDefault(
 function preserveOpportunityCategory(
   draft: TemplateDesignerDraft,
   opportunityCategory: OpportunityCategory,
+  opportunityCategoryConfidence: number,
 ) {
-  return { ...draft, opportunityCategory };
+  return { ...draft, opportunityCategory, opportunityCategoryConfidence };
 }
 
 export function applyMockTemplateRevision(current: TemplateDesignerDraft, feedback: string): TemplateDesignerDraft {
@@ -263,6 +276,7 @@ export function applyMockTemplateRevision(current: TemplateDesignerDraft, feedba
       current.identityRequired,
     ),
     current.opportunityCategory,
+    current.opportunityCategoryConfidence,
   );
 }
 
@@ -297,9 +311,11 @@ export async function generateTemplateDraft(
       system: [
         "Tu es le concepteur de modèles Goodissima.",
         "Réponds exclusivement en français avec un objet JSON strict.",
-        "Schéma: {name,description,opportunityCategory,identityRequired,actors:[{name,role}],stages:[{name,objective,expectedAction,responsibleActor,deadline,exitCondition}],documents:[{name,required,stage}],relationalRequests:[{title,description,stage,targetActor,deadline}],kpis:[{name,description,unit}],fields:[{key,label,type,required,step,placeholder}]}",
-        "opportunityCategory doit être exactement l'une de ces valeurs : housing, employment, consulting, investment, partnership, association.",
-        "Une recherche d'expert, consultant, freelance, prestataire ou mission technique utilise consulting. N'utilise housing que pour un besoin explicitement immobilier.",
+        "Schéma: {name,description,opportunityCategory,opportunityCategoryConfidence,identityRequired,actors:[{name,role}],stages:[{name,objective,expectedAction,responsibleActor,deadline,exitCondition}],documents:[{name,required,stage}],relationalRequests:[{title,description,stage,targetActor,deadline}],kpis:[{name,description,unit}],fields:[{key,label,type,required,step,placeholder}]}",
+        "opportunityCategory doit être exactement l'une de ces valeurs : housing, employment, consulting, professional_services, insurance, investment, partnership, association, generic.",
+        "opportunityCategoryConfidence est un nombre entre 0 et 1. Si la confiance est inférieure à 0.6, utilise generic.",
+        "Appartement à louer utilise housing. Assurance emprunteur utilise insurance. Expert Python utilise consulting. Courtier immobilier utilise professional_services. Investisseur utilise investment.",
+        "N'utilise housing que si l'objet de l'opportunité est un bien, une location ou un logement. La simple présence du mot immobilier ne suffit pas.",
         "Types de champs autorisés: TEXT, EMAIL, TEXTAREA, SELECT, CHECKBOX, FILE, DATE, NUMBER.",
         "La sortie est un brouillon. N'exécute aucun workflow, ne publie rien et n'invente aucune automatisation cachée.",
         "Préserve l'anonymat du candidat par défaut : identityRequired=false. Le nom et l'e-mail sont absents ou facultatifs, sauf demande explicite de collecte d'identité obligatoire.",
@@ -329,10 +345,7 @@ export async function generateTemplateDraft(
   }
 
   return {
-    draft: preserveOpportunityCategory(
-      preserveAnonymousIdentityByDefault(parseTemplateDesignerDraft(extractJson(result.output)), description),
-      inferOpportunityCategory(description),
-    ),
+    draft: preserveAnonymousIdentityByDefault(parseTemplateDesignerDraft(extractJson(result.output)), description),
     provenance: { provider: result.provider, model: result.model, promptVersion: templateDesignerPromptVersion, language: "fr", generatedAt: new Date().toISOString() },
     usage: result,
   };
@@ -379,6 +392,7 @@ export async function reviseTemplateDraft(
       current.identityRequired,
     ),
     current.opportunityCategory,
+    current.opportunityCategoryConfidence,
   );
   return {
     draft,

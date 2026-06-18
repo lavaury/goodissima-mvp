@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { validateTemplateDraftQuality } from "@/lib/ai/template-draft-quality";
 import { candidateFieldsFromTemplateDraft, candidateIdentityRequiredFromTemplateDraft, checkCandidatePublicationSafety } from "@/lib/candidate-form-safety";
-import { draftPreviewHref } from "@/lib/opportunity-preview";
+import { draftPreviewHref, OPPORTUNITY_CATEGORY_LABELS } from "@/lib/opportunity-preview";
 import { type ProposalChangeSet } from "@/lib/ai/opportunity-refinement";
 import { VoiceCaptureButton } from "@/components/VoiceCaptureButton";
 import { VOICE_STATUS_LABELS, mergeVoiceTranscript, type VoiceAuditInput } from "@/lib/voice-opportunity";
@@ -15,6 +15,7 @@ type Draft = {
   name: string;
   description: string;
   opportunityCategory?: OpportunityCategory;
+  opportunityCategoryConfidence?: number;
   identityRequired?: boolean;
   actors: Array<{ name: string; role: string }>;
   stages: Array<{ name: string; objective: string; expectedAction?: string; responsibleActor?: string; deadline?: string; exitCondition?: string }>;
@@ -235,6 +236,15 @@ export function AITemplateDesigner() {
           {proposalHistory.length > 1 ? <div className="mb-4 flex flex-wrap gap-2" aria-label="Historique des propositions">{proposalHistory.map((version, index) => <button key={version.generationId} type="button" onClick={() => selectVersion(index)} className={`rounded-full px-3 py-1 text-xs font-semibold ${index === activeVersionIndex ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-600"}`}>Proposition v{version.version}</button>)}</div> : null}
           <input className="w-full rounded-xl border px-4 py-3 text-lg font-semibold" value={draft.name} onChange={(event) => updateDraft({ ...draft, name: event.target.value })} />
           <textarea className="mt-3 min-h-20 w-full rounded-xl border px-4 py-3 text-sm" value={draft.description} onChange={(event) => updateDraft({ ...draft, description: event.target.value })} />
+          {draft.opportunityCategory ? (
+            <div className="mt-3 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-950">
+              <span className="font-semibold">Famille proposée par l'IA :</span>{" "}
+              {OPPORTUNITY_CATEGORY_LABELS[draft.opportunityCategory]}
+              {typeof draft.opportunityCategoryConfidence === "number"
+                ? ` · confiance ${Math.round(draft.opportunityCategoryConfidence * 100)} %`
+                : ""}
+            </div>
+          ) : null}
           <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <DraftList title="Acteurs" items={draft.actors.map((item) => `${item.name} : ${item.role}`)} />
             <DraftList title="Étapes" items={draft.stages.map((item, index) => `${index + 1}. ${item.name} : ${item.objective}`)} />
