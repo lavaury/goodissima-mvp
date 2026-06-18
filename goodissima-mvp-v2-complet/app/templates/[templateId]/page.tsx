@@ -14,7 +14,7 @@ import { ManualJourneyEditor } from "@/components/ManualJourneyEditor";
 import { ProductContextBanner, ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { OpportunityPreviewCard } from "@/components/OpportunityPreviewCard";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { checkCandidatePublicationSafety, inspectCandidateForm, toCandidateFormField } from "@/lib/candidate-form-safety";
+import { candidateIdentityRequiredFromSnapshotMetadata, checkCandidatePublicationSafety, inspectCandidateForm, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { localizeTemplateDescription, localizeTemplateName } from "@/lib/template-localization";
@@ -142,7 +142,9 @@ export default async function TemplateDetailPage({ params, searchParams }: { par
   const fieldLabels = template.fields.map((field) => ({ key: field.key, label: field.label }));
   const candidateFormFields = template.fields.map((field) => toCandidateFormField(field));
   const candidateFormDiagnostic = inspectCandidateForm(candidateFormFields);
-  const candidateFormSafety = checkCandidatePublicationSafety(candidateFormFields);
+  const candidateFormSafety = checkCandidatePublicationSafety(candidateFormFields, {
+    identityRequired: candidateIdentityRequiredFromSnapshotMetadata(latestSnapshot?.metadata),
+  });
   const activePublishedDiagnostic = activeSnapshot
     ? inspectCandidateForm(activeSnapshot.fields.map((field) => toCandidateFormField(field)))
     : [];

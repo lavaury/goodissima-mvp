@@ -13,7 +13,6 @@ import {
   deriveCandidateSubmissionFields,
   findMissingRequiredCandidateField,
   formatMissingRequiredFieldError,
-  getCandidateSystemFieldSubmissionPresence,
   toCandidateFormField,
   type MissingCandidateField,
 } from "@/lib/candidate-form-safety";
@@ -312,35 +311,9 @@ export async function POST(req: Request) {
     candidateEmail,
     message: messageBody,
   });
-  const submittedSystemFields = getCandidateSystemFieldSubmissionPresence(formSubmission?.answers ?? {});
-
   candidateName = derivedCandidateFields.candidateName;
   candidateEmail = derivedCandidateFields.candidateEmail.trim().toLowerCase();
   messageBody = derivedCandidateFields.message;
-
-  if (!candidateName && submittedSystemFields.candidateName) {
-    return missingFieldBadRequest({
-      field: { id: "candidateName", label: "Nom complet", code: "REQUIRED_FIELD_MISSING" },
-      gLinkId,
-      reasons: ["candidateName_missing"],
-    });
-  }
-
-  if (!candidateEmail && submittedSystemFields.candidateEmail) {
-    return missingFieldBadRequest({
-      field: { id: "candidateEmail", label: "Email", code: "REQUIRED_FIELD_MISSING" },
-      gLinkId,
-      reasons: ["candidateEmail_missing"],
-    });
-  }
-
-  if (!messageBody && submittedSystemFields.message) {
-    return missingFieldBadRequest({
-      field: { id: "message", label: "Message", code: "REQUIRED_FIELD_MISSING" },
-      gLinkId,
-      reasons: ["message_missing"],
-    });
-  }
 
   messageBody = messageBody || (formSubmission
     ? buildHumanReadableFormMessage(submittedFormFields, formSubmission.answers)

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { validateTemplateDraftQuality } from "@/lib/ai/template-draft-quality";
-import { candidateFieldsFromTemplateDraft, checkCandidatePublicationSafety } from "@/lib/candidate-form-safety";
+import { candidateFieldsFromTemplateDraft, candidateIdentityRequiredFromTemplateDraft, checkCandidatePublicationSafety } from "@/lib/candidate-form-safety";
 import { draftPreviewHref } from "@/lib/opportunity-preview";
 import { type ProposalChangeSet } from "@/lib/ai/opportunity-refinement";
 import { VoiceCaptureButton } from "@/components/VoiceCaptureButton";
@@ -13,6 +13,7 @@ import { VOICE_STATUS_LABELS, mergeVoiceTranscript, type VoiceAuditInput } from 
 type Draft = {
   name: string;
   description: string;
+  identityRequired?: boolean;
   actors: Array<{ name: string; role: string }>;
   stages: Array<{ name: string; objective: string; expectedAction?: string; responsibleActor?: string; deadline?: string; exitCondition?: string }>;
   documents: Array<{ name: string; required: boolean; stage: number }>;
@@ -82,7 +83,10 @@ export function AITemplateDesigner() {
     setDraft(nextDraft);
     setConfirmed(false);
     if (provenance) setValidation(validateTemplateDraftQuality({ draft: nextDraft, provenance }));
-    setCandidateFormSafety(checkCandidatePublicationSafety(candidateFieldsFromTemplateDraft(nextDraft)));
+    setCandidateFormSafety(checkCandidatePublicationSafety(
+      candidateFieldsFromTemplateDraft(nextDraft),
+      { identityRequired: candidateIdentityRequiredFromTemplateDraft(nextDraft) },
+    ));
   }
 
   async function generate() {

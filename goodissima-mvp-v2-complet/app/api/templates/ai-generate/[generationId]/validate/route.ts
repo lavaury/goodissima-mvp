@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { parseTemplateDesignerDraft } from "@/lib/ai/template-designer";
 import { validateTemplateDraftQuality } from "@/lib/ai/template-draft-quality";
-import { candidateFieldsFromTemplateDraft, checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
+import { candidateFieldsFromTemplateDraft, candidateIdentityRequiredFromTemplateDraft, checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { prisma } from "@/lib/prisma";
 
 function normalizeKey(value: string) {
@@ -33,7 +33,10 @@ export async function POST(req: Request, { params }: { params: { generationId: s
     }
 
     const submittedDraft = body.draft ?? generation.output;
-    const preValidationSafety = checkCandidatePublicationSafety(candidateFieldsFromTemplateDraft(submittedDraft));
+    const preValidationSafety = checkCandidatePublicationSafety(
+      candidateFieldsFromTemplateDraft(submittedDraft),
+      { identityRequired: candidateIdentityRequiredFromTemplateDraft(submittedDraft) },
+    );
     if (!preValidationSafety.publishable) {
       return NextResponse.json(
         { error: preValidationSafety.error, candidateFormSafety: preValidationSafety },
@@ -59,7 +62,10 @@ export async function POST(req: Request, { params }: { params: { generationId: s
     }
 
     const draft = parseTemplateDesignerDraft(submittedDraft);
-    const candidateFormSafety = checkCandidatePublicationSafety(draft.fields.map((field) => toCandidateFormField(field)));
+    const candidateFormSafety = checkCandidatePublicationSafety(
+      draft.fields.map((field) => toCandidateFormField(field)),
+      { identityRequired: draft.identityRequired },
+    );
     if (!candidateFormSafety.publishable) {
       return NextResponse.json(
         { error: candidateFormSafety.error, candidateFormSafety, validation },
@@ -138,6 +144,7 @@ export async function POST(req: Request, { params }: { params: { generationId: s
             },
             metadata: {
               snapshotVersion: 2,
+              identityRequired: draft.identityRequired,
               lifecycle: "DRAFT",
               humanValidated: true,
               qualityGuard: {

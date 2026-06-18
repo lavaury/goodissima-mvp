@@ -25,7 +25,10 @@ export async function POST(req: Request) {
       organizationName: owner.name ?? owner.email,
     });
     const validation = validateTemplateDraftQuality({ draft: result.draft, provenance: result.provenance });
-    const candidateFormSafety = checkCandidatePublicationSafety(result.draft.fields.map((field) => toCandidateFormField(field)));
+    const candidateFormSafety = checkCandidatePublicationSafety(
+      result.draft.fields.map((field) => toCandidateFormField(field)),
+      { identityRequired: result.draft.identityRequired },
+    );
     const generation = await recordTemplateGeneration({ createdById: owner.id, description, result, voiceAudit });
 
     return NextResponse.json({

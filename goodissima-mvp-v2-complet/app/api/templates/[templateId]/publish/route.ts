@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
+import { candidateIdentityRequiredFromSnapshotMetadata, checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { buildTemplateSnapshot } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 
@@ -16,6 +16,7 @@ export async function POST(_req: Request, { params }: { params: { templateId: st
 
   const candidateFormSafety = checkCandidatePublicationSafety(
     snapshot.fields.map((field) => toCandidateFormField(field)),
+    { identityRequired: candidateIdentityRequiredFromSnapshotMetadata(snapshot.metadata) },
   );
 
   if (!candidateFormSafety.publishable) {

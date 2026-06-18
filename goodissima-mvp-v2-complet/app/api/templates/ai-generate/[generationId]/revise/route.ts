@@ -26,7 +26,10 @@ export async function POST(req: Request, { params }: { params: { generationId: s
       : feedback;
     const result = await reviseTemplateDraft(current, contextualFeedback, { userId: owner.id, organizationId: owner.id, organizationName: owner.name ?? owner.email });
     const validation = validateTemplateDraftQuality({ draft: result.draft, provenance: result.provenance });
-    const candidateFormSafety = checkCandidatePublicationSafety(result.draft.fields.map((field) => toCandidateFormField(field)));
+    const candidateFormSafety = checkCandidatePublicationSafety(
+      result.draft.fields.map((field) => toCandidateFormField(field)),
+      { identityRequired: result.draft.identityRequired },
+    );
     const generation = await recordTemplateGeneration({
       createdById: owner.id,
       description: source.inputDescription,

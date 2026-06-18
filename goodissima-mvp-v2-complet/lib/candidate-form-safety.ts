@@ -47,6 +47,10 @@ export type CandidatePublicationSafetyResult = {
   error: string | null;
 };
 
+export type CandidatePublicationSafetyOptions = {
+  identityRequired?: boolean;
+};
+
 const supportedFieldTypes = new Set([
   "TEXT",
   "EMAIL",
@@ -64,6 +68,28 @@ const candidateEmailFieldIds = ["email", "contactEmail", "candidateEmail", "adre
 const messageFieldIds = ["message", "request", "brief", "projectBrief", "description", "besoin", "demande", "descriptionBesoin"];
 const validFieldIdPattern = /^[A-Za-z][A-Za-z0-9_]*$/;
 const textCompatibleFieldTypes = new Set(["TEXT", "TEXTAREA"]);
+
+export function isCandidateIdentityFieldId(fieldId: string) {
+  return candidateNameFieldIds.includes(fieldId) || candidateEmailFieldIds.includes(fieldId);
+}
+
+export function candidateIdentityRequiredFromTemplateDraft(draft: unknown) {
+  return Boolean(
+    draft &&
+    typeof draft === "object" &&
+    !Array.isArray(draft) &&
+    (draft as Record<string, unknown>).identityRequired === true
+  );
+}
+
+export function candidateIdentityRequiredFromSnapshotMetadata(metadata: unknown) {
+  return Boolean(
+    metadata &&
+    typeof metadata === "object" &&
+    !Array.isArray(metadata) &&
+    (metadata as Record<string, unknown>).identityRequired === true
+  );
+}
 
 export function parseCandidateConditionalRules(rules: unknown): ConditionalRule[] {
   if (!Array.isArray(rules)) return [];
@@ -306,7 +332,10 @@ export function formatCandidatePublicationSafetyError(issue: Pick<CandidatePubli
   return `Ce parcours généré par IA n’est pas encore publiable : le champ « ${issue.label} » doit être corrigé.`;
 }
 
-export function checkCandidatePublicationSafety(fields: CandidateFormField[]): CandidatePublicationSafetyResult {
+export function checkCandidatePublicationSafety(
+  fields: CandidateFormField[],
+  options: CandidatePublicationSafetyOptions = {},
+): CandidatePublicationSafetyResult {
   const values = createInitialCandidateFormValues(fields);
   const diagnostics = inspectCandidateForm(fields, values);
   const issues: CandidatePublicationSafetyIssue[] = [];
@@ -339,16 +368,11 @@ export function checkCandidatePublicationSafety(fields: CandidateFormField[]): C
 
   const nameField = compatibleSystemField(fields, values, candidateNameFieldIds, textCompatibleFieldTypes);
   const emailField = compatibleSystemField(fields, values, candidateEmailFieldIds, new Set(["EMAIL"]));
-  const messageField = compatibleSystemField(fields, values, messageFieldIds, textCompatibleFieldTypes);
-
-  if (!nameField) {
+  if (options.identityRequired && !nameField) {
     issues.push({ code: "MISSING_SYSTEM_MAPPING", id: "candidateName", label: "Nom complet", systemField: "candidateName" });
   }
-  if (!emailField) {
+  if (options.identityRequired && !emailField) {
     issues.push({ code: "MISSING_SYSTEM_MAPPING", id: "candidateEmail", label: "Email", systemField: "candidateEmail" });
-  }
-  if (!messageField) {
-    issues.push({ code: "MISSING_SYSTEM_MAPPING", id: "message", label: "Message", systemField: "message" });
   }
 
   const firstIssue = issues[0] ?? null;
