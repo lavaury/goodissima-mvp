@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { OPPORTUNITY_BUSINESS_WORDING, OPPORTUNITY_CATEGORY_VISUALS, OPPORTUNITY_EMPTY_STATES, OPPORTUNITY_PREVIEW_TABS, OPPORTUNITY_PRESENTATION_SCHEMAS, assistantReturnHref, buildOpportunityCategoryMetrics, buildOpportunityPreview, draftPreviewHref, enrichOpportunityPresentation, extractOpportunityHighlights, inferOpportunityCategory, inferOpportunityType, opportunityEditHref, opportunityHeroImage, opportunityReadiness } from "../lib/opportunity-preview.ts";
+import { OPPORTUNITY_BUSINESS_WORDING, OPPORTUNITY_CATEGORY_VISUALS, OPPORTUNITY_EMPTY_STATES, OPPORTUNITY_PREVIEW_TABS, OPPORTUNITY_PRESENTATION_SCHEMAS, assistantReturnHref, buildOpportunityCategoryMetrics, buildOpportunityPreview, buildPersistedOpportunityPresentation, draftPreviewHref, enrichOpportunityPresentation, extractOpportunityHighlights, inferOpportunityCategory, inferOpportunityType, opportunityEditHref, opportunityHeroImage, opportunityReadiness, type OpportunityCategory } from "../lib/opportunity-preview.ts";
 import type { TemplateSnapshot } from "../lib/template-snapshots.ts";
 
 const snapshot: TemplateSnapshot = {
@@ -82,6 +82,7 @@ test("extracts opportunity highlights without changing source data", () => {
 
 test("selects a local visual for every opportunity category", () => {
   assert.equal(inferOpportunityCategory("Je recrute un développeur"), "employment");
+  assert.equal(inferOpportunityCategory("Je cherche un expert Python"), "consulting");
   assert.equal(inferOpportunityCategory("Je recherche un investisseur"), "investment");
   assert.equal(inferOpportunityCategory("Je recherche un partenaire"), "partnership");
   assert.equal(inferOpportunityCategory("Projet pour une association de bénévoles"), "association");
@@ -89,9 +90,10 @@ test("selects a local visual for every opportunity category", () => {
 });
 
 test("defines a dedicated presentation schema for every category", () => {
-  assert.deepEqual(Object.keys(OPPORTUNITY_PRESENTATION_SCHEMAS), ["housing", "employment", "investment", "partnership", "association"]);
+  assert.deepEqual(Object.keys(OPPORTUNITY_PRESENTATION_SCHEMAS), ["housing", "employment", "consulting", "investment", "partnership", "association"]);
   assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.housing.map((item) => item.label), ["Surface", "Loyer", "Charges", "Pièces"]);
-  assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.employment.map((item) => item.label), ["Intitulé du poste", "Type de contrat", "Expérience", "Localisation", "Télétravail"]);
+  assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.employment.map((item) => item.label), ["Poste", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"]);
+  assert.deepEqual(OPPORTUNITY_PRESENTATION_SCHEMAS.consulting.map((item) => item.label), ["Mission", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"]);
 });
 
 test("renders housing metrics only for housing opportunities", () => {
@@ -101,9 +103,9 @@ test("renders housing metrics only for housing opportunities", () => {
 });
 
 test("renders employment metrics without housing fields", () => {
-  const metrics = buildOpportunityCategoryMetrics("employment", { jobTitle: "Développeur TypeScript", contractType: "CDI", experience: "3 ans", location: "Lyon", remotePolicy: "Hybride" }, "");
+  const metrics = buildOpportunityCategoryMetrics("employment", { jobTitle: "Développeur TypeScript", skills: "TypeScript", experience: "3 ans", availability: "Septembre", budget: "55 k€", workMode: "Hybride" }, "");
   assert.deepEqual(metrics, [
-    { label: "Intitulé du poste", value: "Développeur TypeScript" }, { label: "Type de contrat", value: "CDI" }, { label: "Expérience", value: "3 ans" }, { label: "Localisation", value: "Lyon" }, { label: "Télétravail", value: "Hybride" },
+    { label: "Poste", value: "Développeur TypeScript" }, { label: "Compétences", value: "TypeScript" }, { label: "Expérience", value: "3 ans" }, { label: "Disponibilité", value: "Septembre" }, { label: "Budget", value: "55 k€" }, { label: "Modalité d'intervention", value: "Hybride" },
   ]);
   assert.ok(metrics.every((metric) => !["Surface", "Loyer", "Charges", "Pièces"].includes(metric.label)));
 });
@@ -120,7 +122,7 @@ test("builds an employment card without leaking housing presentation values", ()
   };
   const preview = buildOpportunityPreview(employmentSnapshot);
   assert.equal(preview.category, "employment");
-  assert.deepEqual(preview.keyMetrics.map((metric) => metric.label), ["Intitulé du poste", "Type de contrat", "Expérience", "Localisation", "Télétravail"]);
+  assert.deepEqual(preview.keyMetrics.map((metric) => metric.label), ["Poste", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"]);
   assert.ok(preview.keyMetrics.every((metric) => !["Surface", "Loyer", "Charges", "Pièces"].includes(metric.label)));
   assert.equal(preview.keyMetrics.find((metric) => metric.label === "Expérience")?.value, "À préciser");
 });
@@ -180,6 +182,58 @@ test("provides edit and assistant return destinations", () => {
 
 test("infers opportunity types without changing generation workflows", () => {
   assert.equal(inferOpportunityType("Je recrute un développeur"), "Emploi et recrutement");
+  assert.equal(inferOpportunityType("Je cherche un expert Python"), "Conseil et expertise");
   assert.equal(inferOpportunityType("Je recherche un investisseur"), "Investissement");
   assert.equal(inferOpportunityType("Je recherche un partenaire"), "Partenariat");
+});
+
+test("preserves domain-specific fields through generation, validation, publication and archive", () => {
+  const scenarios: Array<{
+    source: string;
+    category: OpportunityCategory;
+    requiredLabels: string[];
+    forbiddenLabels: string[];
+  }> = [
+    { source: "Je cherche un appartement de 60 m² avec un loyer de 1200 €", category: "housing", requiredLabels: ["Surface", "Loyer", "Charges", "Pièces"], forbiddenLabels: ["Mission", "Compétences"] },
+    { source: "Nous recrutons un candidat développeur backend en CDI", category: "employment", requiredLabels: ["Poste", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"], forbiddenLabels: ["Surface", "Loyer"] },
+    { source: "Je cherche un expert Python freelance pour une mission", category: "consulting", requiredLabels: ["Mission", "Compétences", "Expérience", "Disponibilité", "Budget", "Modalité d'intervention"], forbiddenLabels: ["Surface", "Loyer", "Charges", "Pièces"] },
+    { source: "Je recherche un investisseur pour une levée de fonds seed", category: "investment", requiredLabels: ["Secteur", "Stade de financement", "Montant recherché"], forbiddenLabels: ["Surface", "Poste"] },
+    { source: "Je recherche un partenaire pour une alliance commerciale", category: "partnership", requiredLabels: ["Activité", "Type de collaboration"], forbiddenLabels: ["Surface", "Poste"] },
+  ];
+
+  for (const scenario of scenarios) {
+    const generatedCategory = inferOpportunityCategory(scenario.source);
+    assert.equal(generatedCategory, scenario.category);
+    const persistedPresentation = buildPersistedOpportunityPresentation({
+      generatedCategory,
+      source: scenario.source,
+    });
+    assert.equal(persistedPresentation.category, scenario.category);
+
+    const lifecycleSnapshot: TemplateSnapshot = {
+      ...snapshot,
+      relationTemplate: { ...snapshot.relationTemplate, name: scenario.source, description: scenario.source },
+      metadata: {
+        snapshotVersion: 2,
+        lifecycle: "DRAFT",
+        generation: { inputDescription: scenario.source },
+        opportunityPresentation: persistedPresentation,
+      },
+    };
+    const generated = buildOpportunityPreview(lifecycleSnapshot);
+    const published = buildOpportunityPreview(
+      { ...lifecycleSnapshot, metadata: { ...lifecycleSnapshot.metadata, lifecycle: "PUBLISHED" } },
+      { isPublished: true, publishedAt: "2026-06-18T12:00:00.000Z" },
+    );
+    const archived = buildOpportunityPreview({
+      ...lifecycleSnapshot,
+      metadata: { ...lifecycleSnapshot.metadata, lifecycle: "ARCHIVED" },
+    });
+
+    for (const preview of [generated, published, archived]) {
+      assert.equal(preview.category, scenario.category);
+      assert.deepEqual(preview.keyMetrics.map((metric) => metric.label), scenario.requiredLabels);
+      assert.ok(preview.keyMetrics.every((metric) => !scenario.forbiddenLabels.includes(metric.label)));
+    }
+  }
 });

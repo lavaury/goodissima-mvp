@@ -66,7 +66,7 @@ test("Champagne cards expose required controls, labels, and safety copy", () => 
     "message externe",
     "publication ou décision automatique",
     "Lancer le scénario",
-    "Voir les étapes",
+    "Voir le protocole complet",
     "Réinitialiser les données de test",
     "Marquer comme testé",
     "prêt",
@@ -80,4 +80,40 @@ test("Champagne cards expose required controls, labels, and safety copy", () => 
   ]) {
     assert.match(panel, new RegExp(text));
   }
+});
+
+test("every Champagne scenario exposes a complete executable test protocol", () => {
+  const panel = source("components/ChampagneScenariosPanel.tsx");
+
+  for (const field of [
+    "objective",
+    "demonstration",
+    "prerequisites",
+    "requiredData",
+    "steps",
+    "expectedResult",
+    "observation",
+    "successCriterion",
+    "failureAction",
+  ]) {
+    assert.equal((panel.match(new RegExp(`^    ${field}:`, "gm")) ?? []).length, 6, `${field} must be defined for every scenario`);
+  }
+
+  for (const label of [
+    "Objectif",
+    "Ce que démontre le scénario",
+    "Prérequis",
+    "Données nécessaires",
+    "Étapes",
+    "Résultat attendu",
+    "Ce que l'utilisateur doit observer",
+    "Critère de réussite",
+    "Échec",
+  ]) {
+    assert.match(panel, new RegExp(label));
+  }
+
+  assert.match(panel, /\{index \+ 1\}/);
+  assert.match(panel, /scenario\.successCriterion/);
+  assert.match(panel, /scenario\.failureAction/);
 });

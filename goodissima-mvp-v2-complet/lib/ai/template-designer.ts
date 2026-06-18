@@ -5,6 +5,7 @@ import { getAIUsageFromError, recordAIEvent, toAIEventUsageData } from "@/lib/ai
 import { describeProposalChanges, type ProposalChangeSet } from "@/lib/ai/opportunity-refinement";
 import { voiceAuditRecord, type VoiceAuditInput } from "@/lib/voice-opportunity";
 import { isCandidateIdentityFieldId } from "@/lib/candidate-form-safety";
+import { inferOpportunityCategory, isOpportunityCategory, type OpportunityCategory } from "@/lib/opportunity-preview";
 
 export const templateDesignerPromptVersion = "template-designer-fr-v1";
 export const templateRefinementPromptVersion = "template-designer-refinement-fr-v1";
@@ -14,6 +15,7 @@ const allowedFieldTypes = new Set(["TEXT", "EMAIL", "TEXTAREA", "SELECT", "CHECK
 export type TemplateDesignerDraft = {
   name: string;
   description: string;
+  opportunityCategory: OpportunityCategory;
   identityRequired: boolean;
   actors: Array<{ name: string; role: string }>;
   stages: Array<{
@@ -89,6 +91,10 @@ export function parseTemplateDesignerDraft(value: unknown): TemplateDesignerDraf
 
   const source = value as Record<string, unknown>;
   const identityRequired = source.identityRequired === true;
+  const requestedCategory = text(source.opportunityCategory);
+  const opportunityCategory = isOpportunityCategory(requestedCategory)
+    ? requestedCategory
+    : inferOpportunityCategory([text(source.name), text(source.description)].filter(Boolean).join(" "));
   const stages = list(source.stages).map((item) => {
     const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
     return {
@@ -119,6 +125,7 @@ export function parseTemplateDesignerDraft(value: unknown): TemplateDesignerDraf
   return {
     name: text(source.name),
     description: text(source.description),
+    opportunityCategory,
     identityRequired,
     actors: list(source.actors).map((item) => {
       const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
@@ -151,6 +158,7 @@ function mockDraft(description: string): TemplateDesignerDraft {
   return {
     name: "Parcours relationnel assisté",
     description: `Parcours proposé à partir du besoin suivant : ${description.slice(0, 220)}`,
+    opportunityCategory: inferOpportunityCategory(description),
     identityRequired: false,
     actors: [
       { name: "Responsable du parcours", role: "Pilote la relation et valide les décisions" },
@@ -208,6 +216,13 @@ function preserveAnonymousIdentityByDefault(
   };
 }
 
+function preserveOpportunityCategory(
+  draft: TemplateDesignerDraft,
+  opportunityCategory: OpportunityCategory,
+) {
+  return { ...draft, opportunityCategory };
+}
+
 export function applyMockTemplateRevision(current: TemplateDesignerDraft, feedback: string): TemplateDesignerDraft {
   const next = structuredClone(current);
   if (explicitlyRequestsRequiredIdentity(feedback)) {
@@ -241,10 +256,13 @@ export function applyMockTemplateRevision(current: TemplateDesignerDraft, feedba
   } else {
     next.description = `${next.description} Précision demandée : ${feedback.trim()}`;
   }
-  return preserveAnonymousIdentityByDefault(
-    parseTemplateDesignerDraft(next),
-    feedback,
-    current.identityRequired,
+  return preserveOpportunityCategory(
+    preserveAnonymousIdentityByDefault(
+      parseTemplateDesignerDraft(next),
+      feedback,
+      current.identityRequired,
+    ),
+    current.opportunityCategory,
   );
 }
 
@@ -279,7 +297,9 @@ export async function generateTemplateDraft(
       system: [
         "Tu es le concepteur de modèles Goodissima.",
         "Réponds exclusivement en français avec un objet JSON strict.",
-        "Schéma: {name,description,identityRequired,actors:[{name,role}],stages:[{name,objective,expectedAction,responsibleActor,deadline,exitCondition}],documents:[{name,required,stage}],relationalRequests:[{title,description,stage,targetActor,deadline}],kpis:[{name,description,unit}],fields:[{key,label,type,required,step,placeholder}]}",
+        "Schéma: {name,description,opportunityCategory,identityRequired,actors:[{name,role}],stages:[{name,objective,expectedAction,responsibleActor,deadline,exitCondition}],documents:[{name,required,stage}],relationalRequests:[{title,description,stage,targetActor,deadline}],kpis:[{name,description,unit}],fields:[{key,label,type,required,step,placeholder}]}",
+        "opportunityCategory doit être exactement l'une de ces valeurs : housing, employment, consulting, investment, partnership, association.",
+        "Une recherche d'expert, consultant, freelance, prestataire ou mission technique utilise consulting. N'utilise housing que pour un besoin explicitement immobilier.",
         "Types de champs autorisés: TEXT, EMAIL, TEXTAREA, SELECT, CHECKBOX, FILE, DATE, NUMBER.",
         "La sortie est un brouillon. N'exécute aucun workflow, ne publie rien et n'invente aucune automatisation cachée.",
         "Préserve l'anonymat du candidat par défaut : identityRequired=false. Le nom et l'e-mail sont absents ou facultatifs, sauf demande explicite de collecte d'identité obligatoire.",
@@ -309,7 +329,10 @@ export async function generateTemplateDraft(
   }
 
   return {
-    draft: preserveAnonymousIdentityByDefault(parseTemplateDesignerDraft(extractJson(result.output)), description),
+    draft: preserveOpportunityCategory(
+      preserveAnonymousIdentityByDefault(parseTemplateDesignerDraft(extractJson(result.output)), description),
+      inferOpportunityCategory(description),
+    ),
     provenance: { provider: result.provider, model: result.model, promptVersion: templateDesignerPromptVersion, language: "fr", generatedAt: new Date().toISOString() },
     usage: result,
   };
@@ -349,10 +372,13 @@ export async function reviseTemplateDraft(
     if (observability) await recordAIEvent({ ...observability, featureName: "template_designer", provider: provider.name, model: provider.model, action: "template_revision", status: "error", promptVersion: templateRefinementPromptVersion, errorCode: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_TEMPLATE_REVISION_ERROR", usage: getAIUsageFromError(error) });
     throw error;
   }
-  const draft = preserveAnonymousIdentityByDefault(
-    parseTemplateDesignerDraft(extractJson(result.output)),
-    feedback,
-    current.identityRequired,
+  const draft = preserveOpportunityCategory(
+    preserveAnonymousIdentityByDefault(
+      parseTemplateDesignerDraft(extractJson(result.output)),
+      feedback,
+      current.identityRequired,
+    ),
+    current.opportunityCategory,
   );
   return {
     draft,

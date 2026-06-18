@@ -5,6 +5,7 @@ import { parseTemplateDesignerDraft } from "@/lib/ai/template-designer";
 import { validateTemplateDraftQuality } from "@/lib/ai/template-draft-quality";
 import { candidateFieldsFromTemplateDraft, candidateIdentityRequiredFromTemplateDraft, checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { prisma } from "@/lib/prisma";
+import { buildPersistedOpportunityPresentation } from "@/lib/opportunity-preview";
 
 function normalizeKey(value: string) {
   return value
@@ -75,9 +76,11 @@ export async function POST(req: Request, { params }: { params: { generationId: s
     const presentation = body.presentation && typeof body.presentation === "object" && !Array.isArray(body.presentation)
       ? body.presentation as Record<string, unknown>
       : {};
-    const presentationStrings = (value: unknown) => Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()).slice(0, 10)
-      : [];
+    const opportunityPresentation = buildPersistedOpportunityPresentation({
+      presentation,
+      generatedCategory: draft.opportunityCategory,
+      source: generation.inputDescription,
+    });
     const baseKey = normalizeKey(typeof body.key === "string" && body.key.trim() ? body.key : draft.name);
     let key = baseKey;
     let suffix = 1;
@@ -172,11 +175,7 @@ export async function POST(req: Request, { params }: { params: { generationId: s
                 validatedAt: new Date().toISOString(),
                 validatedByUserId: owner.id,
               },
-              opportunityPresentation: {
-                photos: presentationStrings(presentation.photos),
-                attachments: presentationStrings(presentation.attachments),
-                verifiedLinks: presentationStrings(presentation.verifiedLinks),
-              },
+              opportunityPresentation,
             },
           } as Prisma.InputJsonValue,
         },

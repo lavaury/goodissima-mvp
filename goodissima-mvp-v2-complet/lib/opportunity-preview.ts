@@ -31,7 +31,7 @@ export type OpportunityPreview = {
   };
 };
 
-export type OpportunityCategory = "housing" | "employment" | "investment" | "partnership" | "association";
+export type OpportunityCategory = "housing" | "employment" | "consulting" | "investment" | "partnership" | "association";
 export type OpportunityReadiness = "Brouillon" | "Presque prêt" | "Prêt à publier";
 export type OpportunityMetric = { label: string; value: string };
 
@@ -56,6 +56,7 @@ export const OPPORTUNITY_EMPTY_STATES = {
 export const OPPORTUNITY_CATEGORY_VISUALS: Record<OpportunityCategory, string> = {
   housing: "/opportunity-housing.svg",
   employment: "/opportunity-employment.svg",
+  consulting: "/opportunity-employment.svg",
   investment: "/opportunity-investment.svg",
   partnership: "/opportunity-partnership.svg",
   association: "/opportunity-association.svg",
@@ -75,11 +76,20 @@ export const OPPORTUNITY_PRESENTATION_SCHEMAS: Record<OpportunityCategory, Oppor
     { label: "Pièces", presentationKeys: ["rooms", "roomCount"], infer: (source) => captured(source, /(\d+\s*(?:pièces?|chambres?))/i) },
   ],
   employment: [
-    { label: "Intitulé du poste", presentationKeys: ["jobTitle", "position", "role"], infer: (source) => captured(source, /(?:recrute|recherche)\s+(?:un|une)?\s*([^,.;]+?)(?:\s+(?:en|à|pour)\s+|[,.;]|$)/i) },
-    { label: "Type de contrat", presentationKeys: ["contractType", "contract"], infer: (source) => captured(source, /\b(CDI|CDD|stage|alternance|freelance|intérim)\b/i) },
+    { label: "Poste", presentationKeys: ["jobTitle", "position", "role"], infer: (source) => captured(source, /(?:recrute|recherche)\s+(?:un|une)?\s*([^,.;]+?)(?:\s+(?:en|à|pour)\s+|[,.;]|$)/i) },
+    { label: "Compétences", presentationKeys: ["skills", "competencies", "expertise"], infer: (source) => captured(source, /(?:compétences?|maîtrise|expertise)\s*(?:en|:)?\s*([^.;]+)/i) },
     { label: "Expérience", presentationKeys: ["experience", "experienceLevel"], infer: (source) => captured(source, /(\d+\s*(?:ans?|années?)\s+d['’]expérience)/i) },
-    { label: "Localisation", presentationKeys: ["location", "city"], infer: (source) => inferCity(source) === "Localisation à préciser" ? null : inferCity(source) },
-    { label: "Télétravail", presentationKeys: ["remotePolicy", "remote"], infer: (source) => captured(source, /\b(télétravail(?:\s+(?:partiel|complet|hybride))?|hybride|sur site|remote)\b/i) },
+    { label: "Disponibilité", presentationKeys: ["availability", "startDate"] },
+    { label: "Budget", presentationKeys: ["budget", "salary", "compensation"], infer: (source) => captured(source, /(\d[\d\s]*(?:[,.]\d+)?\s*(?:k€|K€|€))/i) },
+    { label: "Modalité d'intervention", presentationKeys: ["workMode", "remotePolicy", "contractType", "contract"], infer: (source) => captured(source, /\b(CDI|CDD|stage|alternance|intérim|télétravail(?:\s+(?:partiel|complet|hybride))?|hybride|sur site|remote)\b/i) },
+  ],
+  consulting: [
+    { label: "Mission", presentationKeys: ["mission", "assignment", "jobTitle"], infer: (source) => captured(source, /(?:cherche|recherche)\s+(?:un|une)?\s*([^,.;]+)/i) },
+    { label: "Compétences", presentationKeys: ["skills", "competencies", "expertise"], infer: (source) => captured(source, /\b(Python|TypeScript|JavaScript|Java|PHP|React|Django|data|IA|intelligence artificielle)\b/i) },
+    { label: "Expérience", presentationKeys: ["experience", "experienceLevel"], infer: (source) => captured(source, /(\d+\s*(?:ans?|années?)\s+d['’]expérience)/i) },
+    { label: "Disponibilité", presentationKeys: ["availability", "startDate"] },
+    { label: "Budget", presentationKeys: ["budget", "dailyRate", "rate"], infer: (source) => captured(source, /(\d[\d\s]*(?:[,.]\d+)?\s*(?:€|k€|K€)(?:\s*\/\s*jour)?)/i) },
+    { label: "Modalité d'intervention", presentationKeys: ["workMode", "deliveryMode", "contractType"], infer: (source) => captured(source, /\b(freelance|mission|forfait|régie|télétravail|hybride|sur site|remote)\b/i) },
   ],
   investment: [
     { label: "Secteur", presentationKeys: ["sector", "industry"] },
@@ -96,7 +106,7 @@ export const OPPORTUNITY_PRESENTATION_SCHEMAS: Record<OpportunityCategory, Oppor
   ],
 };
 
-function isOpportunityCategory(value: string): value is OpportunityCategory {
+export function isOpportunityCategory(value: string): value is OpportunityCategory {
   return Object.prototype.hasOwnProperty.call(OPPORTUNITY_PRESENTATION_SCHEMAS, value);
 }
 
@@ -150,12 +160,14 @@ function inferPropertyType(source: string, fallback: string) {
 }
 
 export function inferOpportunityType(input: string) {
-  const normalized = input.toLocaleLowerCase("fr");
-  if (/appartement|logement|locataire|location/.test(normalized)) return "Immobilier et location";
-  if (/recrut|emploi|développeur|candidat/.test(normalized)) return "Emploi et recrutement";
-  if (/investisseur|financement/.test(normalized)) return "Investissement";
-  if (/partenaire|partenariat/.test(normalized)) return "Partenariat";
-  return "Opportunité relationnelle";
+  return {
+    housing: "Immobilier et location",
+    employment: "Emploi et recrutement",
+    consulting: "Conseil et expertise",
+    investment: "Investissement",
+    partnership: "Partenariat",
+    association: "Association",
+  }[inferOpportunityCategory(input)];
 }
 
 export function inferOpportunityCategory(input: string): OpportunityCategory {
@@ -163,8 +175,10 @@ export function inferOpportunityCategory(input: string): OpportunityCategory {
   if (/association|bénévol|mécénat|collectif|cause/.test(normalized)) return "association";
   if (/investisseur|investissement|financement|levée de fonds/.test(normalized)) return "investment";
   if (/partenaire|partenariat|alliance|coopération/.test(normalized)) return "partnership";
-  if (/recrut|emploi|poste|développeur|candidat/.test(normalized)) return "employment";
-  return "housing";
+  if (/appartement|logement|locataire|location|loyer|surface|maison|studio|immobilier/.test(normalized)) return "housing";
+  if (/consult|conseil|expert(?:e)?|expertise|freelance|prestataire|mission|python/.test(normalized)) return "consulting";
+  if (/recrut|emploi|poste|embauche|candidat|cdi|cdd/.test(normalized)) return "employment";
+  return "partnership";
 }
 
 function smartTitle(source: string, fallback: string) {
@@ -183,10 +197,11 @@ function inferSubtitle(source: string, category: OpportunityCategory) {
   const normalized = source.toLocaleLowerCase("fr");
   if (/locataire/.test(normalized)) return "Recherche d'un locataire";
   if (/candidat|recrut|emploi|poste/.test(normalized)) return "Recherche d'un candidat";
+  if (/consult|expert|freelance|prestataire|mission|python/.test(normalized)) return "Recherche d'un expert";
   if (/investisseur|financement/.test(normalized)) return "Recherche d'un investisseur";
   if (/partenaire|partenariat/.test(normalized)) return "Recherche d'un partenaire";
   if (/bénévol|association/.test(normalized)) return "Projet associatif";
-  return { housing: "Opportunité immobilière", employment: "Opportunité professionnelle", investment: "Opportunité d'investissement", partnership: "Opportunité de partenariat", association: "Opportunité associative" }[category];
+  return { housing: "Opportunité immobilière", employment: "Opportunité professionnelle", consulting: "Mission de conseil", investment: "Opportunité d'investissement", partnership: "Opportunité de partenariat", association: "Opportunité associative" }[category];
 }
 
 const HIGHLIGHT_RULES: Array<[RegExp, string]> = [
@@ -203,7 +218,7 @@ const HIGHLIGHT_RULES: Array<[RegExp, string]> = [
 
 export function extractOpportunityHighlights(source: string, category: OpportunityCategory) {
   const highlights = HIGHLIGHT_RULES.filter(([pattern]) => pattern.test(source)).map(([, label]) => label);
-  const categoryHighlight = { housing: "Location", employment: "Emploi", investment: "Investissement", partnership: "Partenariat", association: "Association" }[category];
+  const categoryHighlight = { housing: "Location", employment: "Recrutement", consulting: "Expertise", investment: "Investissement", partnership: "Partenariat", association: "Association" }[category];
   return Array.from(new Set([...highlights, categoryHighlight])).slice(0, 6);
 }
 
@@ -239,6 +254,55 @@ export function enrichOpportunityPresentation(source: OpportunityPresentationSou
   };
 }
 
+export function resolveOpportunityCategory(input: {
+  explicitCategory?: unknown;
+  generatedCategory?: unknown;
+  source: string;
+}): OpportunityCategory {
+  const explicit = text(input.explicitCategory);
+  if (explicit && isOpportunityCategory(explicit)) return explicit;
+  const generated = text(input.generatedCategory);
+  if (generated && isOpportunityCategory(generated)) return generated;
+  return inferOpportunityCategory(input.source);
+}
+
+const OPPORTUNITY_PRESENTATION_TEXT_KEYS = [
+  "title", "subtitle", "summary", "city", "location", "propertyType", "housingType", "type",
+  "surface", "area", "rent", "price", "charges", "fees", "rooms", "roomCount",
+  "jobTitle", "position", "role", "skills", "competencies", "expertise", "experience", "experienceLevel",
+  "availability", "startDate", "budget", "salary", "compensation", "workMode", "remotePolicy",
+  "contractType", "contract", "mission", "assignment", "dailyRate", "rate", "deliveryMode",
+  "sector", "industry", "fundingStage", "stage", "targetAmount", "fundingTarget", "amount",
+  "activity", "businessActivity", "collaborationType", "partnershipType", "cause",
+  "volunteerNeeds", "volunteers", "needs",
+] as const;
+
+export function buildPersistedOpportunityPresentation(input: {
+  presentation?: Record<string, unknown>;
+  generatedCategory?: unknown;
+  source: string;
+}) {
+  const presentation = input.presentation ?? {};
+  const result: Record<string, string | string[]> = {
+    category: resolveOpportunityCategory({
+      explicitCategory: presentation.category,
+      generatedCategory: input.generatedCategory,
+      source: input.source,
+    }),
+  };
+
+  for (const key of OPPORTUNITY_PRESENTATION_TEXT_KEYS) {
+    const value = text(presentation[key]);
+    if (value) result[key] = value;
+  }
+  for (const key of ["photos", "attachments", "verifiedLinks", "highlights"] as const) {
+    const values = strings(presentation[key]).map((value) => value.trim()).filter(Boolean).slice(0, 10);
+    if (values.length) result[key] = values;
+  }
+
+  return result;
+}
+
 export function buildOpportunityPreview(snapshot: TemplateSnapshot, publication?: { isPublished?: boolean; publishedAt?: string | null }): OpportunityPreview {
   const generation = snapshot.metadata.generation && typeof snapshot.metadata.generation === "object" && !Array.isArray(snapshot.metadata.generation)
     ? snapshot.metadata.generation as Record<string, unknown>
@@ -269,7 +333,9 @@ export function buildOpportunityPreview(snapshot: TemplateSnapshot, publication?
     summary: enriched.summary,
     highlights: enriched.highlights,
     opportunityType: inferOpportunityType(sourceDescription),
-    propertyType: presentationText(presentation, ["propertyType", "housingType", "type"], inferPropertyType(sourceDescription, inferOpportunityType(sourceDescription))),
+    propertyType: enriched.category === "housing"
+      ? presentationText(presentation, ["propertyType", "housingType", "type"], inferPropertyType(sourceDescription, inferOpportunityType(sourceDescription)))
+      : inferOpportunityType(sourceDescription),
     city: presentationText(presentation, ["city", "location"], inferCity(sourceDescription)),
     keyMetrics: buildOpportunityCategoryMetrics(enriched.category, presentation, sourceDescription),
     publicationStatus: publicationState.publicationStatus,

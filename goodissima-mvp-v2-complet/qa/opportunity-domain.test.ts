@@ -81,3 +81,19 @@ test("exposes AI instructions during creation and persists them on validation", 
   assert.match(designer, /Comportement attendu de l'assistant IA/);
   assert.match(validationRoute, /aiInstructions/);
 });
+
+test("persists the generated opportunity domain during human validation", () => {
+  const designer = readFileSync(new URL("../lib/ai/template-designer.ts", import.meta.url), "utf8");
+  const validationRoute = readFileSync(new URL("../app/api/templates/ai-generate/[generationId]/validate/route.ts", import.meta.url), "utf8");
+  const publicationRoute = readFileSync(new URL("../app/api/templates/[templateId]/publish/route.ts", import.meta.url), "utf8");
+  const archiveRoute = readFileSync(new URL("../app/api/templates/[templateId]/archive/route.ts", import.meta.url), "utf8");
+
+  assert.match(designer, /opportunityCategory/);
+  assert.match(designer, /preserveOpportunityCategory/);
+  assert.match(validationRoute, /buildPersistedOpportunityPresentation/);
+  assert.match(validationRoute, /generatedCategory:\s*draft\.opportunityCategory/);
+  assert.match(validationRoute, /opportunityPresentation/);
+  assert.match(publicationRoute, /buildTemplateSnapshot/);
+  assert.doesNotMatch(publicationRoute, /opportunityPresentation:\s*\{\}/);
+  assert.doesNotMatch(archiveRoute, /snapshot|opportunityPresentation/);
+});

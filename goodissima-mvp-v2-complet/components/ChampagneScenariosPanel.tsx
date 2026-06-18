@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 type ScenarioState = "not_started" | "in_progress" | "completed" | "failed";
 
@@ -9,8 +10,14 @@ type ChampagneScenario = {
   id: string;
   title: string;
   objective: string;
-  value: string;
+  demonstration: string;
+  prerequisites: string[];
+  requiredData: string[];
   steps: string[];
+  expectedResult: string;
+  observation: string;
+  successCriterion: string;
+  failureAction: string;
   href: string;
   routeLabel: string;
   future?: boolean;
@@ -25,12 +32,19 @@ const scenarios: ChampagneScenario[] = [
     id: "recrutement-intelligent",
     title: "Recrutement intelligent",
     objective: "Créer une opportunité assistée par IA, structurer le parcours candidat et préparer une relation gouvernée.",
-    value: "Démontre la création d'opportunité augmentée, le parcours candidat et la mesure de valeur IA.",
+    demonstration: "La création d'une annonce de recrutement cohérente, son parcours candidat, la validation humaine et la mesure de valeur IA.",
+    prerequisites: ["Être connecté avec un rôle autorisé aux tests Champagne.", "Disposer d'un parcours de recrutement ou pouvoir en créer un."],
+    requiredData: ["Intitulé de poste fictif.", "Compétences, expérience, disponibilité et budget fictifs.", "Aucune donnée personnelle réelle."],
     steps: [
       "Ouvrir la création d'opportunité.",
       "Utiliser l'assistance IA pour cadrer le besoin avec des données fictives certifiées.",
-      "Créer ou sélectionner un parcours, puis revenir au dashboard pour suivre la relation.",
+      "Relire puis valider humainement le parcours proposé.",
+      "Vérifier l'annonce, puis revenir au dashboard pour suivre la relation.",
     ],
+    expectedResult: "Une opportunité de recrutement est créée avec les champs métier adaptés et reste non publiée avant validation explicite.",
+    observation: "L'utilisateur doit voir le poste, les compétences, l'expérience, la disponibilité, le budget et la modalité d'intervention, sans champ immobilier.",
+    successCriterion: "Le domaine recrutement reste stable entre génération, validation et aperçu, et aucune action externe n'est déclenchée.",
+    failureAction: "Noter le titre, le domaine affiché et les champs incorrects, puis signaler un échec sans publier l'annonce.",
     href: "/opportunities/new?scenario=champagne-recrutement-intelligent",
     routeLabel: "Création d'opportunité",
   },
@@ -38,12 +52,19 @@ const scenarios: ChampagneScenario[] = [
     id: "prospection-inversee",
     title: "Prospection inversée",
     objective: "Partir d'un besoin ou profil fictif certifié et tester la recherche de relations pertinentes depuis l'espace produit.",
-    value: "Démontre la prospection inversée, le passage opportunité vers relations et le pilotage sans contact automatique.",
+    demonstration: "La prospection inversée, le passage d'une opportunité vers des relations pertinentes et le pilotage sans contact automatique.",
+    prerequisites: ["Être connecté avec accès aux opportunités et relations.", "Disposer d'au moins un profil ou besoin fictif."],
+    requiredData: ["Profil fictif certifié.", "Critères de recherche et préférences fictifs.", "Contexte métier sans coordonnées réelles."],
     steps: [
       "Créer une opportunité de prospection inversée.",
       "Qualifier le besoin sans publier automatiquement.",
       "Consulter les relations et propositions pertinentes.",
+      "Comparer les résultats et conserver la décision sous contrôle humain.",
     ],
+    expectedResult: "Le système propose des relations pertinentes sans contacter automatiquement les personnes concernées.",
+    observation: "L'utilisateur doit observer des propositions contextualisées, leur provenance et les actions soumises à confirmation.",
+    successCriterion: "Les propositions correspondent au besoin fictif et aucune identité ou prise de contact n'est révélée automatiquement.",
+    failureAction: "Capturer les critères saisis et les propositions obtenues, puis réinitialiser les données de test.",
     href: "/opportunities/new?scenario=champagne-prospection-inversee",
     routeLabel: "Opportunités",
   },
@@ -51,12 +72,19 @@ const scenarios: ChampagneScenario[] = [
     id: "dossier-complexe-multi-acteurs",
     title: "Dossier complexe multi-acteurs",
     objective: "Orchestrer un dossier avec plusieurs parties, documents, actions et signaux de suivi.",
-    value: "Démontre le workspace relationnel, les actions, l'assistance IA et la gouvernance humaine.",
+    demonstration: "Le workspace relationnel multi-acteurs, les documents, les actions, l'assistance IA et la gouvernance humaine.",
+    prerequisites: ["Disposer d'un dossier de test accessible.", "Avoir au moins deux acteurs fictifs et plusieurs étapes de suivi."],
+    requiredData: ["Acteurs et rôles fictifs.", "Documents factices non sensibles.", "Messages et demandes internes de test."],
     steps: [
       "Ouvrir l'espace Relations.",
       "Sélectionner ou créer un dossier fictif certifié.",
       "Tester actions, documents, messages internes et signaux IA sans notification réelle.",
+      "Contrôler la situation du dossier et les validations humaines attendues.",
     ],
+    expectedResult: "Le dossier centralise acteurs, documents, échanges et actions avec une chronologie cohérente.",
+    observation: "L'utilisateur doit voir les responsabilités, éléments manquants, prochaines actions et preuves disponibles.",
+    successCriterion: "Chaque action est traçable, aucune décision n'est automatique et les données restent associées au bon dossier.",
+    failureAction: "Identifier l'étape ou l'acteur incohérent, conserver le dossier et signaler l'échec sans supprimer de données.",
     href: "/relations?scenario=champagne-dossier-complexe-multi-acteurs",
     routeLabel: "Relations",
   },
@@ -64,12 +92,19 @@ const scenarios: ChampagneScenario[] = [
     id: "qr-lien-securise",
     title: "QR Code / lien sécurisé",
     objective: "Valider la génération d'un lien sécurisé et son parcours candidat associé.",
-    value: "Démontre le flux QR code, lien sécurisé, accès candidat et réponse sans publication automatique.",
+    demonstration: "Le flux QR code, le lien sécurisé, l'accès candidat et la création d'une réponse gouvernée.",
+    prerequisites: ["Disposer d'une opportunité publiée.", "Pouvoir ouvrir le lien public dans une session distincte."],
+    requiredData: ["Annonce fictive publiée.", "Réponse candidat fictive.", "Document de test facultatif sans donnée réelle."],
     steps: [
       "Créer une opportunité ou ouvrir une opportunité existante.",
       "Vérifier le lien sécurisé et le QR code.",
       "Tester le formulaire candidat avec des données fictives certifiées.",
+      "Contrôler que le dossier créé apparaît dans la relation correspondante.",
     ],
+    expectedResult: "Le QR code ouvre le même lien sécurisé et la réponse candidat crée un dossier sans publication ou contact automatique supplémentaire.",
+    observation: "L'utilisateur doit observer une annonce cohérente, un formulaire rendu correctement et un dossier lié à la bonne opportunité.",
+    successCriterion: "Le lien fonctionne, la réponse est conservée par champ et aucune donnée personnelle non demandée n'est collectée.",
+    failureAction: "Conserver l'URL et le message d'erreur, vérifier le statut de l'annonce, puis signaler l'échec.",
     href: "/opportunities?scenario=champagne-qr-lien-securise",
     routeLabel: "Opportunités",
   },
@@ -77,12 +112,19 @@ const scenarios: ChampagneScenario[] = [
     id: "multi-matching",
     title: "Multi-matching",
     objective: "Comparer plusieurs propositions et relations candidates dans le workspace normal.",
-    value: "Démontre le matching multi-propositions, les arbitrages humains et la valeur opérationnelle.",
+    demonstration: "Le matching multi-propositions, l'explication des rapprochements, les arbitrages humains et la valeur opérationnelle.",
+    prerequisites: ["Disposer d'un dossier avec matching activé.", "Avoir plusieurs opportunités ou profils fictifs comparables."],
+    requiredData: ["Besoin source fictif.", "Au moins trois propositions fictives.", "Critères de comparaison documentés."],
     steps: [
       "Ouvrir les relations.",
       "Identifier un dossier avec matching activé ou créer un cas de test fictif.",
-      "Comparer les propositions, puis mesurer la valeur depuis IA & Valeur.",
+      "Comparer les propositions et leurs explications.",
+      "Mesurer la valeur depuis IA & Valeur sans lancer de contact automatique.",
     ],
+    expectedResult: "Plusieurs propositions sont classées et expliquées sans masquer le contrôle humain.",
+    observation: "L'utilisateur doit observer les éléments compatibles, les réserves et l'absence de contact automatique.",
+    successCriterion: "Le classement est compréhensible, reproductible avec les mêmes données et chaque décision reste manuelle.",
+    failureAction: "Noter le dossier, le scénario de matching et les écarts observés, puis relancer avec les mêmes données.",
     href: "/relations?scenario=champagne-multi-matching",
     routeLabel: "Relations",
   },
@@ -90,12 +132,19 @@ const scenarios: ChampagneScenario[] = [
     id: "cercle-hashtag",
     title: "Cercle / hashtag",
     objective: "Préfigurer des cercles de confiance et hashtags relationnels autour des parcours.",
-    value: "Vision future pour explorer l'organisation collective sans modifier les règles Trust.",
+    demonstration: "Une vision future de l'organisation collective par cercles et hashtags sans modification des règles Trust.",
+    prerequisites: ["Disposer de plusieurs parcours fictifs.", "Conserver ce test au niveau d'exploration produit, sans automatisation."],
+    requiredData: ["Noms de cercles fictifs.", "Hashtags métier non sensibles.", "Hypothèses de regroupement documentées."],
     steps: [
       "Ouvrir les parcours existants.",
       "Identifier les endroits où cercle, hashtag ou communauté pourraient enrichir le suivi.",
       "Noter les hypothèses produit sans automatiser de décision.",
+      "Vérifier que la Trust Layer et les permissions existantes restent inchangées.",
     ],
+    expectedResult: "Les usages possibles sont identifiés sans créer de permission, relation ou partage implicite.",
+    observation: "L'utilisateur doit distinguer clairement la vision future des fonctions réellement actives.",
+    successCriterion: "Les hypothèses sont documentées et aucune règle Trust, donnée ou relation existante n'est modifiée.",
+    failureAction: "Arrêter le test si une action réelle est proposée, documenter l'écran concerné et signaler l'échec.",
     href: "/parcours?scenario=champagne-cercle-hashtag",
     routeLabel: "Parcours",
     future: true,
@@ -134,6 +183,25 @@ function statusClasses(state: ScenarioState) {
   if (state === "in_progress") return "bg-amber-50 text-amber-800 ring-amber-200";
 
   return "bg-cyan-50 text-cyan-800 ring-cyan-200";
+}
+
+function ScenarioTextBlock({ title, children, tone = "slate" }: { title: string; children: ReactNode; tone?: "slate" | "emerald" | "red" }) {
+  const classes = tone === "emerald"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+    : tone === "red"
+      ? "border-red-200 bg-red-50 text-red-950"
+      : "border-slate-200 bg-slate-50 text-slate-800";
+
+  return (
+    <section className={`rounded-xl border p-3 ${classes}`}>
+      <h4 className="text-xs font-semibold uppercase tracking-wide">{title}</h4>
+      <div className="mt-1 text-sm leading-6">{children}</div>
+    </section>
+  );
+}
+
+function ScenarioList({ items }: { items: string[] }) {
+  return <ul className="space-y-1">{items.map((item) => <li key={item}>• {item}</li>)}</ul>;
 }
 
 export function ChampagneScenariosPanel() {
@@ -220,32 +288,43 @@ export function ChampagneScenariosPanel() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-2 text-sm text-slate-600">{scenario.objective}</p>
                     </div>
                     <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusClasses(state)}`}>
                       {statusLabel(state)}
                     </span>
                   </div>
 
-                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                    <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Valeur démontrée</p>
-                      <p className="mt-1 text-slate-700">{scenario.value}</p>
+                  <div className="mt-4 grid gap-3">
+                    <ScenarioTextBlock title="Objectif">{scenario.objective}</ScenarioTextBlock>
+                    <ScenarioTextBlock title="Ce que démontre le scénario">{scenario.demonstration}</ScenarioTextBlock>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <ScenarioTextBlock title="Prérequis"><ScenarioList items={scenario.prerequisites} /></ScenarioTextBlock>
+                      <ScenarioTextBlock title="Données nécessaires"><ScenarioList items={scenario.requiredData} /></ScenarioTextBlock>
                     </div>
-                    <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="rounded-xl bg-slate-50 p-3 text-sm">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Route produit</p>
                       <p className="mt-1 text-slate-700">{scenario.routeLabel}</p>
                     </div>
                   </div>
 
                   {isExpanded ? (
-                    <ol className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
-                      {scenario.steps.map((step, index) => (
-                        <li key={step}>
-                          {index + 1}. {step}
-                        </li>
-                      ))}
-                    </ol>
+                    <div className="mt-4 space-y-3">
+                      <section className="rounded-xl border border-slate-200 p-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Étapes</h4>
+                        <ol className="mt-3 space-y-3 text-sm text-slate-700">
+                          {scenario.steps.map((step, index) => (
+                            <li key={step} className="flex gap-3">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">{index + 1}</span>
+                              <span className="pt-1">{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
+                      <ScenarioTextBlock title="Résultat attendu" tone="emerald">{scenario.expectedResult}</ScenarioTextBlock>
+                      <ScenarioTextBlock title="Ce que l'utilisateur doit observer">{scenario.observation}</ScenarioTextBlock>
+                      <ScenarioTextBlock title="Critère de réussite" tone="emerald">{scenario.successCriterion}</ScenarioTextBlock>
+                      <ScenarioTextBlock title="Échec" tone="red">{scenario.failureAction}</ScenarioTextBlock>
+                    </div>
                   ) : null}
 
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -261,7 +340,7 @@ export function ChampagneScenariosPanel() {
                       onClick={() => setExpanded(isExpanded ? null : scenario.id)}
                       className="rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700"
                     >
-                      Voir les étapes
+                      {isExpanded ? "Masquer le protocole" : "Voir le protocole complet"}
                     </button>
                     <Link
                       href={`/ia-valeur?scenario=${scenario.id}`}

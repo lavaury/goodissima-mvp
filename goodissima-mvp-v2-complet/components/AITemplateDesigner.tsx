@@ -9,10 +9,12 @@ import { draftPreviewHref } from "@/lib/opportunity-preview";
 import { type ProposalChangeSet } from "@/lib/ai/opportunity-refinement";
 import { VoiceCaptureButton } from "@/components/VoiceCaptureButton";
 import { VOICE_STATUS_LABELS, mergeVoiceTranscript, type VoiceAuditInput } from "@/lib/voice-opportunity";
+import type { OpportunityCategory } from "@/lib/opportunity-preview";
 
 type Draft = {
   name: string;
   description: string;
+  opportunityCategory?: OpportunityCategory;
   identityRequired?: boolean;
   actors: Array<{ name: string; role: string }>;
   stages: Array<{ name: string; objective: string; expectedAction?: string; responsibleActor?: string; deadline?: string; exitCondition?: string }>;
