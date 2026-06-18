@@ -34,12 +34,31 @@ export default async function OpportunitiesPage({
   const archivedCount = await prisma.gLink.count({
     where: { ownerId: owner.id, status: "ARCHIVED", ...templateFilter },
   });
+  const archivedJourneys = await prisma.relationTemplate.findMany({
+    where: {
+      status: "ARCHIVED",
+      OR: [
+        { generations: { some: { createdById: owner.id } } },
+        { links: { some: { ownerId: owner.id } } },
+      ],
+      ...(searchParams?.templateId ? { id: searchParams.templateId } : {}),
+    },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      formTemplates: { select: { id: true }, take: 1 },
+      _count: { select: { links: true } },
+    },
+  });
+  const totalArchivedCount = archivedCount + archivedJourneys.length;
   const statusCards = [
     { label: "Brouillons", value: await prisma.relationTemplate.count({ where: { status: "DRAFT" } }), href: "/parcours" },
     { label: "Publiées", value: announcements.filter((item) => item.status === "ACTIVE").length, href: "/opportunities" },
     { label: "Suspendues", value: announcements.filter((item) => item.status === "DISABLED").length, href: "/opportunities" },
     { label: "Clôturées", value: announcements.filter((item) => item.status === "EXPIRED").length, href: "/opportunities" },
-    { label: "Archivées", value: archivedCount, href: "/opportunities?view=archived" },
+    { label: "Archivées", value: totalArchivedCount, href: "/opportunities?view=archived" },
     { label: "Candidats détectés", value: announcements.reduce((sum, item) => sum + item.cases.length, 0), href: "/relations" },
     { label: "Demandes de mise en relation", value: await prisma.relationAction.count({ where: { relationCase: { ownerId: owner.id }, status: { not: "COMPLETED" } } }), href: "/relations" },
   ];
@@ -61,7 +80,7 @@ export default async function OpportunitiesPage({
       <ProductLifecycle current="announcement" />
       <nav className="mt-6 flex flex-wrap gap-2" aria-label="Vues des annonces">
         <Link href="/opportunities" aria-current={view === "active" ? "page" : undefined} className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === "active" ? "bg-slate-900 text-white" : "border bg-white text-slate-700"}`}>Annonces actives</Link>
-        <Link href="/opportunities?view=archived" aria-current={view === "archived" ? "page" : undefined} className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === "archived" ? "bg-slate-900 text-white" : "border bg-white text-slate-700"}`}>Archives ({archivedCount})</Link>
+        <Link href="/opportunities?view=archived" aria-current={view === "archived" ? "page" : undefined} className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === "archived" ? "bg-slate-900 text-white" : "border bg-white text-slate-700"}`}>Archives ({totalArchivedCount})</Link>
       </nav>
       <section className="mt-6 rounded-3xl border bg-white p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -79,7 +98,7 @@ export default async function OpportunitiesPage({
         </div>
       </section>
       <div className="mt-6">
-        {announcements.length ? (
+        {announcements.length || (view === "archived" && archivedJourneys.length) ? (
           <div className="grid gap-5 lg:grid-cols-2">
             {announcements.map((item) => (
               <LinkCard key={item.id} item={{
@@ -95,6 +114,27 @@ export default async function OpportunitiesPage({
                 cases: item.cases,
               }} />
             ))}
+            {view === "archived" ? archivedJourneys.map((journey) => (
+              <article key={journey.id} className="rounded-2xl border bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold">{journey.name}</h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Parcours d'annonce archivé · {journey._count.links} annonce{journey._count.links > 1 ? "s" : ""} associée{journey._count.links > 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
+                    Archivée
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{journey.description ?? "Sans description"}</p>
+                {journey.formTemplates[0] ? (
+                  <Link href={`/templates/${journey.formTemplates[0].id}`} className="mt-4 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700">
+                    Voir l'élément archivé
+                  </Link>
+                ) : null}
+              </article>
+            )) : null}
           </div>
         ) : (
           <div className="rounded-3xl border border-dashed bg-white p-10 text-center">

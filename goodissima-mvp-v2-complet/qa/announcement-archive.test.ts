@@ -61,6 +61,10 @@ test("active and archived announcement views are mutually exclusive", () => {
   assert.match(opportunities, /view === "archived" \? "ARCHIVED" : \{ not: "ARCHIVED" \}/);
   assert.match(opportunities, /\/opportunities\?view=archived/);
   assert.match(opportunities, /Les annonces archivées resteront disponibles ici/);
+  assert.match(opportunities, /status:\s*"ARCHIVED"/);
+  assert.match(opportunities, /archivedJourneys/);
+  assert.match(opportunities, /Parcours d'annonce archivé/);
+  assert.match(opportunities, /totalArchivedCount/);
   assert.match(dashboard, /status:\s*\{ not: "ARCHIVED" \}/);
 });
 
