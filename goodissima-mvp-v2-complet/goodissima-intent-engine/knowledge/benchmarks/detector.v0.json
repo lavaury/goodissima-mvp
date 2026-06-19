@@ -1,0 +1,100 @@
+{
+  "version": "1.0",
+  "cases": [
+    {
+      "id": "housing-exact",
+      "input": { "text": "immobilier" },
+      "sourceAnnotations": [
+        {
+          "expression": "rechercher",
+          "knowledgeId": "goodissima-user-manual",
+          "kind": "mode",
+          "label": "SEARCH"
+        }
+      ],
+      "expectedDetection": {
+        "candidates": [
+          { "kind": "intent", "label": "HOUSING" },
+          { "kind": "mode", "label": "SEARCH" }
+        ],
+        "ambiguous": true
+      }
+    },
+    {
+      "id": "employment-normalized",
+      "input": { "text": "  RECRUTEMENT  " },
+      "sourceAnnotations": [
+        {
+          "expression": "rechercher",
+          "knowledgeId": "goodissima-user-manual",
+          "kind": "mode",
+          "label": "SEARCH"
+        }
+      ],
+      "expectedDetection": {
+        "candidates": [
+          { "kind": "mode", "label": "SEARCH" },
+          { "kind": "intent", "label": "EMPLOYMENT" }
+        ],
+        "ambiguous": false
+      }
+    },
+    {
+      "id": "housing-rental-source-expression",
+      "input": { "text": "verification de revenus" },
+      "sourceAnnotations": [
+        {
+          "expression": "rechercher",
+          "knowledgeId": "goodissima-user-manual",
+          "kind": "mode",
+          "label": "SEARCH"
+        }
+      ],
+      "expectedDetection": {
+        "candidates": [
+          { "kind": "intent", "label": "HOUSING" },
+          { "kind": "mode", "label": "SEARCH" }
+        ],
+        "ambiguous": true
+      }
+    },
+    {
+      "id": "employment-paired-source-expression",
+      "input": { "text": "candidat et recruteur" },
+      "sourceAnnotations": [
+        {
+          "expression": "rechercher",
+          "knowledgeId": "goodissima-user-manual",
+          "kind": "mode",
+          "label": "SEARCH"
+        }
+      ],
+      "expectedDetection": {
+        "candidates": [
+          { "kind": "intent", "label": "EMPLOYMENT" },
+          { "kind": "mode", "label": "SEARCH" }
+        ],
+        "ambiguous": true
+      }
+    },
+    {
+      "id": "housing-employment-ambiguous",
+      "input": { "text": "immobilier et recrutement" },
+      "expectedDetection": {
+        "candidates": [
+          { "kind": "intent", "label": "EMPLOYMENT" },
+          { "kind": "intent", "label": "HOUSING" }
+        ],
+        "ambiguous": true
+      }
+    },
+    {
+      "id": "unsupported-intent-expression",
+      "input": { "text": "expression sans correspondance" },
+      "expectedDetection": {
+        "candidates": [],
+        "ambiguous": false
+      }
+    }
+  ]
+}

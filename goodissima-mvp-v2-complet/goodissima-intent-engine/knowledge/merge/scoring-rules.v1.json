@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "implementation": "DETERMINISTIC_V0",
+  "dimensions": {
+    "relationship": { "path": "o.relationship", "comparison": "MATRIX", "score": 1 },
+    "role": { "path": "r.roles", "comparison": "EXACT_JSON", "score": 1 },
+    "trust": { "path": "i.trustPolicy", "comparison": "EXACT_JSON", "score": 1 },
+    "family": { "path": "c.intent", "comparison": "EXACT_JSON", "score": 1 }
+  },
+  "statuses": [
+    { "status": "EXACT_MATCH", "minimumScore": 4 },
+    { "status": "STRONG_MATCH", "minimumScore": 3 },
+    { "status": "RELATED_OPPORTUNITY", "minimumScore": 2 },
+    { "status": "WEAK_SIGNAL", "minimumScore": 1 },
+    { "status": "NO_MATCH", "minimumScore": 0 }
+  ],
+  "rules": [
+    { "id": "relationship-matrix-required", "requirement": "meme type/template de relation", "source": { "knowledgeId": "goodissima-matching-governance", "expression": "meme type/template de relation" } },
+    { "id": "roles-explicit", "requirement": "candidat et recruteur", "source": { "knowledgeId": "goodissima-trust-architecture", "expression": "candidat et recruteur" } },
+    { "id": "trust-policy-explicit", "requirement": "la policy appliquee", "source": { "knowledgeId": "goodissima-trust-architecture", "expression": "la policy appliquee" } },
+    { "id": "family-explicit", "requirement": "meme template/type relationnel", "source": { "knowledgeId": "goodissima-matching-governance", "expression": "meme template/type relationnel" } },
+    { "id": "explanation-required", "requirement": "elements compatibles", "source": { "knowledgeId": "goodissima-matching-governance", "expression": "elements compatibles" } },
+    { "id": "automatic-decision-prohibited", "requirement": "absence de decision automatique", "source": { "knowledgeId": "goodissima-matching-governance", "expression": "absence de decision automatique" } }
+  ]
+}

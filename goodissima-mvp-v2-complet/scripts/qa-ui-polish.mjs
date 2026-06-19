@@ -25,7 +25,8 @@ assert(aiWorkspace.includes("aria-expanded"), "mobile AI drawer must expose expa
 assert(aiWorkspace.includes("sticky top-0"), "AI tabs/header must remain sticky");
 assert(chatBox.includes('data-sticky-input="true"'), "conversation input must remain sticky bottom");
 assert(caseWorkspace.includes("humanizeAIEvent"), "audit events must be humanized");
-assert(!caseWorkspace.includes("{log.eventType}"), "raw audit event codes must not be rendered");
+assert(caseWorkspace.includes('debugMode && senderType === "OWNER"'), "raw audit diagnostics must stay owner-debug-only");
+assert(caseWorkspace.includes("Code audit: {log.eventType}"), "owner debug audit diagnostic is missing");
 assert(matchingPanel.includes("sans score visible"), "matching must keep no-score visible guarantee");
 assert(matchingPanel.includes("Clarifications"), "matching clarifications must remain visible");
 

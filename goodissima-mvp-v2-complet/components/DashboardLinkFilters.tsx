@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { LinkCard } from "@/components/LinkCard";
+import type { LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
 
 type DashboardLink = {
   id: string;
@@ -11,6 +12,7 @@ type DashboardLink = {
   templateName?: string | null;
   templateStatus?: string | null;
   templateVersion?: number | null;
+  admissionMode?: LinkAdmissionMode;
   openActionCount?: number;
   cases?: Array<{
     id: string;
@@ -119,7 +121,7 @@ export function DashboardLinkFilters({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Rechercher un lien, une ville, un slug ou un email candidat"
+          placeholder="Rechercher une opportunité, une ville, une référence ou un email candidat"
           className="w-full rounded-xl border px-4 py-3 text-sm"
         />
         <div className="mt-3 flex flex-wrap gap-2">
@@ -146,12 +148,16 @@ export function DashboardLinkFilters({
 
       {filteredLinks.length === 0 ? (
         <div className="rounded-2xl border bg-white p-8 text-center">
-          <p className="text-slate-600">Aucun lien correspondant</p>
+          <p className="text-slate-600">Aucune opportunité correspondante</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filteredLinks.map((item) => (
-            <LinkCard key={item.id} item={item} debugMode={debugMode} />
+            <LinkCard
+              key={item.id}
+              item={item}
+              debugMode={debugMode}
+            />
           ))}
         </div>
       )}

@@ -16,6 +16,7 @@ import {
 } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
+import { PublicOpportunityCard } from "@/components/PublicOpportunityCard";
 
 type FieldOption = {
   label: string;
@@ -27,7 +28,7 @@ const defaultFields = [
     key: "fullName",
     label: "Nom complet",
     type: "TEXT",
-    required: true,
+    required: false,
     placeholder: "Votre nom",
     defaultValue: null,
     step: 1,
@@ -38,7 +39,7 @@ const defaultFields = [
     key: "email",
     label: "Email",
     type: "EMAIL",
-    required: true,
+    required: false,
     placeholder: "Votre email",
     defaultValue: null,
     step: 1,
@@ -131,6 +132,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
     : activeFallbackVersion
       ? parseTemplateSnapshot(activeFallbackVersion.snapshot)
       : null;
+  const displayedTemplateVersionId = link.templateVersionId ?? activeFallbackVersion?.id ?? null;
   const templateKey = snapshot?.relationTemplate.key ?? relationTemplate?.key ?? null;
   const formTemplate = relationTemplate
     ? await prisma.formTemplate.findFirst({
@@ -157,24 +159,26 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         }))
       : defaultFields;
   const candidateFields = localizeTemplateFields(templateKey, candidateFieldsSource, locale);
+  const presentation = snapshot?.metadata.opportunityPresentation && typeof snapshot.metadata.opportunityPresentation === "object" && !Array.isArray(snapshot.metadata.opportunityPresentation)
+    ? snapshot.metadata.opportunityPresentation as Record<string, unknown>
+    : {};
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto max-w-5xl px-6 py-10">
       <div className="mb-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           {getDefaultSecureConversationCopy("publicEyebrow", locale)}
         </p>
       </div>
 
-      <div className="rounded-3xl border bg-white p-8 shadow-sm">
+      <PublicOpportunityCard title={link.title} city={link.city} description={link.description} presentation={presentation} />
+
+      <div id="respond" className="mt-8 rounded-3xl border bg-white p-8 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
           {getDefaultSecureConversationCopy("contactEyebrow", locale)}
         </p>
 
-        <h1 className="mt-3 text-3xl font-bold">{link.title}</h1>
-
-        {link.city && <p className="mt-1 text-slate-500">{link.city}</p>}
-        {link.description && <p className="mt-5 text-slate-700">{link.description}</p>}
+        <h2 className="mt-3 text-2xl font-bold">Répondre à cette annonce</h2>
 
         <div className="mt-8 rounded-2xl bg-slate-50 p-5">
           <h2 className="font-semibold">{getDefaultSecureConversationCopy("onboardingTitle", locale)}</h2>
@@ -185,7 +189,9 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
 
         <CandidateForm
           gLinkId={link.id}
+          admissionMode={link.admissionMode}
           formTemplateId={formTemplate?.id ?? null}
+          templateVersionId={displayedTemplateVersionId}
           fields={candidateFields}
           copy={{
             documentOptionalTitle: getDefaultSecureConversationCopy("documentOptionalTitle", locale),

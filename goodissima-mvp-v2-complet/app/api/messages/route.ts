@@ -109,11 +109,9 @@ export async function POST(req: Request) {
   }
 
   const senderEmail =
-    body.senderType === "OWNER" ? relationCase.owner.email : relationCase.candidateEmail;
-
-  if (!senderEmail) {
-    return NextResponse.json({ error: "Missing sender email" }, { status: 400 });
-  }
+    body.senderType === "OWNER"
+      ? relationCase.owner.email
+      : relationCase.candidateEmail || `candidate-access:${relationCase.id}`;
 
   const message = await prisma.message.create({
     data: {

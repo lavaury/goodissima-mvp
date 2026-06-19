@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { RelationStatus } from "@prisma/client";
+import { Prisma, RelationStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
+import { getCurrentUser } from "@/lib/auth";
 import {
   CANDIDATE_ACCESS_TTL_DAYS,
   createCandidateAccessExpiresAt,
@@ -8,38 +9,56 @@ import {
 } from "@/lib/candidate-access";
 import { sendNewDocumentEmail, sendNewMessageEmail, sendNewRelationCaseEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
-import { createFormSubmission } from "@/lib/forms";
+import {
+  buildCandidateMessageFallback,
+  deriveCandidateSubmissionFields,
+  findMissingRequiredCandidateField,
+  formatMissingRequiredFieldError,
+  toCandidateFormField,
+  type MissingCandidateField,
+} from "@/lib/candidate-form-safety";
+import { buildHumanReadableFormMessage, createFormSubmission, getFormFields } from "@/lib/forms";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import { parseTemplateSnapshot } from "@/lib/template-snapshots";
+import { evaluateTrustAdmission } from "@/lib/trust-admission";
+import { markTrustAdmissionTokenUsed, resolveTrustAdmissionToken } from "@/lib/trust-admission-tokens";
+import { issueCandidateCreatedCredentialInTransaction } from "@/lib/trust-credentials";
 import {
   evaluateRelationAdmissionPolicyV1,
   resolveAdmissionTrustPolicyForLink,
 } from "@/lib/trust-policy";
+import type { FormValues } from "@/lib/form-rules";
+import { canSubmitToSecureLink } from "@/lib/secure-link-admission";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
-type CaseErrorCode =
+type TrustAdmissionMode = "OBSERVE" | "SIMULATE_BLOCK" | "ENFORCE";
+type ResolvedTrustAdmissionToken = { identityId: string; tokenId: string } | null;
+type BadRequestCode =
   | "INVALID_REQUEST_BODY"
   | "INVALID_NOTIFICATION_EMAIL"
   | "REQUIRED_FIELD_MISSING"
   | "GLINK_NOT_FOUND";
 
-function logCaseRequestWarning({
+function warnBadRequest({
   code,
   gLinkId,
+  slug,
   reasons,
 }: {
-  code: CaseErrorCode;
+  code: BadRequestCode;
   gLinkId?: unknown;
+  slug?: string | null;
   reasons: string[];
 }) {
   console.warn("[api/cases] Bad request", {
     code,
     route: "app/api/cases/route.ts",
     gLinkId: typeof gLinkId === "string" ? gLinkId : null,
-    slug: null,
+    slug: slug ?? null,
     reasons,
   });
 }
@@ -48,16 +67,20 @@ function badRequest({
   code,
   error,
   gLinkId,
+  slug,
   reasons,
+  missingField,
 }: {
-  code: CaseErrorCode;
+  code: BadRequestCode;
   error: string;
   gLinkId?: unknown;
+  slug?: string | null;
   reasons: string[];
+  missingField?: MissingCandidateField;
 }) {
-  logCaseRequestWarning({ code, gLinkId, reasons });
+  warnBadRequest({ code, gLinkId, slug, reasons });
 
-  return NextResponse.json({ error, code, reasons }, { status: 400 });
+  return NextResponse.json({ error, code, reasons, missingField }, { status: 400 });
 }
 
 function getFormSubmissionData(body: Record<string, unknown>) {
@@ -74,8 +97,48 @@ function getFormSubmissionData(body: Record<string, unknown>) {
     formTemplateId: body.formTemplateId,
     answers: Object.fromEntries(
       Object.entries(answers as Record<string, unknown>).filter(([key]) => !privateAnswerKeys.has(key)),
-    ) as Record<string, string>,
+    ) as FormValues,
   };
+}
+
+async function getSubmittedCandidateFormFields(formSubmission: ReturnType<typeof getFormSubmissionData>, body: Record<string, unknown>) {
+  if (!formSubmission) return [];
+
+  const templateVersionId = typeof body.templateVersionId === "string" && body.templateVersionId
+    ? body.templateVersionId
+    : null;
+
+  if (templateVersionId) {
+    const templateVersion = await prisma.templateVersion.findUnique({
+      where: { id: templateVersionId },
+      select: { snapshot: true },
+    });
+    const snapshot = templateVersion ? parseTemplateSnapshot(templateVersion.snapshot) : null;
+    if (snapshot?.formTemplate.id === formSubmission.formTemplateId) {
+      return snapshot.fields.map((field) => toCandidateFormField(field));
+    }
+  }
+
+  const fields = await getFormFields(formSubmission.formTemplateId);
+  return fields.map((field) => toCandidateFormField(field));
+}
+
+function missingFieldBadRequest({
+  field,
+  gLinkId,
+  reasons,
+}: {
+  field: MissingCandidateField;
+  gLinkId?: unknown;
+  reasons?: string[];
+}) {
+  return badRequest({
+    code: "REQUIRED_FIELD_MISSING",
+    error: formatMissingRequiredFieldError(field),
+    gLinkId,
+    reasons: reasons ?? [`${field.id}_missing`],
+    missingField: field,
+  });
 }
 
 function withCandidateCookie(token: string, gLinkId: string) {
@@ -91,24 +154,93 @@ function withCandidateCookie(token: string, gLinkId: string) {
   return response;
 }
 
+function getTrustAdmissionModeForGLink(gLinkId: string): TrustAdmissionMode | null {
+  const pilotGLinkIds = (process.env.TRUST_ADMISSION_PILOT_GLINK_IDS ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (!pilotGLinkIds.includes(gLinkId)) {
+    return null;
+  }
+
+  const configuredMode = process.env.TRUST_ADMISSION_MODE;
+
+  if (
+    configuredMode === "OBSERVE" ||
+    configuredMode === "SIMULATE_BLOCK" ||
+    configuredMode === "ENFORCE"
+  ) {
+    return configuredMode;
+  }
+
+  if (!configuredMode && process.env.TRUST_ADMISSION_CREDENTIALS_DRY_RUN === "true") {
+    return "OBSERVE";
+  }
+
+  return null;
+}
+
+function getTrustAdmissionTokenFromBody(body: Record<string, unknown>) {
+  return typeof body.trustAdmissionToken === "string" && body.trustAdmissionToken.trim()
+    ? body.trustAdmissionToken.trim()
+    : null;
+}
+
+async function observeTrustAdmissionToken(
+  body: Record<string, unknown>,
+  gLinkId: string,
+): Promise<ResolvedTrustAdmissionToken> {
+  const trustAdmissionToken = getTrustAdmissionTokenFromBody(body);
+
+  if (!trustAdmissionToken) return null;
+
+  const resolution = await resolveTrustAdmissionToken(prisma, {
+    token: trustAdmissionToken,
+    gLinkId,
+  });
+
+  if (resolution.resolved) {
+    console.info("[trust-admission-token] Resolved", {
+      gLinkId,
+      identityId: resolution.identityId,
+      tokenId: resolution.tokenId,
+    });
+    if (resolution.identityId && resolution.tokenId) {
+      return {
+        identityId: resolution.identityId,
+        tokenId: resolution.tokenId,
+      };
+    }
+  }
+
+  console.warn("[trust-admission-token] Invalid", {
+    gLinkId,
+    reasons: resolution.reasons,
+  });
+  return null;
+}
+
 export async function POST(req: Request) {
-  let body;
+  let body: Record<string, unknown>;
 
   try {
-    body = await req.json();
+    const parsedBody = await req.json();
+
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+      return badRequest({
+        code: "INVALID_REQUEST_BODY",
+        error: "Invalid request body",
+        reasons: ["body_must_be_object"],
+      });
+    }
+
+    body = parsedBody as Record<string, unknown>;
   } catch {
     return badRequest({
       code: "INVALID_REQUEST_BODY",
       error: "Invalid request body",
       reasons: ["invalid_json"],
-    });
-  }
-
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return badRequest({
-      code: "INVALID_REQUEST_BODY",
-      error: "Invalid request body",
-      reasons: ["body_must_be_object"],
     });
   }
 
@@ -119,42 +251,42 @@ export async function POST(req: Request) {
       ? body.candidateNotificationEmail.trim().toLowerCase()
       : "";
   const wantsCandidateNotifications = body.emailNotificationsConsent === true;
-  const candidateEmail = wantsCandidateNotifications ? candidateNotificationEmail : submittedCandidateEmail;
-  const candidateName = typeof body.candidateName === "string" ? body.candidateName.trim() : "";
-  const messageBody = typeof body.message === "string" ? body.message.trim() : "";
+  let candidateEmail = wantsCandidateNotifications ? candidateNotificationEmail : submittedCandidateEmail;
+  let candidateName = typeof body.candidateName === "string" ? body.candidateName.trim() : "";
+  let messageBody = typeof body.message === "string" ? body.message.trim() : "";
+  const gLinkId = typeof body.gLinkId === "string" ? body.gLinkId : "";
+  const documentName = typeof body.documentName === "string" ? body.documentName : "";
+  const documentUrl = typeof body.documentUrl === "string" ? body.documentUrl : "";
+  const formSubmission = getFormSubmissionData(body);
 
   if (wantsCandidateNotifications && (!candidateNotificationEmail || !emailPattern.test(candidateNotificationEmail))) {
     return badRequest({
       code: "INVALID_NOTIFICATION_EMAIL",
       error: "Valid notification email required",
-      gLinkId: body.gLinkId,
+      gLinkId,
       reasons: ["candidate_notification_email_invalid"],
     });
   }
 
-  if (!body.gLinkId || !candidateName || !candidateEmail || !messageBody) {
+  if (!gLinkId) {
     return badRequest({
       code: "REQUIRED_FIELD_MISSING",
-      error: "Missing required fields",
-      gLinkId: body.gLinkId,
-      reasons: [
-        body.gLinkId ? null : "gLinkId_missing",
-        candidateName ? null : "candidateName_missing",
-        candidateEmail ? null : "candidateEmail_missing",
-        messageBody ? null : "message_missing",
-      ].filter((reason): reason is string => Boolean(reason)),
+      error: "Le champ obligatoire « lien sécurisé » est manquant.",
+      gLinkId,
+      reasons: ["gLinkId_missing"],
+      missingField: { id: "gLinkId", label: "lien sécurisé", code: "REQUIRED_FIELD_MISSING" },
     });
   }
 
   const gLink = await prisma.gLink.findUnique({
-    where: { id: body.gLinkId },
+    where: { id: gLinkId },
     include: { owner: { select: { email: true, notificationPreferences: true } } },
   });
 
   if (!gLink) {
-    logCaseRequestWarning({
+    warnBadRequest({
       code: "GLINK_NOT_FOUND",
-      gLinkId: body.gLinkId,
+      gLinkId,
       reasons: ["gLink_not_found"],
     });
 
@@ -164,22 +296,95 @@ export async function POST(req: Request) {
     );
   }
 
-  const existingRelationCase = await prisma.relationCase.findFirst({
-    where: {
-      gLinkId: gLink.id,
-      candidateEmail: { equals: candidateEmail, mode: "insensitive" },
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      candidateAccessToken: true,
-      candidateName: true,
-      candidateEmailNotificationsEnabled: true,
-      governanceStatus: true,
-      owner: { select: { email: true, notificationPreferences: true } },
-      gLink: { select: { title: true } },
-    },
+  const submittedFormFields = await getSubmittedCandidateFormFields(formSubmission, body);
+  const missingSubmittedField = formSubmission
+    ? findMissingRequiredCandidateField(submittedFormFields, formSubmission.answers)
+    : null;
+
+  if (missingSubmittedField) {
+    return missingFieldBadRequest({
+      field: missingSubmittedField,
+      gLinkId,
+    });
+  }
+
+  const derivedCandidateFields = deriveCandidateSubmissionFields(formSubmission?.answers ?? {}, {
+    candidateName,
+    candidateEmail,
+    message: messageBody,
   });
+  candidateName = derivedCandidateFields.candidateName;
+  candidateEmail = derivedCandidateFields.candidateEmail.trim().toLowerCase();
+  messageBody = derivedCandidateFields.message;
+
+  messageBody = messageBody || (formSubmission
+    ? buildHumanReadableFormMessage(submittedFormFields, formSubmission.answers)
+    : buildCandidateMessageFallback({}));
+
+  const resolvedTrustAdmissionToken = await observeTrustAdmissionToken(body, gLink.id);
+  let resolvedCandidateIdentityId = resolvedTrustAdmissionToken?.identityId ?? null;
+
+  if (gLink.admissionMode === "VERIFIED_ONLY" && !resolvedCandidateIdentityId) {
+    const authenticatedUser = await getCurrentUser();
+    const authenticatedEmail = authenticatedUser?.email?.trim().toLowerCase();
+    if (authenticatedEmail) {
+      const authenticatedIdentity = await prisma.user.findUnique({
+        where: { email: authenticatedEmail },
+        select: { goodissimaIdentityId: true },
+      });
+      resolvedCandidateIdentityId = authenticatedIdentity?.goodissimaIdentityId ?? null;
+    }
+  }
+
+  const verifiedCandidateIdentity = resolvedCandidateIdentityId
+    ? await prisma.goodissimaIdentity.findFirst({
+        where: {
+          id: resolvedCandidateIdentityId,
+          status: "VERIFIED",
+          credentials: {
+            some: {
+              status: "ACTIVE",
+              credentialType: { code: "VERIFIED_IDENTITY" },
+              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+          },
+        },
+        select: { id: true },
+      })
+    : null;
+
+  if (!canSubmitToSecureLink({
+    mode: gLink.admissionMode,
+    hasVerifiedIdentity: Boolean(verifiedCandidateIdentity),
+  })) {
+    return NextResponse.json(
+      {
+        error: "Une identité Goodissima vérifiée est requise pour répondre à cette annonce.",
+        code: "TRUST_ADMISSION_BLOCKED",
+        verificationRequired: true,
+      },
+      { status: 403 },
+    );
+  }
+
+  const existingRelationCase = candidateEmail
+    ? await prisma.relationCase.findFirst({
+        where: {
+          gLinkId: gLink.id,
+          candidateEmail: { equals: candidateEmail, mode: "insensitive" },
+        },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          candidateAccessToken: true,
+          candidateName: true,
+          candidateEmailNotificationsEnabled: true,
+          governanceStatus: true,
+          owner: { select: { email: true, notificationPreferences: true } },
+          gLink: { select: { title: true } },
+        },
+      })
+    : null;
 
   if (existingRelationCase) {
     if (!canCandidateWriteInRelation(existingRelationCase.governanceStatus)) {
@@ -206,13 +411,13 @@ export async function POST(req: Request) {
       payload: { existing: true, messageId: message.id },
     });
 
-    if (body.documentName && body.documentUrl) {
+    if (documentName && documentUrl) {
       const document = await prisma.document.create({
         data: {
           caseId: existingRelationCase.id,
           uploadedByEmail: candidateEmail,
-          fileName: body.documentName,
-          fileUrl: body.documentUrl,
+          fileName: documentName,
+          fileUrl: documentUrl,
           mimeType: "application/octet-stream",
         },
       });
@@ -222,7 +427,7 @@ export async function POST(req: Request) {
         type: "DOCUMENT_UPLOADED",
         actorType: "CANDIDATE",
         actorId: "CANDIDATE",
-        payload: { documentId: document.id, fileName: body.documentName },
+        payload: { documentId: document.id, fileName: documentName },
       });
     }
 
@@ -233,21 +438,20 @@ export async function POST(req: Request) {
       metadata: { existing: true },
     });
 
-    if (body.documentName && body.documentUrl) {
+    if (documentName && documentUrl) {
       await auditLog({
         caseId: existingRelationCase.id,
         actorEmail: candidateEmail,
         eventType: "DOCUMENT_UPLOADED",
-        metadata: { fileName: body.documentName },
+        metadata: { fileName: documentName },
       });
     }
 
-    const formSubmission = getFormSubmissionData(body);
     if (formSubmission) {
       await createFormSubmission({
         formTemplateId: formSubmission.formTemplateId,
         caseId: existingRelationCase.id,
-        answers: formSubmission.answers,
+        answers: formSubmission.answers as Prisma.InputJsonValue,
       });
     }
 
@@ -267,16 +471,16 @@ export async function POST(req: Request) {
       });
     }
 
-    if (body.documentName && body.documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
+    if (documentName && documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
       await sendNewDocumentEmail({
         ownerEmail: existingRelationCase.owner.email,
         candidateEmail,
         caseId: existingRelationCase.id,
         caseTitle: existingRelationCase.gLink.title,
         candidateName: existingRelationCase.candidateName,
-        fileName: String(body.documentName),
+        fileName: documentName,
       });
-    } else if (body.documentName && body.documentUrl) {
+    } else if (documentName && documentUrl) {
       logNotificationSkipped(existingRelationCase.owner.notificationPreferences, "documents", {
         caseId: existingRelationCase.id,
         event: "candidate_document_existing_case",
@@ -317,12 +521,138 @@ export async function POST(req: Request) {
     );
   }
 
+  const trustAdmissionMode = getTrustAdmissionModeForGLink(gLink.id);
+
+  if (admissionTrustPolicy.policy && trustAdmissionMode) {
+    const candidateIdentityId = resolvedCandidateIdentityId ?? null;
+
+    try {
+      const credentialAdmissionEvaluation = await evaluateTrustAdmission(prisma, {
+        trustPolicyId: admissionTrustPolicy.policy.id,
+        candidateIdentityId,
+      });
+
+      if (trustAdmissionMode === "ENFORCE" && !credentialAdmissionEvaluation.allowed) {
+        console.warn("[trust-admission] Credential admission blocked", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+
+        return NextResponse.json(
+          {
+            error: "Admission blocked by Trust Admission requirements.",
+            code: "TRUST_ADMISSION_BLOCKED",
+          },
+          { status: 403 },
+        );
+      }
+
+      if (trustAdmissionMode === "ENFORCE") {
+        console.info("[trust-admission] Credential admission enforce allowed", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+      } else if (trustAdmissionMode === "SIMULATE_BLOCK") {
+        console.warn("[trust-admission] Credential admission simulated block", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          wouldHaveBlocked: !credentialAdmissionEvaluation.allowed,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+      } else {
+        console.info("[trust-admission] Credential admission observe", {
+          route: "app/api/cases/route.ts",
+          gLinkId: gLink.id,
+          trustPolicyId: admissionTrustPolicy.policy.id,
+          resolvedCandidateIdentityId,
+          candidateIdentityId,
+          allowed: credentialAdmissionEvaluation.allowed,
+          mode: trustAdmissionMode,
+          requiredCredentialTypes: credentialAdmissionEvaluation.requiredCredentialTypes,
+          satisfiedCredentialTypes: credentialAdmissionEvaluation.satisfiedCredentialTypes,
+          missingCredentialTypes: credentialAdmissionEvaluation.missingCredentialTypes,
+          reasons: credentialAdmissionEvaluation.reasons,
+          missingRequirements: credentialAdmissionEvaluation.missingRequirements,
+        });
+      }
+    } catch (error) {
+      console.warn("[trust-admission] Credential admission evaluation failed", {
+        route: "app/api/cases/route.ts",
+        gLinkId: gLink.id,
+        trustPolicyId: admissionTrustPolicy.policy.id,
+        resolvedCandidateIdentityId,
+        candidateIdentityId,
+        mode: trustAdmissionMode,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (trustAdmissionMode === "ENFORCE") {
+        return NextResponse.json(
+          {
+            error: "Trust Admission evaluation failed.",
+            code: "TRUST_ADMISSION_EVALUATION_FAILED",
+            trustPolicyId: admissionTrustPolicy.policy.id,
+          },
+          { status: 500 },
+        );
+      }
+    }
+  }
+
   const relationCase = await prisma.$transaction(async (tx) => {
+    const identitySource = resolvedTrustAdmissionToken
+      ? "TRUST_ADMISSION_TOKEN"
+      : resolvedCandidateIdentityId
+        ? "AUTHENTICATED_VERIFIED_IDENTITY"
+        : "AUTO_CREATED";
+    let tokenMarkedUsed = false;
+    let candidateIdentityId = resolvedCandidateIdentityId;
+
+    if (!candidateIdentityId) {
+      const candidateIdentity = await tx.goodissimaIdentity.create({
+        data: {
+          type: "PERSON",
+          status: "UNVERIFIED",
+        },
+      });
+
+      candidateIdentityId = candidateIdentity.id;
+    }
+
     const createdRelationCase = await tx.relationCase.create({
       data: {
         gLinkId: gLink.id,
         ownerId: gLink.ownerId,
         templateId: relationTemplate?.id,
+        candidateIdentityId,
         candidateAccessToken: createCandidateAccessToken(),
         candidateAccessExpiresAt: createCandidateAccessExpiresAt(),
         candidateName,
@@ -338,6 +668,43 @@ export async function POST(req: Request) {
         owner: { select: { email: true, notificationPreferences: true } },
         gLink: { select: { title: true } },
       },
+    });
+
+    try {
+      const candidateCreatedCredential = await issueCandidateCreatedCredentialInTransaction(tx, {
+        identityId: candidateIdentityId,
+        relationCaseId: createdRelationCase.id,
+        source: "RELATION_CASE_ADMISSION",
+      });
+
+      console.info("[trust-credential] Candidate-created credential issued", {
+        relationCaseId: createdRelationCase.id,
+        candidateIdentityId,
+        identitySource,
+        credentialType: "CANDIDATE_CREATED",
+        credentialId: candidateCreatedCredential.id,
+      });
+    } catch (error) {
+      console.warn("[trust-credential] Candidate-created credential not issued", {
+        relationCaseId: createdRelationCase.id,
+        candidateIdentityId,
+        identitySource,
+        credentialType: "CANDIDATE_CREATED",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    if (resolvedTrustAdmissionToken) {
+      await markTrustAdmissionTokenUsed(tx, resolvedTrustAdmissionToken.tokenId);
+      tokenMarkedUsed = true;
+    }
+
+    console.info("[trust-identity] Candidate identity attached to relation case", {
+      identitySource,
+      relationCaseId: createdRelationCase.id,
+      candidateIdentityId,
+      tokenId: resolvedTrustAdmissionToken?.tokenId ?? null,
+      tokenMarkedUsed,
     });
 
     if (admissionTrustPolicy.policy && admissionTrustPolicy.source) {
@@ -374,13 +741,13 @@ export async function POST(req: Request) {
   });
 
   const document =
-    body.documentName && body.documentUrl
+    documentName && documentUrl
       ? await prisma.document.create({
           data: {
             caseId: relationCase.id,
             uploadedByEmail: candidateEmail,
-            fileName: body.documentName,
-            fileUrl: body.documentUrl,
+            fileName: documentName,
+            fileUrl: documentUrl,
             mimeType: "application/octet-stream",
           },
         })
@@ -411,23 +778,22 @@ export async function POST(req: Request) {
       caseId: relationCase.id,
       actorEmail: candidateEmail,
       eventType: "DOCUMENT_UPLOADED",
-      metadata: { fileName: body.documentName },
+      metadata: { fileName: documentName },
     });
     await createRelationEvent({
       caseId: relationCase.id,
       type: "DOCUMENT_UPLOADED",
       actorType: "CANDIDATE",
       actorId: "CANDIDATE",
-      payload: { documentId: document.id, fileName: body.documentName },
+      payload: { documentId: document.id, fileName: documentName },
     });
   }
 
-  const formSubmission = getFormSubmissionData(body);
   if (formSubmission) {
     await createFormSubmission({
       formTemplateId: formSubmission.formTemplateId,
       caseId: relationCase.id,
-      answers: formSubmission.answers,
+      answers: formSubmission.answers as Prisma.InputJsonValue,
     });
   }
 

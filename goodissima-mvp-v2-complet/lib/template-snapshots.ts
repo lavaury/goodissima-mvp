@@ -29,8 +29,16 @@ export type TemplateSnapshot = {
     description: string | null;
   };
   fields: TemplateSnapshotField[];
+  design?: {
+    actors: Prisma.JsonValue;
+    stages: Prisma.JsonValue;
+    documents: Prisma.JsonValue;
+    relationalRequests: Prisma.JsonValue;
+    kpis: Prisma.JsonValue;
+  };
   metadata: {
-    snapshotVersion: 1;
+    snapshotVersion: 1 | 2;
+    [key: string]: Prisma.JsonValue;
   };
 };
 
@@ -90,6 +98,13 @@ export async function buildTemplateSnapshot(formTemplateId: string): Promise<Tem
 
   if (!formTemplate?.relationTemplate) return null;
 
+  const latestVersion = await prisma.templateVersion.findFirst({
+    where: { templateId: formTemplate.relationTemplate.id },
+    orderBy: { version: "desc" },
+    select: { snapshot: true },
+  });
+  const previousSnapshot = latestVersion ? parseTemplateSnapshot(latestVersion.snapshot) : null;
+
   return {
     relationTemplate: {
       id: formTemplate.relationTemplate.id,
@@ -115,8 +130,10 @@ export async function buildTemplateSnapshot(formTemplateId: string): Promise<Tem
       conditionalRules: field.conditionalRules,
       validationRules: field.validationRules,
     })),
+    ...(previousSnapshot?.design ? { design: previousSnapshot.design } : {}),
     metadata: {
-      snapshotVersion: 1,
+      ...(previousSnapshot?.metadata ?? {}),
+      snapshotVersion: previousSnapshot?.design ? 2 : 1,
     },
   };
 }

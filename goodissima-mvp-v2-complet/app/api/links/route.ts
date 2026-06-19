@@ -7,6 +7,7 @@ import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { getActiveTemplateVersion } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
+import { parseSecureLinkAdmissionMode } from "@/lib/secure-link-admission";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
       title: body.title,
       city: body.city || null,
       description: body.description || null,
+      admissionMode: parseSecureLinkAdmissionMode(body.admissionMode),
       rules: {
         requireEmail: Boolean(body.requireEmail),
         requireMessage: Boolean(body.requireMessage),
@@ -53,16 +55,19 @@ export async function POST(req: Request) {
   revalidatePath("/");
   revalidatePath("/analytics");
   revalidatePath("/links/new");
+  revalidatePath("/opportunities");
 
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
-  await sendSecureLinkCreatedEmail({
-    ownerEmail: owner.email,
-    linkTitle: link.title,
-    publicUrl: `${appUrl}/l/${encodeURIComponent(link.slug)}`,
-  });
+  if (body.suppressNotification !== true) {
+    await sendSecureLinkCreatedEmail({
+      ownerEmail: owner.email,
+      linkTitle: link.title,
+      publicUrl: `${appUrl}/l/${encodeURIComponent(link.slug)}`,
+    });
+  }
 
   return NextResponse.json(link, {
     headers: {

@@ -1,0 +1,35 @@
+{
+  "name": "goodissima-intent-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Source-grounded foundations for the Goodissima intent engine.",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/test/ciro-validator.test.js dist/test/knowledge.test.js dist/test/benchmark.test.js dist/test/corpus.test.js dist/test/detector.test.js dist/test/ciro-path.test.js dist/test/resolve-intent.test.js dist/test/quality-dashboard.test.js dist/test/merge-governance.test.js dist/test/merge-scoring.test.js dist/test/merge-evaluator.test.js dist/test/french-demo.test.js",
+    "benchmark": "npm run build && node dist/src/benchmark/cli.js",
+    "corpus:load": "npm run build && node dist/src/cli/corpus-load.js",
+    "corpus:validate": "npm run build && node dist/src/cli/corpus-validate.js",
+    "corpus:stats": "npm run build && node dist/src/cli/corpus-stats.js",
+    "corpus:coverage": "npm run build && node dist/src/cli/corpus-coverage.js",
+    "benchmark:generate": "npm run build && node dist/src/cli/benchmark-generate.js",
+    "detect": "npm run build && node dist/src/cli/detect.js",
+    "benchmark:detect": "npm run build && node dist/src/cli/benchmark-detect.js",
+    "ciro:build": "npm run build && node dist/src/cli/ciro-build.js",
+    "benchmark:ciro": "npm run build && node dist/src/cli/benchmark-ciro.js",
+    "resolve": "npm run build && node dist/src/cli/resolve.js",
+    "quality": "npm run build && node dist/src/cli/quality-dashboard.js",
+    "merge:governance": "npm run build && node dist/src/cli/merge-governance.js",
+    "benchmark:merge": "npm run build && node dist/src/cli/benchmark-merge.js",
+    "merge:evaluate": "npm run build && node dist/src/cli/merge-evaluate.js",
+    "demo:merge:housing": "npm run build && node dist/src/cli/demo-merge-housing.js",
+    "demo:merge:employment": "npm run build && node dist/src/cli/demo-merge-employment.js",
+    "demo": "npm run build && node dist/src/cli/demo-all.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "typescript": "^5.6.3"
+  }
+}

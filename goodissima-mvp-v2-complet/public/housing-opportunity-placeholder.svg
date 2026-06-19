@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Appartement lumineux</title>
+  <desc id="desc">Illustration professionnelle d'un intérieur lumineux avec vue urbaine.</desc>
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8f4ee"/><stop offset="1" stop-color="#dcebed"/></linearGradient>
+    <linearGradient id="window" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9fd7df"/><stop offset="1" stop-color="#eef7f7"/></linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#wall)"/>
+  <rect y="650" width="1600" height="250" fill="#c8a98b"/>
+  <rect x="880" y="90" width="560" height="470" rx="8" fill="#263846"/>
+  <rect x="905" y="115" width="510" height="420" fill="url(#window)"/>
+  <path d="M905 430l120-105 100 70 120-150 170 185v105H905z" fill="#6eaab0" opacity=".48"/>
+  <path d="M1160 115v420M905 325h510" stroke="#fff" stroke-width="18" opacity=".9"/>
+  <rect x="180" y="520" width="650" height="210" rx="38" fill="#f5efe8"/>
+  <rect x="230" y="465" width="235" height="125" rx="30" fill="#247f88"/>
+  <rect x="495" y="465" width="285" height="125" rx="30" fill="#e7d8c8"/>
+  <rect x="310" y="730" width="390" height="32" rx="16" fill="#785f4c" opacity=".45"/>
+  <circle cx="180" cy="300" r="90" fill="#527c65"/>
+  <path d="M180 390v260" stroke="#70533e" stroke-width="24"/>
+  <ellipse cx="180" cy="670" rx="95" ry="28" fill="#735947" opacity=".55"/>
+</svg>

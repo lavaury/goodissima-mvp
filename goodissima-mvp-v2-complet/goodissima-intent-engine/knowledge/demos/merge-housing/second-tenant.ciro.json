@@ -1,0 +1,14 @@
+{
+  "presentationId": "TENANT",
+  "ciro": {
+    "schemaVersion": "1.0",
+    "c": { "intent": "HOUSING" },
+    "i": { "sourceGrounded": true },
+    "r": { "roles": ["proprietaire", "locataire"] },
+    "o": { "relationship": "PROPERTY_RENTAL" },
+    "sources": [
+      { "knowledgeId": "goodissima-trust-architecture" },
+      { "knowledgeId": "goodissima-matching-governance" }
+    ]
+  }
+}

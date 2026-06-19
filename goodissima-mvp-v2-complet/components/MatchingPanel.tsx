@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AIEmptyState } from "@/components/AIEmptyState";
+import { MergeOpportunitiesSection } from "@/components/MergeOpportunitiesSection";
 import { useToast } from "@/components/ToastProvider";
 
 type MatchItem = {
@@ -44,10 +45,12 @@ export function MatchingPanel({
   caseId,
   matchingEnabled,
   workspace = false,
+  debugMode = false,
 }: {
   caseId: string;
   matchingEnabled: boolean;
   workspace?: boolean;
+  debugMode?: boolean;
 }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
@@ -55,6 +58,7 @@ export function MatchingPanel({
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
 
   useEffect(() => {
     function updateMatching(event: Event) {
@@ -81,6 +85,7 @@ export function MatchingPanel({
     const payload = (await res.json()) as { matches: MatchItem[]; semanticMatches?: MatchItem[]; warnings?: string[] };
     setMatches(payload.semanticMatches?.length ? payload.semanticMatches : payload.matches);
     setWarnings(payload.warnings ?? []);
+    setAnalysisComplete(true);
     toast.success("Correspondances analysees");
   }
 
@@ -186,6 +191,7 @@ export function MatchingPanel({
           />
         ) : null}
       </div>
+      <MergeOpportunitiesSection caseId={caseId} active={analysisComplete} debugMode={debugMode} />
     </section>
   );
 }

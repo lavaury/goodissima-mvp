@@ -1,0 +1,130 @@
+{
+  "version": "1.0",
+  "cases": [
+    {
+      "id": "property-rental-search",
+      "input": { "text": "rechercher un dossier locataire" },
+      "expected": {
+        "schemaVersion": "1.0",
+        "c": { "intent": "PROPERTY_RENTAL", "mode": "SEARCH" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "PROPERTY_RENTAL" },
+        "sources": [
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:48-73" },
+          { "knowledgeId": "goodissima-user-manual", "locator": "line:284-305" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:174-211" }
+        ]
+      }
+    },
+    {
+      "id": "housing-search",
+      "input": { "text": "rechercher immobilier" },
+      "expected": {
+        "schemaVersion": "1.0",
+        "c": { "intent": "HOUSING", "mode": "SEARCH" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "HOUSING" },
+        "sources": [
+          { "knowledgeId": "goodissima-matching-governance", "locator": "line:22-35" },
+          { "knowledgeId": "goodissima-user-manual", "locator": "line:284-305" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:174-211" }
+        ]
+      }
+    },
+    {
+      "id": "employment-search",
+      "input": { "text": "rechercher recrutement" },
+      "expected": {
+        "schemaVersion": "1.0",
+        "c": { "intent": "EMPLOYMENT", "mode": "SEARCH" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["candidat", "recruteur"] },
+        "o": { "relationship": "EMPLOYMENT" },
+        "sources": [
+          { "knowledgeId": "goodissima-matching-governance", "locator": "line:22-35" },
+          { "knowledgeId": "goodissima-user-manual", "locator": "line:284-305" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:174-211" }
+        ]
+      }
+    },
+    {
+      "id": "property-rental-document-request",
+      "input": { "text": "DOCUMENT_REQUEST dossier locataire" },
+      "expected": {
+        "schemaVersion": "1.0",
+        "c": { "intent": "PROPERTY_RENTAL", "mode": "DOCUMENT_REQUEST" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "PROPERTY_RENTAL" },
+        "sources": [
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:48-73" },
+          { "knowledgeId": "goodissima-ai-governance", "locator": "line:151-173" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:174-211" }
+        ]
+      }
+    },
+    {
+      "id": "employment-document-request",
+      "input": { "text": "DOCUMENT_REQUEST candidat et recruteur" },
+      "expected": {
+        "schemaVersion": "1.0",
+        "c": { "intent": "EMPLOYMENT", "mode": "DOCUMENT_REQUEST" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["candidat", "recruteur"] },
+        "o": { "relationship": "EMPLOYMENT" },
+        "sources": [
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:174-211" },
+          { "knowledgeId": "goodissima-ai-governance", "locator": "line:151-173" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:212-245" }
+        ]
+      }
+    },
+    {
+      "id": "annotated-property-rental-search",
+      "input": { "text": "dossier locataire" },
+      "sourceAnnotations": [
+        {
+          "expression": "rechercher",
+          "knowledgeId": "goodissima-user-manual",
+          "kind": "mode",
+          "label": "SEARCH"
+        }
+      ],
+      "expected": {
+        "schemaVersion": "1.0",
+        "c": { "intent": "PROPERTY_RENTAL", "mode": "SEARCH" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "PROPERTY_RENTAL" },
+        "sources": [
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:48-73" },
+          { "knowledgeId": "goodissima-user-manual", "locator": "line:284-305" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:174-211" }
+        ]
+      }
+    },
+    {
+      "id": "housing-document-request",
+      "input": { "text": "DOCUMENT_REQUEST immobilier" },
+      "expected": {
+        "schemaVersion": "1.0",
+        "c": { "intent": "HOUSING", "mode": "DOCUMENT_REQUEST" },
+        "i": { "sourceGrounded": true },
+        "r": { "roles": ["locataire", "proprietaire"] },
+        "o": { "relationship": "HOUSING" },
+        "sources": [
+          { "knowledgeId": "goodissima-matching-governance", "locator": "line:22-35" },
+          { "knowledgeId": "goodissima-ai-governance", "locator": "line:151-173" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:174-211" },
+          { "knowledgeId": "goodissima-trust-architecture", "locator": "line:48-73" }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-freelance-search",
+      "input": { "text": "rechercher freelance" }
+    }
+  ]
+}

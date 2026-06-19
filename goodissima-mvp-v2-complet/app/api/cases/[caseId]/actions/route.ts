@@ -14,6 +14,8 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
     const body = await req.json();
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const description = typeof body.description === "string" && body.description.trim() ? body.description.trim() : null;
+    const payload = body.payload && typeof body.payload === "object" ? body.payload : undefined;
+    const draftOnly = Boolean(payload && "draftOnly" in payload && payload.draftOnly === true);
 
     if (!isRelationActionType(body.type)) {
       return NextResponse.json({ error: "type action invalide" }, { status: 400 });
@@ -81,7 +83,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
         title,
         description,
         createdByRole: "OWNER",
-        payload: body.payload && typeof body.payload === "object" ? body.payload : undefined,
+        payload,
       },
     });
 
@@ -99,7 +101,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
 
     await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "timeline_updated" });
 
-    if (relationCase.candidateEmailNotificationsEnabled) {
+    if (relationCase.candidateEmailNotificationsEnabled && !draftOnly) {
       await sendNewRelationActionEmail({
         candidateEmail: relationCase.candidateEmail,
         ownerEmail: owner.email,

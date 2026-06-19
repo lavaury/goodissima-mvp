@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get("next");
+  const next = nextParam?.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/dashboard";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +44,7 @@ export default function SignupPage() {
       password,
       options: {
         data: { name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
 
@@ -53,7 +56,7 @@ export default function SignupPage() {
     }
 
     if (data.session) {
-      router.replace("/dashboard");
+      router.replace(next);
       router.refresh();
       return;
     }
@@ -104,10 +107,18 @@ export default function SignupPage() {
       </form>
       <p className="mt-4 text-center text-sm text-slate-600">
         Déjà un compte ?{" "}
-        <Link className="font-medium text-slate-900 underline" href="/login">
+        <Link className="font-medium text-slate-900 underline" href={`/login?next=${encodeURIComponent(next)}`}>
           Se connecter
         </Link>
       </p>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   );
 }

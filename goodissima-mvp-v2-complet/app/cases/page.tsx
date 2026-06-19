@@ -7,6 +7,7 @@ import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { LogoutButton } from "@/components/LogoutButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { resolveCandidateIdentityState } from "@/lib/candidate-identity";
 import { prisma } from "@/lib/prisma";
 
 export default async function CasesPage() {
@@ -39,24 +40,37 @@ export default async function CasesPage() {
         {cases.length === 0 ? (
           <p className="p-8 text-slate-500">Aucun dossier pour le moment.</p>
         ) : (
-          cases.map((item) => (
-            <Link
-              key={item.id}
-              href={`/cases/${item.id}?refresh=1`}
-              prefetch={false}
-              className="block border-b p-5 hover:bg-slate-50"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-semibold">{item.candidateName}</p>
-                  <p className="text-sm text-slate-500">
-                    {item.gLink.title}
-                  </p>
+          cases.map((item) => {
+            const identity = resolveCandidateIdentityState({
+              id: item.id,
+              candidateName: item.candidateName,
+              candidateEmail: item.candidateEmail,
+            });
+
+            return (
+              <Link
+                key={item.id}
+                href={`/cases/${item.id}?refresh=1`}
+                prefetch={false}
+                className="block border-b p-5 hover:bg-slate-50"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold">{identity.displayName}</p>
+                    <p className="text-sm text-slate-500">
+                      {item.gLink.title} · {identity.displayEmail}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {identity.status}
+                    </span>
+                    <StatusBadge status={item.status} />
+                  </div>
                 </div>
-                <StatusBadge status={item.status} />
-              </div>
-            </Link>
-          ))
+              </Link>
+            );
+          })
         )}
       </div>
     </main>

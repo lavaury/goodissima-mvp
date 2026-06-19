@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -12,6 +12,7 @@ enum LinkStatus {
   ACTIVE
   DISABLED
   EXPIRED
+  ARCHIVED
 }
 
 enum CaseStatus {
@@ -88,6 +89,22 @@ enum TrustedOrganizationStatus {
   REVOKED
 }
 
+enum TrustConnectorStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TrustConnectorProviderType {
+  DEMO
+  GOVERNMENT
+  EUROPEAN_WALLET
+  BANK
+  INSURANCE
+  EDUCATION
+  PROFESSIONAL_BODY
+  OTHER
+}
+
 enum IdentityType {
   PERSON
   ORGANIZATION
@@ -100,16 +117,64 @@ enum IdentityStatus {
   REVOKED
 }
 
+enum TrustCredentialStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  REVOKED
+}
+
+enum TrustClaimType {
+  STRING
+  BOOLEAN
+  INTEGER
+  DECIMAL
+  DATE
+  DATETIME
+  JSON
+}
+
+enum TrustAdmissionTokenStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  REVOKED
+}
+
+enum TrustAdmissionTokenPurpose {
+  TRUST_ADMISSION
+}
+
+enum LinkAdmissionMode {
+  OPEN
+  VERIFIED_ONLY
+}
+
+enum ProductFeedbackStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  IGNORED
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      String   @default("OWNER")
-  createdAt DateTime @default(now())
+  id                   String   @id @default(cuid())
+  email                String   @unique
+  name                 String?
+  role                 String   @default("OWNER")
+  goodissimaIdentityId String?  @unique
+  createdAt            DateTime @default(now())
 
   links                   GLink[]
   cases                   RelationCase[]              @relation("OwnerCases")
+  goodissimaIdentity      GoodissimaIdentity?         @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
   notificationPreferences UserNotificationPreference?
+  templateGenerations     TemplateGeneration[]
+  templateCriticReports   TemplateCriticReport[]
+  templateOptimizations   TemplateOptimization[]
+  aiEvents                AIEvent[]
+  manualTemplateEditAudits ManualTemplateEditAudit[]
+  productFeedback         ProductFeedback[]
 }
 
 model AccessInvitation {
@@ -157,54 +222,60 @@ model GLink {
   description       String?
   rules             Json?
   status            LinkStatus @default(ACTIVE)
+  admissionMode     LinkAdmissionMode @default(OPEN)
   createdAt         DateTime   @default(now())
   expiresAt         DateTime?
 
-  owner           User              @relation(fields: [ownerId], references: [id])
-  template        RelationTemplate? @relation(fields: [templateId], references: [id])
-  templateVersion TemplateVersion?  @relation(fields: [templateVersionId], references: [id])
-  cases           RelationCase[]
-  trustPolicies   TrustPolicy[]
+  owner                User                  @relation(fields: [ownerId], references: [id])
+  template             RelationTemplate?     @relation(fields: [templateId], references: [id])
+  templateVersion      TemplateVersion?      @relation(fields: [templateVersionId], references: [id])
+  cases                RelationCase[]
+  trustPolicies        TrustPolicy[]
+  trustAdmissionTokens TrustAdmissionToken[]
 }
 
 model RelationCase {
-  id                       String           @id @default(cuid())
-  gLinkId                  String
-  ownerId                  String
-  templateId               String?
-  candidateAccessToken     String           @unique
-  candidateAccessExpiresAt DateTime?
-  candidateAccessRevokedAt DateTime?
-  candidateName            String
-  candidateEmail           String
-  candidateEmailNotificationsEnabled Boolean @default(false)
-  matchingEnabled          Boolean          @default(false)
-  embeddingStatus          String           @default("fresh")
-  embeddingUpdatedAt       DateTime?
-  priority                 RelationPriority @default(NORMAL)
-  status                   RelationStatus   @default(NEW)
-  governanceStatus         RelationGovernanceStatus @default(ACTIVE)
-  governanceUpdatedAt      DateTime?
-  governanceReason         String?
-  currentStep              String?          @default("CONVERSATION")
-  createdAt                DateTime         @default(now())
-  closedAt                 DateTime?
+  id                                 String                   @id @default(cuid())
+  gLinkId                            String
+  ownerId                            String
+  templateId                         String?
+  candidateIdentityId                String?
+  candidateAccessToken               String                   @unique
+  candidateAccessExpiresAt           DateTime?
+  candidateAccessRevokedAt           DateTime?
+  candidateName                      String
+  candidateEmail                     String
+  candidateEmailNotificationsEnabled Boolean                  @default(false)
+  matchingEnabled                    Boolean                  @default(false)
+  embeddingStatus                    String                   @default("fresh")
+  embeddingUpdatedAt                 DateTime?
+  priority                           RelationPriority         @default(NORMAL)
+  status                             RelationStatus           @default(NEW)
+  governanceStatus                   RelationGovernanceStatus @default(ACTIVE)
+  governanceUpdatedAt                DateTime?
+  governanceReason                   String?
+  currentStep                        String?                  @default("CONVERSATION")
+  createdAt                          DateTime                 @default(now())
+  closedAt                           DateTime?
 
-  gLink           GLink             @relation(fields: [gLinkId], references: [id])
-  owner           User              @relation("OwnerCases", fields: [ownerId], references: [id])
-  template        RelationTemplate? @relation(fields: [templateId], references: [id])
-  messages        Message[]
-  documents       Document[]
-  auditLogs       AuditLog[]
-  relationEvents  RelationEvent[]
-  relationActions RelationAction[]
-  formSubmissions FormSubmission[]
-  aiEvents        AIEvent[]
-  embeddings      RelationEmbedding[]
-  embeddingJobs   EmbeddingJob[]
-  trustPolicies   TrustPolicy[]
+  gLink             GLink               @relation(fields: [gLinkId], references: [id])
+  owner             User                @relation("OwnerCases", fields: [ownerId], references: [id])
+  template          RelationTemplate?   @relation(fields: [templateId], references: [id])
+  candidateIdentity GoodissimaIdentity? @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
+  messages          Message[]
+  documents         Document[]
+  auditLogs         AuditLog[]
+  relationEvents    RelationEvent[]
+  relationActions   RelationAction[]
+  formSubmissions   FormSubmission[]
+  aiEvents          AIEvent[]
+  embeddings        RelationEmbedding[]
+  embeddingJobs     EmbeddingJob[]
+  trustPolicies     TrustPolicy[]
+  productFeedback   ProductFeedback[]
 
   @@index([governanceStatus])
+  @@index([candidateIdentityId])
 }
 
 model EmbeddingJob {
@@ -213,9 +284,9 @@ model EmbeddingJob {
   relationCaseId String
   relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
 
-  status      String @default("pending")
+  status      String  @default("pending")
   triggerType String
-  attempts    Int    @default(0)
+  attempts    Int     @default(0)
   lastError   String?
 
   createdAt   DateTime  @default(now())
@@ -243,12 +314,12 @@ model RelationEmbedding {
 }
 
 model RelationTemplate {
-  id          String  @id @default(cuid())
-  key         String  @unique
-  name        String
-  description String?
-  isDefault   Boolean @default(false)
-  status      String  @default("DRAFT")
+  id             String  @id @default(cuid())
+  key            String  @unique
+  name           String
+  description    String?
+  isDefault      Boolean @default(false)
+  status         String  @default("DRAFT")
   aiInstructions String?
 
   createdAt DateTime @default(now())
@@ -259,6 +330,90 @@ model RelationTemplate {
   formTemplates FormTemplate[]
   versions      TemplateVersion[]
   trustPolicies TrustPolicy[]
+  generations   TemplateGeneration[]
+  aiEvents      AIEvent[]
+  productFeedback ProductFeedback[]
+}
+
+model ProductFeedback {
+  id           String                @id @default(cuid())
+  type         String
+  message      String
+  page         String?
+  role         String?
+  userId       String?
+  caseId       String?
+  templateId   String?
+  browserInfo  Json?
+  environment  String?
+  status       ProductFeedbackStatus @default(NEW)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  resolvedAt   DateTime?
+  adminNotes   String?
+
+  user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  case     RelationCase?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  template RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  attachments ProductFeedbackAttachment[]
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@index([userId])
+  @@index([caseId])
+  @@index([templateId])
+}
+
+model ProductFeedbackAttachment {
+  id         String          @id @default(cuid())
+  feedbackId String
+  fileName   String
+  fileUrl    String
+  mimeType   String
+  fileSize   Int
+  width      Int?
+  height     Int?
+  annotation Json?
+  createdAt  DateTime        @default(now())
+
+  feedback ProductFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+  @@index([createdAt])
+}
+
+model TemplateGeneration {
+  id String @id @default(cuid())
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  templateId String?
+  template   RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  aiEventId String?  @unique
+  aiEvent   AIEvent? @relation(fields: [aiEventId], references: [id], onDelete: SetNull)
+
+  parentGenerationId String?
+  parentGeneration   TemplateGeneration?  @relation("TemplateGenerationRevisions", fields: [parentGenerationId], references: [id], onDelete: SetNull)
+  revisions          TemplateGeneration[] @relation("TemplateGenerationRevisions")
+
+  inputDescription String
+  language         String    @default("fr")
+  output           Json
+  provider         String
+  model            String?
+  promptVersion    String
+  proposalVersion  Int       @default(1)
+  revisionFeedback String?
+  changes          Json?
+  status           String    @default("GENERATED")
+  validatedAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([createdById, createdAt])
+  @@index([templateId])
+  @@index([parentGenerationId])
 }
 
 model TrustPolicy {
@@ -285,9 +440,10 @@ model TrustPolicy {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  template     RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  gLink        GLink?            @relation(fields: [gLinkId], references: [id], onDelete: SetNull)
-  relationCase RelationCase?     @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  template               RelationTemplate?                  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  gLink                  GLink?                             @relation(fields: [gLinkId], references: [id], onDelete: SetNull)
+  relationCase           RelationCase?                      @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  credentialRequirements TrustPolicyCredentialRequirement[]
 
   @@index([scope, status])
   @@index([templateId])
@@ -303,6 +459,9 @@ model CredentialType {
   status      CredentialTypeStatus
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
+
+  credentials             TrustCredential[]
+  trustPolicyRequirements TrustPolicyCredentialRequirement[]
 }
 
 model TrustedOrganization {
@@ -315,8 +474,29 @@ model TrustedOrganization {
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
+  issuedCredentials TrustCredential[]
+  trustConnectors   TrustConnector[]
+
   @@index([organizationId])
   @@index([status])
+}
+
+model TrustConnector {
+  id                    String                     @id @default(cuid())
+  code                  String                     @unique
+  name                  String
+  description           String?
+  status                TrustConnectorStatus
+  providerType          TrustConnectorProviderType
+  trustedOrganizationId String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  trustedOrganization TrustedOrganization? @relation(fields: [trustedOrganizationId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([providerType])
+  @@index([trustedOrganizationId])
 }
 
 model GoodissimaIdentity {
@@ -325,6 +505,86 @@ model GoodissimaIdentity {
   status    IdentityStatus
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+
+  user                   User?
+  credentials            TrustCredential[]
+  trustAdmissionTokens   TrustAdmissionToken[]
+  candidateRelationCases RelationCase[]
+}
+
+model TrustAdmissionToken {
+  id         String                     @id @default(cuid())
+  tokenHash  String                     @unique
+  identityId String
+  gLinkId    String?
+  purpose    TrustAdmissionTokenPurpose
+  status     TrustAdmissionTokenStatus
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+
+  identity GoodissimaIdentity @relation(fields: [identityId], references: [id])
+  gLink    GLink?             @relation(fields: [gLinkId], references: [id], onDelete: SetNull)
+
+  @@index([identityId])
+  @@index([gLinkId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model TrustPolicyCredentialRequirement {
+  id               String   @id @default(cuid())
+  trustPolicyId    String
+  credentialTypeId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trustPolicy    TrustPolicy    @relation(fields: [trustPolicyId], references: [id], onDelete: Cascade)
+  credentialType CredentialType @relation(fields: [credentialTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([trustPolicyId, credentialTypeId])
+  @@index([trustPolicyId])
+  @@index([credentialTypeId])
+}
+
+model TrustCredential {
+  id                          String                @id @default(cuid())
+  identityId                  String
+  credentialTypeId            String
+  issuerTrustedOrganizationId String
+  status                      TrustCredentialStatus
+  issuedAt                    DateTime
+  expiresAt                   DateTime?
+  revokedAt                   DateTime?
+  revocationReason            String?
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+
+  identity                  GoodissimaIdentity  @relation(fields: [identityId], references: [id])
+  credentialType            CredentialType      @relation(fields: [credentialTypeId], references: [id])
+  issuerTrustedOrganization TrustedOrganization @relation(fields: [issuerTrustedOrganizationId], references: [id])
+  claims                    TrustClaim[]
+
+  @@index([identityId])
+  @@index([credentialTypeId])
+  @@index([issuerTrustedOrganizationId])
+  @@index([status])
+}
+
+model TrustClaim {
+  id           String         @id @default(cuid())
+  credentialId String
+  claimKey     String
+  claimType    TrustClaimType
+  claimValue   Json
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  credential TrustCredential @relation(fields: [credentialId], references: [id])
+
+  @@index([credentialId])
+  @@index([claimKey])
 }
 
 model AIEvent {
@@ -332,6 +592,16 @@ model AIEvent {
 
   caseId String?
   case   RelationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  templateId String?
+  template   RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  organizationId   String?
+  organizationName String?
+  featureName      String?
 
   provider String
   model    String?
@@ -342,10 +612,23 @@ model AIEvent {
   outputSummary String?
   errorCode     String?
 
+  tokensInput      Int?
+  tokensOutput     Int?
+  promptTokens     Int?
+  completionTokens Int?
+  estimatedCostEur Decimal? @db.Decimal(12, 6)
+  latencyMs        Int?
+
   createdAt DateTime @default(now())
+
+  templateGeneration TemplateGeneration?
 
   @@index([caseId, createdAt])
   @@index([provider, action, createdAt])
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([featureName, createdAt])
+  @@index([templateId, createdAt])
 }
 
 model TemplateVersion {
@@ -365,9 +648,85 @@ model TemplateVersion {
 
   createdAt DateTime @default(now())
 
-  links GLink[]
+  links               GLink[]
+  criticReports       TemplateCriticReport[]
+  optimizationSources TemplateOptimization[] @relation("OptimizationSourceVersion")
+  optimizationDrafts  TemplateOptimization[] @relation("OptimizationDraftVersion")
+  manualEditSources   ManualTemplateEditAudit[] @relation("ManualEditSourceVersion")
+  manualEditResults   ManualTemplateEditAudit[] @relation("ManualEditNewVersion")
 
   @@unique([templateId, version])
+}
+
+model ManualTemplateEditAudit {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sourceVersionId String
+  sourceVersion   TemplateVersion @relation("ManualEditSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Cascade)
+
+  newVersionId String @unique
+  newVersion   TemplateVersion @relation("ManualEditNewVersion", fields: [newVersionId], references: [id], onDelete: Cascade)
+
+  changeType   String
+  changedFields Json
+  reason       String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([sourceVersionId, createdAt])
+}
+
+model TemplateCriticReport {
+  id String @id @default(cuid())
+
+  templateVersionId String
+  templateVersion   TemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  criticVersion String
+  score         Int
+  report        Json
+  createdAt     DateTime @default(now())
+
+  optimizations TemplateOptimization[]
+
+  @@index([templateVersionId, createdAt])
+  @@index([createdById, createdAt])
+}
+
+model TemplateOptimization {
+  id String @id @default(cuid())
+
+  criticReportId String
+  criticReport   TemplateCriticReport @relation(fields: [criticReportId], references: [id], onDelete: Cascade)
+
+  sourceVersionId String
+  sourceVersion   TemplateVersion @relation("OptimizationSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Cascade)
+
+  draftVersionId String?          @unique
+  draftVersion   TemplateVersion? @relation("OptimizationDraftVersion", fields: [draftVersionId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  optimizerVersion String
+  language         String    @default("fr")
+  status           String    @default("PROPOSED")
+  originalScore    Int
+  projectedScore   Int
+  proposal         Json
+  provenance       Json
+  approvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([criticReportId, createdAt])
+  @@index([sourceVersionId, createdAt])
+  @@index([createdById, createdAt])
 }
 
 model FormTemplate {

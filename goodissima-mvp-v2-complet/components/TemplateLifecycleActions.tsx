@@ -84,7 +84,7 @@ export function TemplateLifecycleActions({
         disabled={Boolean(loading)}
         className="rounded-xl border px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-60"
       >
-        {loading === "duplicate" ? "Duplication..." : "Dupliquer"}
+        {loading === "duplicate" ? "Duplication..." : "Dupliquer le parcours"}
       </button>
       <button
         type="button"

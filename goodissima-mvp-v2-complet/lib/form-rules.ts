@@ -1,4 +1,4 @@
-export type FormValue = string | boolean | number | null | undefined;
+export type FormValue = string | boolean | number | null | undefined | FormValue[];
 export type FormValues = Record<string, FormValue>;
 
 export type ConditionalRuleAction = "SHOW" | "HIDE" | "REQUIRE" | "DISABLE";

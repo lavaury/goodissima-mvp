@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { candidateIdentityRequiredFromSnapshotMetadata, checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { buildTemplateSnapshot } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 
@@ -10,6 +12,22 @@ export async function POST(_req: Request, { params }: { params: { templateId: st
 
   if (!snapshot) {
     return NextResponse.json({ error: "Parcours introuvable ou incomplet" }, { status: 404 });
+  }
+
+  const candidateFormSafety = checkCandidatePublicationSafety(
+    snapshot.fields.map((field) => toCandidateFormField(field)),
+    { identityRequired: candidateIdentityRequiredFromSnapshotMetadata(snapshot.metadata) },
+  );
+
+  if (!candidateFormSafety.publishable) {
+    return NextResponse.json(
+      {
+        error: candidateFormSafety.error,
+        code: "CANDIDATE_FORM_SAFETY_BLOCKED",
+        candidateFormSafety,
+      },
+      { status: 400 },
+    );
   }
 
   const lastVersion = await prisma.templateVersion.findFirst({
@@ -44,5 +62,16 @@ export async function POST(_req: Request, { params }: { params: { templateId: st
     return created;
   });
 
-  return NextResponse.json(templateVersion);
+  revalidatePath(`/templates/${params.templateId}`);
+  revalidatePath("/templates");
+  revalidatePath("/opportunities");
+
+  return NextResponse.json({
+    publishedObject: "ANNOUNCEMENT",
+    status: "PUBLISHED",
+    publishedAt: templateVersion.createdAt.toISOString(),
+    version: templateVersion.version,
+    templateVersionId: templateVersion.id,
+    journeyTemplateId: snapshot.relationTemplate.id,
+  });
 }

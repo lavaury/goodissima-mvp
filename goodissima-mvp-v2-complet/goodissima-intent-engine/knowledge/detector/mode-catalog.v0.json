@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "modes": [
+    {
+      "id": "AI_TEST_MODE=scenario",
+      "knowledgeId": "goodissima-ai-governance",
+      "expression": "AI_TEST_MODE=scenario"
+    },
+    {
+      "id": "TRUST_ADMISSION_MODE=ENFORCE",
+      "knowledgeId": "goodissima-identity-trust",
+      "expression": "TRUST_ADMISSION_MODE=ENFORCE"
+    },
+    {
+      "id": "mode souverain",
+      "knowledgeId": "goodissima-trust-architecture",
+      "expression": "mode souverain"
+    },
+    {
+      "id": "SEARCH",
+      "knowledgeId": "goodissima-user-manual",
+      "expression": "rechercher"
+    },
+    {
+      "id": "DOCUMENT_REQUEST",
+      "knowledgeId": "goodissima-ai-governance",
+      "expression": "DOCUMENT_REQUEST"
+    }
+  ]
+}

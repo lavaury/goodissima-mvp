@@ -3,6 +3,7 @@ import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 import { AIWorkspace } from "@/components/AIWorkspace";
 import { ChatBox } from "@/components/ChatBox";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
+import { ProductContextBanner, ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
@@ -14,9 +15,12 @@ import {
   getRelationActionStatusLabel,
   getRelationActionTypeLabel,
 } from "@/lib/relation-actions";
+import { candidateIdentityRecommendation, resolveCandidateIdentityState } from "@/lib/candidate-identity";
+import { buildDossierSituation } from "@/lib/dossier-situation";
 import { humanizeAIEvent, humanizeRelationEvent } from "@/lib/events/humanize";
+import Link from "next/link";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
-import type { Prisma, RelationGovernanceStatus, RelationPriority, RelationStatus } from "@prisma/client";
+import type { IdentityStatus, Prisma, RelationGovernanceStatus, RelationPriority, RelationStatus } from "@prisma/client";
 import Image from "next/image";
 
 type RelationCaseWorkspaceItem = {
@@ -32,7 +36,22 @@ type RelationCaseWorkspaceItem = {
   governanceStatus: RelationGovernanceStatus;
   governanceUpdatedAt?: Date | string | null;
   governanceReason?: string | null;
-  gLink: { title: string; slug?: string | null };
+  candidateIdentity?: {
+    id: string;
+    status: IdentityStatus;
+    credentials: Array<{
+      id: string;
+      issuedAt: Date | string;
+      credentialType: {
+        code: string;
+        name: string;
+      };
+      issuerTrustedOrganization: {
+        organizationId: string;
+      };
+    }>;
+  } | null;
+  gLink: { id: string; title: string; slug?: string | null };
   createdAt: Date | string;
   messages: Array<{
     id: string;
@@ -183,7 +202,10 @@ function getRelationEventLabel(event: RelationCaseWorkspaceItem["relationEvents"
     case "AI_DRAFT_USED":
       return "Brouillon IA utilise dans l'editeur";
     default:
-      return event.type;
+      return humanizeRelationEvent(
+        event.type,
+        event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload : null,
+      ).title;
   }
 }
 
@@ -281,6 +303,19 @@ function formatSubmissionAnswer(value: Prisma.JsonValue): string {
   return JSON.stringify(value);
 }
 
+function getActiveCredentialCountLabel(count: number) {
+  return `${count} credential${count > 1 ? "s" : ""} actif${count > 1 ? "s" : ""}`;
+}
+
+function getCredentialKindLabel(
+  credential: NonNullable<RelationCaseWorkspaceItem["candidateIdentity"]>["credentials"][number],
+) {
+  return credential.credentialType.code === "CANDIDATE_CREATED" ||
+    credential.issuerTrustedOrganization.organizationId === "GOODISSIMA_SYSTEM"
+    ? "Lifecycle"
+    : "Trust";
+}
+
 function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
   const eventDocumentIds = new Set(
     item.relationEvents
@@ -349,6 +384,23 @@ export function RelationCaseWorkspace({
   const formSubmissions = item.formSubmissions ?? [];
   const relationWritable = canWriteInRelation(item.governanceStatus);
   const governanceBlockedMessage = getRelationGovernanceBlockedMessage(item.governanceStatus);
+  const candidateIdentityState = resolveCandidateIdentityState({
+    id: item.id,
+    candidateName: item.candidateName,
+    candidateEmail: item.candidateEmail,
+    identityVerificationStatus: item.candidateIdentity?.status,
+  });
+  const dossierSituation = buildDossierSituation({
+    status: item.status,
+    governanceStatus: item.governanceStatus,
+    priority: item.priority,
+    matchingEnabled: item.matchingEnabled,
+    candidateIdentity: candidateIdentityState,
+    createdAt: item.createdAt,
+    documents: item.documents,
+    relationActions: item.relationActions,
+    relationEvents: item.relationEvents,
+  });
 
   return (
     <main className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
@@ -376,12 +428,28 @@ export function RelationCaseWorkspace({
       ) : null}
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#247f88]">Espace relationnel Goodissima</p>
       <h1 className="mt-2 text-2xl font-bold leading-tight text-[#2f3437] sm:text-3xl">{item.gLink.title}</h1>
+      <ProductObjectDefinition object="workspace" />
       <p className="mt-1 text-sm leading-relaxed text-[#766f68] sm:text-base">
-        Dossier avec {item.candidateName}
+        Dossier avec {candidateIdentityState.displayName}
       </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <span className="rounded-full bg-[#e8f8f9] px-3 py-1 font-semibold text-[#247f88] ring-1 ring-[#d6e7e8]">
+          {candidateIdentityState.status}
+        </span>
+        <span className="rounded-full bg-white px-3 py-1 font-medium text-[#766f68] ring-1 ring-[#e7e0d6]">
+          {candidateIdentityState.displayEmail}
+        </span>
+        {candidateIdentityState.recommendation ? (
+          <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-800 ring-1 ring-amber-200">
+            {candidateIdentityRecommendation}
+          </span>
+        ) : null}
+      </div>
       <div className="mt-4 max-w-xl">
         <RelationGovernanceBadge status={item.governanceStatus} reason={item.governanceReason} />
       </div>
+      <div className="mt-6"><ProductLifecycle current="workspace" compact /><ProductContextBanner object="relation" /><div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 text-sm"><span>Annonce d'origine : <strong>{item.gLink.title}</strong></span><Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">Voir l'annonce</Link></div></div>
+      <nav className="mt-4 flex flex-wrap gap-2 rounded-2xl border bg-white p-3" aria-label="Actions de la relation">{["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"].map((label) => <span key={label} className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{label}</span>)}</nav>
       {debugMode && senderType === "OWNER" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
@@ -408,6 +476,9 @@ export function RelationCaseWorkspace({
           <ChatBox
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
+            candidateDisplayName={candidateIdentityState.displayName}
+            candidateContactLabel={candidateIdentityState.displayEmail}
+            candidateIdentityStatus={candidateIdentityState.status}
             readOnly={!relationWritable}
             readOnlyReason={governanceBlockedMessage}
             senderType={senderType}
@@ -438,9 +509,34 @@ export function RelationCaseWorkspace({
           />
         </section>
         {senderType === "OWNER" ? (
-          <AIWorkspace caseId={item.id} matchingEnabled={item.matchingEnabled} />
+          <AIWorkspace caseId={item.id} matchingEnabled={item.matchingEnabled} situation={dossierSituation} debugMode={debugMode} />
         ) : null}
         <aside data-metadata-sidebar="true" className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1">
+          <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+              Identité candidat
+              <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+            </summary>
+            <div className="mt-3 space-y-2 text-xs">
+              <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
+                <p className="font-medium text-[#766f68]">Candidat</p>
+                <p className="mt-0.5 font-semibold text-[#2f3437]">{candidateIdentityState.displayName}</p>
+              </div>
+              <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
+                <p className="font-medium text-[#766f68]">Contact</p>
+                <p className="mt-0.5 font-semibold text-[#2f3437]">{candidateIdentityState.displayEmail}</p>
+              </div>
+              <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
+                <p className="font-medium text-[#766f68]">Statut identité</p>
+                <p className="mt-0.5 font-semibold text-[#2f3437]">{candidateIdentityState.status}</p>
+              </div>
+              {candidateIdentityState.recommendation ? (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 font-medium text-amber-900 ring-1 ring-amber-200">
+                  {candidateIdentityState.recommendation}
+                </p>
+              ) : null}
+            </div>
+          </details>
           <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
               Matching
@@ -464,10 +560,80 @@ export function RelationCaseWorkspace({
               reason={item.governanceReason}
             />
           ) : null}
+          {senderType === "OWNER" ? (
+            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
+                Confiance
+                <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
+              </summary>
+              <div className="mt-3 space-y-2 text-xs">
+                {!item.candidateIdentity ? (
+                  <p className="rounded-lg bg-[#f6f0e8] px-3 py-2 text-[#766f68]">
+                    Identite candidat non rattachee
+                  </p>
+                ) : (
+                  <>
+                    <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
+                      <p className="font-medium text-[#766f68]">Statut identite</p>
+                      <p className="mt-0.5 font-semibold text-[#2f3437]">{item.candidateIdentity.status}</p>
+                    </div>
+                    <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
+                      <p className="font-medium text-[#766f68]">Credentials actifs</p>
+                      <p className="mt-0.5 font-semibold text-[#2f3437]">
+                        {getActiveCredentialCountLabel(item.candidateIdentity.credentials.length)}
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        {item.candidateIdentity.credentials.length === 0 ? (
+                          <p className="rounded-lg bg-[#fffcf8] px-2.5 py-2 text-[#766f68]">
+                            Aucun credential actif
+                          </p>
+                        ) : (
+                          item.candidateIdentity.credentials.map((credential) => {
+                            const kind = getCredentialKindLabel(credential);
+
+                            return (
+                              <div key={credential.id} className="rounded-lg bg-[#fffcf8] px-2.5 py-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={
+                                      kind === "Lifecycle"
+                                        ? "rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200"
+                                        : "rounded-full bg-[#e8f8f9] px-2 py-0.5 text-[10px] font-semibold text-[#247f88] ring-1 ring-[#d6e7e8]"
+                                    }
+                                  >
+                                    {kind}
+                                  </span>
+                                  <span className="break-all font-semibold text-[#2f3437]">
+                                    {credential.credentialType.code}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[#766f68]">
+                                  Emetteur : {credential.issuerTrustedOrganization.organizationId}
+                                </p>
+                                <p className="mt-0.5 text-[#766f68]">
+                                  Emis le : {formatActivityDate(credential.issuedAt)}
+                                </p>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                    {debugMode ? (
+                      <p className="break-all rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                        Identity ID: {item.candidateIdentity.id}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </details>
+          ) : null}
           <RelationActionsPanel
             caseId={item.id}
             actions={item.relationActions}
             editable={senderType === "OWNER"}
+            identityRequestRecommended={candidateIdentityState.isMissingIdentity}
             candidateAccessToken={candidateAccessToken}
             disabled={!relationWritable}
             disabledReason={governanceBlockedMessage}
@@ -479,6 +645,13 @@ export function RelationCaseWorkspace({
                 <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
               </summary>
               <div className="mt-3 space-y-3">
+                <div className="rounded-xl border border-[#e7e0d6] bg-white px-3 py-2 text-xs">
+                  <p className="font-medium text-[#766f68]">Statut identité</p>
+                  <p className="mt-0.5 font-semibold text-[#2f3437]">{candidateIdentityState.status}</p>
+                  <p className="mt-1 text-[#766f68]">
+                    {candidateIdentityState.displayName} · {candidateIdentityState.displayEmail}
+                  </p>
+                </div>
                 {formSubmissions.length === 0 ? (
                   <p className="rounded-lg bg-[#f6f0e8] px-3 py-2 text-xs text-[#766f68]">
                     Aucune réponse de formulaire enregistrée.
@@ -567,6 +740,11 @@ export function RelationCaseWorkspace({
                     <p className="text-[#766f68]">
                       {formatActivityDate(log.createdAt)}
                     </p>
+                    {debugMode && senderType === "OWNER" ? (
+                      <p className="mt-1 break-all font-mono text-[10px] text-amber-900">
+                        Code audit: {log.eventType}
+                      </p>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -4,12 +4,14 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NewTemplateButton } from "@/components/NewTemplateButton";
+import { AITemplateDesigner } from "@/components/AITemplateDesigner";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { localizeTemplateDescription, localizeTemplateName } from "@/lib/template-localization";
+import { ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 
 function statusClasses(status: string) {
   if (status === "PUBLISHED") return "bg-emerald-50 text-emerald-700 ring-emerald-200";
@@ -48,17 +50,24 @@ export default async function TemplatesPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <DashboardBackLink className="mb-4" />
-          <h1 className="text-3xl font-bold">{t("studio.title")}</h1>
-          <p className="text-slate-500">{t("studio.subtitle")}</p>
+          <h1 className="text-3xl font-bold">Mes parcours</h1>
+          <ProductObjectDefinition object="journey" />
         </div>
         <LogoutButton />
       </div>
       <div className="mt-8">
         <PlatformNavigation active="studio" organizationName={organizationName} />
       </div>
+      <ProductLifecycle current="journey" />
       <div className="mt-6">
         <NewTemplateButton />
       </div>
+      <div className="mt-3">
+        <Link href="/templates/demo" className="inline-flex rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900">
+          Démo · Expérimental · parcours IA guidé
+        </Link>
+      </div>
+      <AITemplateDesigner />
 
       <div className="mt-8 overflow-hidden rounded-2xl border bg-white">
         {templates.length === 0 ? (
@@ -76,7 +85,8 @@ export default async function TemplatesPage() {
                 <p className="font-semibold">
                   {localizeTemplateName(template.relationTemplate?.key, template.name, locale)}
                 </p>
-                <p className="font-mono text-xs text-slate-500">{template.key}</p>
+                <p className="text-xs text-slate-500">Parcours réutilisable · Quality Guard · Critic · Optimizer · versions · audit/provenance</p>
+                <p className="mt-1 text-xs font-medium text-[#247f88]">{template.relationTemplate?._count.links ?? 0} annonce{(template.relationTemplate?._count.links ?? 0) > 1 ? "s" : ""} utilisant ce parcours</p>
               </div>
               <p className="text-sm text-slate-600">
                 {localizeTemplateDescription(template.relationTemplate?.key, template.description, locale) ??
@@ -91,27 +101,24 @@ export default async function TemplatesPage() {
                   {statusLabel(template.relationTemplate?.status ?? "DRAFT", t)}
                 </span>
               </div>
-              <p className="text-sm text-slate-500">
-                {template.relationTemplate?.versions[0]
-                  ? t("studio.activeVersion", { version: template.relationTemplate.versions[0].version })
-                  : t("studio.noActiveVersion")}
-              </p>
+              <p className="text-sm text-slate-500">{template._count.fields} éléments de suivi</p>
               <p className="text-sm text-slate-500">
                 {t("studio.links", { count: template.relationTemplate?._count.links ?? 0 })}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Link
+              <Link
                   href={`/templates/${template.id}`}
                   className="rounded-xl border px-4 py-2 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  {t("studio.test")}
-                </Link>
+                Voir le parcours
+              </Link>
+              {template.relationTemplate ? <Link href={`/opportunities?templateId=${template.relationTemplate.id}`} className="rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-center text-sm font-medium text-cyan-900">Voir les annonces</Link> : null}
                 {template.relationTemplate ? (
                   <Link
                     href={`/links/new?templateId=${template.relationTemplate.id}`}
                     className="rounded-xl bg-slate-900 px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-slate-800"
                   >
-                    {t("studio.createLinkWithJourney")}
+                    Créer une opportunité
                   </Link>
                 ) : null}
               </div>

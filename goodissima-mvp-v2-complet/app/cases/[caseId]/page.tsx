@@ -12,10 +12,39 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
 
   const owner = await getCurrentPrismaUser();
   const debugMode = isGoodissimaDebugMode();
+  const now = new Date();
   const item = await prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
     include: {
       gLink: true,
+      candidateIdentity: {
+        select: {
+          id: true,
+          status: true,
+          credentials: {
+            where: {
+              status: "ACTIVE",
+              OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+            },
+            orderBy: { issuedAt: "desc" },
+            select: {
+              id: true,
+              issuedAt: true,
+              credentialType: {
+                select: {
+                  code: true,
+                  name: true,
+                },
+              },
+              issuerTrustedOrganization: {
+                select: {
+                  organizationId: true,
+                },
+              },
+            },
+          },
+        },
+      },
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
       relationActions: { orderBy: [{ status: "asc" }, { createdAt: "desc" }] },

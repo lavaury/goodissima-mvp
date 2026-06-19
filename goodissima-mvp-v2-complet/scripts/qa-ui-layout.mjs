@@ -10,7 +10,7 @@ function assert(condition, message) {
 const workspace = fs.readFileSync("components/AIWorkspace.tsx", "utf8");
 const caseWorkspace = fs.readFileSync("components/RelationCaseWorkspace.tsx", "utf8");
 
-for (const label of ["Resume IA", "Timeline IA", "Signaux IA", "Matching", "Brouillons IA"]) {
+for (const label of ["Situation du dossier", "Résumé IA", "Timeline IA", "Signaux IA", "Matching", "Brouillons IA"]) {
   assert(workspace.includes(label), `missing AI workspace tab: ${label}`);
 }
 

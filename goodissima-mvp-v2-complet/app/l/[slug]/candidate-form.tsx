@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import {
   DynamicFormRenderer,
@@ -12,11 +13,19 @@ import {
   type DynamicFieldValue,
   type DynamicFormField,
 } from "@/components/DynamicFormRenderer";
+import { deriveCandidateSubmissionFields } from "@/lib/candidate-form-safety";
 import { getFieldsForStep, getStepCount } from "@/lib/form-steps";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
+import {
+  SECURE_LINK_ADMISSION_LABELS,
+  type SecureLinkAdmissionMode,
+} from "@/lib/secure-link-admission";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateFieldKeys = new Set(["notificationEmail"]);
+const trustAdmissionBlockedCode = "TRUST_ADMISSION_BLOCKED";
+const trustAdmissionBlockedMessage =
+  "Cette relation nécessite une attestation valide. Elle peut être absente, expirée ou révoquée.";
 
 async function getApiErrorMessage(res: Response) {
   try {
@@ -28,24 +37,6 @@ async function getApiErrorMessage(res: Response) {
   } catch {
     return "Erreur lors de l'ajout du document";
   }
-}
-
-async function getCaseSubmissionErrorMessage(res: Response) {
-  try {
-    const body = await res.json();
-    const code =
-      body && typeof body === "object" && "code" in body && typeof body.code === "string"
-        ? body.code
-        : null;
-
-    if (code) {
-      return `La demande n'a pas pu être envoyée. Code : ${code}`;
-    }
-  } catch {
-    // Keep the current generic fallback when the API response is not JSON.
-  }
-
-  return "Erreur lors de l'action";
 }
 
 function normalizeAnswerKey(key: string) {
@@ -70,14 +61,43 @@ function getFirstAnswer(answers: Record<string, DynamicFieldValue>, keys: string
   return "";
 }
 
+async function getCaseSubmissionError(res: Response) {
+  try {
+    const body = await res.json();
+    const code = body && typeof body === "object" && "code" in body && typeof body.code === "string"
+      ? body.code
+      : null;
+
+    if (code === trustAdmissionBlockedCode) {
+      return { code: trustAdmissionBlockedCode, message: trustAdmissionBlockedMessage };
+    }
+
+    if (typeof body.error === "string") {
+      return { code, message: body.error };
+    }
+
+    if (code) {
+      return { code, message: "La demande n'a pas pu être envoyée. Vérifiez les champs du formulaire." };
+    }
+  } catch {
+    // Keep the generic candidate-facing fallback when the API response is not JSON.
+  }
+
+  return { code: null, message: "Erreur lors de l'action" };
+}
+
 export default function CandidateForm({
   gLinkId,
+  admissionMode,
   formTemplateId,
+  templateVersionId,
   fields,
   copy,
 }: {
   gLinkId: string;
+  admissionMode: SecureLinkAdmissionMode;
   formTemplateId: string | null;
+  templateVersionId?: string | null;
   fields: DynamicFormField[];
   copy: {
     documentOptionalTitle: string;
@@ -99,6 +119,8 @@ export default function CandidateForm({
   };
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState<Record<string, DynamicFieldValue>>(() =>
@@ -112,12 +134,18 @@ export default function CandidateForm({
   });
   const [emailNotificationsConsent, setEmailNotificationsConsent] = useState(false);
   const [notificationEmail, setNotificationEmail] = useState("");
+  const [admissionErrorMessage, setAdmissionErrorMessage] = useState("");
+  const [isAdmissionBlocked, setIsAdmissionBlocked] = useState(false);
   const stepCount = getStepCount(fields);
   const isMultiStep = stepCount > 1;
   const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
   const hasTemplateNotificationFields = fields.some((field) =>
     ["notificationOptIn", "notificationEmail"].includes(field.key),
   );
+  const trustAdmissionToken = searchParams.get("trustAdmissionToken")?.trim() ?? "";
+  const search = searchParams.toString();
+  const returnPath = `${pathname}${search ? `?${search}` : ""}`;
+  const authNext = encodeURIComponent(returnPath);
 
   function validateFields(fieldsToValidate: DynamicFormField[]) {
     const ruleValues = toRuleValues(answers);
@@ -204,6 +232,8 @@ export default function CandidateForm({
 
   async function submit() {
     if (!validateForm()) {
+      setAdmissionErrorMessage("");
+      setIsAdmissionBlocked(false);
       toast.error(copy.fieldErrorToast);
       return;
     }
@@ -229,23 +259,30 @@ export default function CandidateForm({
       result[field.key] = field.type === "FILE" ? files[field.key]?.name ?? "" : answers[field.key] ?? "";
       return result;
     }, {});
-    const candidateEmail = email || `private-${crypto.randomUUID()}@goodissima.local`;
-    const candidateName = fullName || candidateEmail || privateNotificationEmail || "Candidat";
+    const derivedSubmission = deriveCandidateSubmissionFields(submissionAnswers);
+    const candidateEmail =
+      derivedSubmission.candidateEmail || email || `private-${crypto.randomUUID()}@goodissima.local`;
+    const candidateName =
+      derivedSubmission.candidateName || fullName || candidateEmail || privateNotificationEmail || "Candidat";
 
     const payload = {
       gLinkId,
       candidateName,
       candidateEmail,
       candidateNotificationEmail: wantsNotifications ? privateNotificationEmail : "",
-      message,
+      message: derivedSubmission.message || message,
       documentName: documentFields.documentName,
       documentUrl: documentFields.documentUrl,
       formTemplateId,
+      templateVersionId,
       answers: submissionAnswers,
       emailNotificationsConsent: wantsNotifications,
+      ...(trustAdmissionToken ? { trustAdmissionToken } : {}),
     };
 
     setLoading(true);
+    setAdmissionErrorMessage("");
+    setIsAdmissionBlocked(false);
 
     try {
       const res = await fetch("/api/cases", {
@@ -255,7 +292,16 @@ export default function CandidateForm({
       });
 
       if (!res.ok) {
-        toast.error(await getCaseSubmissionErrorMessage(res));
+        const submissionError = await getCaseSubmissionError(res);
+
+        if (submissionError.code === trustAdmissionBlockedCode) {
+          setIsAdmissionBlocked(true);
+          toast.error(submissionError.message);
+          return;
+        }
+
+        setAdmissionErrorMessage(submissionError.message);
+        toast.error(submissionError.message);
         return;
       }
 
@@ -273,6 +319,14 @@ export default function CandidateForm({
 
   return (
     <div className="mt-6 space-y-4">
+      <div className={`rounded-2xl border p-4 text-sm ${admissionMode === "VERIFIED_ONLY" ? "border-amber-200 bg-amber-50 text-amber-950" : "border-emerald-200 bg-emerald-50 text-emerald-950"}`}>
+        <p className="font-semibold">Admission · {SECURE_LINK_ADMISSION_LABELS[admissionMode]}</p>
+        <p className="mt-1">
+          {admissionMode === "VERIFIED_ONLY"
+            ? "Une identité Goodissima vérifiée sera demandée avant la création du dossier."
+            : "Vous pouvez répondre sans fournir votre identité, sauf si le parcours la demande explicitement."}
+        </p>
+      </div>
       <DynamicFormRenderer
         fields={currentFields}
         values={answers}
@@ -376,6 +430,39 @@ export default function CandidateForm({
           </button>
         )}
       </div>
+      {isAdmissionBlocked ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <h3 className="font-semibold text-amber-950">{trustAdmissionBlockedMessage}</h3>
+          <p className="mt-2 leading-6">
+            Pour envoyer votre demande, vous devez disposer d'une identité Goodissima et obtenir
+            l'attestation demandée.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Link
+              className="rounded-xl bg-slate-900 px-4 py-3 text-center font-medium text-white"
+              href={`/identity?next=${authNext}`}
+            >
+              Vérifier mon identité
+            </Link>
+            <Link
+              className="rounded-xl border border-amber-300 bg-white px-4 py-3 text-center font-medium text-slate-900"
+              href={`/signup?next=${authNext}`}
+            >
+              Créer mon identité Goodissima
+            </Link>
+            <Link
+              className="rounded-xl border border-amber-300 bg-white px-4 py-3 text-center font-medium text-slate-900"
+              href={`/login?next=${authNext}`}
+            >
+              J'ai déjà un compte
+            </Link>
+          </div>
+        </div>
+      ) : admissionErrorMessage ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {admissionErrorMessage}
+        </p>
+      ) : null}
     </div>
   );
 }

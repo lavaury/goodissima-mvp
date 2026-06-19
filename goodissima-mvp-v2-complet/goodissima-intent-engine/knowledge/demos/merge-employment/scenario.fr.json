@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "requester": "candidate-search.ciro.json",
+  "requesterLabel": "Candidat recherchant un emploi",
+  "candidates": [
+    "employer-offer.ciro.json",
+    "second-candidate.ciro.json",
+    "housing.ciro.json"
+  ]
+}

@@ -91,11 +91,18 @@ export type AIRiskAnalysis = {
   riskSignals: AIRiskSignal[];
 };
 
+export type AIProviderUsage = {
+  tokensInput?: number | null;
+  tokensOutput?: number | null;
+  estimatedCostEur?: number | null;
+  latencyMs?: number | null;
+};
+
 export type AIProviderResult<T> = {
   provider: AIProviderName;
   model: string;
   output: T;
-};
+} & AIProviderUsage;
 
 export type AIProvider = {
   name: AIProviderName;

@@ -1,7 +1,9 @@
 "use client";
 
+import { VoiceCaptureButton } from "@/components/VoiceCaptureButton";
 import type { ConditionalRule, FormValues } from "@/lib/form-rules";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
+import { mergeVoiceTranscript } from "@/lib/voice-opportunity";
 
 export type DynamicFieldValue = string | boolean;
 
@@ -120,16 +122,27 @@ export function DynamicFormRenderer({
     switch (fieldType) {
       case "TEXTAREA":
         return (
-          <FieldShell key={field.key} field={field} required={required}>
-            <textarea
-              className="min-h-32 w-full rounded-xl border px-4 py-3"
-              placeholder={field.placeholder ?? undefined}
-              value={getStringFieldValue(values[field.key])}
-              required={required}
-              disabled={disabled}
-              onChange={(e) => onChange(field.key, e.target.value)}
-            />
-          </FieldShell>
+          <div key={field.key} className="block space-y-2">
+            <FieldLabel field={field} required={required} />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+              <textarea
+                className="min-h-32 w-full rounded-xl border px-4 py-3"
+                placeholder={field.placeholder ?? undefined}
+                value={getStringFieldValue(values[field.key])}
+                required={required}
+                disabled={disabled}
+                onChange={(e) => onChange(field.key, e.target.value)}
+              />
+              <VoiceCaptureButton
+                label="Dicter ma réponse"
+                disabled={disabled}
+                onTranscript={(transcript) => {
+                  onChange(field.key, mergeVoiceTranscript(getStringFieldValue(values[field.key]), transcript));
+                }}
+              />
+            </div>
+            <FieldHelp placeholder={field.placeholder} />
+          </div>
         );
       case "SELECT":
         return (

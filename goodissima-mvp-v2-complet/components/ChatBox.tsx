@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { VoiceCaptureButton } from "@/components/VoiceCaptureButton";
+import { mergeVoiceTranscript } from "@/lib/voice-opportunity";
 
 type ChatMessage = {
   id: string;
@@ -26,6 +28,9 @@ function formatMessageDate(date: Date | string) {
 export function ChatBox({
   caseId,
   candidateAccessToken,
+  candidateDisplayName = "Candidat",
+  candidateContactLabel,
+  candidateIdentityStatus,
   readOnly = false,
   readOnlyReason,
   senderEmail,
@@ -33,6 +38,9 @@ export function ChatBox({
 }: {
   caseId?: string;
   candidateAccessToken?: string;
+  candidateDisplayName?: string;
+  candidateContactLabel?: string;
+  candidateIdentityStatus?: string;
   readOnly?: boolean;
   readOnlyReason?: string;
   senderEmail?: string;
@@ -44,7 +52,7 @@ export function ChatBox({
   const [showLatestButton, setShowLatestButton] = useState(false);
   const [newMessagesFromId, setNewMessagesFromId] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const isNearBottomRef = useRef(true);
   const hasLoadedMessagesRef = useRef(false);
   const previousMessageCountRef = useRef(0);
@@ -198,14 +206,24 @@ export function ChatBox({
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-semibold text-[#2f3437]">Conversation</p>
+            <p className="text-xs font-medium text-[#247f88]">
+              {candidateDisplayName} · {candidateContactLabel ?? "Contact non renseigné"}
+            </p>
             <p className="text-xs text-slate-500">Échanges horodatés et protégés.</p>
           </div>
-          {sending ? (
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#e8f8f9] px-3 py-1 text-xs font-medium text-[#247f88]">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[#2fb8c4]" />
-              Envoi...
-            </span>
-          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            {candidateIdentityStatus ? (
+              <span className="inline-flex items-center rounded-full bg-[#e8f8f9] px-3 py-1 text-xs font-medium text-[#247f88] ring-1 ring-[#d6e7e8]">
+                {candidateIdentityStatus}
+              </span>
+            ) : null}
+            {sending ? (
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#e8f8f9] px-3 py-1 text-xs font-medium text-[#247f88]">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[#2fb8c4]" />
+                Envoi...
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -278,15 +296,16 @@ export function ChatBox({
         ) : null}
       </div>
 
-      <div data-sticky-input="true" className="sticky bottom-0 flex gap-2 border-t border-[#e7e0d6] bg-[#fffcf8]/95 p-3 backdrop-blur sm:p-4">
+      <div data-sticky-input="true" className="sticky bottom-0 flex flex-col gap-2 border-t border-[#e7e0d6] bg-[#fffcf8]/95 p-3 backdrop-blur sm:flex-row sm:items-end sm:p-4">
         {readOnly ? (
           <div className="flex-1 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
             {readOnlyReason ?? "Les nouveaux messages sont bloques pour cette relation."}
           </div>
         ) : (
-          <input
+          <textarea
             ref={inputRef}
-            className="min-h-12 flex-1 rounded-2xl border border-[#d6e7e8] bg-white px-4 py-3 text-base text-[#2f3437] outline-none transition placeholder:text-[#9a928a] focus:border-[#2fb8c4] focus:ring-2 focus:ring-[#2fb8c4]/20 sm:text-sm"
+            rows={1}
+            className="min-h-12 flex-1 resize-none rounded-2xl border border-[#d6e7e8] bg-white px-4 py-3 text-base text-[#2f3437] outline-none transition placeholder:text-[#9a928a] focus:border-[#2fb8c4] focus:ring-2 focus:ring-[#2fb8c4]/20 sm:text-sm"
             placeholder="Ecrire un message..."
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -299,10 +318,22 @@ export function ChatBox({
           />
         )}
 
+        {!readOnly ? (
+          <VoiceCaptureButton
+            label="Dicter ma réponse"
+            compact
+            disabled={sending}
+            onTranscript={(transcript) => {
+              setBody((current) => mergeVoiceTranscript(current, transcript));
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
+          />
+        ) : null}
+
         <button
           onClick={sendMessage}
           disabled={readOnly || sending || !body.trim()}
-          className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#263846] px-5 py-3 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30 disabled:translate-y-0 disabled:opacity-60"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#263846] px-5 py-3 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30 disabled:translate-y-0 disabled:opacity-60"
         >
           <SendIcon />
           {sending ? "Envoi..." : "Envoyer"}

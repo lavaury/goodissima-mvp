@@ -9,6 +9,7 @@ import {
 } from "@/lib/relation-actions";
 import { useI18n } from "@/components/I18nProvider";
 import { useToast } from "@/components/ToastProvider";
+import { candidateIdentityRecommendation, candidateIdentityRequestTitle } from "@/lib/candidate-identity";
 
 type RelationActionItem = {
   id: string;
@@ -64,6 +65,7 @@ export function RelationActionsPanel({
   candidateAccessToken,
   disabled = false,
   disabledReason,
+  identityRequestRecommended = false,
   actions,
   editable,
 }: {
@@ -71,6 +73,7 @@ export function RelationActionsPanel({
   candidateAccessToken?: string;
   disabled?: boolean;
   disabledReason?: string;
+  identityRequestRecommended?: boolean;
   actions: RelationActionItem[];
   editable: boolean;
 }) {
@@ -105,6 +108,32 @@ export function RelationActionsPanel({
     }
 
     setForm({ type: "DOCUMENT_REQUEST", title: "", description: "" });
+    toast.success(t("actions.created"));
+    router.refresh();
+  }
+
+  async function requestCoordinates() {
+    if (disabled || creating) return;
+    setCreating(true);
+
+    const res = await fetch(`/api/cases/${caseId}/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "TASK",
+        title: candidateIdentityRequestTitle,
+        description: candidateIdentityRecommendation,
+        payload: { draftOnly: true, identityRequest: true },
+      }),
+    });
+
+    setCreating(false);
+
+    if (!res.ok) {
+      toast.error(await getApiErrorMessage(res));
+      return;
+    }
+
     toast.success(t("actions.created"));
     router.refresh();
   }
@@ -146,6 +175,16 @@ export function RelationActionsPanel({
 
       {editable ? (
         <form onSubmit={createAction} className="mt-4 space-y-3 rounded-xl bg-slate-50 p-3">
+          {identityRequestRecommended ? (
+            <button
+              type="button"
+              onClick={() => void requestCoordinates()}
+              disabled={disabled || creating}
+              className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 disabled:opacity-60"
+            >
+              {candidateIdentityRequestTitle}
+            </button>
+          ) : null}
           <select
             className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
             value={form.type}
