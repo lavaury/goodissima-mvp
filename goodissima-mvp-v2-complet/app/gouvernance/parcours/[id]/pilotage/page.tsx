@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
 import { prepareParticipantInvitationAction } from "@/lib/governance-participant-invitations-actions";
 import { prisma } from "@/lib/prisma";
 
@@ -35,6 +36,18 @@ type ParticipantInvitation = {
   preparedById: string;
   automaticEmailSent: false;
   accessOpened: false;
+};
+
+type DocumentReception = {
+  receptionId: string;
+  documentName: string;
+  reference: string | null;
+  note: string | null;
+  status: "RECEIVED_DECLARED";
+  receivedAt: string;
+  receivedById: string;
+  fileStored: false;
+  automaticValidation: false;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -124,6 +137,37 @@ function participantKey(name: string, role: string) {
   return `${name.trim().toLowerCase()}::${role.trim().toLowerCase()}`;
 }
 
+function documentReceptionsFrom(value: unknown): DocumentReception[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const row = asRecord(item);
+      const receptionId = text(row.receptionId);
+      const documentName = text(row.documentName);
+      const receivedAt = text(row.receivedAt);
+      const receivedById = text(row.receivedById);
+      if (!receptionId || !documentName || !receivedAt || !receivedById) return null;
+
+      return {
+        receptionId,
+        documentName,
+        reference: text(row.reference),
+        note: text(row.note),
+        status: "RECEIVED_DECLARED" as const,
+        receivedAt,
+        receivedById,
+        fileStored: false as const,
+        automaticValidation: false as const,
+      };
+    })
+    .filter((item): item is DocumentReception => item !== null);
+}
+
+function documentKey(name: string) {
+  return name.trim().toLowerCase();
+}
+
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "Date non disponible";
   const date = typeof value === "string" ? new Date(value) : value;
@@ -180,6 +224,7 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
   const confidentialityRules = textArray(creationPlan.confidentialityRules);
   const firstActions = actionsFrom(creationPlan.firstActions);
   const participantInvitations = invitationsFrom(metadata.participantInvitations);
+  const documentReceptions = documentReceptionsFrom(metadata.documentReceptions);
   const humanValidated = validation.humanValidated === true;
 
   return (
@@ -296,15 +341,66 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
             <p className="mt-3 text-sm text-slate-500">Aucun document attendu n’a été renseigné.</p>
           ) : (
             <div className="mt-4 space-y-3">
-              {documents.map((document, index) => (
+              {documents.map((document, index) => {
+                const reception = documentReceptions.find((item) => documentKey(item.documentName) === documentKey(document.name));
+
+                return (
                 <article key={`${document.name}-${index}`} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{document.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{document.reason}</p>
+                  {reception ? (
+                    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+                      <p className="font-bold">Reception declaree - fichier non stocke en V1</p>
+                      <p className="mt-1 text-xs font-semibold text-emerald-800">
+                        Statut metadata : {reception.status} - fichier stocke : non - validation automatique : non
+                      </p>
+                      {reception.reference ? <p className="mt-2 text-sm">Reference : {reception.reference}</p> : null}
+                      {reception.note ? <p className="mt-1 text-sm">Note : {reception.note}</p> : null}
+                      <p className="mt-2 text-xs text-emerald-800">Declare le {formatDate(reception.receivedAt)}.</p>
+                    </div>
+                  ) : (
+                    <form action={declareDocumentReceptionAction} className="mt-4 rounded-lg border bg-white p-3">
+                      <input type="hidden" name="formTemplateId" value={formTemplate.id} />
+                      <input type="hidden" name="documentName" value={document.name} />
+                      <p className="text-sm font-bold text-slate-950">Declarer une reception</p>
+                      <div className="mt-3 grid gap-3">
+                        <label className="text-xs font-semibold text-slate-600">
+                          Reference optionnelle
+                          <input
+                            name="optionalReference"
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                            placeholder="Reference externe ou interne"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-slate-600">
+                          Note optionnelle
+                          <textarea
+                            name="optionalNote"
+                            className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                            placeholder="Contexte de reception, sans fichier stocke"
+                          />
+                        </label>
+                      </div>
+                      <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
+                        Declarer sans stocker
+                      </button>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Metadata V1 uniquement : aucun fichier stocke, aucune validation automatique, aucun workflow.
+                      </p>
+                    </form>
+                  )}
+                  {!reception ? (
                   <p className="mt-2 text-xs font-semibold text-slate-500">
                     {document.required ? "Obligatoire" : "Optionnel"} · statut V1 : attendu, non reçu.
                   </p>
+                  ) : (
+                  <p className="mt-2 text-xs font-semibold text-slate-500">
+                    {document.required ? "Obligatoire" : "Optionnel"} - statut V1 : reception declaree, fichier non stocke en V1.
+                  </p>
+                  )}
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
