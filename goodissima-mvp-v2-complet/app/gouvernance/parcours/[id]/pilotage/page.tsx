@@ -31,11 +31,17 @@ type ParticipantInvitation = {
   participantRole: string;
   email: string | null;
   note: string | null;
+  messageDraft: string | null;
   status: "PREPARED_NOT_SENT";
+  deliveryMode: "MANUAL_OUT_OF_BAND";
+  manualDeliveryRequired: true;
   preparedAt: string;
+  updatedAt: string;
   preparedById: string;
   automaticEmailSent: false;
   accessOpened: false;
+  tokenGenerated: false;
+  linkGenerated: false;
 };
 
 type DocumentReception = {
@@ -123,14 +129,32 @@ function invitationsFrom(value: unknown): ParticipantInvitation[] {
         participantRole,
         email: text(row.email),
         note: text(row.note),
+        messageDraft: text(row.messageDraft),
         status: "PREPARED_NOT_SENT" as const,
+        deliveryMode: "MANUAL_OUT_OF_BAND" as const,
+        manualDeliveryRequired: true as const,
         preparedAt,
+        updatedAt: text(row.updatedAt) ?? preparedAt,
         preparedById,
         automaticEmailSent: false as const,
         accessOpened: false as const,
+        tokenGenerated: false as const,
+        linkGenerated: false as const,
       };
     })
     .filter((item): item is ParticipantInvitation => item !== null);
+}
+
+function defaultInvitationMessageDraft(input: { journeyTitle: string; participantRole: string }) {
+  return [
+    "Bonjour,",
+    "",
+    `Vous etes identifie comme participant attendu dans le parcours gouverne \"${input.journeyTitle}\".`,
+    `Role attendu : ${input.participantRole}.`,
+    "Cette invitation n'a pas ete envoyee automatiquement par Goodissima.",
+    "Aucun acces n'est ouvert a ce stade.",
+    "Merci de confirmer les modalites de participation avec le responsable du parcours.",
+  ].join("\n");
 }
 
 function participantKey(name: string, role: string) {
@@ -279,20 +303,77 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                     participantKey(item.participantName, item.participantRole) ===
                     participantKey(participant.name, participant.role),
                 );
+                const messageDraft =
+                  invitation?.messageDraft ??
+                  defaultInvitationMessageDraft({ journeyTitle: title, participantRole: participant.role });
 
                 return (
                 <article key={`${participant.name}-${index}`} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{participant.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{participant.role}</p>
                   {invitation ? (
-                    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-                      <p className="font-bold">Invitation preparee - non envoyee automatiquement</p>
-                      <p className="mt-1 text-xs font-semibold text-emerald-800">
-                        Statut metadata : {invitation.status} - acces ouvert : non - email envoye : non
-                      </p>
-                      {invitation.email ? <p className="mt-2 text-sm">Email prepare : {invitation.email}</p> : null}
-                      {invitation.note ? <p className="mt-1 text-sm">Note : {invitation.note}</p> : null}
-                      <p className="mt-2 text-xs text-emerald-800">Prepare le {formatDate(invitation.preparedAt)}.</p>
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+                        <p className="font-bold">Invitation preparee - non envoyee automatiquement</p>
+                        <p className="mt-1 text-xs font-semibold text-emerald-800">
+                          Statut metadata : {invitation.status} - transmission manuelle requise - aucun email automatique.
+                        </p>
+                        {invitation.email ? <p className="mt-2 text-sm">Email prepare : {invitation.email}</p> : null}
+                        {invitation.note ? <p className="mt-1 text-sm">Note : {invitation.note}</p> : null}
+                        <p className="mt-2 text-xs text-emerald-800">
+                          Prepare le {formatDate(invitation.preparedAt)}. Derniere mise a jour : {formatDate(invitation.updatedAt)}.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-white p-3">
+                        <p className="text-sm font-bold text-slate-950">Message a transmettre manuellement</p>
+                        <textarea
+                          readOnly
+                          value={messageDraft}
+                          className="mt-2 min-h-40 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800"
+                        />
+                      </div>
+                      <form action={prepareParticipantInvitationAction} className="rounded-lg border bg-white p-3">
+                        <input type="hidden" name="formTemplateId" value={formTemplate.id} />
+                        <input type="hidden" name="participantName" value={participant.name} />
+                        <input type="hidden" name="participantRole" value={participant.role} />
+                        <p className="text-sm font-bold text-slate-950">Modifier la preparation</p>
+                        <div className="mt-3 grid gap-3">
+                          <label className="text-xs font-semibold text-slate-600">
+                            Email optionnel
+                            <input
+                              name="optionalEmail"
+                              type="email"
+                              defaultValue={invitation.email ?? ""}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                              placeholder="Non transmis automatiquement"
+                            />
+                          </label>
+                          <label className="text-xs font-semibold text-slate-600">
+                            Note optionnelle
+                            <textarea
+                              name="optionalNote"
+                              defaultValue={invitation.note ?? ""}
+                              className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                              placeholder="Message interne de preparation"
+                            />
+                          </label>
+                          <label className="text-xs font-semibold text-slate-600">
+                            Brouillon de message
+                            <textarea
+                              name="messageDraft"
+                              defaultValue={messageDraft}
+                              className="mt-1 min-h-40 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                            />
+                          </label>
+                        </div>
+                        <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
+                          Mettre a jour sans transmettre
+                        </button>
+                        <p className="mt-2 text-xs text-slate-500">
+                          V1 : ce message est uniquement prepare pour copie ou transmission manuelle. Goodissima n'envoie pas
+                          l'invitation, ne genere pas de lien et n'ouvre aucun acces automatiquement.
+                        </p>
+                      </form>
                     </div>
                   ) : (
                     <form action={prepareParticipantInvitationAction} className="mt-4 rounded-lg border bg-white p-3">
@@ -318,12 +399,21 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                             placeholder="Message interne de preparation"
                           />
                         </label>
+                        <label className="text-xs font-semibold text-slate-600">
+                          Brouillon de message
+                          <textarea
+                            name="messageDraft"
+                            defaultValue={messageDraft}
+                            className="mt-1 min-h-40 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                          />
+                        </label>
                       </div>
                       <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
                         Preparer sans envoyer
                       </button>
                       <p className="mt-2 text-xs text-slate-500">
-                        Metadata V1 uniquement : aucun email, aucun lien d'acces, aucun contact automatique.
+                        V1 : ce message est uniquement prepare pour copie ou transmission manuelle. Goodissima n'envoie pas
+                        l'invitation, ne genere pas de lien et n'ouvre aucun acces automatiquement.
                       </p>
                     </form>
                   )}
@@ -444,8 +534,10 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
       <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
         <h2 className="font-bold">Limite V1 explicite</h2>
         <p className="mt-2 leading-relaxed">
-          Cette salle de pilotage affiche le cadrage validé et les éléments de préparation du parcours. Les invitations privées,
-          communications sécurisées, revues de gouvernance et dépôts documentaires interactifs ne sont pas activés dans ce cockpit minimal.
+          Cette salle de pilotage affiche le cadrage validé et les éléments de préparation du parcours. V1 : les messages
+          d'invitation sont uniquement préparés pour copie ou transmission manuelle. Goodissima n'envoie pas l'invitation,
+          ne génère pas de lien et n'ouvre aucun accès automatiquement. Les communications sécurisées, revues de gouvernance
+          et dépôts documentaires interactifs ne sont pas activés dans ce cockpit minimal.
         </p>
         <p className="mt-2 text-xs">
           Source : {source} · Workspace : {workspaceId}

@@ -13,11 +13,17 @@ type ParticipantInvitationMetadata = {
   participantRole: string;
   email: string | null;
   note: string | null;
+  messageDraft: string;
   status: "PREPARED_NOT_SENT";
+  deliveryMode: "MANUAL_OUT_OF_BAND";
+  manualDeliveryRequired: true;
   preparedAt: string;
+  updatedAt: string;
   preparedById: string;
   automaticEmailSent: false;
   accessOpened: false;
+  tokenGenerated: false;
+  linkGenerated: false;
 };
 
 function textFromForm(formData: FormData, key: string) {
@@ -27,6 +33,18 @@ function textFromForm(formData: FormData, key: string) {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function defaultMessageDraft(input: { journeyTitle: string; participantRole: string }) {
+  return [
+    "Bonjour,",
+    "",
+    `Vous etes identifie comme participant attendu dans le parcours gouverne \"${input.journeyTitle}\".`,
+    `Role attendu : ${input.participantRole}.`,
+    "Cette invitation n'a pas ete envoyee automatiquement par Goodissima.",
+    "Aucun acces n'est ouvert a ce stade.",
+    "Merci de confirmer les modalites de participation avec le responsable du parcours.",
+  ].join("\n");
 }
 
 function existingInvitations(value: unknown): ParticipantInvitationMetadata[] {
@@ -50,11 +68,17 @@ function existingInvitations(value: unknown): ParticipantInvitationMetadata[] {
         participantRole,
         email: typeof row.email === "string" && row.email.trim() ? row.email.trim() : null,
         note: typeof row.note === "string" && row.note.trim() ? row.note.trim() : null,
+        messageDraft: typeof row.messageDraft === "string" && row.messageDraft.trim() ? row.messageDraft.trim() : "",
         status: "PREPARED_NOT_SENT" as const,
+        deliveryMode: "MANUAL_OUT_OF_BAND" as const,
+        manualDeliveryRequired: true as const,
         preparedAt,
+        updatedAt: typeof row.updatedAt === "string" && row.updatedAt.trim() ? row.updatedAt.trim() : preparedAt,
         preparedById,
         automaticEmailSent: false as const,
         accessOpened: false as const,
+        tokenGenerated: false as const,
+        linkGenerated: false as const,
       };
     })
     .filter((item): item is ParticipantInvitationMetadata => item !== null);
@@ -71,6 +95,7 @@ export async function prepareParticipantInvitationAction(formData: FormData) {
   const participantRole = textFromForm(formData, "participantRole");
   const optionalEmail = textFromForm(formData, "optionalEmail");
   const optionalNote = textFromForm(formData, "optionalNote");
+  const submittedMessageDraft = textFromForm(formData, "messageDraft");
 
   if (!formTemplateId || !participantName || !participantRole) {
     throw new Error("Informations participant incompletes.");
@@ -97,11 +122,21 @@ export async function prepareParticipantInvitationAction(formData: FormData) {
 
   const snapshot = asRecord(latestVersion.snapshot);
   const metadata = asRecord(snapshot.metadata);
+  const creationPlan = asRecord(metadata.creationPlan);
+  const journeyTitle =
+    (typeof creationPlan.title === "string" && creationPlan.title.trim()) ||
+    formTemplate.name ||
+    "Parcours gouverne";
   const currentInvitations = existingInvitations(metadata.participantInvitations);
   const key = participantKey(participantName, participantRole);
   const previous = currentInvitations.find((invitation) =>
     participantKey(invitation.participantName, invitation.participantRole) === key
   );
+  const now = new Date().toISOString();
+  const messageDraft =
+    submittedMessageDraft ||
+    previous?.messageDraft ||
+    defaultMessageDraft({ journeyTitle, participantRole });
 
   const preparedInvitation: ParticipantInvitationMetadata = {
     invitationId: previous?.invitationId ?? `prepared-${randomUUID()}`,
@@ -109,11 +144,17 @@ export async function prepareParticipantInvitationAction(formData: FormData) {
     participantRole,
     email: optionalEmail || null,
     note: optionalNote || null,
+    messageDraft,
     status: "PREPARED_NOT_SENT",
-    preparedAt: new Date().toISOString(),
+    deliveryMode: "MANUAL_OUT_OF_BAND",
+    manualDeliveryRequired: true,
+    preparedAt: previous?.preparedAt ?? now,
+    updatedAt: now,
     preparedById: owner.id,
     automaticEmailSent: false,
     accessOpened: false,
+    tokenGenerated: false,
+    linkGenerated: false,
   };
 
   const participantInvitations = [
