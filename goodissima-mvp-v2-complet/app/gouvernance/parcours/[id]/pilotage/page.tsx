@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { prepareParticipantInvitationAction } from "@/lib/governance-participant-invitations-actions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,19 @@ type FirstAction = {
   title: string;
   owner: string;
   dueHint: string | undefined;
+};
+
+type ParticipantInvitation = {
+  invitationId: string;
+  participantName: string;
+  participantRole: string;
+  email: string | null;
+  note: string | null;
+  status: "PREPARED_NOT_SENT";
+  preparedAt: string;
+  preparedById: string;
+  automaticEmailSent: false;
+  accessOpened: false;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -75,6 +89,39 @@ function actionsFrom(value: unknown): FirstAction[] {
       return title ? { title, owner, dueHint } : null;
     })
     .filter((item): item is FirstAction => item !== null) as FirstAction[];
+}
+
+function invitationsFrom(value: unknown): ParticipantInvitation[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const row = asRecord(item);
+      const invitationId = text(row.invitationId);
+      const participantName = text(row.participantName);
+      const participantRole = text(row.participantRole);
+      const preparedAt = text(row.preparedAt);
+      const preparedById = text(row.preparedById);
+      if (!invitationId || !participantName || !participantRole || !preparedAt || !preparedById) return null;
+
+      return {
+        invitationId,
+        participantName,
+        participantRole,
+        email: text(row.email),
+        note: text(row.note),
+        status: "PREPARED_NOT_SENT" as const,
+        preparedAt,
+        preparedById,
+        automaticEmailSent: false as const,
+        accessOpened: false as const,
+      };
+    })
+    .filter((item): item is ParticipantInvitation => item !== null);
+}
+
+function participantKey(name: string, role: string) {
+  return `${name.trim().toLowerCase()}::${role.trim().toLowerCase()}`;
 }
 
 function formatDate(value: Date | string | null | undefined) {
@@ -132,6 +179,7 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
 
   const confidentialityRules = textArray(creationPlan.confidentialityRules);
   const firstActions = actionsFrom(creationPlan.firstActions);
+  const participantInvitations = invitationsFrom(metadata.participantInvitations);
   const humanValidated = validation.humanValidated === true;
 
   return (
@@ -180,13 +228,64 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
             <p className="mt-3 text-sm text-slate-500">Aucun participant attendu n’a été renseigné.</p>
           ) : (
             <div className="mt-4 space-y-3">
-              {participants.map((participant, index) => (
+              {participants.map((participant, index) => {
+                const invitation = participantInvitations.find(
+                  (item) =>
+                    participantKey(item.participantName, item.participantRole) ===
+                    participantKey(participant.name, participant.role),
+                );
+
+                return (
                 <article key={`${participant.name}-${index}`} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{participant.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{participant.role}</p>
+                  {invitation ? (
+                    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+                      <p className="font-bold">Invitation preparee - non envoyee automatiquement</p>
+                      <p className="mt-1 text-xs font-semibold text-emerald-800">
+                        Statut metadata : {invitation.status} - acces ouvert : non - email envoye : non
+                      </p>
+                      {invitation.email ? <p className="mt-2 text-sm">Email prepare : {invitation.email}</p> : null}
+                      {invitation.note ? <p className="mt-1 text-sm">Note : {invitation.note}</p> : null}
+                      <p className="mt-2 text-xs text-emerald-800">Prepare le {formatDate(invitation.preparedAt)}.</p>
+                    </div>
+                  ) : (
+                    <form action={prepareParticipantInvitationAction} className="mt-4 rounded-lg border bg-white p-3">
+                      <input type="hidden" name="formTemplateId" value={formTemplate.id} />
+                      <input type="hidden" name="participantName" value={participant.name} />
+                      <input type="hidden" name="participantRole" value={participant.role} />
+                      <p className="text-sm font-bold text-slate-950">Preparer une invitation privee</p>
+                      <div className="mt-3 grid gap-3">
+                        <label className="text-xs font-semibold text-slate-600">
+                          Email optionnel
+                          <input
+                            name="optionalEmail"
+                            type="email"
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                            placeholder="Non envoye automatiquement"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-slate-600">
+                          Note optionnelle
+                          <textarea
+                            name="optionalNote"
+                            className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                            placeholder="Message interne de preparation"
+                          />
+                        </label>
+                      </div>
+                      <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
+                        Preparer sans envoyer
+                      </button>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Metadata V1 uniquement : aucun email, aucun lien d'acces, aucun contact automatique.
+                      </p>
+                    </form>
+                  )}
                   <p className="mt-2 text-xs font-semibold text-slate-500">Statut V1 : attendu, non contacté automatiquement.</p>
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
