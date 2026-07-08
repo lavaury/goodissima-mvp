@@ -5,15 +5,9 @@ import { listCurrentUserGovernanceWorkspacesAction } from "@/lib/governance-work
 
 const governanceActions = [
   {
-    title: "Commencer une activite",
-    body: "Exprimez votre besoin, laissez l'IA preparer le parcours, puis choisissez le Workspace ou le piloter.",
-    href: "/gouvernance/nouveau",
-    cta: "Commencer une activite",
-  },
-  {
     title: "Creer un parcours gouverne",
-    body: "Creez un parcours gouverne, invitez les bons participants et preparez son pilotage dans le bon Workspace.",
-    href: "/gouvernance/parcours/nouveau",
+    body: "Creez un parcours brouillon reel, puis ouvrez son cockpit de preparation.",
+    href: "/gouvernance/nouveau",
     cta: "Creer un parcours gouverne",
   },
   {
