@@ -364,6 +364,8 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
     text(creationPlan.workspaceId) ??
     text(metadata.workspaceId) ??
     "Workspace non rattaché en V1";
+  const workspaceCategory = text(metadata.workspaceCategory);
+  const workspacePersistence = text(metadata.workspacePersistence);
   const source = text(creationPlan.source) ?? text(metadata.source) ?? "Création V1";
 
   const participants = actorsFrom(creationPlan.participants ?? creationPlan.actors);
@@ -485,6 +487,30 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
       <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Besoin initial validé</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{initialNeed}</p>
+      </section>
+
+      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Workspace actuel</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">{workspaceId}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Le rattachement manuel d'un ancien parcours se fait depuis la page Gouvernance.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {workspaceCategory ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                Catégorie : {workspaceCategory}
+              </span>
+            ) : null}
+            {workspacePersistence ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                {workspacePersistence}
+              </span>
+            ) : null}
+          </div>
+        </div>
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

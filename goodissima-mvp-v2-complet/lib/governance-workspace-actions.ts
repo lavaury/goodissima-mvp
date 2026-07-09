@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import type { WorkspaceCategory, WorkspaceKind } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import {
@@ -24,6 +25,10 @@ const workspaceKinds = new Set<WorkspaceKind>(["GOVERNANCE", "RELATION", "MIXED"
 function textFromForm(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function workspaceSlugFrom(value: string) {
@@ -92,5 +97,109 @@ export async function createWorkspaceAction(formData: FormData) {
     },
   });
 
+  redirect("/gouvernance");
+}
+
+export async function attachGovernedJourneyToWorkspaceAction(formData: FormData) {
+  const owner = await getCurrentPrismaUser();
+  const formTemplateId = textFromForm(formData, "formTemplateId");
+  const workspaceId = textFromForm(formData, "workspaceId");
+
+  if (!formTemplateId || !workspaceId) {
+    throw new Error("Le parcours et le Workspace cible sont obligatoires.");
+  }
+
+  const formTemplate = await prisma.formTemplate.findUnique({
+    where: { id: formTemplateId },
+    include: {
+      relationTemplate: {
+        include: {
+          workspace: {
+            select: {
+              ownerId: true,
+            },
+          },
+          versions: {
+            orderBy: { version: "desc" },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  if (!formTemplate?.relationTemplate) {
+    throw new Error("Parcours gouverne introuvable.");
+  }
+
+  const latestVersion = formTemplate.relationTemplate.versions[0];
+  if (!latestVersion) {
+    throw new Error("Version du parcours introuvable.");
+  }
+
+  const workspace = await prisma.workspace.findFirst({
+    where: {
+      id: workspaceId,
+      ownerId: owner.id,
+      status: "ACTIVE",
+    },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      category: true,
+    },
+  });
+
+  if (!workspace) {
+    throw new Error("Workspace cible introuvable pour cet utilisateur.");
+  }
+
+  const snapshot = asRecord(latestVersion.snapshot);
+  const metadata = asRecord(snapshot.metadata);
+  const creationPlan = asRecord(metadata.creationPlan);
+  const metadataOwnerId = typeof metadata.createdById === "string" ? metadata.createdById : null;
+  const alreadyAttachedToOwner = formTemplate.relationTemplate.workspace?.ownerId === owner.id;
+
+  if (metadataOwnerId !== owner.id && !alreadyAttachedToOwner) {
+    throw new Error("Ce parcours ne peut pas etre rattache par cet utilisateur.");
+  }
+
+  const now = new Date().toISOString();
+  const nextMetadata = {
+    ...metadata,
+    workspaceId: workspace.id,
+    workspaceSlug: workspace.slug,
+    workspaceName: workspace.name,
+    workspaceCategory: workspace.category,
+    workspacePersistence: "prisma-workspace-v1-manual-attachment",
+    workspaceAttachedAt: now,
+    workspaceAttachedById: owner.id,
+    creationPlan: {
+      ...creationPlan,
+      workspaceId: workspace.id,
+      workspaceName: workspace.name,
+    },
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.relationTemplate.update({
+      where: { id: formTemplate.relationTemplate!.id },
+      data: { workspaceId: workspace.id },
+    });
+
+    await tx.templateVersion.update({
+      where: { id: latestVersion.id },
+      data: {
+        snapshot: {
+          ...snapshot,
+          metadata: nextMetadata,
+        },
+      },
+    });
+  });
+
+  revalidatePath("/gouvernance");
+  revalidatePath(`/gouvernance/parcours/${formTemplateId}/pilotage`);
   redirect("/gouvernance");
 }

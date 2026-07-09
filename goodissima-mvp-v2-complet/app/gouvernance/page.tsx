@@ -2,7 +2,12 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { getRealGovernanceWorkspaceSummaries } from "@/lib/governance-workspace-repository";
+import { attachGovernedJourneyToWorkspaceAction } from "@/lib/governance-workspace-actions";
+import {
+  getGovernanceWorkspaceOptions,
+  getRealGovernanceWorkspaceSummaries,
+  getUnassignedGovernedJourneySummaries,
+} from "@/lib/governance-workspace-repository";
 
 const governanceActions = [
   {
@@ -43,10 +48,18 @@ function stateTone(state: string) {
   return state === "Actif" ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
+function formatDate(value: Date) {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(value);
+}
+
 export default async function GovernanceWorkspacePage() {
   noStore();
   const owner = await getCurrentPrismaUser();
-  const workspaces = await getRealGovernanceWorkspaceSummaries(owner.id);
+  const [workspaces, workspaceOptions, unassignedJourneys] = await Promise.all([
+    getRealGovernanceWorkspaceSummaries(owner.id),
+    getGovernanceWorkspaceOptions(owner.id),
+    getUnassignedGovernedJourneySummaries(owner.id),
+  ]);
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   return (
@@ -151,6 +164,64 @@ export default async function GovernanceWorkspacePage() {
           </div>
         )}
       </section>
+
+      {unassignedJourneys.length > 0 ? (
+        <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Rattachement manuel</p>
+              <h2 className="mt-1 text-2xl font-bold text-amber-950">Parcours gouvernes sans Workspace</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-900">
+                Ces parcours existent deja et peuvent etre rattaches a un Workspace produit actif. Aucun Workspace,
+                invitation, acces ou workflow n'est cree automatiquement.
+              </p>
+            </div>
+            <Link href="/gouvernance/workspaces/nouveau" className="w-fit rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-950">
+              Creer un Workspace
+            </Link>
+          </div>
+
+          {workspaceOptions.length === 0 ? (
+            <p className="mt-5 rounded-lg bg-white px-4 py-3 text-sm text-amber-900">
+              Aucun Workspace actif disponible pour le rattachement.
+            </p>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {unassignedJourneys.map((journey) => (
+                <article key={journey.formTemplateId} className="rounded-lg border border-amber-200 bg-white p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-950">{journey.title}</h3>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">Cree le {formatDate(journey.createdAt)}</p>
+                      <Link href={journey.href} className="mt-2 inline-block text-xs font-bold text-[#247f88] underline underline-offset-4">
+                        Ouvrir le cockpit
+                      </Link>
+                    </div>
+                    <form action={attachGovernedJourneyToWorkspaceAction} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input type="hidden" name="formTemplateId" value={journey.formTemplateId} />
+                      <select
+                        name="workspaceId"
+                        required
+                        className="min-w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950"
+                      >
+                        <option value="">Choisir un Workspace</option>
+                        {workspaceOptions.map((workspace) => (
+                          <option key={workspace.id} value={workspace.id}>
+                            {workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                        Rattacher au Workspace
+                      </button>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-lg border bg-white p-6 shadow-sm">
