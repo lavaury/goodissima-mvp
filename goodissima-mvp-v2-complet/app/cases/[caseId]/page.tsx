@@ -1,6 +1,7 @@
 import { RelationCaseWorkspace } from "@/components/RelationCaseWorkspace";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { isGoodissimaDebugMode } from "@/lib/debug";
+import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-repository";
 import { prisma } from "@/lib/prisma";
 import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
@@ -13,10 +14,20 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
   const owner = await getCurrentPrismaUser();
   const debugMode = isGoodissimaDebugMode();
   const now = new Date();
-  const item = await prisma.relationCase.findFirst({
+  const [item, workspaceOptions] = await Promise.all([
+    prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
     include: {
       gLink: true,
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          category: true,
+          kind: true,
+        },
+      },
       candidateIdentity: {
         select: {
           id: true,
@@ -62,11 +73,21 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
       auditLogs: { orderBy: { createdAt: "desc" } },
       relationEvents: { orderBy: { createdAt: "desc" } },
     },
-  });
+    }),
+    getGovernanceWorkspaceOptions(owner.id),
+  ]);
 
   if (!item) notFound();
 
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
-  return <RelationCaseWorkspace item={item} senderType="OWNER" organizationName={organizationName} debugMode={debugMode} />;
+  return (
+    <RelationCaseWorkspace
+      item={item}
+      senderType="OWNER"
+      organizationName={organizationName}
+      debugMode={debugMode}
+      workspaceOptions={workspaceOptions}
+    />
+  );
 }

@@ -2,11 +2,17 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { attachGovernedJourneyToWorkspaceAction } from "@/lib/governance-workspace-actions";
+import {
+  attachGLinkToWorkspaceAction,
+  attachGovernedJourneyToWorkspaceAction,
+  attachRelationCaseToWorkspaceAction,
+} from "@/lib/governance-workspace-actions";
 import {
   getGovernanceWorkspaceOptions,
   getRealGovernanceWorkspaceSummaries,
+  getUnassignedGLinkSummaries,
   getUnassignedGovernedJourneySummaries,
+  getUnassignedRelationCaseSummaries,
 } from "@/lib/governance-workspace-repository";
 
 const governanceActions = [
@@ -55,10 +61,12 @@ function formatDate(value: Date) {
 export default async function GovernanceWorkspacePage() {
   noStore();
   const owner = await getCurrentPrismaUser();
-  const [workspaces, workspaceOptions, unassignedJourneys] = await Promise.all([
+  const [workspaces, workspaceOptions, unassignedJourneys, unassignedRelationCases, unassignedGLinks] = await Promise.all([
     getRealGovernanceWorkspaceSummaries(owner.id),
     getGovernanceWorkspaceOptions(owner.id),
     getUnassignedGovernedJourneySummaries(owner.id),
+    getUnassignedRelationCaseSummaries(owner.id),
+    getUnassignedGLinkSummaries(owner.id),
   ]);
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
@@ -165,6 +173,57 @@ export default async function GovernanceWorkspacePage() {
                     ))}
                   </div>
                 ) : null}
+
+                {workspace.relationCases.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dossiers relationnels</p>
+                    {workspace.relationCases.map((relationCase) => (
+                      <div key={relationCase.id} className="rounded-lg bg-white px-3 py-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {relationCase.candidateName || relationCase.candidateEmail}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {relationCase.gLinkTitle} - {relationCase.status} - {formatDate(relationCase.createdAt)}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Communications relationnelles : {relationCase.communicationsCount}
+                            </p>
+                          </div>
+                          <Link href={relationCase.href} className="w-fit rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700">
+                            Ouvrir le dossier
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {workspace.gLinks.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Liens relationnels</p>
+                    {workspace.gLinks.map((link) => (
+                      <div key={link.id} className="flex flex-col gap-2 rounded-lg bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{link.title}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            /l/{link.slug} - {link.status} - {link.relationCaseCount} dossier{link.relationCaseCount > 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <Link href={link.href} className="w-fit rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700">
+                          Ouvrir le lien
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {workspace.relationCommunicationCount > 0 ? (
+                  <p className="mt-4 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+                    Communications rattachees aux dossiers relationnels : {workspace.relationCommunicationCount}
+                  </p>
+                ) : null}
               </article>
             ))}
           </div>
@@ -228,6 +287,130 @@ export default async function GovernanceWorkspacePage() {
           )}
         </section>
       ) : null}
+
+      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Dossiers relationnels</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-950">Rattachement aux Workspaces</h2>
+            <p className="mt-2 max-w-4xl text-sm leading-relaxed text-slate-700">
+              Le rattachement au Workspace organise les dossiers et liens existants. Il ne modifie pas les acces candidats,
+              n'envoie aucune notification et ne cree aucun nouveau lien.
+            </p>
+          </div>
+          <Link href="/gouvernance/workspaces/nouveau" className="w-fit rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
+            Creer un Workspace
+          </Link>
+        </div>
+
+        {unassignedRelationCases.length === 0 ? (
+          <p className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+            Aucun dossier relationnel sans Workspace.
+          </p>
+        ) : (
+          <div className="mt-5 space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Dossiers sans Workspace</h3>
+            {unassignedRelationCases.map((relationCase) => (
+              <article key={relationCase.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h4 className="font-bold text-slate-950">{relationCase.candidateName || relationCase.candidateEmail}</h4>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      {relationCase.gLinkTitle} - {relationCase.status} - cree le {formatDate(relationCase.createdAt)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Communications relationnelles : {relationCase.communicationsCount}
+                    </p>
+                    <Link href={relationCase.href} className="mt-2 inline-block text-xs font-bold text-[#247f88] underline underline-offset-4">
+                      Ouvrir le dossier
+                    </Link>
+                  </div>
+                  {workspaceOptions.length > 0 ? (
+                    <form action={attachRelationCaseToWorkspaceAction} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input type="hidden" name="relationCaseId" value={relationCase.id} />
+                      <select
+                        name="workspaceId"
+                        required
+                        className="min-w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950"
+                      >
+                        <option value="">Choisir un Workspace</option>
+                        {workspaceOptions.map((workspace) => (
+                          <option key={workspace.id} value={workspace.id}>
+                            {workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                        Rattacher au Workspace
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-500">Aucun Workspace actif disponible.</p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {unassignedGLinks.length === 0 ? (
+          <p className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+            Aucun lien relationnel sans Workspace.
+          </p>
+        ) : (
+          <div className="mt-5 space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Liens relationnels sans Workspace</h3>
+            {unassignedGLinks.map((link) => (
+              <article key={link.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h4 className="font-bold text-slate-950">{link.title}</h4>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      /l/{link.slug} - {link.status} - cree le {formatDate(link.createdAt)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Dossiers lies : {link.relationCaseCount}. Dossiers lies sans Workspace : {link.unassignedRelationCaseCount}.
+                    </p>
+                    <Link href={link.href} className="mt-2 inline-block text-xs font-bold text-[#247f88] underline underline-offset-4">
+                      Ouvrir le lien
+                    </Link>
+                  </div>
+                  {workspaceOptions.length > 0 ? (
+                    <form action={attachGLinkToWorkspaceAction} className="flex flex-col gap-2 lg:items-end">
+                      <input type="hidden" name="gLinkId" value={link.id} />
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <select
+                          name="workspaceId"
+                          required
+                          className="min-w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950"
+                        >
+                          <option value="">Choisir un Workspace</option>
+                          {workspaceOptions.map((workspace) => (
+                            <option key={workspace.id} value={workspace.id}>
+                              {workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}
+                            </option>
+                          ))}
+                        </select>
+                        <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                          Rattacher au Workspace
+                        </button>
+                      </div>
+                      {link.unassignedRelationCaseCount > 0 ? (
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                          <input type="checkbox" name="attachUnassignedCases" className="h-4 w-4" />
+                          Rattacher aussi les dossiers de ce lien encore sans Workspace
+                        </label>
+                      ) : null}
+                    </form>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-500">Aucun Workspace actif disponible.</p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-lg border bg-white p-6 shadow-sm">

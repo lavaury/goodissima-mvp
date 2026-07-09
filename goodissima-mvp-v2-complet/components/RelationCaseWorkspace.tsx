@@ -13,6 +13,11 @@ import { RelationGovernanceBadge, RelationGovernanceControls } from "@/component
 import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
+  attachRelationCaseToWorkspaceAction,
+  detachRelationCaseFromWorkspaceAction,
+} from "@/lib/governance-workspace-actions";
+import type { GovernanceWorkspaceOption } from "@/lib/governance-workspace-repository";
+import {
   getRelationActionStatusLabel,
   getRelationActionTypeLabel,
 } from "@/lib/relation-actions";
@@ -62,6 +67,13 @@ type RelationCaseWorkspaceItem = {
     }>;
   } | null;
   gLink: { id: string; title: string; slug?: string | null };
+  workspace?: {
+    id: string;
+    name: string;
+    slug: string;
+    category: string;
+    kind: string;
+  } | null;
   createdAt: Date | string;
   messages: Array<{
     id: string;
@@ -476,12 +488,14 @@ export function RelationCaseWorkspace({
   candidateAccessToken,
   organizationName,
   debugMode = false,
+  workspaceOptions = [],
 }: {
   item: RelationCaseWorkspaceItem;
   senderType: "OWNER" | "CANDIDATE";
   candidateAccessToken?: string;
   organizationName?: string | null;
   debugMode?: boolean;
+  workspaceOptions?: GovernanceWorkspaceOption[];
 }) {
   const activityEvents = getActivityEvents(item);
   const communicationSessions = item.communicationSessions ?? [];
@@ -555,6 +569,58 @@ export function RelationCaseWorkspace({
         <RelationGovernanceBadge status={item.governanceStatus} reason={item.governanceReason} />
       </div>
       <div className="mt-6"><ProductLifecycle current="workspace" compact /><ProductContextBanner object="relation" /><div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 text-sm"><span>Annonce d'origine : <strong>{item.gLink.title}</strong></span><Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">Voir l'annonce</Link></div></div>
+      {!isCandidateView ? (
+        <section className="mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#247f88]">Workspace du dossier</p>
+              {item.workspace ? (
+                <p className="mt-1 font-semibold text-[#2f3437]">
+                  {item.workspace.name} <span className="font-normal text-[#766f68]">({item.workspace.slug})</span>
+                </p>
+              ) : (
+                <p className="mt-1 font-semibold text-[#766f68]">Aucun Workspace rattache.</p>
+              )}
+              <p className="mt-1 text-xs text-[#766f68]">
+                Ce rattachement organise le dossier existant sans modifier l'acces candidat, sans notification et sans nouveau lien.
+              </p>
+            </div>
+            {workspaceOptions.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <form action={attachRelationCaseToWorkspaceAction} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input type="hidden" name="relationCaseId" value={item.id} />
+                  <select
+                    name="workspaceId"
+                    required
+                    defaultValue={item.workspace?.id ?? ""}
+                    className="min-w-64 rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-sm text-[#2f3437]"
+                  >
+                    <option value="">Choisir un Workspace</option>
+                    {workspaceOptions.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                    {item.workspace ? "Changer de Workspace" : "Rattacher au Workspace"}
+                  </button>
+                </form>
+                {item.workspace ? (
+                  <form action={detachRelationCaseFromWorkspaceAction} className="sm:self-end">
+                    <input type="hidden" name="relationCaseId" value={item.id} />
+                    <button type="submit" className="text-xs font-semibold text-slate-500 underline underline-offset-4">
+                      Detacher du Workspace
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-xs font-semibold text-[#766f68]">Aucun Workspace actif disponible.</p>
+            )}
+          </div>
+        </section>
+      ) : null}
       <nav className="mt-4 flex flex-wrap gap-2 rounded-2xl border bg-white p-3" aria-label="Actions de la relation">{["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"].map((label) => <span key={label} className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{label}</span>)}</nav>
       {debugMode && senderType === "OWNER" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">

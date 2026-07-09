@@ -3,6 +3,8 @@ import type {
   CommunicationChannelType,
   CommunicationProvider,
   CommunicationSessionStatus,
+  LinkStatus,
+  RelationStatus,
   WorkspaceCategory,
   WorkspaceKind,
 } from "@prisma/client";
@@ -30,6 +32,27 @@ export type RealGovernanceJourneySummary = {
   href: string | null;
 };
 
+export type GovernanceWorkspaceRelationCaseSummary = {
+  id: string;
+  candidateName: string;
+  candidateEmail: string;
+  status: RelationStatus;
+  createdAt: Date;
+  href: string;
+  gLinkTitle: string;
+  communicationsCount: number;
+};
+
+export type GovernanceWorkspaceGLinkSummary = {
+  id: string;
+  title: string;
+  slug: string;
+  status: LinkStatus;
+  createdAt: Date;
+  href: string;
+  relationCaseCount: number;
+};
+
 export type RealGovernanceWorkspaceSummary = {
   workspaceId: string;
   slug: string;
@@ -50,6 +73,9 @@ export type RealGovernanceWorkspaceSummary = {
   state: "Actif" | "Archive";
   observation: string;
   journeys: RealGovernanceJourneySummary[];
+  relationCases: GovernanceWorkspaceRelationCaseSummary[];
+  gLinks: GovernanceWorkspaceGLinkSummary[];
+  relationCommunicationCount: number;
 };
 
 export type GovernanceCommunicationSessionSummary = {
@@ -110,6 +136,14 @@ export type UnassignedGovernedJourneySummary = {
   href: string;
 };
 
+export type UnassignedRelationCaseSummary = GovernanceWorkspaceRelationCaseSummary & {
+  gLinkId: string;
+};
+
+export type UnassignedGLinkSummary = GovernanceWorkspaceGLinkSummary & {
+  unassignedRelationCaseCount: number;
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -153,6 +187,31 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
             select: {
               id: true,
               name: true,
+            },
+          },
+        },
+      },
+      relationCases: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          gLink: {
+            select: {
+              title: true,
+            },
+          },
+          _count: {
+            select: {
+              communicationSessions: true,
+            },
+          },
+        },
+      },
+      links: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          _count: {
+            select: {
+              cases: true,
             },
           },
         },
@@ -203,6 +262,29 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
       workspace._count.relationCases +
       workspace._count.links +
       workspace._count.communicationSessions;
+    const relationCases = workspace.relationCases.map((relationCase) => ({
+      id: relationCase.id,
+      candidateName: relationCase.candidateName,
+      candidateEmail: relationCase.candidateEmail,
+      status: relationCase.status,
+      createdAt: relationCase.createdAt,
+      href: `/cases/${relationCase.id}`,
+      gLinkTitle: relationCase.gLink.title,
+      communicationsCount: relationCase._count.communicationSessions,
+    }));
+    const gLinks = workspace.links.map((link) => ({
+      id: link.id,
+      title: link.title,
+      slug: link.slug,
+      status: link.status,
+      createdAt: link.createdAt,
+      href: `/links/${link.id}`,
+      relationCaseCount: link._count.cases,
+    }));
+    const relationCommunicationCount = relationCases.reduce(
+      (total, relationCase) => total + relationCase.communicationsCount,
+      0,
+    );
     const firstJourneyHref = journeys.find((journey) => journey.href)?.href;
 
     return {
@@ -228,6 +310,9 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
           ? "Workspace persistant rattache a des objets Goodissima."
           : "Workspace persistant sans objet rattache pour le moment.",
       journeys,
+      relationCases,
+      gLinks,
+      relationCommunicationCount,
     };
   });
 }
@@ -323,4 +408,76 @@ export async function getUnassignedGovernedJourneySummaries(ownerId: string): Pr
       };
     })
     .filter((item): item is UnassignedGovernedJourneySummary => item !== null);
+}
+
+export async function getUnassignedRelationCaseSummaries(ownerId: string): Promise<UnassignedRelationCaseSummary[]> {
+  const relationCases = await prisma.relationCase.findMany({
+    where: {
+      ownerId,
+      workspaceId: null,
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      gLink: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      _count: {
+        select: {
+          communicationSessions: true,
+        },
+      },
+    },
+  });
+
+  return relationCases.map((relationCase) => ({
+    id: relationCase.id,
+    gLinkId: relationCase.gLink.id,
+    candidateName: relationCase.candidateName,
+    candidateEmail: relationCase.candidateEmail,
+    status: relationCase.status,
+    createdAt: relationCase.createdAt,
+    href: `/cases/${relationCase.id}`,
+    gLinkTitle: relationCase.gLink.title,
+    communicationsCount: relationCase._count.communicationSessions,
+  }));
+}
+
+export async function getUnassignedGLinkSummaries(ownerId: string): Promise<UnassignedGLinkSummary[]> {
+  const links = await prisma.gLink.findMany({
+    where: {
+      ownerId,
+      workspaceId: null,
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      cases: {
+        where: {
+          ownerId,
+          workspaceId: null,
+        },
+        select: {
+          id: true,
+        },
+      },
+      _count: {
+        select: {
+          cases: true,
+        },
+      },
+    },
+  });
+
+  return links.map((link) => ({
+    id: link.id,
+    title: link.title,
+    slug: link.slug,
+    status: link.status,
+    createdAt: link.createdAt,
+    href: `/links/${link.id}`,
+    relationCaseCount: link._count.cases,
+    unassignedRelationCaseCount: link.cases.length,
+  }));
 }

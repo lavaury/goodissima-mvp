@@ -203,3 +203,184 @@ export async function attachGovernedJourneyToWorkspaceAction(formData: FormData)
   revalidatePath(`/gouvernance/parcours/${formTemplateId}/pilotage`);
   redirect("/gouvernance");
 }
+
+export async function attachRelationCaseToWorkspaceAction(formData: FormData) {
+  const owner = await getCurrentPrismaUser();
+  const relationCaseId = textFromForm(formData, "relationCaseId");
+  const workspaceId = textFromForm(formData, "workspaceId");
+
+  if (!relationCaseId || !workspaceId) {
+    throw new Error("Le dossier relationnel et le Workspace cible sont obligatoires.");
+  }
+
+  const [relationCase, workspace] = await Promise.all([
+    prisma.relationCase.findFirst({
+      where: {
+        id: relationCaseId,
+        ownerId: owner.id,
+      },
+      select: {
+        id: true,
+        gLinkId: true,
+        candidateAccessToken: true,
+        gLink: {
+          select: {
+            id: true,
+            ownerId: true,
+            workspaceId: true,
+          },
+        },
+      },
+    }),
+    prisma.workspace.findFirst({
+      where: {
+        id: workspaceId,
+        ownerId: owner.id,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!relationCase) {
+    throw new Error("Dossier relationnel introuvable pour cet utilisateur.");
+  }
+
+  if (!workspace) {
+    throw new Error("Workspace cible introuvable pour cet utilisateur.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.relationCase.update({
+      where: { id: relationCase.id },
+      data: { workspaceId: workspace.id },
+    });
+
+    if (relationCase.gLink.ownerId === owner.id && !relationCase.gLink.workspaceId) {
+      await tx.gLink.update({
+        where: { id: relationCase.gLinkId },
+        data: { workspaceId: workspace.id },
+      });
+    }
+  });
+
+  revalidatePath("/gouvernance");
+  revalidatePath(`/cases/${relationCase.id}`);
+  revalidatePath(`/links/${relationCase.gLinkId}`);
+  if (relationCase.candidateAccessToken) {
+    revalidatePath(`/secure/${relationCase.candidateAccessToken}`);
+  }
+}
+
+export async function detachRelationCaseFromWorkspaceAction(formData: FormData) {
+  const owner = await getCurrentPrismaUser();
+  const relationCaseId = textFromForm(formData, "relationCaseId");
+
+  if (!relationCaseId) {
+    throw new Error("Le dossier relationnel est obligatoire.");
+  }
+
+  const relationCase = await prisma.relationCase.findFirst({
+    where: {
+      id: relationCaseId,
+      ownerId: owner.id,
+    },
+    select: {
+      id: true,
+      gLinkId: true,
+      candidateAccessToken: true,
+    },
+  });
+
+  if (!relationCase) {
+    throw new Error("Dossier relationnel introuvable pour cet utilisateur.");
+  }
+
+  await prisma.relationCase.update({
+    where: { id: relationCase.id },
+    data: { workspaceId: null },
+  });
+
+  revalidatePath("/gouvernance");
+  revalidatePath(`/cases/${relationCase.id}`);
+  revalidatePath(`/links/${relationCase.gLinkId}`);
+  if (relationCase.candidateAccessToken) {
+    revalidatePath(`/secure/${relationCase.candidateAccessToken}`);
+  }
+}
+
+export async function attachGLinkToWorkspaceAction(formData: FormData) {
+  const owner = await getCurrentPrismaUser();
+  const gLinkId = textFromForm(formData, "gLinkId");
+  const workspaceId = textFromForm(formData, "workspaceId");
+  const attachUnassignedCases = textFromForm(formData, "attachUnassignedCases") === "on";
+
+  if (!gLinkId || !workspaceId) {
+    throw new Error("Le lien relationnel et le Workspace cible sont obligatoires.");
+  }
+
+  const [gLink, workspace] = await Promise.all([
+    prisma.gLink.findFirst({
+      where: {
+        id: gLinkId,
+        ownerId: owner.id,
+      },
+      select: {
+        id: true,
+        cases: {
+          where: {
+            ownerId: owner.id,
+            workspaceId: null,
+          },
+          select: {
+            id: true,
+            candidateAccessToken: true,
+          },
+        },
+      },
+    }),
+    prisma.workspace.findFirst({
+      where: {
+        id: workspaceId,
+        ownerId: owner.id,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!gLink) {
+    throw new Error("Lien relationnel introuvable pour cet utilisateur.");
+  }
+
+  if (!workspace) {
+    throw new Error("Workspace cible introuvable pour cet utilisateur.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.gLink.update({
+      where: { id: gLink.id },
+      data: { workspaceId: workspace.id },
+    });
+
+    if (attachUnassignedCases) {
+      await tx.relationCase.updateMany({
+        where: {
+          gLinkId: gLink.id,
+          ownerId: owner.id,
+          workspaceId: null,
+        },
+        data: { workspaceId: workspace.id },
+      });
+    }
+  });
+
+  revalidatePath("/gouvernance");
+  revalidatePath(`/links/${gLink.id}`);
+  for (const relationCase of gLink.cases) {
+    revalidatePath(`/cases/${relationCase.id}`);
+    if (relationCase.candidateAccessToken) {
+      revalidatePath(`/secure/${relationCase.candidateAccessToken}`);
+    }
+  }
+}
