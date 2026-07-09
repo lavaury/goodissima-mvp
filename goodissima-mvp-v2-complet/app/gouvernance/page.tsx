@@ -141,6 +141,11 @@ export default async function GovernanceWorkspacePage() {
                   <Metric label="Communications" value={workspace.communicationCount} />
                   <Metric label="Objets" value={workspace.totalObjects} />
                 </dl>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <Metric label="Preparees" value={workspace.preparedCommunicationCount} />
+                  <Metric label="Terminees" value={workspace.completedCommunicationCount} />
+                  <Metric label="Expirees" value={workspace.expiredCommunicationCount} />
+                </dl>
                 <p className="mt-4 rounded-lg bg-white px-3 py-2 text-sm text-slate-700">{workspace.observation}</p>
 
                 {workspace.journeys.length > 0 ? (

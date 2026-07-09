@@ -19,9 +19,18 @@ type ParticipantPresence = {
   seenAt: number;
 };
 
+type ParticipantLeave = {
+  peerId: string;
+  role: ParticipantRole;
+  sessionId: string;
+  caseId: string | null;
+  leftAt: number;
+};
+
 type SignalingStore = {
   messages: RelationMediaSignalMessage[];
   participants: Map<string, ParticipantPresence>;
+  leaves: Map<string, ParticipantLeave>;
   nextCursor: number;
 };
 
@@ -39,7 +48,12 @@ function storeFor(sessionId: string) {
   const existing = stores.get(sessionId);
   if (existing) return existing;
 
-  const next = { messages: [], participants: new Map<string, ParticipantPresence>(), nextCursor: 0 };
+  const next = {
+    messages: [],
+    participants: new Map<string, ParticipantPresence>(),
+    leaves: new Map<string, ParticipantLeave>(),
+    nextCursor: 0,
+  };
   stores.set(sessionId, next);
   return next;
 }
@@ -56,6 +70,7 @@ function prune(store: SignalingStore, now: number) {
 
 export function exchangeRelationMediaSignals(input: {
   sessionId: string;
+  caseId?: string | null;
   peerId: string;
   role: ParticipantRole;
   cursor: number;
@@ -72,6 +87,20 @@ export function exchangeRelationMediaSignals(input: {
   });
 
   for (const outgoing of input.outgoing) {
+    if (outgoing.type === "leave") {
+      const payload = outgoing.payload && typeof outgoing.payload === "object" && !Array.isArray(outgoing.payload)
+        ? outgoing.payload as { leftAt?: unknown; caseId?: unknown }
+        : {};
+      store.participants.delete(input.peerId);
+      store.leaves.set(input.peerId, {
+        peerId: input.peerId,
+        role: input.role,
+        sessionId: input.sessionId,
+        caseId: typeof payload.caseId === "string" ? payload.caseId : input.caseId ?? null,
+        leftAt: typeof payload.leftAt === "number" ? payload.leftAt : now,
+      });
+    }
+
     store.messages.push({
       id: `${now}-${Math.random().toString(36).slice(2)}`,
       sessionId: input.sessionId,
@@ -92,5 +121,14 @@ export function exchangeRelationMediaSignals(input: {
     seenAt: presence.seenAt,
   }));
 
-  return { messages, participants, cursor: store.nextCursor };
+  const leaves = Array.from(store.leaves.values()).map((leave) => ({
+    ...leave,
+    isSelf: leave.peerId === input.peerId,
+  }));
+
+  return { messages, participants, leaves, cursor: store.nextCursor };
+}
+
+export function clearRelationMediaSignals(sessionId: string) {
+  stores.delete(sessionId);
 }

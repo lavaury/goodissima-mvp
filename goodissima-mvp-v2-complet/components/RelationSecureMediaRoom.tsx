@@ -18,6 +18,9 @@ type SessionSummary = {
   tokenGenerated: boolean;
   accessOpened: boolean;
   workflowStarted: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   roomName: string;
 };
 
@@ -33,6 +36,14 @@ type SignalMessage = {
 type SignalingResponse = {
   messages: SignalMessage[];
   participants: Array<{ peerId: string; role: ParticipantRole; isSelf: boolean; seenAt: number }>;
+  leaves?: Array<{
+    peerId: string;
+    role: ParticipantRole;
+    sessionId: string;
+    caseId: string | null;
+    leftAt: number;
+    isSelf: boolean;
+  }>;
   cursor: number;
 };
 
@@ -141,6 +152,9 @@ export function RelationSecureMediaRoom({
   const [error, setError] = useState<string | null>(null);
   const [isStartingMedia, setIsStartingMedia] = useState(false);
   const [isClosingRoom, setIsClosingRoom] = useState(false);
+  const [terminalState, setTerminalState] = useState<"ended" | "expired" | null>(null);
+  const [localParticipantLeft, setLocalParticipantLeft] = useState(false);
+  const [remoteParticipantLeft, setRemoteParticipantLeft] = useState(false);
 
   const polite = role === "CANDIDATE";
   const prepareEndpoint =
@@ -149,6 +163,7 @@ export function RelationSecureMediaRoom({
       : `/api/candidate/cases/${caseId}/media/protected-call`;
   const signalingEndpoint =
     role === "OWNER" ? `/api/cases/${caseId}/media/signaling` : `/api/candidate/cases/${caseId}/media/signaling`;
+  const endEndpoint = `/api/cases/${caseId}/media/protected-call/end`;
 
   useEffect(() => {
     if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
@@ -160,7 +175,7 @@ export function RelationSecureMediaRoom({
 
   useEffect(() => {
     return () => {
-      closeRoom();
+      void closeRoom();
     };
     // closeRoom intentionally reads refs so cleanup uses the current media/session objects.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,6 +367,14 @@ export function RelationSecureMediaRoom({
   }
 
   async function prepareSession(channelType: ChannelType) {
+    if (terminalState) {
+      throw new Error(
+        terminalState === "expired"
+          ? "Cette session a expire. Creez ou ouvrez une nouvelle session depuis le dossier."
+          : "Session terminee.",
+      );
+    }
+
     const response = await fetch(prepareEndpoint, {
       method: "POST",
       headers: {
@@ -372,6 +395,9 @@ export function RelationSecureMediaRoom({
 
     sessionRef.current = payload.session;
     peerIdRef.current = payload.signaling.peerId;
+    setTerminalState(null);
+    setLocalParticipantLeft(false);
+    setRemoteParticipantLeft(false);
     setSession(payload.session);
     ensurePeerConnection();
     startPolling();
@@ -380,7 +406,7 @@ export function RelationSecureMediaRoom({
   }
 
   async function joinRoom(channelType: ChannelType = "VIDEO_IP") {
-    if (pendingLabel || isStartingMediaRef.current || isClosingRoomRef.current || sessionRef.current) return;
+    if (terminalState || pendingLabel || isStartingMediaRef.current || isClosingRoomRef.current || sessionRef.current) return;
 
     setError(null);
     setPendingLabel("Connexion...");
@@ -396,7 +422,7 @@ export function RelationSecureMediaRoom({
   }
 
   async function startMedia(channelType: ChannelType, media: "audio" | "video" | "screen") {
-    if (pendingLabel || isStartingMediaRef.current || isClosingRoomRef.current) return;
+    if (terminalState || pendingLabel || isStartingMediaRef.current || isClosingRoomRef.current) return;
 
     isStartingMediaRef.current = true;
     setIsStartingMedia(true);
@@ -494,11 +520,26 @@ export function RelationSecureMediaRoom({
       const payload = (await response.json().catch(() => ({}))) as Partial<SignalingResponse> & { error?: string };
 
       if (!response.ok || !Array.isArray(payload.messages) || typeof payload.cursor !== "number") {
+        if (response.status === 410 && (payload as { state?: unknown }).state === "expired") {
+          cleanupRoom({ terminal: "expired" });
+          setError("Cette session a expire. Creez ou ouvrez une nouvelle session depuis le dossier.");
+          return;
+        }
+
+        if (response.status === 410 && (payload as { state?: unknown }).state === "ended") {
+          cleanupRoom({ terminal: "ended" });
+          setError(null);
+          return;
+        }
+
         throw new Error(payload.error || "Signalisation media indisponible.");
       }
 
       cursorRef.current = payload.cursor;
       setParticipants(Array.isArray(payload.participants) ? payload.participants : []);
+      if (Array.isArray(payload.leaves) && payload.leaves.some((leave) => !leave.isSelf)) {
+        handleRemoteParticipantLeft();
+      }
 
       for (const message of payload.messages) {
         await handleSignal(message);
@@ -511,6 +552,13 @@ export function RelationSecureMediaRoom({
   }
 
   async function handleSignal(message: SignalMessage) {
+    if (terminalState) return;
+
+    if (message.type === "leave") {
+      handleRemoteParticipantLeft();
+      return;
+    }
+
     const peerConnection = ensurePeerConnection();
 
     if (message.type === "offer" || message.type === "answer") {
@@ -603,29 +651,77 @@ export function RelationSecureMediaRoom({
         if (!ignoreOfferRef.current) throw candidateError;
       }
     }
+  }
 
-    if (message.type === "leave") {
-      const nextRemote = new MediaStream();
-      remoteStreamRef.current = nextRemote;
-      setRemoteStream(nextRemote);
+  function clearRemoteMedia() {
+    stopStream(remoteStreamRef.current);
+    remoteStreamRef.current = null;
+    setRemoteStream(null);
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+      remoteVideoRef.current.load();
     }
   }
 
-  function closeRoom() {
+  function handleRemoteParticipantLeft() {
+    clearRemoteMedia();
+    peerConnectionRef.current?.getReceivers().forEach((receiver) => receiver.track?.stop());
+    setRemoteParticipantLeft(true);
+  }
+
+  async function sendLeaveSignal() {
+    const currentSession = sessionRef.current;
+    const peerId = peerIdRef.current;
+    if (!currentSession || !peerId) return;
+
+    try {
+      const response = await fetch(signalingEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        keepalive: true,
+        body: JSON.stringify({
+          sessionId: currentSession.id,
+          peerId,
+          cursor: cursorRef.current,
+          candidateAccessToken,
+          messages: [
+            {
+              type: "leave",
+              payload: {
+                participantRole: role.toLowerCase(),
+                leftAt: Date.now(),
+                sessionId: currentSession.id,
+                caseId,
+              },
+            },
+          ],
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as Partial<SignalingResponse>;
+      if (response.ok && typeof payload.cursor === "number") {
+        cursorRef.current = payload.cursor;
+      }
+    } catch {
+      // Best effort only: leaving local media must never be blocked by signaling.
+    }
+  }
+
+  function cleanupRoom({
+    localLeft = false,
+    terminal = null,
+  }: {
+    localLeft?: boolean;
+    terminal?: "ended" | "expired" | null;
+  } = {}) {
     if (isClosingRoomRef.current) return;
 
     isClosingRoomRef.current = true;
     setIsClosingRoom(true);
 
-    if (sessionRef.current && peerIdRef.current) {
-      outgoingRef.current.push({ type: "leave", payload: { at: Date.now() } });
-      void pollSignals();
-    }
-
     stopLocalMedia();
-    stopStream(remoteStreamRef.current);
-    remoteStreamRef.current = null;
-    setRemoteStream(null);
+    clearRemoteMedia();
 
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -649,21 +745,71 @@ export function RelationSecureMediaRoom({
     setSession(null);
     setParticipants([]);
     setPendingLabel(null);
+    setRemoteParticipantLeft(false);
+    setLocalParticipantLeft(localLeft);
+    if (terminal) setTerminalState(terminal);
     isClosingRoomRef.current = false;
     setIsClosingRoom(false);
+  }
+
+  async function closeRoom() {
+    if (isClosingRoomRef.current) return;
+    setPendingLabel("Deconnexion...");
+    await sendLeaveSignal();
+    cleanupRoom({ localLeft: true });
+  }
+
+  async function endSessionForEveryone() {
+    const currentSession = sessionRef.current;
+    if (role !== "OWNER" || !currentSession || pendingLabel || isClosingRoomRef.current) return;
+
+    setPendingLabel("Fin de session...");
+    setError(null);
+
+    try {
+      const response = await fetch(endEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: currentSession.id,
+          reason: "Session terminee explicitement par le proprietaire depuis le dossier.",
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Impossible de terminer la session.");
+      }
+
+      cleanupRoom({ terminal: "ended" });
+    } catch (endError) {
+      setError(endError instanceof Error ? endError.message : "Impossible de terminer la session.");
+    } finally {
+      setPendingLabel(null);
+    }
   }
 
   const remoteTrackCount = remoteStream?.getTracks().length ?? 0;
   const otherParticipants = participants.filter((participant) => !participant.isSelf);
   const otherParticipantPresent = otherParticipants.length > 0;
-  const controlsDisabled = Boolean(pendingLabel) || isStartingMedia || isClosingRoom;
-  const statusLabel = session
-    ? remoteTrackCount > 0
-      ? "Flux distant recu"
-      : otherParticipantPresent
-        ? "Connecte - autre partie presente"
-        : "Connecte - en attente de l'autre partie"
-    : "Non connecte";
+  const controlsDisabled = Boolean(pendingLabel) || isStartingMedia || isClosingRoom || Boolean(terminalState);
+  const statusLabel = terminalState === "expired"
+    ? "Session expiree"
+    : terminalState === "ended"
+      ? "Session terminee"
+      : localParticipantLeft
+        ? "Vous avez quitte la session"
+        : remoteParticipantLeft
+          ? "L'autre personne a quitte la session"
+          : session
+        ? remoteTrackCount > 0
+          ? "Flux distant recu"
+          : otherParticipantPresent
+            ? "Vous etes connecte - l'autre partie est presente"
+            : "Vous etes connecte - en attente du media de l'autre personne"
+        : "Session non ouverte";
 
   return (
     <section className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
@@ -704,13 +850,43 @@ export function RelationSecureMediaRoom({
         ))}
         <button
           type="button"
-          onClick={closeRoom}
+          onClick={() => void closeRoom()}
           disabled={controlsDisabled || (!session && !localStream)}
           className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isClosingRoom ? "Fermeture..." : "Quitter"}
         </button>
+        {role === "OWNER" ? (
+          <button
+            type="button"
+            onClick={endSessionForEveryone}
+            disabled={controlsDisabled || !session}
+            className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pendingLabel === "Fin de session..." ? "Fin..." : "Terminer pour tous"}
+          </button>
+        ) : null}
       </div>
+
+      {terminalState ? (
+        <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+          {terminalState === "expired"
+            ? "Cette session a expire. Creez ou ouvrez une nouvelle session depuis le dossier."
+            : "Session terminee."}
+        </p>
+      ) : null}
+
+      {!terminalState && localParticipantLeft ? (
+        <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+          Vous avez quitte la session.
+        </p>
+      ) : null}
+
+      {!terminalState && remoteParticipantLeft ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+          L'autre personne a quitte la session.
+        </p>
+      ) : null}
 
       {error ? (
         <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>
@@ -757,7 +933,9 @@ export function RelationSecureMediaRoom({
             />
           ) : (
             <p className="mt-3 rounded-lg bg-[#f6f0e8] px-3 py-2 text-sm text-[#766f68]">
-              {otherParticipantPresent
+              {remoteParticipantLeft
+                ? "L'autre personne a quitte la session."
+                : otherParticipantPresent
                 ? "L'autre personne est connectee, mais n'a pas encore active de media."
                 : "En attente du media de l'autre personne. Elle doit cliquer sur Audio, Visio ou Partage d'ecran pour envoyer un flux."}
             </p>

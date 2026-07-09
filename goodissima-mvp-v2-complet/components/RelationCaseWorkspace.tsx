@@ -21,7 +21,16 @@ import { buildDossierSituation } from "@/lib/dossier-situation";
 import { humanizeAIEvent, humanizeRelationEvent } from "@/lib/events/humanize";
 import Link from "next/link";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
-import type { IdentityStatus, Prisma, RelationGovernanceStatus, RelationPriority, RelationStatus } from "@prisma/client";
+import type {
+  CommunicationChannelType,
+  CommunicationProvider,
+  CommunicationSessionStatus,
+  IdentityStatus,
+  Prisma,
+  RelationGovernanceStatus,
+  RelationPriority,
+  RelationStatus,
+} from "@prisma/client";
 import Image from "next/image";
 
 type RelationCaseWorkspaceItem = {
@@ -100,6 +109,18 @@ type RelationCaseWorkspaceItem = {
     payload?: Prisma.JsonValue | null;
     createdAt: Date | string;
   }>;
+  communicationSessions?: Array<{
+    id: string;
+    channelType: CommunicationChannelType;
+    provider: CommunicationProvider;
+    status: CommunicationSessionStatus;
+    title: string;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+    expiresAt?: Date | string | null;
+    recordingEnabled: boolean;
+    transcriptionRequested: boolean;
+  }>;
 };
 
 type ActivityEvent = {
@@ -155,6 +176,61 @@ const importantTimelineRelationEventTypes = new Set([
   "AI_TIMELINE_SUGGESTION_ACCEPTED",
   "GOVERNANCE_STATUS_CHANGED",
 ]);
+
+const communicationChannelLabels: Record<CommunicationChannelType, string> = {
+  VOICE_IP: "Audio",
+  VIDEO_IP: "Visio",
+  SCREEN_SHARE: "Partage ecran",
+};
+
+const communicationStatusLabels: Record<CommunicationSessionStatus, string> = {
+  REQUESTED: "Prete",
+  PREPARED_NOT_STARTED: "Preparee",
+  CANCELLED: "Expiree ou annulee",
+  COMPLETED: "Terminee",
+};
+
+const communicationProviderLabels: Record<CommunicationProvider, string> = {
+  NONE: "Aucun provider",
+  MANUAL_EXTERNAL: "WebRTC navigateur",
+  LIVEKIT_PENDING: "LiveKit non branche",
+};
+
+function getCommunicationDisplayTitle(session: {
+  channelType: CommunicationChannelType;
+  title: string;
+}) {
+  const title = session.title.toLowerCase();
+  const mentionsVideo = title.includes("visio") || title.includes("video");
+  const mentionsScreen = title.includes("partage") || title.includes("ecran");
+
+  if ((session.channelType === "VIDEO_IP" && mentionsScreen) || (session.channelType === "SCREEN_SHARE" && mentionsVideo)) {
+    return "Visio et partage d'ecran";
+  }
+
+  return communicationChannelLabels[session.channelType];
+}
+
+function getCommunicationDisplaySubtitle(session: {
+  channelType: CommunicationChannelType;
+  title: string;
+  provider: CommunicationProvider;
+}) {
+  const displayTitle = getCommunicationDisplayTitle(session);
+  if (displayTitle === "Visio et partage d'ecran") return "Session relationnelle mixte";
+  if (session.title && session.title !== communicationChannelLabels[session.channelType]) return session.title;
+  return communicationProviderLabels[session.provider];
+}
+
+function getCommunicationDisplayStatus(session: {
+  status: CommunicationSessionStatus;
+  expiresAt?: Date | string | null;
+}) {
+  if (session.status === "COMPLETED") return "Terminee";
+  if (session.status === "CANCELLED") return "Expiree ou annulee";
+  if (session.expiresAt && new Date(session.expiresAt).getTime() <= Date.now()) return "Expiree";
+  return communicationStatusLabels[session.status];
+}
 
 function formatRelativeActivityDate(date: Date | string) {
   const diffMs = Date.now() - new Date(date).getTime();
@@ -380,6 +456,7 @@ export function RelationCaseWorkspace({
   debugMode?: boolean;
 }) {
   const activityEvents = getActivityEvents(item);
+  const communicationSessions = item.communicationSessions ?? [];
   const governanceAuditLogs = item.auditLogs.filter((log) => governanceAuditEventTypes.has(log.eventType));
   const isCandidateView = senderType === "CANDIDATE";
   const formSubmissions = item.formSubmissions ?? [];
@@ -476,6 +553,65 @@ export function RelationCaseWorkspace({
           candidateAccessToken={candidateAccessToken}
         />
       </div>
+      <section className="mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-[#2f3437]">Historique des communications</h2>
+            <p className="text-xs text-[#766f68]">Sessions conservees sans enregistrement ni transcription automatique.</p>
+          </div>
+          <span className="rounded-full bg-[#e8f8f9] px-2.5 py-1 text-xs font-medium text-[#247f88]">
+            {communicationSessions.length} session{communicationSessions.length > 1 ? "s" : ""}
+          </span>
+        </div>
+        {communicationSessions.length === 0 ? (
+          <p className="mt-3 rounded-xl bg-[#f6f0e8] px-3 py-2 text-sm text-[#766f68]">
+            Aucune communication historisee pour ce dossier.
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+            {communicationSessions.map((session) => {
+              const isClosed = session.status === "COMPLETED" || session.status === "CANCELLED";
+              const displayTitle = getCommunicationDisplayTitle(session);
+              const displaySubtitle = getCommunicationDisplaySubtitle(session);
+
+              return (
+                <article key={session.id} className="rounded-xl border border-[#e7e0d6] bg-white p-3 text-xs">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-[#2f3437]">{displayTitle}</p>
+                      <p className="mt-0.5 text-[#766f68]">{displaySubtitle}</p>
+                    </div>
+                    <span className="rounded-full bg-[#f6f0e8] px-2 py-1 font-semibold text-[#2f3437]">
+                      {getCommunicationDisplayStatus(session)}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <dt className="font-medium text-[#766f68]">Creee le</dt>
+                      <dd className="font-semibold text-[#2f3437]">{formatActivityDate(session.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium text-[#766f68]">Terminee le</dt>
+                      <dd className="font-semibold text-[#2f3437]">{isClosed ? formatActivityDate(session.updatedAt) : "Non terminee"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium text-[#766f68]">Expiration</dt>
+                      <dd className="font-semibold text-[#2f3437]">{session.expiresAt ? formatActivityDate(session.expiresAt) : "Non definie"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium text-[#766f68]">Provider</dt>
+                      <dd className="font-semibold text-[#2f3437]">{communicationProviderLabels[session.provider]}</dd>
+                    </div>
+                  </dl>
+                  <p className="mt-3 rounded-lg bg-[#f6f0e8] px-2.5 py-2 font-medium text-[#766f68]">
+                    Garanties : pas d'enregistrement, pas de transcription automatique.
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
       <div
         data-case-layout="conversation-ai-sidebar"
         className="mt-6 grid gap-5 lg:mt-8 xl:grid-cols-[minmax(420px,1.2fr)_minmax(390px,0.98fr)_280px] xl:gap-5"
