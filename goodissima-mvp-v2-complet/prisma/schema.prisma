@@ -178,6 +178,25 @@ enum WorkspaceCategory {
   OTHER
 }
 
+enum CommunicationChannelType {
+  VOICE_IP
+  VIDEO_IP
+  SCREEN_SHARE
+}
+
+enum CommunicationSessionStatus {
+  REQUESTED
+  PREPARED_NOT_STARTED
+  CANCELLED
+  COMPLETED
+}
+
+enum CommunicationProvider {
+  NONE
+  MANUAL_EXTERNAL
+  LIVEKIT_PENDING
+}
+
 model User {
   id                   String   @id @default(cuid())
   email                String   @unique
@@ -189,6 +208,7 @@ model User {
   links                   GLink[]
   cases                   RelationCase[]              @relation("OwnerCases")
   workspaces              Workspace[]                 @relation("OwnerWorkspaces")
+  communicationSessions   CommunicationSession[]
   goodissimaIdentity      GoodissimaIdentity?         @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
   notificationPreferences UserNotificationPreference?
   templateGenerations     TemplateGeneration[]
@@ -216,11 +236,49 @@ model Workspace {
   relationTemplates RelationTemplate[]
   relationCases     RelationCase[]
   links             GLink[]
+  communicationSessions CommunicationSession[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, status, createdAt])
   @@index([ownerId, category, status])
   @@index([kind, status])
+}
+
+model CommunicationSession {
+  id        String @id @default(cuid())
+  ownerId   String
+  workspaceId String?
+  relationTemplateId String?
+  relationCaseId String?
+  channelType CommunicationChannelType
+  provider CommunicationProvider @default(NONE)
+  status CommunicationSessionStatus @default(PREPARED_NOT_STARTED)
+  title String
+  purpose String?
+  note String?
+  externalUrl String?
+  scheduledAt DateTime?
+  expiresAt DateTime?
+  transcriptionRequested Boolean @default(false)
+  transcriptionConsented Boolean @default(false)
+  recordingEnabled Boolean @default(false)
+  automaticNotificationSent Boolean @default(false)
+  tokenGenerated Boolean @default(false)
+  accessOpened Boolean @default(false)
+  workflowStarted Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  relationTemplate RelationTemplate? @relation(fields: [relationTemplateId], references: [id], onDelete: SetNull)
+  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, status, createdAt])
+  @@index([workspaceId, status])
+  @@index([relationTemplateId, status])
+  @@index([relationCaseId, status])
+  @@index([channelType, status])
 }
 
 model AccessInvitation {
@@ -325,6 +383,7 @@ model RelationCase {
   embeddingJobs     EmbeddingJob[]
   trustPolicies     TrustPolicy[]
   productFeedback   ProductFeedback[]
+  communicationSessions CommunicationSession[]
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
@@ -388,6 +447,7 @@ model RelationTemplate {
   generations   TemplateGeneration[]
   aiEvents      AIEvent[]
   productFeedback ProductFeedback[]
+  communicationSessions CommunicationSession[]
 
   @@index([workspaceId])
 }

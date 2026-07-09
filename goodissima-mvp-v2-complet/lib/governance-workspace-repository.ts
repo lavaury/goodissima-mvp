@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import type { WorkspaceCategory, WorkspaceKind } from "@prisma/client";
+import type {
+  CommunicationChannelType,
+  CommunicationProvider,
+  CommunicationSessionStatus,
+  WorkspaceCategory,
+  WorkspaceKind,
+} from "@prisma/client";
 
 export const workspaceCategoryLabels: Record<WorkspaceCategory, string> = {
   PROFESSIONAL: "Professionnel",
@@ -36,10 +42,53 @@ export type RealGovernanceWorkspaceSummary = {
   journeyCount: number;
   relationCount: number;
   linkCount: number;
+  communicationCount: number;
   totalObjects: number;
   state: "Actif" | "Archive";
   observation: string;
   journeys: RealGovernanceJourneySummary[];
+};
+
+export type GovernanceCommunicationSessionSummary = {
+  id: string;
+  channelType: CommunicationChannelType;
+  channelLabel: string;
+  provider: CommunicationProvider;
+  providerLabel: string;
+  status: CommunicationSessionStatus;
+  statusLabel: string;
+  title: string;
+  purpose: string | null;
+  note: string | null;
+  externalUrl: string | null;
+  scheduledAt: Date | null;
+  createdAt: Date;
+  transcriptionRequested: boolean;
+  transcriptionConsented: boolean;
+  recordingEnabled: boolean;
+  automaticNotificationSent: boolean;
+  tokenGenerated: boolean;
+  accessOpened: boolean;
+  workflowStarted: boolean;
+};
+
+export const communicationChannelLabels: Record<CommunicationChannelType, string> = {
+  VOICE_IP: "Appel audio sécurisé",
+  VIDEO_IP: "Visio sécurisée",
+  SCREEN_SHARE: "Partage d'écran sécurisé",
+};
+
+export const communicationProviderLabels: Record<CommunicationProvider, string> = {
+  NONE: "Aucun provider média branché en V1",
+  MANUAL_EXTERNAL: "Lien externe manuel - non envoyé par Goodissima",
+  LIVEKIT_PENDING: "LiveKit prévu - non branché en V1",
+};
+
+export const communicationStatusLabels: Record<CommunicationSessionStatus, string> = {
+  REQUESTED: "Demandée",
+  PREPARED_NOT_STARTED: "Préparée - non démarrée",
+  CANCELLED: "Annulée",
+  COMPLETED: "Terminée",
 };
 
 export type GovernanceWorkspaceOption = {
@@ -110,6 +159,7 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
           relationTemplates: true,
           relationCases: true,
           links: true,
+          communicationSessions: true,
         },
       },
     },
@@ -126,7 +176,11 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
         href: formTemplate ? `/gouvernance/parcours/${formTemplate.id}/pilotage` : null,
       };
     });
-    const totalObjects = workspace._count.relationTemplates + workspace._count.relationCases + workspace._count.links;
+    const totalObjects =
+      workspace._count.relationTemplates +
+      workspace._count.relationCases +
+      workspace._count.links +
+      workspace._count.communicationSessions;
     const firstJourneyHref = journeys.find((journey) => journey.href)?.href;
 
     return {
@@ -141,6 +195,7 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
       journeyCount: workspace._count.relationTemplates,
       relationCount: workspace._count.relationCases,
       linkCount: workspace._count.links,
+      communicationCount: workspace._count.communicationSessions,
       totalObjects,
       state: workspace.status === "ARCHIVED" ? "Archive" : "Actif",
       observation:
@@ -150,6 +205,45 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
       journeys,
     };
   });
+}
+
+export async function getGovernanceCommunicationSessionsForJourney(input: {
+  ownerId: string;
+  relationTemplateId: string;
+}): Promise<GovernanceCommunicationSessionSummary[]> {
+  const sessions = await prisma.communicationSession.findMany({
+    where: {
+      ownerId: input.ownerId,
+      relationTemplateId: input.relationTemplateId,
+    },
+    orderBy: [{ createdAt: "desc" }],
+    select: {
+      id: true,
+      channelType: true,
+      provider: true,
+      status: true,
+      title: true,
+      purpose: true,
+      note: true,
+      externalUrl: true,
+      scheduledAt: true,
+      createdAt: true,
+      transcriptionRequested: true,
+      transcriptionConsented: true,
+      recordingEnabled: true,
+      automaticNotificationSent: true,
+      tokenGenerated: true,
+      accessOpened: true,
+      workflowStarted: true,
+    },
+  });
+
+  return sessions.map((session) => ({
+    ...session,
+    channelLabel: communicationChannelLabels[session.channelType],
+    providerLabel: communicationProviderLabels[session.provider],
+    statusLabel: communicationStatusLabels[session.status],
+  }));
 }
 
 export async function getUnassignedGovernedJourneySummaries(ownerId: string): Promise<UnassignedGovernedJourneySummary[]> {

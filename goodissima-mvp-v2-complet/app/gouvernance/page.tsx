@@ -134,10 +134,11 @@ export default async function GovernanceWorkspacePage() {
                   </span>
                 </div>
 
-                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm lg:grid-cols-5">
                   <Metric label="Parcours" value={workspace.journeyCount} />
                   <Metric label="Relations" value={workspace.relationCount} />
                   <Metric label="Liens" value={workspace.linkCount} />
+                  <Metric label="Communications" value={workspace.communicationCount} />
                   <Metric label="Objets" value={workspace.totalObjects} />
                 </dl>
                 <p className="mt-4 rounded-lg bg-white px-3 py-2 text-sm text-slate-700">{workspace.observation}</p>
