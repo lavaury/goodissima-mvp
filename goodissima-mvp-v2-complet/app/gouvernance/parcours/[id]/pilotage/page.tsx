@@ -391,16 +391,25 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <PlatformNavigation active="dashboard" organizationName={organizationName} />
+      <PlatformNavigation active="governance" organizationName={organizationName} />
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <Link href="/gouvernance" className="text-sm font-semibold text-slate-600 underline underline-offset-4">
           Retour à la gouvernance
         </Link>
-        <Link href="/gouvernance/nouveau" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
-          Créer un autre parcours
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/annuaire" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
+            Annuaire Goodissima V1
+          </Link>
+          <Link href="/gouvernance/nouveau" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
+            Créer un autre parcours
+          </Link>
+        </div>
       </div>
+
+      <p className="mt-2 text-xs text-slate-500">
+        L'annuaire Goodissima est transversal ; en V1, il ne crée pas encore de contact global automatiquement depuis ce cockpit.
+      </p>
 
       <section className="mt-4 rounded-lg border bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold text-[#247f88]">Pilotage V1 · préparation read-only</p>

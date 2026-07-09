@@ -12,7 +12,7 @@ export default async function NewGovernedJourneyPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <PlatformNavigation active="dashboard" organizationName={organizationName} />
+      <PlatformNavigation active="new-governance" organizationName={organizationName} />
 
       <div className="mt-6">
         <Link href="/gouvernance" className="text-sm font-semibold text-slate-600 underline underline-offset-4">

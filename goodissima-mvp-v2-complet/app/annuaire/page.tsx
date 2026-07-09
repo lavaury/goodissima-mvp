@@ -75,7 +75,7 @@ export default async function DirectoryPage() {
         <LogoutButton />
       </div>
 
-      <PlatformNavigation active="identity" organizationName={organizationName} />
+      <PlatformNavigation active="directory" organizationName={organizationName} />
 
       <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
         <p className="text-sm font-semibold text-amber-950">
@@ -137,6 +137,9 @@ export default async function DirectoryPage() {
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-3">
+            <Link href="/gouvernance" className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              Ouvrir la gouvernance
+            </Link>
             <Link href="/identity" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
               Ouvrir l’espace identité
             </Link>

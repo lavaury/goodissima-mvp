@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { unstable_noStore as noStore } from "next/cache";
+import Link from "next/link";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DemoCredentialRevocationButton } from "@/components/DemoCredentialRevocationButton";
 import { DemoIdentityVerificationButton } from "@/components/DemoIdentityVerificationButton";
@@ -207,6 +208,17 @@ export default async function IdentityPage() {
       </div>
 
       <PlatformNavigation active="identity" organizationName={organizationName} />
+
+      <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-600">
+            L'annuaire Goodissima V1 prépare l'espace transversal des identités, organisations et contacts de confiance.
+          </p>
+          <Link href="/annuaire" className="w-fit rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700">
+            Consulter l'annuaire
+          </Link>
+        </div>
+      </section>
 
       <section className="rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

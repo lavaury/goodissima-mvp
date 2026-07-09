@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
-import { listCurrentUserGovernanceWorkspacesAction } from "@/lib/governance-workspace-actions";
+import { getCurrentPrismaUser } from "@/lib/auth";
+import { getRealGovernanceWorkspaceSummaries } from "@/lib/governance-workspace-repository";
 
 const governanceActions = [
   {
@@ -9,6 +10,12 @@ const governanceActions = [
     body: "Creez un parcours brouillon reel, puis ouvrez son cockpit de preparation.",
     href: "/gouvernance/nouveau",
     cta: "Creer un parcours gouverne",
+  },
+  {
+    title: "Annuaire Goodissima V1",
+    body: "Consultez l'espace transversal d'identite, de confiance et de preparation des contacts.",
+    href: "/annuaire",
+    cta: "Consulter l'annuaire Goodissima V1",
   },
   {
     title: "Consulter mes Workspaces",
@@ -38,11 +45,13 @@ function stateTone() {
 
 export default async function GovernanceWorkspacePage() {
   noStore();
-  const workspaces = await listCurrentUserGovernanceWorkspacesAction();
+  const owner = await getCurrentPrismaUser();
+  const workspaces = await getRealGovernanceWorkspaceSummaries(owner.id);
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <PlatformNavigation active="dashboard" organizationName="Demo Goodissima" />
+      <PlatformNavigation active="governance" organizationName={organizationName} />
 
       <section className="rounded-lg border bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold text-[#247f88]">Accueil de la Gouvernance</p>

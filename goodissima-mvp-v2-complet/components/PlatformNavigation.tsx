@@ -5,6 +5,12 @@ import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 
 const items = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Gouvernance", href: "/gouvernance" },
+  { label: "Nouveau parcours", href: "/gouvernance/nouveau" },
+  { label: "Annuaire", href: "/annuaire" },
+  { label: "Identite", href: "/identity" },
+  { label: "Confiance", href: "/trust/connectors" },
+  { label: "Parametres", href: "/settings" },
   { label: "Opportunités", href: "/opportunities" },
   { label: "Parcours", href: "/parcours", legacyHref: "/templates" },
   { label: "Relations", href: "/relations" },
@@ -16,12 +22,30 @@ export function PlatformNavigation({
   active,
   organizationName,
 }: {
-  active: "dashboard" | "opportunities" | "relations" | "studio" | "analytics" | "admin" | "trust" | "identity" | "settings";
+  active:
+    | "dashboard"
+    | "governance"
+    | "new-governance"
+    | "directory"
+    | "opportunities"
+    | "relations"
+    | "studio"
+    | "analytics"
+    | "admin"
+    | "trust"
+    | "identity"
+    | "settings";
   organizationName?: string | null;
 }) {
   const activeHref =
     active === "dashboard"
       ? "/dashboard"
+      : active === "governance"
+      ? "/gouvernance"
+      : active === "new-governance"
+      ? "/gouvernance/nouveau"
+      : active === "directory"
+      ? "/annuaire"
       : active === "opportunities"
       ? "/opportunities"
       : active === "relations"
