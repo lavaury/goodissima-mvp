@@ -70,6 +70,25 @@ function normalizeKey(value: string) {
     .slice(0, 56);
 }
 
+function workspaceSlugFrom(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
+function workspaceNameFromSlug(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function fieldKeyFromLabel(label: string, fallback: string) {
   const key = normalizeKey(label).toLowerCase();
   return key || fallback;
@@ -174,7 +193,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
   const initialNeed = textFromForm(formData, "initialNeed");
   const objective = textFromForm(formData, "objective") || initialNeed;
   const workspaceId = textFromForm(formData, "workspaceId");
-  const workspaceName = textFromForm(formData, "workspaceName") || "Workspace saisi en creation V1";
+  const workspaceName = textFromForm(formData, "workspaceName");
   const participants = linesFromForm(formData, "participants");
   const documents = linesFromForm(formData, "documents");
   const confidentialityRules = linesFromForm(formData, "confidentialityRules");
@@ -188,13 +207,17 @@ export async function createGovernedJourneyAction(formData: FormData) {
     throw new Error("Le nom du parcours et le besoin initial sont obligatoires.");
   }
 
+  const requestedWorkspace = workspaceName || workspaceId || `workspace-${owner.id}`;
+  const workspaceSlug = workspaceSlugFrom(requestedWorkspace) || `workspace-${owner.id.toLowerCase()}`;
+  const resolvedWorkspaceName = workspaceName || workspaceNameFromSlug(workspaceSlug) || "Workspace Goodissima";
+
   const key = await uniqueRelationTemplateKey(normalizeKey(name));
   const formKey = `${key}_FORM`.slice(0, 80);
   const now = new Date().toISOString();
   const intent = {
     intentId: `intent-${key.toLowerCase()}`,
     accountId: owner.id,
-    workspaceId: workspaceId || `workspace-${owner.id}`,
+    workspaceId: workspaceSlug,
     initialNeed,
     status: "Captured",
     createdAt: now,
@@ -237,8 +260,8 @@ export async function createGovernedJourneyAction(formData: FormData) {
       firstActions.length > 0
         ? firstActions.map((action) => ({ title: action, owner: "Createur du parcours" }))
         : [{ title: "Relire le parcours avant publication", owner: "Createur du parcours" }],
-    recommendedWorkspaceId: workspaceId || `workspace-${owner.id}`,
-    recommendedWorkspaceName: workspaceName,
+    recommendedWorkspaceId: workspaceSlug,
+    recommendedWorkspaceName: resolvedWorkspaceName,
     rationale: "Creation issue d'une validation humaine V1.",
     createdAt: now,
   };
@@ -254,8 +277,8 @@ export async function createGovernedJourneyAction(formData: FormData) {
     confidentialityRules: proposal.confidentialityRules,
     discoveryInvitations: [],
     firstActions: proposal.firstActions,
-    workspaceId: workspaceId || `workspace-${owner.id}`,
-    workspaceName,
+    workspaceId: workspaceSlug,
+    workspaceName: resolvedWorkspaceName,
     correctionNotes: [],
     createdAt: now,
   };
@@ -341,8 +364,32 @@ export async function createGovernedJourneyAction(formData: FormData) {
   };
 
   const formTemplate = await prisma.$transaction(async (tx) => {
+    const workspace = await tx.workspace.upsert({
+      where: {
+        ownerId_slug: {
+          ownerId: owner.id,
+          slug: workspaceSlug,
+        },
+      },
+      update: {
+        status: "ACTIVE",
+      },
+      create: {
+        ownerId: owner.id,
+        slug: workspaceSlug,
+        name: resolvedWorkspaceName,
+        kind: "GOVERNANCE",
+        status: "ACTIVE",
+        metadata: {
+          source: "governance-v1-minimal-create",
+          createdFrom: "createGovernedJourneyAction",
+        },
+      },
+    });
+
     const relationTemplate = await tx.relationTemplate.create({
       data: {
+        workspaceId: workspace.id,
         key,
         name,
         description: initialNeed,
@@ -433,8 +480,10 @@ export async function createGovernedJourneyAction(formData: FormData) {
         requiresHumanValidation,
         createdById: owner.id,
         createdAt: now,
-        workspaceId: workspaceId || null,
-        workspacePersistence: workspaceId ? "metadata-only-v1" : "not-provided",
+        workspaceId: workspace.id,
+        workspaceSlug: workspace.slug,
+        workspaceName: workspace.name,
+        workspacePersistence: "prisma-workspace-v1",
         automaticPublication: false,
         automaticWorkflowExecution: false,
         automaticContact: false,

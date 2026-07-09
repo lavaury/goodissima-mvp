@@ -39,8 +39,8 @@ const lifecycle = [
   "Portfolio du Workspace",
 ];
 
-function stateTone() {
-  return "bg-slate-50 text-slate-700 ring-slate-200";
+function stateTone(state: string) {
+  return state === "Actif" ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
 export default async function GovernanceWorkspacePage() {
@@ -94,27 +94,46 @@ export default async function GovernanceWorkspacePage() {
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {workspaces.map((workspace) => (
-              <Link
+              <article
                 key={workspace.workspaceId}
-                href={workspace.href}
-                className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition hover:border-slate-400 hover:bg-white"
+                className="rounded-lg border border-slate-200 bg-slate-50 p-5"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="break-words text-xl font-bold text-slate-950">{workspace.name}</h3>
-                    <p className="mt-1 break-words text-xs font-semibold text-slate-500">Identifiant source : {workspace.workspaceId}</p>
+                    <p className="mt-1 break-words text-xs font-semibold text-slate-500">Slug : {workspace.slug}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ring-1 ${stateTone()}`}>
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ring-1 ${stateTone(workspace.state)}`}>
                     {workspace.state}
                   </span>
                 </div>
 
-                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
                   <Metric label="Parcours" value={workspace.journeyCount} />
                   <Metric label="Relations" value={workspace.relationCount} />
+                  <Metric label="Liens" value={workspace.linkCount} />
+                  <Metric label="Objets" value={workspace.totalObjects} />
                 </dl>
                 <p className="mt-4 rounded-lg bg-white px-3 py-2 text-sm text-slate-700">{workspace.observation}</p>
-              </Link>
+
+                {workspace.journeys.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Parcours gouvernes</p>
+                    {workspace.journeys.map((journey) => (
+                      <div key={journey.relationTemplateId} className="flex flex-col gap-2 rounded-lg bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm font-semibold text-slate-800">{journey.name}</p>
+                        {journey.href ? (
+                          <Link href={journey.href} className="w-fit rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700">
+                            Ouvrir le cockpit
+                          </Link>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-500">Cockpit indisponible</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
             ))}
           </div>
         )}
@@ -132,7 +151,7 @@ export default async function GovernanceWorkspacePage() {
         <div className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">Affichage V1</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">
-            Cette page affiche uniquement les Workspaces rattaches a des objets persistants. Les metriques non sourcees ne sont pas evaluees.
+            V1 : le Workspace est maintenant persistant. Les permissions avancees, membres, communications et medias seront ajoutes dans des sprints dedies.
           </p>
         </div>
       </section>

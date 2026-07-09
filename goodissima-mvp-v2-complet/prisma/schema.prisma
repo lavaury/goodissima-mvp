@@ -157,6 +157,17 @@ enum ProductFeedbackStatus {
   IGNORED
 }
 
+enum WorkspaceKind {
+  GOVERNANCE
+  RELATION
+  MIXED
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 model User {
   id                   String   @id @default(cuid())
   email                String   @unique
@@ -167,6 +178,7 @@ model User {
 
   links                   GLink[]
   cases                   RelationCase[]              @relation("OwnerCases")
+  workspaces              Workspace[]                 @relation("OwnerWorkspaces")
   goodissimaIdentity      GoodissimaIdentity?         @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
   notificationPreferences UserNotificationPreference?
   templateGenerations     TemplateGeneration[]
@@ -175,6 +187,28 @@ model User {
   aiEvents                AIEvent[]
   manualTemplateEditAudits ManualTemplateEditAudit[]
   productFeedback         ProductFeedback[]
+}
+
+model Workspace {
+  id          String          @id @default(cuid())
+  ownerId     String
+  slug        String
+  name        String
+  description String?
+  kind        WorkspaceKind   @default(GOVERNANCE)
+  status      WorkspaceStatus @default(ACTIVE)
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  owner             User               @relation("OwnerWorkspaces", fields: [ownerId], references: [id], onDelete: Cascade)
+  relationTemplates RelationTemplate[]
+  relationCases     RelationCase[]
+  links             GLink[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, status, createdAt])
+  @@index([kind, status])
 }
 
 model AccessInvitation {
@@ -214,6 +248,7 @@ model UserNotificationPreference {
 model GLink {
   id                String     @id @default(cuid())
   ownerId           String
+  workspaceId       String?
   templateId        String?
   templateVersionId String?
   slug              String     @unique
@@ -227,17 +262,21 @@ model GLink {
   expiresAt         DateTime?
 
   owner                User                  @relation(fields: [ownerId], references: [id])
+  workspace            Workspace?            @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   template             RelationTemplate?     @relation(fields: [templateId], references: [id])
   templateVersion      TemplateVersion?      @relation(fields: [templateVersionId], references: [id])
   cases                RelationCase[]
   trustPolicies        TrustPolicy[]
   trustAdmissionTokens TrustAdmissionToken[]
+
+  @@index([workspaceId])
 }
 
 model RelationCase {
   id                                 String                   @id @default(cuid())
   gLinkId                            String
   ownerId                            String
+  workspaceId                        String?
   templateId                         String?
   candidateIdentityId                String?
   candidateAccessToken               String                   @unique
@@ -260,6 +299,7 @@ model RelationCase {
 
   gLink             GLink               @relation(fields: [gLinkId], references: [id])
   owner             User                @relation("OwnerCases", fields: [ownerId], references: [id])
+  workspace         Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   template          RelationTemplate?   @relation(fields: [templateId], references: [id])
   candidateIdentity GoodissimaIdentity? @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
   messages          Message[]
@@ -276,6 +316,7 @@ model RelationCase {
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
+  @@index([workspaceId])
 }
 
 model EmbeddingJob {
@@ -315,6 +356,7 @@ model RelationEmbedding {
 
 model RelationTemplate {
   id             String  @id @default(cuid())
+  workspaceId    String?
   key            String  @unique
   name           String
   description    String?
@@ -325,6 +367,7 @@ model RelationTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   relationCases RelationCase[]
   links         GLink[]
   formTemplates FormTemplate[]
@@ -333,6 +376,8 @@ model RelationTemplate {
   generations   TemplateGeneration[]
   aiEvents      AIEvent[]
   productFeedback ProductFeedback[]
+
+  @@index([workspaceId])
 }
 
 model ProductFeedback {

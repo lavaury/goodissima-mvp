@@ -358,7 +358,12 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
   const title = text(creationPlan.title) ?? formTemplate.name;
   const objective = text(creationPlan.objective) ?? formTemplate.description ?? "Objectif non renseigné.";
   const initialNeed = text(creationPlan.initialNeed) ?? formTemplate.description ?? "Besoin initial non renseigné.";
-  const workspaceId = text(creationPlan.workspaceId) ?? text(metadata.workspaceId) ?? "Workspace non rattaché en V1";
+  const workspaceId =
+    text(metadata.workspaceName) ??
+    text(metadata.workspaceSlug) ??
+    text(creationPlan.workspaceId) ??
+    text(metadata.workspaceId) ??
+    "Workspace non rattaché en V1";
   const source = text(creationPlan.source) ?? text(metadata.source) ?? "Création V1";
 
   const participants = actorsFrom(creationPlan.participants ?? creationPlan.actors);

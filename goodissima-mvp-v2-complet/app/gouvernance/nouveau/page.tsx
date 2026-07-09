@@ -70,7 +70,7 @@ export default async function NewGovernedJourneyPage() {
             placeholder="Identifiant optionnel conserve en metadata V1"
           />
           <span className="mt-2 block text-xs font-normal text-slate-500">
-            Le schema V1 ne rattache pas encore les parcours a un objet Workspace. Cette valeur est conservee comme metadata de creation.
+            V1 : cette valeur cree ou reutilise un Workspace produit persistant pour rattacher le parcours.
           </span>
         </label>
 
