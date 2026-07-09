@@ -10,6 +10,7 @@ import {
   getGovernanceCommunicationOverview,
   governanceCommunicationChannelLabels,
 } from "@/lib/governance-communication-session-repository";
+import { getGovernanceCockpitConsolidation } from "@/lib/governance-cockpit-consolidation-repository";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -420,6 +421,10 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
     { channelType: "VIDEO_IP", label: governanceCommunicationChannelLabels.VIDEO_IP },
     { channelType: "SCREEN_SHARE", label: governanceCommunicationChannelLabels.SCREEN_SHARE },
   ] as const;
+  const consolidation = await getGovernanceCockpitConsolidation({
+    ownerId: owner.id,
+    formTemplateId: formTemplate.id,
+  });
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <PlatformNavigation active="governance" organizationName={organizationName} />
@@ -536,6 +541,205 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
           </div>
         </div>
       </section>
+
+      {consolidation?.workspace ? (
+        <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#247f88]">Vue consolidee du Workspace</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">{consolidation.workspace.name}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                V1 : cette vue consolide les objets reellement rattaches au Workspace. Les actions restent humaines :
+                aucun email, notification, acces, media, transcription ou workflow n'est lance automatiquement.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                Rubrique : {consolidation.workspace.categoryLabel}
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                Type : {consolidation.workspace.kindLabel}
+              </span>
+            </div>
+          </div>
+
+          <dl className="mt-5 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
+            <MetricCard label="Parcours gouvernes" value={consolidation.workspace.journeyCount} />
+            <MetricCard label="Dossiers relationnels" value={consolidation.workspace.relationCaseCount} />
+            <MetricCard label="Liens relationnels" value={consolidation.workspace.gLinkCount} />
+            <MetricCard label="Communications" value={consolidation.workspace.communicationCount} />
+          </dl>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Dossiers relationnels rattaches</h3>
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600">
+                  {consolidation.relationCases.length}
+                </span>
+              </div>
+              {consolidation.relationCases.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-600">Aucun dossier relationnel rattache a ce Workspace.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {consolidation.relationCases.map((relationCase) => (
+                    <article key={relationCase.id} className="rounded-lg bg-white p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-950">{relationCase.candidateName || relationCase.candidateEmail}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {relationCase.gLinkTitle} - {relationCase.status} - {formatDate(relationCase.createdAt)}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {relationCase.attachment === "DIRECT" ? "Rattachement direct" : "Associe via lien rattache"} - communications : {relationCase.communicationsCount}
+                          </p>
+                        </div>
+                        <Link href={relationCase.href} className="w-fit rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700">
+                          Ouvrir le dossier
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Liens relationnels rattaches</h3>
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600">
+                  {consolidation.gLinks.length}
+                </span>
+              </div>
+              {consolidation.gLinks.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-600">Aucun lien relationnel rattache a ce Workspace.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {consolidation.gLinks.map((link) => (
+                    <article key={link.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-slate-950">{link.title}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          /l/{link.slug} - {link.status} - dossiers : {link.relationCaseCount}
+                        </p>
+                      </div>
+                      <Link href={link.href} className="w-fit rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700">
+                        Ouvrir le lien
+                      </Link>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Communications consolidees</h3>
+              <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-600">
+                <span className="rounded-full bg-white px-2.5 py-1">Preparees : {consolidation.preparedCommunicationCount}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">Actives : {consolidation.activeCommunicationCount}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">Terminees : {consolidation.completedCommunicationCount}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">Expirees : {consolidation.expiredCommunicationCount}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div>
+                <p className="text-sm font-bold text-slate-950">Communications gouvernees preparees</p>
+                {consolidation.governanceCommunications.length === 0 ? (
+                  <p className="mt-2 rounded-lg bg-white p-3 text-sm text-slate-600">Aucune communication gouvernee preparee.</p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {consolidation.governanceCommunications.map((session) => (
+                      <article key={session.id} className="rounded-lg bg-white p-3 text-sm">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{session.originLabel}</p>
+                            <p className="mt-1 font-semibold text-slate-950">{session.channelLabel} - {session.title}</p>
+                          </div>
+                          <span className="w-fit rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                            {session.statusLabel}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          Creee le {formatDate(session.createdAt)} - provider : {session.providerLabel}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-bold text-slate-950">Communications relationnelles reelles</p>
+                {consolidation.relationCommunications.length === 0 ? (
+                  <p className="mt-2 rounded-lg bg-white p-3 text-sm text-slate-600">Aucune communication relationnelle historisee.</p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {consolidation.relationCommunications.map((session) => (
+                      <article key={session.id} className="rounded-lg bg-white p-3 text-sm">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{session.originLabel}</p>
+                            <p className="mt-1 font-semibold text-slate-950">{session.channelLabel} - {session.title}</p>
+                            {session.relationCaseHref && session.relationCaseLabel ? (
+                              <Link href={session.relationCaseHref} className="mt-1 inline-block text-xs font-bold text-[#247f88] underline underline-offset-4">
+                                {session.relationCaseLabel}
+                              </Link>
+                            ) : null}
+                          </div>
+                          <span className="w-fit rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                            {session.statusLabel}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          Creee le {formatDate(session.createdAt)}
+                          {session.endedAt ? ` - terminee le ${formatDate(session.endedAt)}` : ""}
+                          {session.expiresAt ? ` - expiration ${formatDate(session.expiresAt)}` : ""}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-amber-900">Interventions humaines</h3>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-amber-900">
+                {consolidation.humanInterventions.length}
+              </span>
+            </div>
+            {consolidation.humanInterventions.length === 0 ? (
+              <p className="mt-3 text-sm text-amber-900">Aucun signal d'intervention humaine consolide pour le moment.</p>
+            ) : (
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                {consolidation.humanInterventions.map((signal) => (
+                  <article key={signal.id} className="rounded-lg bg-white p-3 text-sm">
+                    <p className="font-bold text-slate-950">{signal.title}</p>
+                    <p className="mt-1 text-slate-600">{signal.description}</p>
+                    <p className="mt-2 text-xs font-semibold text-slate-500">Source : {signal.source}</p>
+                    <Link href={signal.href} className="mt-2 inline-block text-xs font-bold text-[#247f88] underline underline-offset-4">
+                      {signal.actionLabel}
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-amber-950">Vue consolidee du Workspace indisponible</h2>
+          <p className="mt-2 text-sm leading-relaxed text-amber-900">
+            Rattachez ce parcours gouverne a un Workspace produit depuis la page Gouvernance pour consolider les dossiers,
+            liens et communications reellement associes.
+          </p>
+        </section>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border bg-white p-6 shadow-sm">
@@ -831,8 +1035,8 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
             <p className="font-bold">Limite V1 obligatoire</p>
             <p className="mt-2 leading-relaxed">
-              Le rattachement des dossiers relationnels aux Workspaces sera ajoute dans un sprint dedie. La gouvernance ne consolide
-              donc pas encore automatiquement toutes les communications relationnelles d'un Workspace.
+              Le rattachement des dossiers relationnels aux Workspaces est visible dans la vue consolidee ci-dessus. Cette section
+              reste dediee a la preparation gouvernee : elle ne demarre pas de media multi-acteurs depuis la gouvernance.
             </p>
           </div>
         </div>
