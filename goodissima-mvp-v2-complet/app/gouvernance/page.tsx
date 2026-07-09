@@ -18,10 +18,10 @@ const governanceActions = [
     cta: "Consulter l'annuaire Goodissima V1",
   },
   {
-    title: "Consulter mes Workspaces",
-    body: "Accedez aux Workspaces rattaches a vos donnees reelles.",
-    href: "#espaces",
-    cta: "Consulter mes Workspaces",
+    title: "Creer un Workspace",
+    body: "Preparez un espace produit nomme et classe avant d'y rattacher des parcours.",
+    href: "/gouvernance/workspaces/nouveau",
+    cta: "Creer un Workspace",
   },
 ];
 
@@ -82,9 +82,14 @@ export default async function GovernanceWorkspacePage() {
             <p className="text-sm font-semibold text-slate-500">Workspaces</p>
             <h2 className="mt-1 text-2xl font-bold text-slate-950">Consulter mes Workspaces</h2>
           </div>
-          <Link href="/gouvernance/nouveau" className="w-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-            Commencer une activite
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/gouvernance/workspaces/nouveau" className="w-fit rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
+              Creer un Workspace
+            </Link>
+            <Link href="/gouvernance/nouveau" className="w-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              Commencer une activite
+            </Link>
+          </div>
         </div>
 
         {workspaces.length === 0 ? (
@@ -102,6 +107,14 @@ export default async function GovernanceWorkspacePage() {
                   <div>
                     <h3 className="break-words text-xl font-bold text-slate-950">{workspace.name}</h3>
                     <p className="mt-1 break-words text-xs font-semibold text-slate-500">Slug : {workspace.slug}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
+                        Rubrique : {workspace.categoryLabel}
+                      </span>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
+                        Type : {workspace.kindLabel}
+                      </span>
+                    </div>
                   </div>
                   <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ring-1 ${stateTone(workspace.state)}`}>
                     {workspace.state}

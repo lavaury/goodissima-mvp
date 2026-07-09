@@ -1,6 +1,6 @@
 "use server";
 
-import type { Prisma } from "@prisma/client";
+import type { Prisma, WorkspaceCategory } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -93,6 +93,16 @@ function fieldKeyFromLabel(label: string, fallback: string) {
   const key = normalizeKey(label).toLowerCase();
   return key || fallback;
 }
+
+const workspaceCategories = new Set<WorkspaceCategory>([
+  "PROFESSIONAL",
+  "PRIVATE",
+  "FAMILY",
+  "ASSOCIATION",
+  "PROJECT",
+  "CLIENT",
+  "OTHER",
+]);
 
 async function uniqueRelationTemplateKey(base: string) {
   const prefix = base || "PARCOURS_GOUVERNE";
@@ -194,6 +204,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
   const objective = textFromForm(formData, "objective") || initialNeed;
   const workspaceId = textFromForm(formData, "workspaceId");
   const workspaceName = textFromForm(formData, "workspaceName");
+  const workspaceCategoryInput = textFromForm(formData, "workspaceCategory") as WorkspaceCategory;
   const participants = linesFromForm(formData, "participants");
   const documents = linesFromForm(formData, "documents");
   const confidentialityRules = linesFromForm(formData, "confidentialityRules");
@@ -207,7 +218,8 @@ export async function createGovernedJourneyAction(formData: FormData) {
     throw new Error("Le nom du parcours et le besoin initial sont obligatoires.");
   }
 
-  const requestedWorkspace = workspaceName || workspaceId || `workspace-${owner.id}`;
+  const workspaceCategory = workspaceCategories.has(workspaceCategoryInput) ? workspaceCategoryInput : "OTHER";
+  const requestedWorkspace = workspaceName || `workspace-${owner.id}`;
   const workspaceSlug = workspaceSlugFrom(requestedWorkspace) || `workspace-${owner.id.toLowerCase()}`;
   const resolvedWorkspaceName = workspaceName || workspaceNameFromSlug(workspaceSlug) || "Workspace Goodissima";
 
@@ -364,28 +376,44 @@ export async function createGovernedJourneyAction(formData: FormData) {
   };
 
   const formTemplate = await prisma.$transaction(async (tx) => {
-    const workspace = await tx.workspace.upsert({
-      where: {
-        ownerId_slug: {
+    const selectedWorkspace = workspaceId
+      ? await tx.workspace.findFirst({
+          where: {
+            id: workspaceId,
+            ownerId: owner.id,
+          },
+        })
+      : null;
+
+    if (workspaceId && !selectedWorkspace) {
+      throw new Error("Workspace introuvable pour cet utilisateur.");
+    }
+
+    const workspace =
+      selectedWorkspace ??
+      (await tx.workspace.upsert({
+        where: {
+          ownerId_slug: {
+            ownerId: owner.id,
+            slug: workspaceSlug,
+          },
+        },
+        update: {
+          status: "ACTIVE",
+        },
+        create: {
           ownerId: owner.id,
           slug: workspaceSlug,
+          name: resolvedWorkspaceName,
+          kind: "GOVERNANCE",
+          category: workspaceCategory,
+          status: "ACTIVE",
+          metadata: {
+            source: "governance-v1-minimal-create",
+            createdFrom: "createGovernedJourneyAction",
+          },
         },
-      },
-      update: {
-        status: "ACTIVE",
-      },
-      create: {
-        ownerId: owner.id,
-        slug: workspaceSlug,
-        name: resolvedWorkspaceName,
-        kind: "GOVERNANCE",
-        status: "ACTIVE",
-        metadata: {
-          source: "governance-v1-minimal-create",
-          createdFrom: "createGovernedJourneyAction",
-        },
-      },
-    });
+      }));
 
     const relationTemplate = await tx.relationTemplate.create({
       data: {
@@ -483,6 +511,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
         workspaceId: workspace.id,
         workspaceSlug: workspace.slug,
         workspaceName: workspace.name,
+        workspaceCategory: workspace.category,
         workspacePersistence: "prisma-workspace-v1",
         automaticPublication: false,
         automaticWorkflowExecution: false,

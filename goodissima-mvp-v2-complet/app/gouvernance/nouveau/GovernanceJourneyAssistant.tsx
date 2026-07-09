@@ -19,6 +19,14 @@ type GovernanceJourneyAIResponse = {
   proposal: GovernanceJourneyProposal;
 };
 
+type WorkspaceOption = {
+  id: string;
+  name: string;
+  slug: string;
+  categoryLabel: string;
+  kindLabel: string;
+};
+
 function lines(value: string) {
   return value
     .split(/\r?\n/)
@@ -54,9 +62,10 @@ function TextAreaField({
   );
 }
 
-export function GovernanceJourneyAssistant() {
+export function GovernanceJourneyAssistant({ workspaces }: { workspaces: WorkspaceOption[] }) {
   const [need, setNeed] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("");
   const [proposal, setProposal] = useState<GovernanceJourneyProposal | null>(null);
   const [name, setName] = useState("");
   const [objective, setObjective] = useState("");
@@ -89,14 +98,14 @@ export function GovernanceJourneyAssistant() {
     setError("");
     const formData = new FormData();
     formData.set("aiNeed", need);
-    formData.set("workspaceId", workspaceId);
+    formData.set("workspaceId", workspaceId || workspaceName);
 
     startTransition(async () => {
       try {
         const response = await fetch("/api/gouvernance/journey-ai-generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ description: need, workspaceId }),
+          body: JSON.stringify({ description: need, workspaceId: workspaceId || workspaceName }),
         });
         if (!response.ok) throw new Error("API_IA_UNAVAILABLE");
         const body = (await response.json()) as GovernanceJourneyAIResponse;
@@ -120,8 +129,9 @@ export function GovernanceJourneyAssistant() {
     formData.set("name", name);
     formData.set("initialNeed", need);
     formData.set("objective", objective);
-    formData.set("workspaceId", workspaceId || proposal.workspaceId);
-    formData.set("workspaceName", proposal.workspaceName);
+    formData.set("workspaceId", workspaceId);
+    formData.set("workspaceName", workspaceName || proposal.workspaceName);
+    formData.set("workspaceCategory", "OTHER");
     formData.set("participants", participants);
     formData.set("documents", documents);
     formData.set("confidentialityRules", confidentialityRules);
@@ -150,19 +160,39 @@ export function GovernanceJourneyAssistant() {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <TextAreaField label="Besoin libre" value={need} onChange={setNeed} minRows={6} />
-        <label className="block text-sm font-semibold text-slate-800">
-          Workspace cible
-          <input
-            value={workspaceId}
-            onChange={(event) => setWorkspaceId(event.target.value)}
-            maxLength={120}
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
-            placeholder="Optionnel en V1"
-          />
+        <div className="rounded-lg border border-cyan-200 bg-white p-4">
+          <p className="text-sm font-semibold text-slate-800">Workspace persistant</p>
+          <div className="mt-3 grid gap-3">
+            <label className="block text-xs font-semibold text-slate-700">
+              Workspace existant
+              <select
+                value={workspaceId}
+                onChange={(event) => setWorkspaceId(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
+              >
+                <option value="">Creer ou reutiliser par nouveau nom</option>
+                {workspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-xs font-semibold text-slate-700">
+              Nouveau nom de Workspace
+              <input
+                value={workspaceName}
+                onChange={(event) => setWorkspaceName(event.target.value)}
+                maxLength={120}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
+                placeholder="Utilise si aucun Workspace existant n'est choisi"
+              />
+            </label>
+          </div>
           <span className="mt-2 block text-xs font-normal text-cyan-900">
-            Le rattachement Workspace reste conserve en metadata tant que le schema V1 ne porte pas ce lien.
+            Le parcours sera rattache a un Workspace persistant. Aucun acces ni invitation n'est cree automatiquement.
           </span>
-        </label>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

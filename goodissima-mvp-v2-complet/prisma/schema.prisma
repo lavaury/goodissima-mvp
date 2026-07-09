@@ -168,6 +168,16 @@ enum WorkspaceStatus {
   ARCHIVED
 }
 
+enum WorkspaceCategory {
+  PROFESSIONAL
+  PRIVATE
+  FAMILY
+  ASSOCIATION
+  PROJECT
+  CLIENT
+  OTHER
+}
+
 model User {
   id                   String   @id @default(cuid())
   email                String   @unique
@@ -196,6 +206,7 @@ model Workspace {
   name        String
   description String?
   kind        WorkspaceKind   @default(GOVERNANCE)
+  category    WorkspaceCategory @default(OTHER)
   status      WorkspaceStatus @default(ACTIVE)
   metadata    Json?
   createdAt   DateTime        @default(now())
@@ -208,6 +219,7 @@ model Workspace {
 
   @@unique([ownerId, slug])
   @@index([ownerId, status, createdAt])
+  @@index([ownerId, category, status])
   @@index([kind, status])
 }
 

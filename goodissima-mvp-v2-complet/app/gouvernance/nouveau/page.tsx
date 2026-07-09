@@ -3,12 +3,73 @@ import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { GovernanceJourneyAssistant } from "@/app/gouvernance/nouveau/GovernanceJourneyAssistant";
 import { createGovernedJourneyAction } from "@/lib/governance-journey-actions";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import {
+  getGovernanceWorkspaceOptions,
+  workspaceCategoryLabels,
+  type GovernanceWorkspaceOption,
+} from "@/lib/governance-workspace-repository";
 
 export const dynamic = "force-dynamic";
+
+const categoryOptions = ["PROFESSIONAL", "PRIVATE", "FAMILY", "ASSOCIATION", "PROJECT", "CLIENT", "OTHER"] as const;
+
+function WorkspaceFields({ workspaces }: { workspaces: GovernanceWorkspaceOption[] }) {
+  return (
+    <div className="rounded-lg border bg-slate-50 p-4">
+      <p className="text-sm font-bold text-slate-950">Workspace persistant</p>
+      <p className="mt-1 text-xs text-slate-500">
+        Choisissez un Workspace existant, ou saisissez un nouveau nom si aucun ne convient.
+      </p>
+      <div className="mt-3 grid gap-3">
+        <label className="block text-xs font-semibold text-slate-700">
+          Workspace existant
+          <select
+            name="workspaceId"
+            defaultValue=""
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
+          >
+            <option value="">Creer ou reutiliser par nouveau nom</option>
+            {workspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block text-xs font-semibold text-slate-700">
+          Nouveau nom de Workspace
+          <input
+            name="workspaceName"
+            maxLength={120}
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
+            placeholder="Utilise si aucun Workspace existant n'est choisi"
+          />
+        </label>
+
+        <label className="block text-xs font-semibold text-slate-700">
+          Rubrique du nouveau Workspace
+          <select
+            name="workspaceCategory"
+            defaultValue="OTHER"
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
+          >
+            {categoryOptions.map((category) => (
+              <option key={category} value={category}>
+                {workspaceCategoryLabels[category]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </div>
+  );
+}
 
 export default async function NewGovernedJourneyPage() {
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
+  const workspaces = await getGovernanceWorkspaceOptions(owner.id);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -29,7 +90,7 @@ export default async function NewGovernedJourneyPage() {
         </p>
       </section>
 
-      <GovernanceJourneyAssistant />
+      <GovernanceJourneyAssistant workspaces={workspaces} />
 
       <form action={createGovernedJourneyAction} className="mt-6 space-y-5 rounded-lg border bg-white p-6 shadow-sm">
         <div>
@@ -61,18 +122,7 @@ export default async function NewGovernedJourneyPage() {
           />
         </label>
 
-        <label className="block text-sm font-semibold text-slate-800">
-          Workspace cible
-          <input
-            name="workspaceId"
-            maxLength={120}
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
-            placeholder="Identifiant optionnel conserve en metadata V1"
-          />
-          <span className="mt-2 block text-xs font-normal text-slate-500">
-            V1 : cette valeur cree ou reutilise un Workspace produit persistant pour rattacher le parcours.
-          </span>
-        </label>
+        <WorkspaceFields workspaces={workspaces} />
 
         <label className="block text-sm font-semibold text-slate-800">
           Participants attendus
