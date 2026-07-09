@@ -10,7 +10,7 @@ import { DocumentUpload } from "@/components/DocumentUpload";
 import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
 import { RelationGovernanceBadge, RelationGovernanceControls } from "@/components/RelationGovernanceControls";
-import { RelationSecureMediaCall } from "@/components/RelationSecureMediaCall";
+import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
   getRelationActionStatusLabel,
@@ -469,11 +469,13 @@ export function RelationCaseWorkspace({
         status={item.status}
         editable={senderType === "OWNER"}
       />
-      {senderType === "OWNER" ? (
-        <div className="mt-6">
-          <RelationSecureMediaCall caseId={item.id} />
-        </div>
-      ) : null}
+      <div className="mt-6">
+        <RelationSecureMediaRoom
+          caseId={item.id}
+          role={senderType}
+          candidateAccessToken={candidateAccessToken}
+        />
+      </div>
       <div
         data-case-layout="conversation-ai-sidebar"
         className="mt-6 grid gap-5 lg:mt-8 xl:grid-cols-[minmax(420px,1.2fr)_minmax(390px,0.98fr)_280px] xl:gap-5"
