@@ -132,6 +132,46 @@ export async function cancelExpiredRelationMediaSession(session: { id: string; e
   });
 }
 
+export async function markRelationMediaSessionStarted(input: {
+  sessionId: string;
+  relationCaseId: string;
+  channelType: CommunicationChannelType;
+}) {
+  const now = new Date();
+  const session = await prisma.communicationSession.findFirst({
+    where: {
+      id: input.sessionId,
+      relationCaseId: input.relationCaseId,
+      status: {
+        in: ["REQUESTED", "PREPARED_NOT_STARTED"],
+      },
+    },
+  });
+
+  if (!session) return null;
+
+  const mergedChannelType = mergeMediaChannelType(session.channelType, input.channelType);
+  const usedScreenShare = session.channelType === "SCREEN_SHARE" || input.channelType === "SCREEN_SHARE";
+
+  return prisma.communicationSession.update({
+    where: { id: session.id },
+    data: {
+      channelType: mergedChannelType,
+      provider: "MANUAL_EXTERNAL",
+      status: "REQUESTED",
+      title: titleForMediaSession(mergedChannelType, usedScreenShare),
+      expiresAt: session.expiresAt ?? createRelationMediaSessionExpiresAt(now),
+      recordingEnabled: false,
+      transcriptionRequested: false,
+      transcriptionConsented: false,
+      automaticNotificationSent: false,
+      tokenGenerated: false,
+      accessOpened: true,
+      workflowStarted: false,
+    },
+  });
+}
+
 export async function getOrCreateRelationMediaSession(input: {
   ownerId: string;
   relationCaseId: string;
@@ -166,7 +206,7 @@ export async function getOrCreateRelationMediaSession(input: {
         workspaceId: input.workspaceId,
         relationTemplateId: input.relationTemplateId,
         channelType: mergedChannelType,
-        provider: "MANUAL_EXTERNAL",
+        provider: existingSession.provider,
         status: "REQUESTED",
         title: titleForMediaSession(mergedChannelType, usedScreenShare),
         note: "V1 WebRTC navigateur : signalisation HTTP controlee, aucun token public, aucun email, aucune notification.",
@@ -175,7 +215,7 @@ export async function getOrCreateRelationMediaSession(input: {
         transcriptionConsented: false,
         automaticNotificationSent: false,
         tokenGenerated: false,
-        accessOpened: true,
+        accessOpened: existingSession.accessOpened,
         workflowStarted: false,
         expiresAt: createRelationMediaSessionExpiresAt(now),
       },
@@ -189,7 +229,7 @@ export async function getOrCreateRelationMediaSession(input: {
       relationTemplateId: input.relationTemplateId,
       relationCaseId: input.relationCaseId,
       channelType: input.channelType,
-      provider: "MANUAL_EXTERNAL",
+      provider: "NONE",
       status: "REQUESTED",
       title: channelTitles[input.channelType],
       purpose: "Session relationnelle distante preparee depuis le dossier.",
@@ -199,7 +239,7 @@ export async function getOrCreateRelationMediaSession(input: {
       recordingEnabled: false,
       automaticNotificationSent: false,
       tokenGenerated: false,
-      accessOpened: true,
+      accessOpened: false,
       workflowStarted: false,
       expiresAt: createRelationMediaSessionExpiresAt(now),
     },

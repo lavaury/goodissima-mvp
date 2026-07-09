@@ -164,6 +164,10 @@ export function RelationSecureMediaRoom({
   const signalingEndpoint =
     role === "OWNER" ? `/api/cases/${caseId}/media/signaling` : `/api/candidate/cases/${caseId}/media/signaling`;
   const endEndpoint = `/api/cases/${caseId}/media/protected-call/end`;
+  const startedEndpoint =
+    role === "OWNER"
+      ? `/api/cases/${caseId}/media/protected-call/started`
+      : `/api/candidate/cases/${caseId}/media/protected-call/started`;
 
   useEffect(() => {
     if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
@@ -405,6 +409,35 @@ export function RelationSecureMediaRoom({
     return payload.session;
   }
 
+  async function markMediaStarted(channelType: ChannelType) {
+    const currentSession = sessionRef.current;
+    if (!currentSession) return;
+
+    const response = await fetch(startedEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionId: currentSession.id,
+        channelType,
+        candidateAccessToken,
+      }),
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      session?: SessionSummary;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.session) {
+      throw new Error(payload.error || "Impossible de normaliser le demarrage media.");
+    }
+
+    sessionRef.current = payload.session;
+    setSession(payload.session);
+  }
+
   async function joinRoom(channelType: ChannelType = "VIDEO_IP") {
     if (terminalState || pendingLabel || isStartingMediaRef.current || isClosingRoomRef.current || sessionRef.current) return;
 
@@ -445,6 +478,7 @@ export function RelationSecureMediaRoom({
         setLocalStream(stream);
       }
 
+      await markMediaStarted(channelType);
       setActiveChannel(channelType);
       logMediaSignal("Local media tracks added", {
         channelType,

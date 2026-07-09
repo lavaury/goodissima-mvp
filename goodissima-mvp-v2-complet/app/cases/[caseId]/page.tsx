@@ -47,6 +47,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
       },
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
+      communicationSessions: { orderBy: { createdAt: "desc" } },
       relationActions: { orderBy: [{ status: "asc" }, { createdAt: "desc" }] },
       formSubmissions: {
         orderBy: { createdAt: "desc" },

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { exchangeRelationMediaSignals, type RelationMediaSignalType } from "@/lib/relation-media-signaling";
 import { prisma } from "@/lib/prisma";
+import {
+  cancelExpiredRelationMediaSession,
+  getRelationMediaSessionBlockedReason,
+} from "@/lib/relation-media-sessions";
 
 function normalizeBody(value: unknown): {
   candidateAccessToken?: unknown;
@@ -59,6 +63,8 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       },
       select: {
         id: true,
+        status: true,
+        expiresAt: true,
       },
     });
 
@@ -66,8 +72,25 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       return NextResponse.json({ error: "Session media introuvable." }, { status: 404 });
     }
 
+    const checkedSession = await cancelExpiredRelationMediaSession(session);
+    const blockedReason = getRelationMediaSessionBlockedReason(checkedSession);
+    if (blockedReason === "expired") {
+      return NextResponse.json(
+        { error: "Cette session a expire. Creez ou ouvrez une nouvelle session depuis le dossier.", state: "expired" },
+        { status: 410 },
+      );
+    }
+
+    if (blockedReason === "ended") {
+      return NextResponse.json(
+        { error: "Session terminee.", state: "ended" },
+        { status: 410 },
+      );
+    }
+
     const exchange = exchangeRelationMediaSignals({
       sessionId,
+      caseId: relationCase.id,
       peerId,
       role: "CANDIDATE",
       cursor,

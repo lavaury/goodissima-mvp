@@ -43,6 +43,9 @@ export type RealGovernanceWorkspaceSummary = {
   relationCount: number;
   linkCount: number;
   communicationCount: number;
+  preparedCommunicationCount: number;
+  completedCommunicationCount: number;
+  expiredCommunicationCount: number;
   totalObjects: number;
   state: "Actif" | "Archive";
   observation: string;
@@ -162,10 +165,29 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
           communicationSessions: true,
         },
       },
+      communicationSessions: {
+        select: {
+          status: true,
+          expiresAt: true,
+        },
+      },
     },
   });
 
   return workspaces.map((workspace) => {
+    const now = new Date();
+    const preparedCommunicationCount = workspace.communicationSessions.filter(
+      (session) =>
+        (session.status === "REQUESTED" || session.status === "PREPARED_NOT_STARTED") &&
+        (!session.expiresAt || session.expiresAt > now),
+    ).length;
+    const completedCommunicationCount = workspace.communicationSessions.filter((session) => session.status === "COMPLETED").length;
+    const expiredCommunicationCount = workspace.communicationSessions.filter(
+      (session) =>
+        session.status === "CANCELLED" ||
+        ((session.status === "REQUESTED" || session.status === "PREPARED_NOT_STARTED") &&
+          Boolean(session.expiresAt && session.expiresAt <= now)),
+    ).length;
     const journeys = workspace.relationTemplates.map((template) => {
       const formTemplate = template.formTemplates[0] ?? null;
 
@@ -196,6 +218,9 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
       relationCount: workspace._count.relationCases,
       linkCount: workspace._count.links,
       communicationCount: workspace._count.communicationSessions,
+      preparedCommunicationCount,
+      completedCommunicationCount,
+      expiredCommunicationCount,
       totalObjects,
       state: workspace.status === "ARCHIVED" ? "Archive" : "Actif",
       observation:

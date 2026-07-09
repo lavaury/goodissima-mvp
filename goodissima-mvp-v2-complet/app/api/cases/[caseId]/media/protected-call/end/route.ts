@@ -35,27 +35,41 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       return NextResponse.json({ error: "Session media introuvable." }, { status: 404 });
     }
 
-    const endedSession =
-      session.status === "COMPLETED" || session.status === "CANCELLED"
-        ? session
-        : await prisma.communicationSession.update({
-            where: { id: session.id },
-            data: {
-              status: "COMPLETED",
-              accessOpened: false,
-              note: reason,
-            },
-            select: {
-              id: true,
-              status: true,
-            },
-          });
+    await prisma.communicationSession.updateMany({
+      where: {
+        relationCaseId: params.caseId,
+        ownerId: owner.id,
+        OR: [
+          { id: session.id },
+          {
+            provider: "MANUAL_EXTERNAL",
+            accessOpened: true,
+          },
+        ],
+        status: {
+          in: ["REQUESTED", "PREPARED_NOT_STARTED"],
+        },
+      },
+      data: {
+        status: "COMPLETED",
+        accessOpened: false,
+        note: reason,
+      },
+    });
+
+    const endedSession = await prisma.communicationSession.findUnique({
+      where: { id: session.id },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
 
     clearRelationMediaSignals(session.id);
     revalidatePath(`/cases/${params.caseId}`);
     revalidatePath("/gouvernance");
 
-    return NextResponse.json({ session: endedSession, state: "ended" });
+    return NextResponse.json({ session: endedSession ?? session, state: "ended" });
   } catch (error) {
     console.error("[relation-media] owner end failed", error);
     return NextResponse.json({ error: "Impossible de terminer la session media." }, { status: 500 });

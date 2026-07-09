@@ -15,6 +15,7 @@ export default async function SecureCasePage({ params }: { params: { token: stri
       gLink: true,
       messages: { orderBy: { createdAt: "asc" } },
       documents: { orderBy: { createdAt: "desc" } },
+      communicationSessions: { orderBy: { createdAt: "desc" } },
       relationActions: { orderBy: [{ status: "asc" }, { createdAt: "desc" }] },
       auditLogs: { orderBy: { createdAt: "desc" } },
       relationEvents: { orderBy: { createdAt: "desc" } },

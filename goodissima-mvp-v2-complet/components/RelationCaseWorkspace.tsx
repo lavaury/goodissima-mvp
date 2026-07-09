@@ -120,6 +120,7 @@ type RelationCaseWorkspaceItem = {
     expiresAt?: Date | string | null;
     recordingEnabled: boolean;
     transcriptionRequested: boolean;
+    accessOpened?: boolean;
   }>;
 };
 
@@ -223,13 +224,40 @@ function getCommunicationDisplaySubtitle(session: {
 }
 
 function getCommunicationDisplayStatus(session: {
+  provider?: CommunicationProvider;
   status: CommunicationSessionStatus;
   expiresAt?: Date | string | null;
+  accessOpened?: boolean;
 }) {
   if (session.status === "COMPLETED") return "Terminee";
-  if (session.status === "CANCELLED") return "Expiree ou annulee";
+  if (session.status === "CANCELLED") return session.expiresAt ? "Expiree" : "Annulee";
   if (session.expiresAt && new Date(session.expiresAt).getTime() <= Date.now()) return "Expiree";
+  if (session.status === "REQUESTED" && (session.provider === "MANUAL_EXTERNAL" || session.accessOpened)) return "En cours";
   return communicationStatusLabels[session.status];
+}
+
+function hasCommunicationMediaStarted(session: {
+  provider: CommunicationProvider;
+  accessOpened?: boolean;
+}) {
+  return session.provider === "MANUAL_EXTERNAL" || Boolean(session.accessOpened);
+}
+
+function getCommunicationProviderDisplay(session: {
+  provider: CommunicationProvider;
+  accessOpened?: boolean;
+}) {
+  if (hasCommunicationMediaStarted(session)) return "WebRTC navigateur";
+  return communicationProviderLabels[session.provider];
+}
+
+function getCommunicationExpirationDisplay(session: {
+  provider: CommunicationProvider;
+  expiresAt?: Date | string | null;
+  accessOpened?: boolean;
+}) {
+  if (session.expiresAt) return formatActivityDate(session.expiresAt);
+  return hasCommunicationMediaStarted(session) ? "Non renseignee" : "Non definie";
 }
 
 function formatRelativeActivityDate(date: Date | string) {
@@ -596,11 +624,11 @@ export function RelationCaseWorkspace({
                     </div>
                     <div>
                       <dt className="font-medium text-[#766f68]">Expiration</dt>
-                      <dd className="font-semibold text-[#2f3437]">{session.expiresAt ? formatActivityDate(session.expiresAt) : "Non definie"}</dd>
+                      <dd className="font-semibold text-[#2f3437]">{getCommunicationExpirationDisplay(session)}</dd>
                     </div>
                     <div>
                       <dt className="font-medium text-[#766f68]">Provider</dt>
-                      <dd className="font-semibold text-[#2f3437]">{communicationProviderLabels[session.provider]}</dd>
+                      <dd className="font-semibold text-[#2f3437]">{getCommunicationProviderDisplay(session)}</dd>
                     </div>
                   </dl>
                   <p className="mt-3 rounded-lg bg-[#f6f0e8] px-2.5 py-2 font-medium text-[#766f68]">

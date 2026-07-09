@@ -6,6 +6,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const channelTypes = new Set<CommunicationChannelType>(["VOICE_IP", "VIDEO_IP", "SCREEN_SHARE"]);
+const COMMUNICATION_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 
 function textFromForm(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -124,6 +125,7 @@ export async function prepareGovernanceCommunicationSessionAction(formData: Form
       note: note || null,
       externalUrl,
       scheduledAt,
+      expiresAt: new Date(Date.now() + COMMUNICATION_SESSION_TTL_MS),
       transcriptionRequested: false,
       transcriptionConsented: false,
       recordingEnabled: false,
