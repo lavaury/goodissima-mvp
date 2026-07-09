@@ -4,6 +4,7 @@ import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
 import { prepareParticipantInvitationAction } from "@/lib/governance-participant-invitations-actions";
+import { prepareGovernanceReviewAction } from "@/lib/governance-review-preparations-actions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,22 @@ type DocumentReception = {
   receivedById: string;
   fileStored: false;
   automaticValidation: false;
+};
+
+type GovernanceReviewPreparation = {
+  reviewPreparationId: string;
+  status: "PREPARED_NOT_STARTED";
+  reason: string;
+  question: string;
+  note: string | null;
+  preparedAt: string;
+  updatedAt: string;
+  preparedById: string;
+  meetingCreated: false;
+  notificationSent: false;
+  aiSummaryGenerated: false;
+  automaticDecision: false;
+  workflowStarted: false;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -192,6 +209,118 @@ function documentKey(name: string) {
   return name.trim().toLowerCase();
 }
 
+function preparedInvitationsCount(input: { participants: Actor[]; participantInvitations: ParticipantInvitation[] }) {
+  const preparedInvitationKeys = new Set(
+    input.participantInvitations.map((invitation) =>
+      participantKey(invitation.participantName, invitation.participantRole),
+    ),
+  );
+
+  return input.participants.filter((participant) => preparedInvitationKeys.has(participantKey(participant.name, participant.role)))
+    .length;
+}
+
+function declaredReceptionsCount(input: { documents: ExpectedDocument[]; documentReceptions: DocumentReception[] }) {
+  const declaredReceptionKeys = new Set(input.documentReceptions.map((reception) => documentKey(reception.documentName)));
+
+  return input.documents.filter((document) => declaredReceptionKeys.has(documentKey(document.name))).length;
+}
+
+function governedJourneyStatusLabel(input: {
+  totalParticipants: number;
+  preparedInvitationsCount: number;
+  totalDocuments: number;
+  declaredReceptionsCount: number;
+  preparedReviewsCount: number;
+  humanValidated: boolean;
+}) {
+  if (!input.humanValidated) return "À valider humainement";
+  if (input.totalParticipants === 0 && input.totalDocuments === 0 && input.preparedReviewsCount === 0) {
+    return "Préparation initiale";
+  }
+
+  const everyParticipantHasPreparedInvitation =
+    input.totalParticipants === 0 || input.preparedInvitationsCount === input.totalParticipants;
+  const everyDocumentHasDeclaredReception =
+    input.totalDocuments === 0 || input.declaredReceptionsCount === input.totalDocuments;
+
+  if (everyParticipantHasPreparedInvitation && everyDocumentHasDeclaredReception) {
+    return "Préparation structurée";
+  }
+
+  return "Préparation en cours";
+}
+
+function governedJourneySummary(input: {
+  participants: Actor[];
+  participantInvitations: ParticipantInvitation[];
+  documents: ExpectedDocument[];
+  documentReceptions: DocumentReception[];
+  governanceReviewPreparations: GovernanceReviewPreparation[];
+  humanValidated: boolean;
+}) {
+  const totalParticipants = input.participants.length;
+  const invitationsPrepared = preparedInvitationsCount({
+    participants: input.participants,
+    participantInvitations: input.participantInvitations,
+  });
+  const totalDocuments = input.documents.length;
+  const receptionsDeclared = declaredReceptionsCount({
+    documents: input.documents,
+    documentReceptions: input.documentReceptions,
+  });
+  const preparedReviewsCount = input.governanceReviewPreparations.length;
+
+  return {
+    totalParticipants,
+    preparedInvitationsCount: invitationsPrepared,
+    totalDocuments,
+    declaredReceptionsCount: receptionsDeclared,
+    preparedReviewsCount,
+    humanValidated: input.humanValidated,
+    statusLabel: governedJourneyStatusLabel({
+      totalParticipants,
+      preparedInvitationsCount: invitationsPrepared,
+      totalDocuments,
+      declaredReceptionsCount: receptionsDeclared,
+      preparedReviewsCount,
+      humanValidated: input.humanValidated,
+    }),
+  };
+}
+
+function governanceReviewPreparationsFrom(value: unknown): GovernanceReviewPreparation[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const row = asRecord(item);
+      const reviewPreparationId = text(row.reviewPreparationId);
+      const reason = text(row.reason);
+      const question = text(row.question);
+      const preparedAt = text(row.preparedAt);
+      const preparedById = text(row.preparedById);
+      if (!reviewPreparationId || !reason || !question || !preparedAt || !preparedById) return null;
+
+      return {
+        reviewPreparationId,
+        status: "PREPARED_NOT_STARTED" as const,
+        reason,
+        question,
+        note: text(row.note),
+        preparedAt,
+        updatedAt: text(row.updatedAt) ?? preparedAt,
+        preparedById,
+        meetingCreated: false as const,
+        notificationSent: false as const,
+        aiSummaryGenerated: false as const,
+        automaticDecision: false as const,
+        workflowStarted: false as const,
+      };
+    })
+    .filter((item): item is GovernanceReviewPreparation => item !== null);
+}
+
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "Date non disponible";
   const date = typeof value === "string" ? new Date(value) : value;
@@ -232,8 +361,8 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
   const workspaceId = text(creationPlan.workspaceId) ?? text(metadata.workspaceId) ?? "Workspace non rattaché en V1";
   const source = text(creationPlan.source) ?? text(metadata.source) ?? "Création V1";
 
-  const participants = actorsFrom(creationPlan.actors);
-  const documentsFromPlan = documentsFrom(creationPlan.expectedDocuments);
+  const participants = actorsFrom(creationPlan.participants ?? creationPlan.actors);
+  const documentsFromPlan = documentsFrom(creationPlan.documents ?? creationPlan.expectedDocuments);
   const documents =
     documentsFromPlan.length > 0
       ? documentsFromPlan
@@ -249,7 +378,16 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
   const firstActions = actionsFrom(creationPlan.firstActions);
   const participantInvitations = invitationsFrom(metadata.participantInvitations);
   const documentReceptions = documentReceptionsFrom(metadata.documentReceptions);
+  const governanceReviewPreparations = governanceReviewPreparationsFrom(metadata.governanceReviewPreparations);
   const humanValidated = validation.humanValidated === true;
+  const summary = governedJourneySummary({
+    participants,
+    participantInvitations,
+    documents,
+    documentReceptions,
+    governanceReviewPreparations,
+    humanValidated,
+  });
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -283,6 +421,51 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
             <p className="mt-1 font-bold text-slate-950">{formatDate(version?.createdAt)}</p>
           </div>
         </div>
+      </section>
+
+      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">Synthèse du parcours gouverné</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Cette synthèse est calculée localement à partir des informations déclarées.
+            </p>
+          </div>
+          <span className="w-fit rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">
+            {summary.statusLabel}
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-5">
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Validation humaine</p>
+            <p className="mt-1 font-bold text-slate-950">{summary.humanValidated ? "Validée" : "Non validée"}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Participants</p>
+            <p className="mt-1 font-bold text-slate-950">
+              {summary.preparedInvitationsCount} / {summary.totalParticipants} invitations préparées
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Documents</p>
+            <p className="mt-1 font-bold text-slate-950">
+              {summary.declaredReceptionsCount} / {summary.totalDocuments} réceptions déclarées
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Revues</p>
+            <p className="mt-1 font-bold text-slate-950">{summary.preparedReviewsCount} revue(s) préparée(s)</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Automatisations</p>
+            <p className="mt-1 font-bold text-slate-950">Aucune automatisation active en V1</p>
+          </div>
+        </div>
+
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">
+          Goodissima ne vérifie pas automatiquement les documents, n’envoie pas les invitations et ne lance pas les revues.
+        </p>
       </section>
 
       <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
@@ -531,13 +714,103 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
         </section>
       </div>
 
+      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">Revue de gouvernance</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Préparation humaine uniquement : aucune réunion, notification, synthèse IA, décision ou action n'est déclenchée.
+            </p>
+          </div>
+          <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
+            Metadata-first V1.2
+          </span>
+        </div>
+
+        {governanceReviewPreparations.length > 0 ? (
+          <div className="mt-5 space-y-3">
+            {governanceReviewPreparations.map((review) => (
+              <article key={review.reviewPreparationId} className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-sm font-bold text-emerald-950">Revue préparée - non lancée automatiquement</p>
+                <div className="mt-3 grid gap-3 text-sm lg:grid-cols-2">
+                  <div className="rounded-lg bg-white/80 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Motif</p>
+                    <p className="mt-1 text-emerald-950">{review.reason}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/80 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Question à trancher</p>
+                    <p className="mt-1 text-emerald-950">{review.question}</p>
+                  </div>
+                </div>
+                {review.note ? <p className="mt-3 text-sm text-emerald-950">Note : {review.note}</p> : null}
+                <p className="mt-3 text-xs font-semibold text-emerald-800">
+                  Préparée le {formatDate(review.preparedAt)}. Dernière mise à jour : {formatDate(review.updatedAt)}.
+                </p>
+                <div className="mt-3 grid gap-2 text-xs font-semibold text-emerald-900 sm:grid-cols-2 lg:grid-cols-5">
+                  <p className="rounded-lg bg-white/80 px-3 py-2">Réunion créée : non</p>
+                  <p className="rounded-lg bg-white/80 px-3 py-2">Notification envoyée : non</p>
+                  <p className="rounded-lg bg-white/80 px-3 py-2">Synthèse IA générée : non</p>
+                  <p className="rounded-lg bg-white/80 px-3 py-2">Décision automatique : non</p>
+                  <p className="rounded-lg bg-white/80 px-3 py-2">Workflow lancé : non</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-5 rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">
+            Aucune revue de gouvernance n'est préparée pour ce parcours.
+          </p>
+        )}
+
+        <form action={prepareGovernanceReviewAction} className="mt-5 rounded-lg border bg-slate-50 p-4">
+          <input type="hidden" name="formTemplateId" value={formTemplate.id} />
+          <p className="text-sm font-bold text-slate-950">Préparer une revue de gouvernance</p>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <label className="text-xs font-semibold text-slate-600">
+              Motif
+              <input
+                name="reviewReason"
+                required
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
+                placeholder="Ex. arbitrage humain, point de blocage, décision à préparer"
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Question à trancher
+              <input
+                name="reviewQuestion"
+                required
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
+                placeholder="Question précise à examiner manuellement"
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600 lg:col-span-2">
+              Note optionnelle
+              <textarea
+                name="optionalNote"
+                className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
+                placeholder="Contexte utile pour la préparation humaine"
+              />
+            </label>
+          </div>
+          <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
+            Préparer sans lancer
+          </button>
+          <p className="mt-2 text-xs text-slate-500">
+            V1 : cette revue est uniquement préparée. Goodissima ne crée pas de réunion, ne notifie personne,
+            ne génère pas de synthèse IA et ne prend aucune décision automatiquement.
+          </p>
+        </form>
+      </section>
+
       <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
         <h2 className="font-bold">Limite V1 explicite</h2>
         <p className="mt-2 leading-relaxed">
           Cette salle de pilotage affiche le cadrage validé et les éléments de préparation du parcours. V1 : les messages
           d'invitation sont uniquement préparés pour copie ou transmission manuelle. Goodissima n'envoie pas l'invitation,
-          ne génère pas de lien et n'ouvre aucun accès automatiquement. Les communications sécurisées, revues de gouvernance
-          et dépôts documentaires interactifs ne sont pas activés dans ce cockpit minimal.
+          ne génère pas de lien et n'ouvre aucun accès automatiquement. Les revues de gouvernance sont uniquement préparées :
+          Goodissima ne crée pas de réunion, ne notifie personne, ne génère pas de synthèse IA et ne prend aucune décision
+          automatiquement. Les communications sécurisées et dépôts documentaires interactifs ne sont pas activés dans ce cockpit minimal.
         </p>
         <p className="mt-2 text-xs">
           Source : {source} · Workspace : {workspaceId}
