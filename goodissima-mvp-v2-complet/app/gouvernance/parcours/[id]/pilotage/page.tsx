@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { prepareGovernanceCommunicationSessionAction } from "@/lib/governance-communication-session-actions";
+import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
 import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
 import { prepareParticipantInvitationAction } from "@/lib/governance-participant-invitations-actions";
 import { prepareGovernanceReviewAction } from "@/lib/governance-review-preparations-actions";
 import {
-  communicationChannelLabels,
-  getGovernanceCommunicationSessionsForJourney,
-} from "@/lib/governance-workspace-repository";
+  getGovernanceCommunicationOverview,
+  governanceCommunicationChannelLabels,
+} from "@/lib/governance-communication-session-repository";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -401,18 +401,25 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
     governanceReviewPreparations,
     humanValidated,
   });
-  const communicationSessions = formTemplate.relationTemplate?.id
-    ? await getGovernanceCommunicationSessionsForJourney({
+  const communicationOverview = formTemplate.relationTemplate?.id
+    ? await getGovernanceCommunicationOverview({
         ownerId: owner.id,
         relationTemplateId: formTemplate.relationTemplate.id,
+        workspaceId: attachedWorkspaceId,
+        invitationPreparedCount: participantInvitations.length,
       })
-    : [];
+    : {
+        sessions: [],
+        preparedCount: 0,
+        completedCount: 0,
+        expiredCount: 0,
+        invitationPreparedCount: participantInvitations.length,
+      };
   const communicationCapabilities = [
-    { channelType: "VOICE_IP", label: communicationChannelLabels.VOICE_IP },
-    { channelType: "VIDEO_IP", label: communicationChannelLabels.VIDEO_IP },
-    { channelType: "SCREEN_SHARE", label: communicationChannelLabels.SCREEN_SHARE },
+    { channelType: "VOICE_IP", label: governanceCommunicationChannelLabels.VOICE_IP },
+    { channelType: "VIDEO_IP", label: governanceCommunicationChannelLabels.VIDEO_IP },
+    { channelType: "SCREEN_SHARE", label: governanceCommunicationChannelLabels.SCREEN_SHARE },
   ] as const;
-
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <PlatformNavigation active="governance" organizationName={organizationName} />
@@ -774,64 +781,70 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
       <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-950">Communications sécurisées</h2>
+            <h2 className="text-xl font-bold text-slate-950">Communications gouvernees</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Préparation gouvernée uniquement : aucun appel, visio ou partage d'écran n'est démarré automatiquement.
+              Cette section prepare et trace les communications gouvernees du parcours. En V1, les communications distantes
+              fonctionnelles sont disponibles dans les dossiers relationnels ; le multi-acteurs gouverne complet sera branche
+              dans un sprint dedie.
             </p>
           </div>
           <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
-            Socle persistant V1
+            Multi-acteurs prepare - transport V1 non branche
           </span>
         </div>
 
-        {communicationSessions.length > 0 ? (
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            {communicationSessions.map((session) => (
-              <article key={session.id} className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">{session.channelLabel}</p>
-                    <h3 className="mt-1 font-bold text-emerald-950">{session.title}</h3>
-                  </div>
-                  <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
-                    {session.statusLabel}
-                  </span>
-                </div>
-                {session.purpose ? <p className="mt-3 text-sm text-emerald-950">Objectif : {session.purpose}</p> : null}
-                {session.note ? <p className="mt-2 text-sm text-emerald-950">Note : {session.note}</p> : null}
-                {session.scheduledAt ? (
-                  <p className="mt-2 text-sm text-emerald-950">Date prévue : {formatDate(session.scheduledAt)}</p>
-                ) : null}
-                {session.externalUrl ? (
-                  <p className="mt-2 break-words text-sm text-emerald-950">
-                    Lien externe manuel : {session.externalUrl}
-                  </p>
-                ) : null}
-                <div className="mt-3 rounded-lg bg-white/80 p-3 text-xs font-semibold text-emerald-900">
-                  <p>Provider : {session.providerLabel}</p>
-                  <p className="mt-1">Transcription : désactivée</p>
-                  <p className="mt-1">Enregistrement : désactivé</p>
-                  <p className="mt-1">Notification automatique : non</p>
-                  <p className="mt-1">Token généré : non</p>
-                  <p className="mt-1">Accès ouvert : non</p>
-                </div>
-              </article>
-            ))}
+        <dl className="mt-5 grid gap-3 text-sm md:grid-cols-4">
+          <MetricCard label="Preparees / en cours" value={communicationOverview.preparedCount} />
+          <MetricCard label="Terminees" value={communicationOverview.completedCount} />
+          <MetricCard label="Expirees" value={communicationOverview.expiredCount} />
+          <MetricCard label="Invitations preparees" value={communicationOverview.invitationPreparedCount} />
+        </dl>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-950">Participants attendus</p>
+            {participants.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-600">Aucun participant attendu n'est present dans la metadata du parcours.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {participants.map((participant) => {
+                  const invitation = participantInvitations.find(
+                    (item) => participantKey(item.participantName, item.participantRole) === participantKey(participant.name, participant.role),
+                  );
+
+                  return (
+                    <div key={participantKey(participant.name, participant.role)} className="rounded-lg bg-white px-3 py-2 text-sm">
+                      <p className="font-semibold text-slate-950">{participant.name}</p>
+                      <p className="text-slate-600">Role : {participant.role}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {invitation
+                          ? "Invitation preparee - non envoyee automatiquement - aucun acces ouvert"
+                          : "Invitation non preparee - aucun envoi automatique"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        ) : (
-          <p className="mt-5 rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">
-            Aucune communication sécurisée n'est préparée pour ce parcours.
-          </p>
-        )}
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">Limite V1 obligatoire</p>
+            <p className="mt-2 leading-relaxed">
+              Le rattachement des dossiers relationnels aux Workspaces sera ajoute dans un sprint dedie. La gouvernance ne consolide
+              donc pas encore automatiquement toutes les communications relationnelles d'un Workspace.
+            </p>
+          </div>
+        </div>
 
         {attachedWorkspaceId ? (
           <div className="mt-5 grid gap-4 lg:grid-cols-3">
             {communicationCapabilities.map((capability) => (
               <details key={capability.channelType} className="rounded-lg border bg-slate-50 p-4">
                 <summary className="cursor-pointer text-sm font-bold text-slate-950">
-                  Préparer - {capability.label}
+                  Preparer une communication - {capability.label}
                 </summary>
-                <form action={prepareGovernanceCommunicationSessionAction} className="mt-4 space-y-3">
+                <form action={prepareGovernanceMultiActorCommunicationAction} className="mt-4 space-y-3">
                   <input type="hidden" name="formTemplateId" value={formTemplate.id} />
                   <input type="hidden" name="workspaceId" value={attachedWorkspaceId} />
                   <input type="hidden" name="channelType" value={capability.channelType} />
@@ -842,7 +855,7 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                       required
                       maxLength={140}
                       className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
-                      placeholder={capability.label}
+                      placeholder={`${capability.label} gouvernee`}
                     />
                   </label>
                   <label className="block text-xs font-semibold text-slate-600">
@@ -861,6 +874,29 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                       className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
                     />
                   </label>
+                  <fieldset className="rounded-lg border border-slate-200 bg-white p-3">
+                    <legend className="px-1 text-xs font-semibold text-slate-600">Participants attendus</legend>
+                    {participantInvitations.length === 0 ? (
+                      <p className="text-xs text-slate-500">Aucune invitation preparee. La session restera liee au parcours sans envoi ni acces.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {participantInvitations.map((invitation) => (
+                          <label key={invitation.invitationId} className="flex gap-2 text-xs text-slate-700">
+                            <input
+                              type="checkbox"
+                              name="participantInvitationIds"
+                              value={invitation.invitationId}
+                              className="mt-0.5"
+                            />
+                            <span>
+                              <span className="font-semibold">{invitation.participantName}</span> - {invitation.participantRole}
+                              <span className="block text-slate-500">Preparee / non envoyee / aucun acces ouvert</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </fieldset>
                   <label className="block text-xs font-semibold text-slate-600">
                     Note
                     <textarea
@@ -869,20 +905,11 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                       className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
                     />
                   </label>
-                  <label className="block text-xs font-semibold text-slate-600">
-                    Lien externe manuel optionnel
-                    <input
-                      name="externalUrl"
-                      type="url"
-                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
-                      placeholder="https://..."
-                    />
-                  </label>
                   <button type="submit" className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
-                    Préparer
+                    Preparer sans demarrer
                   </button>
                   <p className="text-xs text-slate-500">
-                    Le lien externe reste manuel et n'est jamais envoyé automatiquement par Goodissima.
+                    Goodissima trace la preparation uniquement : aucun lien, token, notification, workflow ou media n'est lance.
                   </p>
                 </form>
               </details>
@@ -890,14 +917,48 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
           </div>
         ) : (
           <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Rattachez d'abord ce parcours à un Workspace produit depuis la page Gouvernance pour préparer une communication.
+            Rattachez d'abord ce parcours a un Workspace produit depuis la page Gouvernance pour preparer une communication.
           </p>
         )}
 
-        <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-          V1 : Goodissima prépare et gouverne la session. Le démarrage média, les tokens temporaires, LiveKit et l'envoi
-          aux participants seront ajoutés dans un sprint dédié avec consentement explicite.
-        </p>
+        {communicationOverview.sessions.length > 0 ? (
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {communicationOverview.sessions.map((session) => (
+              <article key={session.id} className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                      {session.channelLabel} - {session.scope === "WORKSPACE" ? "Workspace et parcours" : "Parcours"}
+                    </p>
+                    <h3 className="mt-1 font-bold text-emerald-950">{session.title}</h3>
+                  </div>
+                  <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+                    {session.statusLabel}
+                  </span>
+                </div>
+                {session.purpose ? <p className="mt-3 text-sm text-emerald-950">Objectif : {session.purpose}</p> : null}
+                {session.note ? <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950">Note : {session.note}</p> : null}
+                <div className="mt-3 rounded-lg bg-white/80 p-3 text-xs font-semibold text-emerald-900">
+                  <p>Provider : {session.providerLabel}</p>
+                  <p className="mt-1">Creee le : {formatDate(session.createdAt)}</p>
+                  <p className="mt-1">Date prevue : {session.scheduledAt ? formatDate(session.scheduledAt) : "Non definie"}</p>
+                  <p className="mt-1">Expiration : {session.expiresAt ? formatDate(session.expiresAt) : "Non definie"}</p>
+                  <p className="mt-1">Terminee le : {session.status === "COMPLETED" ? formatDate(session.updatedAt) : "Non terminee"}</p>
+                  <p className="mt-1">Email automatique : non</p>
+                  <p className="mt-1">Notification : non</p>
+                  <p className="mt-1">Token : non</p>
+                  <p className="mt-1">Acces ouvert : {session.accessOpened ? "oui" : "non"}</p>
+                  <p className="mt-1">Enregistrement : non</p>
+                  <p className="mt-1">Transcription : non</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-5 rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">
+            Aucune communication gouvernee n'est preparee pour ce parcours.
+          </p>
+        )}
       </section>
 
       <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
@@ -1003,5 +1064,14 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
         </p>
       </section>
     </main>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-4">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 text-2xl font-bold text-slate-950">{value}</dd>
+    </div>
   );
 }

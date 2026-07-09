@@ -17,6 +17,38 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function selectedFormValues(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean);
+}
+
+function participantInvitationsFrom(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const row = asRecord(item);
+      const invitationId = text(row.invitationId);
+      const participantName = text(row.participantName);
+      const participantRole = text(row.participantRole);
+      if (!invitationId || !participantName || !participantRole) return null;
+
+      return {
+        invitationId,
+        participantName,
+        participantRole,
+        status: text(row.status) ?? "PREPARED_NOT_SENT",
+      };
+    })
+    .filter((item): item is { invitationId: string; participantName: string; participantRole: string; status: string } => item !== null);
+}
+
 function optionalDate(value: string) {
   if (!value) return null;
   const date = new Date(value);
@@ -139,3 +171,125 @@ export async function prepareGovernanceCommunicationSessionAction(formData: Form
   revalidatePath("/gouvernance");
   revalidatePath(`/gouvernance/parcours/${formTemplateId}/pilotage`);
 }
+
+export async function prepareGovernanceMultiActorCommunicationAction(formData: FormData) {
+  const owner = await getCurrentPrismaUser();
+  const formTemplateId = textFromForm(formData, "formTemplateId");
+  const workspaceId = textFromForm(formData, "workspaceId");
+  const channelTypeInput = textFromForm(formData, "channelType") as CommunicationChannelType;
+  const title = textFromForm(formData, "title");
+  const purpose = textFromForm(formData, "purpose");
+  const note = textFromForm(formData, "note");
+  const scheduledAt = optionalDate(textFromForm(formData, "scheduledAt"));
+  const participantInvitationIds = selectedFormValues(formData, "participantInvitationIds");
+
+  if (!formTemplateId || !workspaceId || !title) {
+    throw new Error("Le parcours, le Workspace et le titre sont obligatoires.");
+  }
+
+  if (!channelTypes.has(channelTypeInput)) {
+    throw new Error("Type de communication invalide.");
+  }
+
+  const [formTemplate, workspace] = await Promise.all([
+    prisma.formTemplate.findUnique({
+      where: { id: formTemplateId },
+      include: {
+        relationTemplate: {
+          include: {
+            versions: {
+              orderBy: { version: "desc" },
+              take: 1,
+              select: {
+                snapshot: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.workspace.findFirst({
+      where: {
+        id: workspaceId,
+        ownerId: owner.id,
+        status: "ACTIVE",
+      },
+      select: {
+        id: true,
+      },
+    }),
+  ]);
+
+  if (!formTemplate?.relationTemplate) {
+    throw new Error("Parcours gouverne introuvable.");
+  }
+
+  if (!workspace) {
+    throw new Error("Workspace cible introuvable pour cet utilisateur.");
+  }
+
+  if (formTemplate.relationTemplate.workspaceId !== workspace.id) {
+    throw new Error("Ce parcours n'est pas rattache au Workspace selectionne.");
+  }
+
+  const latestVersion = formTemplate.relationTemplate.versions[0];
+  const metadata = asRecord(asRecord(latestVersion?.snapshot).metadata);
+  const participantInvitations = participantInvitationsFrom(metadata.participantInvitations);
+  const selectedInvitationIdSet = new Set(participantInvitationIds);
+  const selectedInvitations = participantInvitations.filter((invitation) =>
+    selectedInvitationIdSet.has(invitation.invitationId),
+  );
+  const expectedParticipants =
+    selectedInvitations.length > 0
+      ? selectedInvitations
+      : participantInvitations;
+  const participantSummary =
+    expectedParticipants.length > 0
+      ? expectedParticipants
+          .map((participant) => `${participant.participantName} (${participant.participantRole})`)
+          .join(", ")
+      : "Aucun participant prepare dans metadata au moment de la preparation.";
+  const governanceNote = [
+    "source: governance-multi-actor-v1",
+    "Transport multi-acteurs distant non demarre par cette preparation.",
+    `participantInvitationIds: ${
+      expectedParticipants.length > 0
+        ? expectedParticipants.map((participant) => participant.invitationId).join(", ")
+        : "aucun"
+    }`,
+    `participants attendus: ${participantSummary}`,
+    note ? `note: ${note}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await prisma.communicationSession.create({
+    data: {
+      ownerId: owner.id,
+      workspaceId: workspace.id,
+      relationTemplateId: formTemplate.relationTemplate.id,
+      relationCaseId: null,
+      channelType: channelTypeInput,
+      provider: "NONE",
+      status: "PREPARED_NOT_STARTED",
+      title,
+      purpose: purpose || null,
+      note: governanceNote,
+      externalUrl: null,
+      scheduledAt,
+      expiresAt: null,
+      transcriptionRequested: false,
+      transcriptionConsented: false,
+      recordingEnabled: false,
+      automaticNotificationSent: false,
+      tokenGenerated: false,
+      accessOpened: false,
+      workflowStarted: false,
+    },
+  });
+
+  revalidatePath("/gouvernance");
+  revalidatePath(`/gouvernance/parcours/${formTemplateId}/pilotage`);
+}
+
+export const prepareGovernedMultiActorCommunicationAction = prepareGovernanceMultiActorCommunicationAction;
