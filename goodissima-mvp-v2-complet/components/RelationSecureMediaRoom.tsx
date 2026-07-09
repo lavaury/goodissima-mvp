@@ -97,6 +97,11 @@ function isScreenShareAbort(error: unknown) {
   return error.name === "AbortError" || error.name === "NotAllowedError" || error.name === "NotFoundError";
 }
 
+function isCameraOrMicrophoneAbort(error: unknown) {
+  if (!(error instanceof DOMException)) return false;
+  return error.name === "AbortError" || error.name === "NotAllowedError" || error.name === "NotFoundError" || error.name === "NotReadableError";
+}
+
 export function RelationSecureMediaRoom({
   caseId,
   role,
@@ -121,6 +126,8 @@ export function RelationSecureMediaRoom({
   const pollingInFlightRef = useRef(false);
   const negotiationPendingRef = useRef(false);
   const applyingLocalMediaRef = useRef(false);
+  const isStartingMediaRef = useRef(false);
+  const isClosingRoomRef = useRef(false);
   const lastAppliedRemoteAnswerRef = useRef<string | null>(null);
   const lastAppliedRemoteOfferRef = useRef<string | null>(null);
   const appliedIceCandidatesRef = useRef<Set<string>>(new Set());
@@ -132,6 +139,8 @@ export function RelationSecureMediaRoom({
   const [participants, setParticipants] = useState<SignalingResponse["participants"]>([]);
   const [pendingLabel, setPendingLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isStartingMedia, setIsStartingMedia] = useState(false);
+  const [isClosingRoom, setIsClosingRoom] = useState(false);
 
   const polite = role === "CANDIDATE";
   const prepareEndpoint =
@@ -371,6 +380,8 @@ export function RelationSecureMediaRoom({
   }
 
   async function joinRoom(channelType: ChannelType = "VIDEO_IP") {
+    if (pendingLabel || isStartingMediaRef.current || isClosingRoomRef.current || sessionRef.current) return;
+
     setError(null);
     setPendingLabel("Connexion...");
 
@@ -385,6 +396,10 @@ export function RelationSecureMediaRoom({
   }
 
   async function startMedia(channelType: ChannelType, media: "audio" | "video" | "screen") {
+    if (pendingLabel || isStartingMediaRef.current || isClosingRoomRef.current) return;
+
+    isStartingMediaRef.current = true;
+    setIsStartingMedia(true);
     setError(null);
     setPendingLabel(channelLabels[channelType]);
 
@@ -416,11 +431,15 @@ export function RelationSecureMediaRoom({
     } catch (startError) {
       applyingLocalMediaRef.current = false;
       if (media === "screen" && isScreenShareAbort(startError)) {
-        setError("Partage d'ecran annule ou refuse.");
+        setError("Partage d'ecran annule ou refuse. Cliquez de nouveau sur Partage d'ecran, choisissez une source, puis cliquez sur Partager.");
+      } else if (media !== "screen" && isCameraOrMicrophoneAbort(startError)) {
+        setError("Permission camera/micro refusee ou annulee. Vous pouvez reessayer avec le bouton Visio.");
       } else {
         setError(startError instanceof Error ? startError.message : "Impossible de demarrer le media.");
       }
     } finally {
+      isStartingMediaRef.current = false;
+      setIsStartingMedia(false);
       setPendingLabel(null);
     }
   }
@@ -593,6 +612,11 @@ export function RelationSecureMediaRoom({
   }
 
   function closeRoom() {
+    if (isClosingRoomRef.current) return;
+
+    isClosingRoomRef.current = true;
+    setIsClosingRoom(true);
+
     if (sessionRef.current && peerIdRef.current) {
       outgoingRef.current.push({ type: "leave", payload: { at: Date.now() } });
       void pollSignals();
@@ -617,19 +641,26 @@ export function RelationSecureMediaRoom({
     ignoreOfferRef.current = false;
     negotiationPendingRef.current = false;
     applyingLocalMediaRef.current = false;
+    isStartingMediaRef.current = false;
     lastAppliedRemoteAnswerRef.current = null;
     lastAppliedRemoteOfferRef.current = null;
     appliedIceCandidatesRef.current = new Set();
+    setIsStartingMedia(false);
     setSession(null);
     setParticipants([]);
+    setPendingLabel(null);
+    isClosingRoomRef.current = false;
+    setIsClosingRoom(false);
   }
 
   const remoteTrackCount = remoteStream?.getTracks().length ?? 0;
   const otherParticipants = participants.filter((participant) => !participant.isSelf);
+  const otherParticipantPresent = otherParticipants.length > 0;
+  const controlsDisabled = Boolean(pendingLabel) || isStartingMedia || isClosingRoom;
   const statusLabel = session
     ? remoteTrackCount > 0
       ? "Flux distant recu"
-      : otherParticipants.length > 0
+      : otherParticipantPresent
         ? "Connecte - autre partie presente"
         : "Connecte - en attente de l'autre partie"
     : "Non connecte";
@@ -655,7 +686,7 @@ export function RelationSecureMediaRoom({
         <button
           type="button"
           onClick={() => joinRoom()}
-          disabled={Boolean(pendingLabel) || Boolean(session)}
+          disabled={controlsDisabled || Boolean(session)}
           className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-sm font-semibold text-[#247f88] transition hover:bg-[#e8f8f9] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {session ? "Session rejointe" : pendingLabel === "Connexion..." ? "Connexion..." : "Rejoindre"}
@@ -665,7 +696,7 @@ export function RelationSecureMediaRoom({
             key={action.channelType}
             type="button"
             onClick={() => startMedia(action.channelType, action.media)}
-            disabled={Boolean(pendingLabel)}
+            disabled={controlsDisabled}
             className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-sm font-semibold text-[#247f88] transition hover:bg-[#e8f8f9] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pendingLabel === channelLabels[action.channelType] ? "Demarrage..." : action.label}
@@ -674,10 +705,10 @@ export function RelationSecureMediaRoom({
         <button
           type="button"
           onClick={closeRoom}
-          disabled={!session && !localStream}
+          disabled={controlsDisabled || (!session && !localStream)}
           className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Quitter
+          {isClosingRoom ? "Fermeture..." : "Quitter"}
         </button>
       </div>
 
@@ -726,7 +757,9 @@ export function RelationSecureMediaRoom({
             />
           ) : (
             <p className="mt-3 rounded-lg bg-[#f6f0e8] px-3 py-2 text-sm text-[#766f68]">
-              En attente du media de l'autre personne. Elle doit cliquer sur Audio, Visio ou Partage d'ecran pour envoyer un flux.
+              {otherParticipantPresent
+                ? "L'autre personne est connectee, mais n'a pas encore active de media."
+                : "En attente du media de l'autre personne. Elle doit cliquer sur Audio, Visio ou Partage d'ecran pour envoyer un flux."}
             </p>
           )}
         </div>
