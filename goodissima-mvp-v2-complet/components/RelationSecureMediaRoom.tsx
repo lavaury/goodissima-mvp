@@ -98,8 +98,8 @@ async function requestLocalStream(media: "audio" | "video" | "screen") {
 }
 
 function providerLabel(provider: string | undefined) {
-  if (provider === "MANUAL_EXTERNAL") return "WebRTC navigateur - signalisation Goodissima V1";
-  if (provider === "LIVEKIT_PENDING") return "LiveKit prevu - non branche";
+  if (provider === "MANUAL_EXTERNAL") return "Secours navigateur";
+  if (provider === "LIVEKIT_PENDING") return "Salle securisee";
   return provider || "Non renseigne";
 }
 
@@ -301,7 +301,7 @@ export function RelationSecureMediaRoom({
         enqueueSignal("offer", peerConnection.localDescription.toJSON());
       }
     } catch (negotiationError) {
-      setError(negotiationError instanceof Error ? negotiationError.message : "Negociation WebRTC impossible.");
+      setError(negotiationError instanceof Error ? negotiationError.message : "Negociation du mode de secours impossible.");
     } finally {
       makingOfferRef.current = false;
     }
@@ -849,9 +849,9 @@ export function RelationSecureMediaRoom({
     <section className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-semibold text-[#2f3437]">Communication securisee</h2>
+          <h2 className="font-semibold text-[#2f3437]">Mode de secours</h2>
           <p className="mt-1 text-xs leading-relaxed text-[#766f68]">
-            Session distante WebRTC ouverte uniquement apres action explicite. Aucun enregistrement ni transcription automatique.
+            Utiliser le mode de secours navigateur, limite a une communication directe. Aucun media ne demarre sans action explicite.
           </p>
           <p className="mt-1 text-xs leading-relaxed text-[#766f68]">
             Rejoindre la session ne demarre pas la camera. Chaque personne active volontairement son micro, sa camera ou son ecran.
@@ -869,7 +869,11 @@ export function RelationSecureMediaRoom({
           disabled={controlsDisabled || Boolean(session)}
           className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-sm font-semibold text-[#247f88] transition hover:bg-[#e8f8f9] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {session ? "Session rejointe" : pendingLabel === "Connexion..." ? "Connexion..." : "Rejoindre"}
+          {session
+            ? "Session rejointe"
+            : pendingLabel === "Connexion..."
+              ? "Connexion..."
+              : "Utiliser le mode de secours navigateur"}
         </button>
         {actions.map((action) => (
           <button
@@ -979,7 +983,7 @@ export function RelationSecureMediaRoom({
 
       <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
         <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">
-          <dt className="font-medium text-[#766f68]">Provider</dt>
+          <dt className="font-medium text-[#766f68]">Mode</dt>
           <dd className="mt-0.5 font-semibold text-[#2f3437]">{providerLabel(session?.provider)}</dd>
         </div>
         <div className="rounded-lg bg-[#f6f0e8] px-3 py-2">

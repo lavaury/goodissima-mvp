@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DisconnectReason,
   Room,
@@ -101,12 +102,15 @@ function ParticipantCard({ participant, local }: { participant: Participant; loc
 export function RelationLiveKitMediaRoom({
   caseId,
   actorKind,
+  available,
   candidateAccessToken,
 }: {
   caseId: string;
   actorKind: ActorKind;
+  available: boolean;
   candidateAccessToken?: string;
 }) {
+  const router = useRouter();
   const roomRef = useRef<Room | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [roomState, setRoomState] = useState<RoomState>("not-joined");
@@ -145,7 +149,7 @@ export function RelationLiveKitMediaRoom({
       });
       const payload = (await response.json().catch(() => ({}))) as TokenResponse;
       if (!response.ok || !payload.livekitUrl || !payload.token || !payload.communicationSessionId) {
-        throw new Error(payload.error || "Impossible de rejoindre la salle LiveKit.");
+        throw new Error(payload.error || "Impossible de rejoindre la salle securisee.");
       }
 
       const room = new Room({ adaptiveStream: true, dynacast: true });
@@ -178,10 +182,11 @@ export function RelationLiveKitMediaRoom({
       await room.connect(payload.livekitUrl, payload.token, { autoSubscribe: true });
       setRoomState("connected");
       refreshRoom();
+      router.refresh();
     } catch (joinError) {
       roomRef.current?.disconnect();
       roomRef.current = null;
-      setError(joinError instanceof Error ? joinError.message : "Connexion LiveKit impossible.");
+      setError(joinError instanceof Error ? joinError.message : "Connexion a la salle securisee impossible.");
       setRoomState("error");
     }
   }
@@ -236,6 +241,7 @@ export function RelationLiveKitMediaRoom({
       if (!response.ok) throw new Error(payload.error || "Impossible de terminer la session.");
       room.disconnect();
       setRoomState("ended");
+      router.refresh();
     } catch (endError) {
       setError(endError instanceof Error ? endError.message : "Impossible de terminer la session.");
     } finally {
@@ -253,9 +259,9 @@ export function RelationLiveKitMediaRoom({
     <section className="rounded-2xl border border-[#b9dfe2] bg-[#f5ffff] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-semibold text-[#2f3437]">Communication LiveKit</h2>
+          <h2 className="font-semibold text-[#2f3437]">Communication securisee</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[#766f68]">
-            LiveKit est le mode recommande pour les communications robustes et multi-acteurs. La camera, le micro et le partage ecran ne demarrent qu&apos;apres votre clic.
+            La salle securisee permet l&apos;audio, la video et le partage d&apos;ecran. Le micro, la camera et le partage d&apos;ecran ne demarrent qu&apos;apres votre accord.
           </p>
         </div>
         <span className="rounded-full bg-[#dff6f7] px-2.5 py-1 text-xs font-semibold text-[#247f88]">
@@ -263,14 +269,18 @@ export function RelationLiveKitMediaRoom({
         </span>
       </div>
 
-      {roomState !== "connected" ? (
+      {!available ? (
+        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          La salle securisee n&apos;est pas disponible pour le moment.
+        </p>
+      ) : roomState !== "connected" ? (
         <button
           type="button"
           onClick={joinRoom}
           disabled={roomState === "connecting" || roomState === "ended"}
           className="mt-4 rounded-xl bg-[#247f88] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d6970] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {roomState === "connecting" ? "Connexion..." : "Rejoindre avec LiveKit"}
+          {roomState === "connecting" ? "Connexion..." : "Rejoindre la salle securisee"}
         </button>
       ) : (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -305,7 +315,7 @@ export function RelationLiveKitMediaRoom({
       ) : null}
 
       <p className="mt-4 text-xs leading-relaxed text-[#766f68]">
-        La salle LiveKit supporte techniquement plusieurs participants. L&apos;acces produit des tiers sera ajoute dans un sprint dedie. Aucun enregistrement ni transcription automatique.
+        La salle securisee est concue pour plusieurs participants. L&apos;acces des tiers sera ajoute dans un parcours dedie. Aucun enregistrement ni transcription automatique.
       </p>
     </section>
   );

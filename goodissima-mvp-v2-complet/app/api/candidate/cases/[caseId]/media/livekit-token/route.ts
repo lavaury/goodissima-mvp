@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
     });
     if (!relationCase) return NextResponse.json({ error: "Relation introuvable ou acces candidat invalide." }, { status: 404 });
     if (!getLiveKitConfigStatus().configured) {
-      return NextResponse.json({ error: "Le service de communication LiveKit n'est pas configure." }, { status: 503 });
+      return NextResponse.json({ error: "La salle securisee n'est pas disponible pour le moment." }, { status: 503 });
     }
 
     const workspaceId = relationCase.workspaceId ?? relationCase.gLink.workspaceId ?? null;
@@ -51,6 +51,6 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       expiresAt: credentials.expiresAt.toISOString(),
     });
   } catch {
-    return NextResponse.json({ error: "Impossible de creer l'acces LiveKit candidat." }, { status: 500 });
+    return NextResponse.json({ error: "Impossible de creer l'acces candidat a la salle securisee." }, { status: 500 });
   }
 }

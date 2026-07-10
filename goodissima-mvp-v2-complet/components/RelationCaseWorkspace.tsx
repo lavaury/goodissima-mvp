@@ -12,6 +12,7 @@ import { RelationCaseFields } from "@/components/RelationCaseFields";
 import { RelationGovernanceBadge, RelationGovernanceControls } from "@/components/RelationGovernanceControls";
 import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
 import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
+import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
   attachRelationCaseToWorkspaceAction,
@@ -205,9 +206,9 @@ const communicationStatusLabels: Record<CommunicationSessionStatus, string> = {
 };
 
 const communicationProviderLabels: Record<CommunicationProvider, string> = {
-  NONE: "Aucun provider",
-  MANUAL_EXTERNAL: "WebRTC navigateur",
-  LIVEKIT_PENDING: "LiveKit non branche",
+  NONE: "Non renseigne",
+  MANUAL_EXTERNAL: "Secours navigateur",
+  LIVEKIT_PENDING: "Salle securisee",
 };
 
 function getCommunicationDisplayTitle(session: {
@@ -230,6 +231,8 @@ function getCommunicationDisplaySubtitle(session: {
   title: string;
   provider: CommunicationProvider;
 }) {
+  if (session.provider === "LIVEKIT_PENDING") return "Mode : Salle securisee";
+  if (session.provider === "MANUAL_EXTERNAL") return "Mode : Secours navigateur";
   const displayTitle = getCommunicationDisplayTitle(session);
   if (displayTitle === "Visio et partage d'ecran") return "Session relationnelle mixte";
   if (session.title && session.title !== communicationChannelLabels[session.channelType]) return session.title;
@@ -260,7 +263,7 @@ function getCommunicationProviderDisplay(session: {
   provider: CommunicationProvider;
   accessOpened?: boolean;
 }) {
-  if (hasCommunicationMediaStarted(session)) return "WebRTC navigateur";
+  if (hasCommunicationMediaStarted(session)) return "Secours navigateur";
   return communicationProviderLabels[session.provider];
 }
 
@@ -498,6 +501,7 @@ export function RelationCaseWorkspace({
   debugMode?: boolean;
   workspaceOptions?: GovernanceWorkspaceOption[];
 }) {
+  const liveKitConfigured = getLiveKitConfigStatus().configured;
   const activityEvents = getActivityEvents(item);
   const communicationSessions = item.communicationSessions ?? [];
   const governanceAuditLogs = item.auditLogs.filter((log) => governanceAuditEventTypes.has(log.eventType));
@@ -645,16 +649,24 @@ export function RelationCaseWorkspace({
         <RelationLiveKitMediaRoom
           caseId={item.id}
           actorKind={senderType === "OWNER" ? "owner" : "candidate"}
+          available={liveKitConfigured}
           candidateAccessToken={candidateAccessToken}
         />
       </div>
-      <div className="mt-6">
-        <RelationSecureMediaRoom
-          caseId={item.id}
-          role={senderType}
-          candidateAccessToken={candidateAccessToken}
-        />
-      </div>
+      {!liveKitConfigured ? (
+        <details className="group mt-6 rounded-2xl border border-[#e7e0d6] bg-[#fffcf8] p-4 shadow-sm">
+          <summary className="cursor-pointer list-none font-semibold text-[#2f3437]">Mode de secours</summary>
+          <p className="mt-2 text-sm text-[#766f68]">La salle securisee n&apos;est pas disponible pour le moment.</p>
+          <p className="mt-1 text-xs text-[#766f68]">Mode de secours limite a une communication directe.</p>
+          <div className="mt-4">
+            <RelationSecureMediaRoom
+              caseId={item.id}
+              role={senderType}
+              candidateAccessToken={candidateAccessToken}
+            />
+          </div>
+        </details>
+      ) : null}
       <section className="mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -701,7 +713,7 @@ export function RelationCaseWorkspace({
                       <dd className="font-semibold text-[#2f3437]">{getCommunicationExpirationDisplay(session)}</dd>
                     </div>
                     <div>
-                      <dt className="font-medium text-[#766f68]">Provider</dt>
+                      <dt className="font-medium text-[#766f68]">Mode</dt>
                       <dd className="font-semibold text-[#2f3437]">{getCommunicationProviderDisplay(session)}</dd>
                     </div>
                   </dl>
