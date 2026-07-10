@@ -45,7 +45,11 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       participantIdentity: `candidate:${relationCase.id}`,
       participantName: relationCase.candidateName || "Candidat",
     });
-    return NextResponse.json({ ...credentials, expiresAt: credentials.expiresAt.toISOString() });
+    return NextResponse.json({
+      ...credentials,
+      communicationSessionId: session.id,
+      expiresAt: credentials.expiresAt.toISOString(),
+    });
   } catch {
     return NextResponse.json({ error: "Impossible de creer l'acces LiveKit candidat." }, { status: 500 });
   }

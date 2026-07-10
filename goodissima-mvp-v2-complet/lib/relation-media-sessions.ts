@@ -245,3 +245,58 @@ export async function getOrCreateRelationMediaSession(input: {
     },
   });
 }
+
+export async function getOrCreateLiveKitRelationMediaSession(input: {
+  ownerId: string;
+  relationCaseId: string;
+  relationTemplateId: string | null;
+  workspaceId: string | null;
+}) {
+  const now = new Date();
+  const existingSession = await prisma.communicationSession.findFirst({
+    where: {
+      ownerId: input.ownerId,
+      relationCaseId: input.relationCaseId,
+      provider: "LIVEKIT_PENDING",
+      status: { in: ["REQUESTED", "PREPARED_NOT_STARTED"] },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (existingSession && !isRelationMediaSessionExpired(existingSession, now)) {
+    return prisma.communicationSession.update({
+      where: { id: existingSession.id },
+      data: {
+        workspaceId: input.workspaceId,
+        relationTemplateId: input.relationTemplateId,
+        tokenGenerated: true,
+        expiresAt: existingSession.expiresAt ?? createRelationMediaSessionExpiresAt(now),
+      },
+    });
+  }
+
+  if (existingSession) await cancelExpiredRelationMediaSession(existingSession);
+
+  return prisma.communicationSession.create({
+    data: {
+      ownerId: input.ownerId,
+      workspaceId: input.workspaceId,
+      relationTemplateId: input.relationTemplateId,
+      relationCaseId: input.relationCaseId,
+      channelType: "VIDEO_IP",
+      provider: "LIVEKIT_PENDING",
+      status: "REQUESTED",
+      title: "Communication relationnelle LiveKit",
+      purpose: "Salle media gouvernee liee au dossier.",
+      note: "Token court genere sur demande explicite. Aucun demarrage media, email, notification, enregistrement, transcription ou workflow.",
+      expiresAt: createRelationMediaSessionExpiresAt(now),
+      tokenGenerated: true,
+      recordingEnabled: false,
+      transcriptionRequested: false,
+      transcriptionConsented: false,
+      automaticNotificationSent: false,
+      accessOpened: false,
+      workflowStarted: false,
+    },
+  });
+}

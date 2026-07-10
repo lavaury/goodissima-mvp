@@ -14,6 +14,7 @@ import {
   getUnassignedGovernedJourneySummaries,
   getUnassignedRelationCaseSummaries,
 } from "@/lib/governance-workspace-repository";
+import { getGovernancePortfolioSummaries } from "@/lib/governance-portfolio-repository";
 
 const governanceActions = [
   {
@@ -33,6 +34,12 @@ const governanceActions = [
     body: "Preparez un espace produit nomme et classe avant d'y rattacher des parcours.",
     href: "/gouvernance/workspaces/nouveau",
     cta: "Creer un Workspace",
+  },
+  {
+    title: "Creer un Portfolio",
+    body: "Regroupez plusieurs Workspaces dans un portefeuille produit sans creer de dossier ni lancer d'action.",
+    href: "/gouvernance/portfolios/nouveau",
+    cta: "Creer un Portfolio",
   },
 ];
 
@@ -61,7 +68,8 @@ function formatDate(value: Date) {
 export default async function GovernanceWorkspacePage() {
   noStore();
   const owner = await getCurrentPrismaUser();
-  const [workspaces, workspaceOptions, unassignedJourneys, unassignedRelationCases, unassignedGLinks] = await Promise.all([
+  const [portfolios, workspaces, workspaceOptions, unassignedJourneys, unassignedRelationCases, unassignedGLinks] = await Promise.all([
+    getGovernancePortfolioSummaries(owner.id),
     getRealGovernanceWorkspaceSummaries(owner.id),
     getGovernanceWorkspaceOptions(owner.id),
     getUnassignedGovernedJourneySummaries(owner.id),
@@ -95,6 +103,60 @@ export default async function GovernanceWorkspacePage() {
             </Link>
           ))}
         </div>
+      </section>
+
+      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Portfolios</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-950">Regrouper mes Workspaces</h2>
+            <p className="mt-2 max-w-4xl text-sm leading-relaxed text-slate-700">
+              Portfolio : regroupe plusieurs Workspaces. Workspace : organise les parcours, liens, dossiers et communications.
+            </p>
+          </div>
+          <Link href="/gouvernance/portfolios/nouveau" className="w-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+            Creer un Portfolio
+          </Link>
+        </div>
+
+        {portfolios.length === 0 ? (
+          <p className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+            Vous pouvez creer un Portfolio pour regrouper plusieurs Workspaces. Aucun Portfolio n'est cree automatiquement.
+          </p>
+        ) : (
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {portfolios.map((portfolio) => (
+              <article key={portfolio.id} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="break-words text-xl font-bold text-slate-950">{portfolio.name}</h3>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">Type : {portfolio.kindLabel}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ring-1 ${stateTone(portfolio.statusLabel)}`}>
+                    {portfolio.statusLabel}
+                  </span>
+                </div>
+                {portfolio.description ? (
+                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-slate-600">{portfolio.description}</p>
+                ) : null}
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <Metric label="Workspaces" value={portfolio.workspaceCount} />
+                  <Metric label="Objets" value={portfolio.totalObjectCount} />
+                  <Metric label="Dossiers" value={portfolio.relationCaseCount} />
+                  <Metric label="Communications" value={portfolio.communicationSessionCount} />
+                </dl>
+                <Link href={`/gouvernance/portfolios/${portfolio.id}`} className="mt-4 inline-block rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                  Ouvrir
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">
+          V1 : le Portfolio regroupe les Workspaces. La salle de pilotage, les signaux d'intervention et l'IA assistive
+          seront ajoutes dans des sprints dedies.
+        </p>
       </section>
 
       <section id="espaces" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">

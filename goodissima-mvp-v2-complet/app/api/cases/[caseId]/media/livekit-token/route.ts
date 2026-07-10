@@ -32,7 +32,11 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       participantIdentity: `owner:${owner.id}`,
       participantName: owner.name ?? "Proprietaire",
     });
-    return NextResponse.json({ ...credentials, expiresAt: credentials.expiresAt.toISOString() });
+    return NextResponse.json({
+      ...credentials,
+      communicationSessionId: session.id,
+      expiresAt: credentials.expiresAt.toISOString(),
+    });
   } catch {
     return NextResponse.json({ error: "Impossible de creer l'acces LiveKit." }, { status: 500 });
   }

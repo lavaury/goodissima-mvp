@@ -1,6 +1,9 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
+import { RoomServiceClient } from "livekit-server-sdk";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { getLiveKitConfig } from "@/lib/media/livekit-config";
+import { createLiveKitRoomName } from "@/lib/media/livekit-token-service";
 import { clearRelationMediaSignals } from "@/lib/relation-media-signaling";
 import { prisma } from "@/lib/prisma";
 
@@ -28,11 +31,18 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       select: {
         id: true,
         status: true,
+        provider: true,
       },
     });
 
     if (!session) {
       return NextResponse.json({ error: "Session media introuvable." }, { status: 404 });
+    }
+
+    if (session.provider === "LIVEKIT_PENDING") {
+      const { livekitUrl, apiKey, apiSecret } = getLiveKitConfig();
+      const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
+      await roomService.deleteRoom(createLiveKitRoomName(session.id));
     }
 
     await prisma.communicationSession.updateMany({

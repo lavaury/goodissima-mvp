@@ -11,6 +11,7 @@ import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
 import { RelationGovernanceBadge, RelationGovernanceControls } from "@/components/RelationGovernanceControls";
 import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
+import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
   attachRelationCaseToWorkspaceAction,
@@ -640,6 +641,13 @@ export function RelationCaseWorkspace({
         status={item.status}
         editable={senderType === "OWNER"}
       />
+      <div className="mt-6">
+        <RelationLiveKitMediaRoom
+          caseId={item.id}
+          actorKind={senderType === "OWNER" ? "owner" : "candidate"}
+          candidateAccessToken={candidateAccessToken}
+        />
+      </div>
       <div className="mt-6">
         <RelationSecureMediaRoom
           caseId={item.id}

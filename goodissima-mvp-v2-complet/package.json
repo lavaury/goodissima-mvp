@@ -64,6 +64,7 @@
     "@react-email/components": "^1.0.12",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
+    "livekit-client": "^2.20.1",
     "livekit-server-sdk": "^2.15.5",
     "next": "14.2.35",
     "qrcode.react": "^4.2.0",
