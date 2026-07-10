@@ -157,6 +157,23 @@ enum ProductFeedbackStatus {
   IGNORED
 }
 
+enum GovernedJourneyInvitationRole {
+  EXPERT
+  JUDGE
+  THIRD_PARTY
+  ASSOCIATION
+  FAMILY
+  OBSERVER
+  OTHER
+}
+
+enum GovernedJourneyInvitationStatus {
+  PREPARED
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
 enum WorkspaceKind {
   GOVERNANCE
   RELATION
@@ -176,6 +193,21 @@ enum WorkspaceCategory {
   PROJECT
   CLIENT
   OTHER
+}
+
+enum PortfolioKind {
+  JUDICIAL
+  PROFESSIONAL
+  ASSOCIATION
+  FAMILY
+  PROJECT
+  PERSONAL
+  OTHER
+}
+
+enum PortfolioStatus {
+  ACTIVE
+  ARCHIVED
 }
 
 enum CommunicationChannelType {
@@ -207,6 +239,7 @@ model User {
 
   links                   GLink[]
   cases                   RelationCase[]              @relation("OwnerCases")
+  portfolios              Portfolio[]                  @relation("OwnerPortfolios")
   workspaces              Workspace[]                 @relation("OwnerWorkspaces")
   communicationSessions   CommunicationSession[]
   goodissimaIdentity      GoodissimaIdentity?         @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
@@ -219,9 +252,30 @@ model User {
   productFeedback         ProductFeedback[]
 }
 
+model Portfolio {
+  id          String          @id @default(cuid())
+  ownerId     String
+  slug        String
+  name        String
+  description String?
+  kind        PortfolioKind   @default(OTHER)
+  status      PortfolioStatus @default(ACTIVE)
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  owner      User        @relation("OwnerPortfolios", fields: [ownerId], references: [id], onDelete: Cascade)
+  workspaces Workspace[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, status, createdAt])
+  @@index([ownerId, kind, status])
+}
+
 model Workspace {
   id          String          @id @default(cuid())
   ownerId     String
+  portfolioId String?
   slug        String
   name        String
   description String?
@@ -233,15 +287,44 @@ model Workspace {
   updatedAt   DateTime        @updatedAt
 
   owner             User               @relation("OwnerWorkspaces", fields: [ownerId], references: [id], onDelete: Cascade)
+  portfolio         Portfolio?         @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
   relationTemplates RelationTemplate[]
   relationCases     RelationCase[]
   links             GLink[]
   communicationSessions CommunicationSession[]
+  governedJourneyInvitations GovernedJourneyInvitation[]
 
   @@unique([ownerId, slug])
+  @@index([portfolioId])
   @@index([ownerId, status, createdAt])
   @@index([ownerId, category, status])
   @@index([kind, status])
+}
+
+model GovernedJourneyInvitation {
+  id String @id @default(cuid())
+  ownerId String
+  workspaceId String?
+  relationTemplateId String
+  relationCaseId String?
+  displayName String
+  role GovernedJourneyInvitationRole
+  status GovernedJourneyInvitationStatus @default(ACTIVE)
+  accessTokenHash String @unique
+  accessTokenExpiresAt DateTime
+  revokedAt DateTime?
+  acceptedAt DateTime?
+  lastAccessedAt DateTime?
+  metadata Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
+  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, relationTemplateId, status])
+  @@index([accessTokenExpiresAt, status])
 }
 
 model CommunicationSession {
@@ -370,6 +453,7 @@ model RelationCase {
   gLink             GLink               @relation(fields: [gLinkId], references: [id])
   owner             User                @relation("OwnerCases", fields: [ownerId], references: [id])
   workspace         Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  governedJourneyInvitations GovernedJourneyInvitation[]
   template          RelationTemplate?   @relation(fields: [templateId], references: [id])
   candidateIdentity GoodissimaIdentity? @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
   messages          Message[]
@@ -448,6 +532,7 @@ model RelationTemplate {
   aiEvents      AIEvent[]
   productFeedback ProductFeedback[]
   communicationSessions CommunicationSession[]
+  governedJourneyInvitations GovernedJourneyInvitation[]
 
   @@index([workspaceId])
 }

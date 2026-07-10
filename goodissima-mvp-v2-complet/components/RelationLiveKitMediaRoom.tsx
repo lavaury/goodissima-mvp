@@ -114,6 +114,7 @@ export function RelationLiveKitMediaRoom({
   const roomRef = useRef<Room | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [roomState, setRoomState] = useState<RoomState>("not-joined");
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mediaPending, setMediaPending] = useState<string | null>(null);
   const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
@@ -125,17 +126,50 @@ export function RelationLiveKitMediaRoom({
     setRenderVersion((version) => version + 1);
   }
 
+  function releaseRoom(room: Room | null, disconnect: boolean) {
+    if (!room) return;
+    const participants = [room.localParticipant, ...Array.from(room.remoteParticipants.values())];
+    participants.forEach((participant) => {
+      participant.trackPublications.forEach((publication) => publication.track?.detach());
+    });
+    room.localParticipant.trackPublications.forEach((publication) => publication.track?.stop());
+    room.removeAllListeners();
+    if (disconnect) room.disconnect();
+  }
+
+  function resetClientRoom(room: Room | null, nextState: RoomState, nextNotice: string | null, disconnect = true) {
+    releaseRoom(room, disconnect);
+    if (!room || roomRef.current === room) roomRef.current = null;
+    sessionIdRef.current = null;
+    setMicrophoneEnabled(false);
+    setCameraEnabled(false);
+    setScreenShareEnabled(false);
+    setMediaPending(null);
+    setError(null);
+    setNotice(nextNotice);
+    setRoomState(nextState);
+    refreshRoom();
+  }
+
   useEffect(() => {
     return () => {
-      roomRef.current?.disconnect();
+      releaseRoom(roomRef.current, true);
       roomRef.current = null;
+      sessionIdRef.current = null;
     };
   }, []);
 
   async function joinRoom() {
     if (roomState === "connecting" || roomState === "connected") return;
+    releaseRoom(roomRef.current, true);
+    roomRef.current = null;
+    sessionIdRef.current = null;
     setRoomState("connecting");
     setError(null);
+    setNotice(null);
+    setMicrophoneEnabled(false);
+    setCameraEnabled(false);
+    setScreenShareEnabled(false);
 
     try {
       const endpoint =
@@ -172,21 +206,26 @@ export function RelationLiveKitMediaRoom({
         if (publication.source === Track.Source.Microphone) setMicrophoneEnabled(false);
       });
       room.on(RoomEvent.Disconnected, (reason) => {
-        setMicrophoneEnabled(false);
-        setCameraEnabled(false);
-        setScreenShareEnabled(false);
-        setRoomState((state) =>
-          state === "ended" || reason === DisconnectReason.ROOM_DELETED ? "ended" : "not-joined",
-        );
+        if (reason === DisconnectReason.ROOM_DELETED) {
+          resetClientRoom(
+            room,
+            "ended",
+            actorKind === "owner" ? "Session terminee" : "Session terminee par l'organisateur",
+            false,
+          );
+          router.refresh();
+          return;
+        }
+        resetClientRoom(room, "not-joined", null, false);
       });
       await room.connect(payload.livekitUrl, payload.token, { autoSubscribe: true });
       setRoomState("connected");
       refreshRoom();
       router.refresh();
     } catch (joinError) {
-      roomRef.current?.disconnect();
-      roomRef.current = null;
-      setError(joinError instanceof Error ? joinError.message : "Connexion a la salle securisee impossible.");
+      const message = joinError instanceof Error ? joinError.message : "Connexion a la salle securisee impossible.";
+      resetClientRoom(roomRef.current, "error", null);
+      setError(message);
       setRoomState("error");
     }
   }
@@ -201,14 +240,17 @@ export function RelationLiveKitMediaRoom({
         const enabled = !microphoneEnabled;
         await room.localParticipant.setMicrophoneEnabled(enabled);
         setMicrophoneEnabled(enabled);
+        if (enabled) await markSessionUsage("audio");
       } else if (kind === "camera") {
         const enabled = !cameraEnabled;
         await room.localParticipant.setCameraEnabled(enabled);
         setCameraEnabled(enabled);
+        if (enabled) await markSessionUsage("video");
       } else {
         const enabled = !screenShareEnabled;
         await room.localParticipant.setScreenShareEnabled(enabled);
         setScreenShareEnabled(enabled);
+        if (enabled) await markSessionUsage("screen");
       }
       refreshRoom();
     } catch (mediaError) {
@@ -218,11 +260,27 @@ export function RelationLiveKitMediaRoom({
     }
   }
 
+  async function markSessionUsage(usage: "audio" | "video" | "screen") {
+    const communicationSessionId = sessionIdRef.current;
+    if (!communicationSessionId) return;
+    const endpoint =
+      actorKind === "owner"
+        ? `/api/cases/${caseId}/media/session-usage`
+        : `/api/candidate/cases/${caseId}/media/session-usage`;
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ communicationSessionId, usage, candidateAccessToken }),
+      });
+      if (response.ok) router.refresh();
+    } catch {
+      // L'historisation ne doit jamais interrompre une communication deja activee.
+    }
+  }
+
   function leaveRoom() {
-    roomRef.current?.disconnect();
-    roomRef.current = null;
-    sessionIdRef.current = null;
-    setRoomState("not-joined");
+    resetClientRoom(roomRef.current, "not-joined", null);
   }
 
   async function endRoomForAll() {
@@ -239,8 +297,7 @@ export function RelationLiveKitMediaRoom({
       });
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) throw new Error(payload.error || "Impossible de terminer la session.");
-      room.disconnect();
-      setRoomState("ended");
+      resetClientRoom(room, "ended", "Session terminee");
       router.refresh();
     } catch (endError) {
       setError(endError instanceof Error ? endError.message : "Impossible de terminer la session.");
@@ -277,10 +334,14 @@ export function RelationLiveKitMediaRoom({
         <button
           type="button"
           onClick={joinRoom}
-          disabled={roomState === "connecting" || roomState === "ended"}
+          disabled={roomState === "connecting"}
           className="mt-4 rounded-xl bg-[#247f88] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d6970] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {roomState === "connecting" ? "Connexion..." : "Rejoindre la salle securisee"}
+          {roomState === "connecting"
+            ? "Connexion..."
+            : roomState === "ended" && actorKind === "owner"
+              ? "Demarrer une nouvelle salle securisee"
+              : "Rejoindre la salle securisee"}
         </button>
       ) : (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -305,6 +366,12 @@ export function RelationLiveKitMediaRoom({
       )}
 
       {error ? <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p> : null}
+
+      {notice ? (
+        <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+          {notice}
+        </p>
+      ) : null}
 
       {roomState === "connected" ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">

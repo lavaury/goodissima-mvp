@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
+import { GovernedJourneyGuestAccessPanel } from "@/components/GovernedJourneyGuestAccessPanel";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
 import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
@@ -182,6 +183,17 @@ function defaultInvitationMessageDraft(input: { journeyTitle: string; participan
 
 function participantKey(name: string, role: string) {
   return `${name.trim().toLowerCase()}::${role.trim().toLowerCase()}`;
+}
+
+function governedRoleFromParticipant(role: string) {
+  const normalized = role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  if (normalized.includes("EXPERT")) return "EXPERT";
+  if (normalized.includes("JUGE") || normalized.includes("JUDGE")) return "JUDGE";
+  if (normalized.includes("ASSOCIATION")) return "ASSOCIATION";
+  if (normalized.includes("FAMIL")) return "FAMILY";
+  if (normalized.includes("OBSERV")) return "OBSERVER";
+  if (normalized.includes("TIERS") || normalized.includes("THIRD")) return "THIRD_PARTY";
+  return "OTHER";
 }
 
 function documentReceptionsFrom(value: unknown): DocumentReception[] {
@@ -425,6 +437,12 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
     ownerId: owner.id,
     formTemplateId: formTemplate.id,
   });
+  const governedInvitations = formTemplate.relationTemplate?.id
+    ? await prisma.governedJourneyInvitation.findMany({
+        where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <PlatformNavigation active="governance" organizationName={organizationName} />
@@ -757,6 +775,16 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                 const messageDraft =
                   invitation?.messageDraft ??
                   defaultInvitationMessageDraft({ journeyTitle: title, participantRole: participant.role });
+                const participantGovernedInvitations = governedInvitations
+                  .filter((access) => {
+                    const accessMetadata = asRecord(access.metadata);
+                    const linkedName = text(accessMetadata.participantName) ?? access.displayName;
+                    const linkedRole = text(accessMetadata.participantRole);
+                    return linkedName.toLowerCase() === participant.name.toLowerCase() &&
+                      (!linkedRole || linkedRole.toLowerCase() === participant.role.toLowerCase());
+                  })
+                  .map((access) => ({ id: access.id, displayName: access.displayName, role: access.role,
+                    status: access.status, expiresAt: access.accessTokenExpiresAt.toISOString() }));
 
                 return (
                 <article key={`${participant.name}-${index}`} className="rounded-lg border bg-slate-50 p-4">
@@ -821,8 +849,7 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                           Mettre a jour sans transmettre
                         </button>
                         <p className="mt-2 text-xs text-slate-500">
-                          V1 : ce message est uniquement prepare pour copie ou transmission manuelle. Goodissima n'envoie pas
-                          l'invitation, ne genere pas de lien et n'ouvre aucun acces automatiquement.
+                          Ce message est un brouillon à transmettre manuellement. Il ne crée pas d’accès.
                         </p>
                       </form>
                     </div>
@@ -863,11 +890,18 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                         Preparer sans envoyer
                       </button>
                       <p className="mt-2 text-xs text-slate-500">
-                        V1 : ce message est uniquement prepare pour copie ou transmission manuelle. Goodissima n'envoie pas
-                        l'invitation, ne genere pas de lien et n'ouvre aucun acces automatiquement.
+                        Ce message est un brouillon à transmettre manuellement. Il ne crée pas d’accès.
                       </p>
                     </form>
                   )}
+                  <GovernedJourneyGuestAccessPanel
+                    formTemplateId={formTemplate.id}
+                    participantName={participant.name}
+                    participantRole={participant.role}
+                    governedRole={governedRoleFromParticipant(participant.role)}
+                    preparedEmail={invitation?.email}
+                    invitations={participantGovernedInvitations}
+                  />
                   <p className="mt-2 text-xs font-semibold text-slate-500">Statut V1 : attendu, non contacté automatiquement.</p>
                 </article>
                 );

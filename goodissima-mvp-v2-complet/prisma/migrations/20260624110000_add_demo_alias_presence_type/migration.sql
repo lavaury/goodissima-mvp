@@ -1,0 +1,1 @@
+ALTER TYPE "SubjectPresenceType" ADD VALUE 'DEMO_ALIAS';

@@ -1,0 +1,1 @@
+ALTER TYPE "SubjectObservationEventType" ADD VALUE 'RELATION_OBSERVED';

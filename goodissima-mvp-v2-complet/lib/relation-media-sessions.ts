@@ -300,3 +300,61 @@ export async function getOrCreateLiveKitRelationMediaSession(input: {
     },
   });
 }
+
+type LiveKitMediaUsage = "audio" | "video" | "screen";
+
+const LIVEKIT_MEDIA_USAGE_MARKER = /\s*\[mediaUsed:([^\]]*)\]/;
+
+function liveKitUsageFromNote(note: string | null) {
+  const values = new Set(note?.match(LIVEKIT_MEDIA_USAGE_MARKER)?.[1]?.split(",") ?? []);
+  return {
+    audio: values.has("audio"),
+    video: values.has("video"),
+    screen: values.has("screen"),
+  };
+}
+
+function liveKitUsageNote(note: string | null, usage: { audio: boolean; video: boolean; screen: boolean }) {
+  const base = (note ?? "").replace(LIVEKIT_MEDIA_USAGE_MARKER, "").trim();
+  const values = (["audio", "video", "screen"] as const).filter((key) => usage[key]);
+  return `${base}${base ? " " : ""}[mediaUsed:${values.join(",")}]`;
+}
+
+function liveKitUsageTitle(usage: { audio: boolean; video: boolean; screen: boolean }) {
+  if (usage.video && usage.screen) return "Visio et partage d'ecran";
+  if (usage.audio && usage.screen) return "Audio et partage d'ecran";
+  if (usage.screen) return "Partage d'ecran";
+  if (usage.video) return "Visio";
+  if (usage.audio) return "Audio";
+  return "Communication securisee";
+}
+
+export async function markLiveKitSessionMediaUsage(input: {
+  communicationSessionId: string;
+  relationCaseId: string;
+  usage: LiveKitMediaUsage;
+}) {
+  const session = await prisma.communicationSession.findFirst({
+    where: {
+      id: input.communicationSessionId,
+      relationCaseId: input.relationCaseId,
+      provider: "LIVEKIT_PENDING",
+      status: { in: ["REQUESTED", "PREPARED_NOT_STARTED"] },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+  });
+  if (!session) return null;
+
+  const usage = liveKitUsageFromNote(session.note);
+  usage[input.usage] = true;
+  const channelType: CommunicationChannelType = usage.video
+    ? "VIDEO_IP"
+    : usage.screen
+      ? "SCREEN_SHARE"
+      : "VOICE_IP";
+
+  return prisma.communicationSession.update({
+    where: { id: session.id },
+    data: { channelType, title: liveKitUsageTitle(usage), note: liveKitUsageNote(session.note, usage) },
+  });
+}
