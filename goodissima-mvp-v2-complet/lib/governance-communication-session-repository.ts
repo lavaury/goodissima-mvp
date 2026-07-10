@@ -4,6 +4,7 @@ import type {
   CommunicationSessionStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { attendanceFromMetadata, type AttendanceEntry } from "@/lib/communication-attendance";
 
 export type GovernanceCommunicationSessionScope = "JOURNEY" | "WORKSPACE";
 
@@ -31,6 +32,7 @@ export type GovernanceCommunicationSessionItem = {
   tokenGenerated: boolean;
   accessOpened: boolean;
   workflowStarted: boolean;
+  attendance: AttendanceEntry[];
 };
 
 export type GovernanceCommunicationSessionOverview = {
@@ -109,6 +111,7 @@ export async function getGovernanceCommunicationOverview(input: {
       tokenGenerated: true,
       accessOpened: true,
       workflowStarted: true,
+      metadata: true,
     },
   });
 
@@ -116,6 +119,7 @@ export async function getGovernanceCommunicationOverview(input: {
   const items = deduped.map((session): GovernanceCommunicationSessionItem => {
     return {
       ...session,
+      attendance: attendanceFromMetadata(session.metadata),
       scope: sessionScope(session, input.relationTemplateId),
       channelLabel: governanceCommunicationChannelLabels[session.channelType],
       providerLabel: governanceCommunicationProviderLabels[session.provider],

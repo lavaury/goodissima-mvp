@@ -1218,6 +1218,19 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                 </div>
                 {session.purpose ? <p className="mt-3 text-sm text-emerald-950">Objectif : {session.purpose}</p> : null}
                 {session.note ? <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950">Note : {session.note}</p> : null}
+                {session.attendance.length > 0 ? (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">
+                    <p className="text-sm font-bold text-emerald-950">Participants</p>
+                    <ul className="mt-2 space-y-1 text-sm text-emerald-950">
+                      {session.attendance.map((participant) => (
+                        <li key={participant.participantKey}>
+                          {participant.displayName} — {participant.roleLabel} · {participant.accessKind}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-xs text-emerald-800">Présence historisée sans enregistrement ni transcription.</p>
+                  </div>
+                ) : null}
                 <div className="mt-3 rounded-lg bg-white/80 p-3 text-xs font-semibold text-emerald-900">
                   <p>Provider : {session.providerLabel}</p>
                   <p className="mt-1">Creee le : {formatDate(session.createdAt)}</p>

@@ -349,6 +349,7 @@ model CommunicationSession {
   tokenGenerated Boolean @default(false)
   accessOpened Boolean @default(false)
   workflowStarted Boolean @default(false)
+  metadata Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

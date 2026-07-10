@@ -234,6 +234,7 @@ export function RelationLiveKitMediaRoom({
       });
       await room.connect(payload.livekitUrl, payload.token, { autoSubscribe: true });
       setRoomState("connected");
+      await markAttendance("join");
       refreshRoom();
       router.refresh();
     } catch (joinError) {
@@ -290,13 +291,26 @@ export function RelationLiveKitMediaRoom({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ communicationSessionId, usage, candidateAccessToken }),
       });
-      if (response.ok) router.refresh();
+      if (response.ok) {
+        if (contextKind === "governedJourney") await markAttendance("media", usage);
+        router.refresh();
+      }
     } catch {
       // L'historisation ne doit jamais interrompre une communication deja activee.
     }
   }
 
-  function leaveRoom() {
+  async function markAttendance(event: "join" | "leave" | "media", media?: "audio" | "video" | "screen") {
+    const communicationSessionId = sessionIdRef.current;
+    if (!communicationSessionId || contextKind !== "governedJourney" || actorKind === "candidate") return;
+    const endpoint = actorKind === "owner"
+      ? `/api/gouvernance/parcours/${governedJourneyId}/media/attendance`
+      : `/api/gouvernance/invitations/${guestAccessToken}/media/attendance`;
+    await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ communicationSessionId, event, media }) }).catch(() => null);
+  }
+
+  async function leaveRoom() {
+    await markAttendance("leave");
     resetClientRoom(roomRef.current, "not-joined", null);
   }
 
