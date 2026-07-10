@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { GovernedJourneyGuestAccessPanel } from "@/components/GovernedJourneyGuestAccessPanel";
+import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
 import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
@@ -196,6 +197,18 @@ function governedRoleFromParticipant(role: string) {
   return "OTHER";
 }
 
+function normalizedIdentity(value: string | null | undefined) {
+  return (value ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function participantMatchesOrganizer(participantName: string, owner: { name: string | null; email: string }) {
+  const participantIdentity = normalizedIdentity(participantName);
+  return Boolean(participantIdentity) && [owner.name, owner.email]
+    .map(normalizedIdentity)
+    .filter(Boolean)
+    .includes(participantIdentity);
+}
+
 function documentReceptionsFrom(value: unknown): DocumentReception[] {
   if (!Array.isArray(value)) return [];
 
@@ -356,6 +369,7 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
       fields: { orderBy: [{ step: "asc" }, { position: "asc" }] },
       relationTemplate: {
         include: {
+          relationCases: { select: { id: true, candidateName: true }, orderBy: { createdAt: "desc" } },
           versions: {
             orderBy: { version: "desc" },
             take: 1,
@@ -759,14 +773,35 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
         </section>
       )}
 
+      <section className="mt-6 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Organisateur du parcours</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div><p className="text-xs font-semibold uppercase text-slate-500">Identité</p><p className="mt-1 font-semibold text-slate-950">{owner.name || owner.email}</p>{owner.name && owner.name !== owner.email ? <p className="text-xs text-slate-500">{owner.email}</p> : null}</div>
+          <div><p className="text-xs font-semibold uppercase text-slate-500">Rôle</p><p className="mt-1 font-semibold text-slate-950">Organisateur</p></div>
+          <div><p className="text-xs font-semibold uppercase text-slate-500">Accès</p><p className="mt-1 font-semibold text-slate-950">Accès via compte Goodissima</p></div>
+        </div>
+        <p className="mt-4 text-sm text-slate-700">L’organisateur pilote ce parcours depuis son compte. Aucun lien invité n’est nécessaire.</p>
+      </section>
+
+      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Communication sécurisée du parcours</h2>
+        <p className="mt-2 text-sm text-slate-600">Vous êtes l’organisateur de ce parcours. Vous pouvez ouvrir la salle sécurisée depuis votre compte Goodissima. Les invités gouvernés pourront la rejoindre avec leur propre lien d’accès.</p>
+        <div className="mt-4">
+          <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available />
+        </div>
+      </section>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">Participants attendus</h2>
+          <p className="mt-2 text-sm text-slate-600">Les accès invités gouvernés sont destinés aux personnes externes ou non authentifiées. Ne créez pas de lien invité pour l’organisateur.</p>
+          <p className="mt-1 text-xs text-slate-500">Les liens invités gouvernés sont réservés aux personnes à qui vous souhaitez donner un accès limité au parcours. Goodissima ne transmet aucun lien automatiquement.</p>
           {participants.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucun participant attendu n’a été renseigné.</p>
           ) : (
             <div className="mt-4 space-y-3">
               {participants.map((participant, index) => {
+                const isOrganizer = participantMatchesOrganizer(participant.name, owner);
                 const invitation = participantInvitations.find(
                   (item) =>
                     participantKey(item.participantName, item.participantRole) ===
@@ -784,7 +819,7 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                       (!linkedRole || linkedRole.toLowerCase() === participant.role.toLowerCase());
                   })
                   .map((access) => ({ id: access.id, displayName: access.displayName, role: access.role,
-                    status: access.status, expiresAt: access.accessTokenExpiresAt.toISOString() }));
+                    status: access.status, expiresAt: access.accessTokenExpiresAt.toISOString(), relationCaseId: access.relationCaseId }));
 
                 return (
                 <article key={`${participant.name}-${index}`} className="rounded-lg border bg-slate-50 p-4">
@@ -894,14 +929,21 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                       </p>
                     </form>
                   )}
-                  <GovernedJourneyGuestAccessPanel
+                  {isOrganizer ? (
+                    <div className="mt-4 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-4">
+                      <p className="font-bold text-[#247f88]">Organisateur — accès via compte Goodissima</p>
+                      <p className="mt-1 text-sm text-slate-600">L’organisateur n’a pas besoin de lien invité.</p>
+                    </div>
+                  ) : <GovernedJourneyGuestAccessPanel
                     formTemplateId={formTemplate.id}
                     participantName={participant.name}
                     participantRole={participant.role}
                     governedRole={governedRoleFromParticipant(participant.role)}
                     preparedEmail={invitation?.email}
                     invitations={participantGovernedInvitations}
-                  />
+                    relationCases={(formTemplate.relationTemplate?.relationCases ?? []).map((relationCase) => ({ id: relationCase.id, label: relationCase.candidateName || `Dossier ${relationCase.id}` }))}
+                  />}
+                  {!isOrganizer ? <p className="mt-2 text-xs text-slate-500">Si cette personne est en réalité l’organisateur déjà connecté, ne créez pas de lien invité.</p> : null}
                   <p className="mt-2 text-xs font-semibold text-slate-500">Statut V1 : attendu, non contacté automatiquement.</p>
                 </article>
                 );

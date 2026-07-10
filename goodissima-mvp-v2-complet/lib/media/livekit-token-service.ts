@@ -13,6 +13,9 @@ export type CreateLiveKitParticipantTokenInput = {
   role: LiveKitParticipantRole;
   participantIdentity: string;
   participantName: string;
+  roleLabel: string;
+  accessKind: string;
+  organizationLabel?: string;
   ttlSeconds?: number;
 };
 
@@ -31,6 +34,10 @@ export async function createLiveKitParticipantToken(input: CreateLiveKitParticip
     ttl: ttlSeconds,
     metadata: JSON.stringify({
       role: input.role,
+      displayName: input.participantName,
+      roleLabel: input.roleLabel,
+      accessKind: input.accessKind,
+      organizationLabel: input.organizationLabel,
       communicationSessionId: input.communicationSessionId,
       relationCaseId: input.relationCaseId,
       workspaceId: input.workspaceId,

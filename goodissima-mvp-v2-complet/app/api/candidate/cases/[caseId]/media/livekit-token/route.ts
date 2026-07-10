@@ -44,6 +44,8 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       role: "candidate",
       participantIdentity: `candidate:${relationCase.id}`,
       participantName: relationCase.candidateName || "Candidat",
+      roleLabel: "Candidat",
+      accessKind: "Accès candidat",
     });
     return NextResponse.json({
       ...credentials,

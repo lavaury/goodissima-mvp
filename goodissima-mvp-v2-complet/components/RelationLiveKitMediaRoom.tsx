@@ -11,7 +11,7 @@ import {
   type TrackPublication,
 } from "livekit-client";
 
-type ActorKind = "owner" | "candidate";
+type ActorKind = "owner" | "candidate" | "guest";
 type RoomState = "not-joined" | "connecting" | "connected" | "error" | "ended";
 
 type TokenResponse = {
@@ -23,12 +23,17 @@ type TokenResponse = {
   error?: string;
 };
 
-function participantRole(participant: Participant) {
+function participantPresentation(participant: Participant) {
   try {
-    const metadata = JSON.parse(participant.metadata || "{}") as { role?: unknown };
-    return typeof metadata.role === "string" ? metadata.role : null;
+    const metadata = JSON.parse(participant.metadata || "{}") as Record<string, unknown>;
+    return {
+      displayName: typeof metadata.displayName === "string" ? metadata.displayName : participant.name || participant.identity,
+      roleLabel: typeof metadata.roleLabel === "string" ? metadata.roleLabel : "Participant",
+      accessKind: typeof metadata.accessKind === "string" ? metadata.accessKind : null,
+      organizationLabel: typeof metadata.organizationLabel === "string" ? metadata.organizationLabel : null,
+    };
   } catch {
-    return null;
+    return { displayName: participant.name || participant.identity, roleLabel: "Participant", accessKind: null, organizationLabel: null };
   }
 }
 
@@ -67,14 +72,14 @@ function ParticipantCard({ participant, local }: { participant: Participant; loc
   const audioPublications = local
     ? []
     : publications.filter((publication) => publication.track && publication.kind === Track.Kind.Audio);
-  const role = participantRole(participant);
+  const presentation = participantPresentation(participant);
 
   return (
     <article className="rounded-xl border border-[#d6e7e8] bg-white p-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-[#2f3437]">{participant.name || participant.identity}</p>
+        <div><p className="text-sm font-semibold text-[#2f3437]">{local ? `Vous — ${presentation.displayName}` : presentation.displayName}</p><p className="mt-0.5 text-xs text-[#766f68]">{presentation.roleLabel}{presentation.organizationLabel ? ` · ${presentation.organizationLabel}` : ""}</p></div>
         <span className="rounded-full bg-[#e8f8f9] px-2 py-0.5 text-xs font-medium text-[#247f88]">
-          {local ? "Vous" : role || "Participant"}
+          {presentation.accessKind ?? presentation.roleLabel}
         </span>
       </div>
       <div className="mt-3 grid gap-3">
@@ -101,14 +106,20 @@ function ParticipantCard({ participant, local }: { participant: Participant; loc
 
 export function RelationLiveKitMediaRoom({
   caseId,
+  contextKind = "relationCase",
+  governedJourneyId,
   actorKind,
   available,
   candidateAccessToken,
+  guestAccessToken,
 }: {
-  caseId: string;
+  caseId?: string;
+  contextKind?: "relationCase" | "governedJourney";
+  governedJourneyId?: string;
   actorKind: ActorKind;
   available: boolean;
   candidateAccessToken?: string;
+  guestAccessToken?: string;
 }) {
   const router = useRouter();
   const roomRef = useRef<Room | null>(null);
@@ -172,10 +183,13 @@ export function RelationLiveKitMediaRoom({
     setScreenShareEnabled(false);
 
     try {
-      const endpoint =
-        actorKind === "owner"
-          ? `/api/cases/${caseId}/media/livekit-token`
-          : `/api/candidate/cases/${caseId}/media/livekit-token`;
+      const endpoint = actorKind === "owner"
+        ? contextKind === "governedJourney"
+          ? `/api/gouvernance/parcours/${governedJourneyId}/media/livekit-token`
+          : `/api/cases/${caseId}/media/livekit-token`
+        : actorKind === "candidate"
+          ? `/api/candidate/cases/${caseId}/media/livekit-token`
+          : `/api/gouvernance/invitations/${guestAccessToken}/media/livekit-token`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -263,10 +277,13 @@ export function RelationLiveKitMediaRoom({
   async function markSessionUsage(usage: "audio" | "video" | "screen") {
     const communicationSessionId = sessionIdRef.current;
     if (!communicationSessionId) return;
-    const endpoint =
-      actorKind === "owner"
-        ? `/api/cases/${caseId}/media/session-usage`
-        : `/api/candidate/cases/${caseId}/media/session-usage`;
+    const endpoint = actorKind === "owner"
+      ? contextKind === "governedJourney"
+        ? `/api/gouvernance/parcours/${governedJourneyId}/media/session-usage`
+        : `/api/cases/${caseId}/media/session-usage`
+      : actorKind === "candidate"
+        ? `/api/candidate/cases/${caseId}/media/session-usage`
+        : `/api/gouvernance/invitations/${guestAccessToken}/media/session-usage`;
     try {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -290,7 +307,10 @@ export function RelationLiveKitMediaRoom({
     setMediaPending("end");
     setError(null);
     try {
-      const response = await fetch(`/api/cases/${caseId}/media/protected-call/end`, {
+      const endpoint = contextKind === "governedJourney"
+        ? `/api/gouvernance/parcours/${governedJourneyId}/media/end`
+        : `/api/cases/${caseId}/media/protected-call/end`;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, reason: "Session LiveKit terminee explicitement par le proprietaire." }),
@@ -382,7 +402,9 @@ export function RelationLiveKitMediaRoom({
       ) : null}
 
       <p className="mt-4 text-xs leading-relaxed text-[#766f68]">
-        La salle securisee est concue pour plusieurs participants. L&apos;acces des tiers sera ajoute dans un parcours dedie. Aucun enregistrement ni transcription automatique.
+        {actorKind === "guest"
+          ? "Vous pouvez quitter la salle à tout moment. Seul l'organisateur peut terminer la session pour tous. Aucun enregistrement ni transcription automatique."
+          : "La salle securisee est concue pour plusieurs participants. Aucun enregistrement ni transcription automatique."}
       </p>
     </section>
   );

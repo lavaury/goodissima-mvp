@@ -31,6 +31,8 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       role: "owner",
       participantIdentity: `owner:${owner.id}`,
       participantName: owner.name ?? "Proprietaire",
+      roleLabel: "Organisateur",
+      accessKind: "Compte Goodissima",
     });
     return NextResponse.json({
       ...credentials,

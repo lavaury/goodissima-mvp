@@ -331,13 +331,15 @@ function liveKitUsageTitle(usage: { audio: boolean; video: boolean; screen: bool
 
 export async function markLiveKitSessionMediaUsage(input: {
   communicationSessionId: string;
-  relationCaseId: string;
+  relationCaseId?: string;
+  relationTemplateId?: string;
   usage: LiveKitMediaUsage;
 }) {
   const session = await prisma.communicationSession.findFirst({
     where: {
       id: input.communicationSessionId,
-      relationCaseId: input.relationCaseId,
+      ...(input.relationCaseId ? { relationCaseId: input.relationCaseId } : {}),
+      ...(input.relationTemplateId ? { relationTemplateId: input.relationTemplateId } : {}),
       provider: "LIVEKIT_PENDING",
       status: { in: ["REQUESTED", "PREPARED_NOT_STARTED"] },
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],

@@ -1,0 +1,29 @@
+import { NextResponse } from "next/server";
+import { getCurrentPrismaUser } from "@/lib/auth";
+import { markLiveKitSessionMediaUsage } from "@/lib/relation-media-sessions";
+import { prisma } from "@/lib/prisma";
+
+const usages = new Set(["audio", "video", "screen"] as const);
+
+export async function POST(req: Request, { params }: { params: { caseId: string } }) {
+  try {
+    const owner = await getCurrentPrismaUser();
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const communicationSessionId = typeof body.communicationSessionId === "string" ? body.communicationSessionId : "";
+    const usage = typeof body.usage === "string" ? body.usage : "";
+    if (!communicationSessionId || !usages.has(usage as "audio" | "video" | "screen")) {
+      return NextResponse.json({ error: "Usage media invalide." }, { status: 400 });
+    }
+    const relationCase = await prisma.relationCase.findFirst({ where: { id: params.caseId, ownerId: owner.id }, select: { id: true } });
+    if (!relationCase) return NextResponse.json({ error: "Relation introuvable." }, { status: 404 });
+    const session = await markLiveKitSessionMediaUsage({
+      communicationSessionId,
+      relationCaseId: relationCase.id,
+      usage: usage as "audio" | "video" | "screen",
+    });
+    if (!session) return NextResponse.json({ error: "Session active introuvable." }, { status: 404 });
+    return NextResponse.json({ updated: true });
+  } catch {
+    return NextResponse.json({ error: "Impossible d'historiser le media." }, { status: 500 });
+  }
+}
