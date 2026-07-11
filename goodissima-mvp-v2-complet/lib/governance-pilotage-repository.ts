@@ -1,18 +1,31 @@
 import { prisma } from "@/lib/prisma";
 
-export type PilotageSignalKind = "ACTION" | "UPCOMING" | "ACCESS" | "RECENT" | "HISTORY";
+export type PilotageSignalKind = "ACTION" | "MATCHING" | "UPCOMING" | "ACCESS" | "RECENT" | "HISTORY";
 export type GovernancePilotageSignal = { id: string; kind: PilotageSignalKind; title: string; subject: string; journey: string; workspace: string | null; portfolio: string | null; reason: string; actionLabel: string; href: string; date: Date | null };
 
 function record(value: unknown) { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function selectedParticipants(value: unknown) { const rows = record(value).selectedParticipants; return Array.isArray(rows) ? rows.map(record).map((row) => ({ name: typeof row.participantName === "string" ? row.participantName : "", role: typeof row.participantRole === "string" ? row.participantRole : "" })).filter((row) => row.name) : []; }
 
 export async function getGovernancePilotage(ownerId: string, portfolioId?: string) {
-  const workspaces = await prisma.workspace.findMany({ where: { ownerId, ...(portfolioId ? { portfolioId } : {}) }, include: { portfolio: true, relationTemplates: { include: { formTemplates: { select: { id: true } }, governedJourneyInvitations: true, communicationSessions: { include: { meetingParticipants: true } }, relationCases: { select: { id: true } }, links: { select: { id: true } } } } }, orderBy: { updatedAt: "desc" } });
+  const workspaces = await prisma.workspace.findMany({ where: { ownerId, ...(portfolioId ? { portfolioId } : {}) }, include: { portfolio: true, relationTemplates: { include: { formTemplates: { select: { id: true } }, governedJourneyInvitations: true, communicationSessions: { include: { meetingParticipants: true } }, relationCases: { select: { id: true, candidateName: true, matchingEnabled: true, embeddingStatus: true, embeddingUpdatedAt: true, createdAt: true, aiEvents: { where: { action: { in: ["matching_analysis", "semantic_matching_analysis", "matching_proposed"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { action: true, outputSummary: true, createdAt: true } }, relationEvents: { where: { type: "MATCHING_PROPOSED" }, orderBy: { createdAt: "desc" }, take: 10, select: { createdAt: true } } } }, links: { select: { id: true } } } } }, orderBy: { updatedAt: "desc" } });
   const now = new Date(); const recentSince = new Date(now.getTime() - 14 * 86400000); const signals: GovernancePilotageSignal[] = [];
   for (const workspace of workspaces) for (const journey of workspace.relationTemplates) {
     const formId = journey.formTemplates[0]?.id; if (!formId) continue;
     const base = { journey: journey.name, workspace: workspace.name, portfolio: workspace.portfolio?.name ?? null };
     const href = `/gouvernance/parcours/${formId}/pilotage`;
+    for (const relationCase of journey.relationCases) {
+      if (!relationCase.matchingEnabled) continue;
+      const analyses = relationCase.aiEvents.filter((event) => event.action === "matching_analysis" || event.action === "semantic_matching_analysis");
+      const lastAnalysis = analyses[0];
+      const stale = !lastAnalysis || relationCase.embeddingStatus === "stale" || Boolean(relationCase.embeddingUpdatedAt && lastAnalysis.createdAt < relationCase.embeddingUpdatedAt);
+      const matchingHref = `/cases/${relationCase.id}#matching`;
+      if (stale) signals.push({ id: `matching-analyze-${relationCase.id}`, kind: "MATCHING", title: "Matching à analyser", subject: relationCase.candidateName, ...base, reason: lastAnalysis ? "Le contexte relationnel a évolué depuis la dernière analyse." : "Matching activé, analyse non lancée.", actionLabel: "Analyser les correspondances", href: matchingHref, date: lastAnalysis?.createdAt ?? relationCase.createdAt });
+      else {
+        const counts = analyses.map((event) => Number(event.outputSummary?.match(/(\d+)\s+correspondance/)?.[1] ?? 0)); const potentialCount = Math.max(0, ...counts); const proposed = relationCase.relationEvents.filter((event) => event.createdAt >= lastAnalysis.createdAt);
+        if (potentialCount > proposed.length) signals.push({ id: `matching-review-${relationCase.id}`, kind: "MATCHING", title: "Correspondances à examiner", subject: relationCase.candidateName, ...base, reason: `${potentialCount - proposed.length} correspondance(s) potentielle(s) à examiner, sans identité révélée.`, actionLabel: "Examiner les correspondances", href: matchingHref, date: lastAnalysis.createdAt });
+        if (proposed.length > 0) signals.push({ id: `matching-decide-${relationCase.id}`, kind: "MATCHING", title: "Suite à décider", subject: relationCase.candidateName, ...base, reason: "Une correspondance a été marquée intéressante et attend une décision humaine.", actionLabel: "Ouvrir le dossier", href: matchingHref, date: proposed[0].createdAt });
+      }
+    }
     for (const invitation of journey.governedJourneyInvitations) {
       if (invitation.revokedAt) signals.push({ id: `revoked-${invitation.id}`, kind: "ACCESS", title: "Accès révoqué", subject: invitation.displayName, ...base, reason: "Cet accès ne permet plus de rejoindre le parcours ni ses réunions.", actionLabel: "Ouvrir le parcours", href, date: invitation.revokedAt });
       else if (invitation.accessTokenExpiresAt < now) signals.push({ id: `expired-${invitation.id}`, kind: "ACCESS", title: "Accès invité expiré", subject: invitation.displayName, ...base, reason: "Un nouvel accès doit être créé manuellement si cette personne participe encore.", actionLabel: "Créer un nouvel accès", href, date: invitation.accessTokenExpiresAt });

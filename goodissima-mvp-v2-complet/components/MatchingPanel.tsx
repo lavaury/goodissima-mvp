@@ -113,7 +113,7 @@ export function MatchingPanel({
   }
 
   return (
-    <section className={workspace ? "h-full" : "rounded-2xl border border-[#e7e0d6] bg-[#fffcf8] p-4 shadow-[0_12px_32px_rgba(24,33,56,0.06)] sm:p-5 lg:p-4"}>
+    <section id="matching" className={workspace ? "h-full" : "rounded-2xl border border-[#e7e0d6] bg-[#fffcf8] p-4 shadow-[0_12px_32px_rgba(24,33,56,0.06)] sm:p-5 lg:p-4"}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-[#2f3437]">Correspondances potentielles</h2>
