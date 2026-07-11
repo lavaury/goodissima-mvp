@@ -3,8 +3,12 @@ import { notFound } from "next/navigation";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { GovernedJourneyGuestAccessPanel } from "@/components/GovernedJourneyGuestAccessPanel";
 import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
+import { GovernedMeetingSubmitButton } from "@/components/GovernedMeetingSubmitButton";
+import { ConfirmMeetingCancellationButton } from "@/components/ConfirmMeetingCancellationButton";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
+import { authorizeGuestForGovernedMeetingAction, removeGuestFromGovernedMeetingAction } from "@/lib/governed-meeting-participant-actions";
+import { cancelGovernedMeetingAction, updateGovernedMeetingScheduleAction } from "@/lib/governed-meeting-lifecycle-actions";
 import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
 import { prepareParticipantInvitationAction } from "@/lib/governance-participant-invitations-actions";
 import { prepareGovernanceReviewAction } from "@/lib/governance-review-preparations-actions";
@@ -133,6 +137,23 @@ function actionsFrom(value: unknown): FirstAction[] {
       return title ? { title, owner, dueHint } : null;
     })
     .filter((item): item is FirstAction => item !== null) as FirstAction[];
+}
+
+function governedInvitationRoleLabel(role: string) {
+  return ({ OTHER: "Participant invité", JUDGE: "Juge", EXPERT: "Expert", THIRD_PARTY: "Tiers", ASSOCIATION: "Association", FAMILY: "Famille", OBSERVER: "Observateur" } as Record<string, string>)[role] ?? "Participant invité";
+}
+
+function governedMeetingUserNote(note: string | null) {
+  if (!note) return null;
+  if (!note.includes("source: governance-multi-actor-v1")) return note;
+  return note.split("\n").find((line) => line.startsWith("note: "))?.slice(6).trim() || null;
+}
+
+function governedMeetingSelectedPreparedIds(metadata: unknown, note: string | null) {
+  const row = asRecord(metadata);
+  if (Array.isArray(row.selectedParticipantInvitationIds)) return row.selectedParticipantInvitationIds.filter((id): id is string => typeof id === "string");
+  const legacyLine = note?.split("\n").find((line) => line.startsWith("participantInvitationIds: "));
+  return legacyLine ? legacyLine.slice("participantInvitationIds: ".length).split(",").map((id) => id.trim()).filter((id) => id && id !== "aucun") : [];
 }
 
 function invitationsFrom(value: unknown): ParticipantInvitation[] {
@@ -359,7 +380,7 @@ function formatDate(value: Date | string | null | undefined) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export default async function GovernedJourneyPilotagePage({ params }: { params: { id: string } }) {
+export default async function GovernedJourneyPilotagePage({ params, searchParams }: { params: { id: string }; searchParams: { meetingPrepared?: string; similarMeetingId?: string } }) {
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
@@ -457,9 +478,14 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
         orderBy: { createdAt: "desc" },
       })
     : [];
+  const meetingParticipants = communicationOverview.sessions.length > 0
+    ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } } })
+    : [];
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <PlatformNavigation active="governance" organizationName={organizationName} />
+      {searchParams.meetingPrepared ? <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-emerald-950"><p className="font-bold">Réunion préparée : {searchParams.meetingPrepared}</p><p className="mt-1 text-sm">Vous pouvez maintenant l’ouvrir depuis sa carte.</p></div> : null}
+      {searchParams.similarMeetingId ? <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"><p className="font-bold">Une réunion similaire existe déjà.</p><a href={`#meeting-${searchParams.similarMeetingId}`} className="mt-2 inline-block text-sm font-bold underline">Voir la réunion existante</a></div> : null}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <Link href="/gouvernance" className="text-sm font-semibold text-slate-600 underline underline-offset-4">
@@ -695,8 +721,17 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                           </span>
                         </div>
                         <p className="mt-2 text-xs text-slate-500">
-                          Creee le {formatDate(session.createdAt)} - provider : {session.providerLabel}
+                          Creee le {formatDate(session.createdAt)} - Mode : {session.providerLabel}
                         </p>
+                        {session.status !== "COMPLETED" && session.status !== "CANCELLED" ? (
+                          <div className="mt-3">
+                            <p className="mb-2 text-xs text-slate-600">Cette réunion utilise la salle sécurisée du parcours. Les invités gouvernés rejoignent avec leur propre lien d’accès.</p>
+                            <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel={session.status === "REQUESTED" && session.provider === "LIVEKIT_PENDING" ? "Rejoindre cette réunion" : "Ouvrir cette réunion"} expectedParticipants={[
+                              { identity: `owner:${owner.id}`, displayName: owner.name || owner.email, roleLabel: "Organisateur", accessKind: "compte Goodissima" },
+                              ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date()).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité gouverné" })),
+                            ]} />
+                          </div>
+                        ) : null}
                       </article>
                     ))}
                   </div>
@@ -1155,7 +1190,8 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                     />
                   </label>
                   <fieldset className="rounded-lg border border-slate-200 bg-white p-3">
-                    <legend className="px-1 text-xs font-semibold text-slate-600">Participants attendus</legend>
+                    <legend className="px-1 text-xs font-semibold text-slate-600">Participants à autoriser pour cette réunion</legend>
+                    <p className="mb-2 text-xs text-slate-500">Cochez les personnes qui pourront rejoindre cette réunion précise. Chaque personne externe doit disposer de son propre accès invité gouverné.</p>
                     {participantInvitations.length === 0 ? (
                       <p className="text-xs text-slate-500">Aucune invitation preparee. La session restera liee au parcours sans envoi ni acces.</p>
                     ) : (
@@ -1185,11 +1221,9 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                       className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
                     />
                   </label>
-                  <button type="submit" className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
-                    Preparer sans demarrer
-                  </button>
+                  <GovernedMeetingSubmitButton />
                   <p className="text-xs text-slate-500">
-                    Goodissima trace la preparation uniquement : aucun lien, token, notification, workflow ou media n'est lance.
+                    Goodissima prépare la réunion et ses autorisations. Aucun lien n’est transmis automatiquement, aucun média ne démarre.
                   </p>
                 </form>
               </details>
@@ -1204,7 +1238,7 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
         {communicationOverview.sessions.length > 0 ? (
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
             {communicationOverview.sessions.map((session) => (
-              <article key={session.id} className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <article id={`meeting-${session.id}`} key={session.id} className={`rounded-lg border border-emerald-200 bg-emerald-50 p-4 ${searchParams.meetingPrepared === session.title ? "ring-4 ring-emerald-200" : ""}`}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
@@ -1217,7 +1251,8 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                   </span>
                 </div>
                 {session.purpose ? <p className="mt-3 text-sm text-emerald-950">Objectif : {session.purpose}</p> : null}
-                {session.note ? <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950">Note : {session.note}</p> : null}
+                <p className="mt-2 text-sm font-semibold text-emerald-950">Cette carte ouvre la réunion : {session.title}.</p>
+                {governedMeetingUserNote(session.note) ? <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950">Note : {governedMeetingUserNote(session.note)}</p> : null}
                 {session.attendance.length > 0 ? (
                   <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">
                     <p className="text-sm font-bold text-emerald-950">Participants</p>
@@ -1231,6 +1266,37 @@ export default async function GovernedJourneyPilotagePage({ params }: { params: 
                     <p className="mt-2 text-xs text-emerald-800">Présence historisée sans enregistrement ni transcription.</p>
                   </div>
                 ) : null}
+                <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">
+                  <p className="text-sm font-bold text-emerald-950">Participants autorisés à cette réunion</p>
+                  <p className="mt-1 text-xs text-emerald-800">Les invités gardent leur lien personnel. Goodissima ne transmet rien automatiquement.</p>
+                  {session.status === "COMPLETED" || session.status === "CANCELLED" || Boolean(session.expiresAt && session.expiresAt <= new Date()) ? <p className="mt-1 text-xs font-bold text-slate-600">Périmètre verrouillé</p> : null}
+                  {meetingParticipants.every((item) => item.communicationSessionId !== session.id || item.status !== "AUTHORIZED") ? <p className="mt-2 text-sm font-semibold text-slate-700">Aucun invité autorisé pour cette réunion.</p> : null}
+                  {(() => { const metadata = asRecord(session.metadata); return !Array.isArray(metadata.selectedParticipantInvitationIds) ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Cette réunion a été préparée avant les autorisations par réunion. Ajoutez les invités autorisés ci-dessous.</p> : null; })()}
+                  {governedInvitations.length === 0 ? <p className="mt-2 text-sm text-slate-600">Aucun invité gouverné.</p> : (
+                    <div className="mt-2 space-y-2">
+                      {governedInvitations.map((invitation) => {
+                        const assignment = meetingParticipants.find((item) => item.communicationSessionId === session.id && item.governedJourneyInvitationId === invitation.id);
+                        const invitationMetadata = asRecord(invitation.metadata);
+                        const selectedPreviously = governedMeetingSelectedPreparedIds(session.metadata, session.note).some((preparedId) => participantInvitations.some((prepared) => prepared.invitationId === preparedId && prepared.participantName.toLocaleLowerCase("fr") === invitation.displayName.toLocaleLowerCase("fr") && (!text(invitationMetadata.participantRole) || prepared.participantRole.toLocaleLowerCase("fr") === text(invitationMetadata.participantRole)?.toLocaleLowerCase("fr"))));
+                        const expired = invitation.accessTokenExpiresAt <= new Date();
+                        const unavailable = invitation.status !== "ACTIVE" || Boolean(invitation.revokedAt) || expired;
+                        const authorized = assignment?.status === "AUTHORIZED" && !unavailable;
+                        const status = invitation.revokedAt || invitation.status === "REVOKED" ? "Accès révoqué" : expired || invitation.status === "EXPIRED" ? "Accès expiré" : authorized ? "Autorisé" : selectedPreviously ? "Sélectionné précédemment · à confirmer" : "Non autorisé";
+                        return <div key={invitation.id} className="flex flex-col gap-2 rounded-lg border bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div><p className="font-semibold text-slate-900">{invitation.displayName}</p><p className="text-xs text-slate-600">{governedInvitationRoleLabel(invitation.role)} · invité gouverné · {status}</p></div>
+                          {!unavailable && session.status !== "COMPLETED" && session.status !== "CANCELLED" && !(session.expiresAt && session.expiresAt <= new Date()) ? <form action={authorized ? removeGuestFromGovernedMeetingAction : authorizeGuestForGovernedMeetingAction}>
+                            <input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><input type="hidden" name="invitationId" value={invitation.id} />
+                            <button className="rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700" type="submit">{authorized ? "Retirer de cette réunion" : "Autoriser à cette réunion"}</button>
+                          </form> : null}
+                        </div>;
+                      })}
+                    </div>
+                  )}
+                </div>
+                {session.status === "PREPARED_NOT_STARTED" ? <div className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white/80 p-3">
+                  <form action={updateGovernedMeetingScheduleAction} className="flex flex-wrap items-end gap-2"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><label className="text-xs font-semibold text-slate-600">{session.scheduledAt ? "Reporter / modifier la date" : "Définir une date prévue"}<input required name="scheduledAt" type="datetime-local" className="mt-1 block rounded-lg border px-3 py-2 text-sm font-normal" /></label><button type="submit" className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700">Enregistrer la date</button><p className="w-full text-xs text-slate-500">Goodissima met à jour la date dans le parcours. Aucun participant n’est notifié automatiquement.</p></form>
+                  <form action={cancelGovernedMeetingAction}><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><ConfirmMeetingCancellationButton /></form>
+                </div> : session.status === "CANCELLED" ? <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-semibold text-slate-700">Réunion annulée. Périmètre conservé pour historique.</p> : null}
                 <div className="mt-3 rounded-lg bg-white/80 p-3 text-xs font-semibold text-emerald-900">
                   <p>Provider : {session.providerLabel}</p>
                   <p className="mt-1">Creee le : {formatDate(session.createdAt)}</p>

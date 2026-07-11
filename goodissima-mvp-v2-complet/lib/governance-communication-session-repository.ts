@@ -32,6 +32,7 @@ export type GovernanceCommunicationSessionItem = {
   tokenGenerated: boolean;
   accessOpened: boolean;
   workflowStarted: boolean;
+  metadata: unknown;
   attendance: AttendanceEntry[];
 };
 
@@ -50,9 +51,9 @@ export const governanceCommunicationChannelLabels: Record<CommunicationChannelTy
 };
 
 export const governanceCommunicationProviderLabels: Record<CommunicationProvider, string> = {
-  NONE: "Aucun media multi-acteurs branche depuis la gouvernance en V1",
+  NONE: "Salle securisee du parcours disponible",
   MANUAL_EXTERNAL: "WebRTC navigateur",
-  LIVEKIT_PENDING: "Provider media dedie non branche",
+  LIVEKIT_PENDING: "Salle securisee du parcours disponible",
 };
 
 export function governanceCommunicationStatusLabel(input: {

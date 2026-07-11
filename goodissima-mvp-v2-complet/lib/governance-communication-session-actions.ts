@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { CommunicationChannelType } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -148,7 +149,7 @@ export async function prepareGovernanceCommunicationSessionAction(formData: Form
     data: {
       ownerId: owner.id,
       workspaceId: workspace.id,
-      relationTemplateId: formTemplate.relationTemplate.id,
+      relationTemplateId: formTemplate.relationTemplate!.id,
       channelType: channelTypeInput,
       provider: externalUrl ? "MANUAL_EXTERNAL" : "NONE",
       status: "PREPARED_NOT_STARTED",
@@ -239,10 +240,7 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
   const selectedInvitations = participantInvitations.filter((invitation) =>
     selectedInvitationIdSet.has(invitation.invitationId),
   );
-  const expectedParticipants =
-    selectedInvitations.length > 0
-      ? selectedInvitations
-      : participantInvitations;
+  const expectedParticipants = selectedInvitations;
   const participantSummary =
     expectedParticipants.length > 0
       ? expectedParticipants
@@ -263,11 +261,28 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
     .filter(Boolean)
     .join("\n");
 
-  await prisma.communicationSession.create({
-    data: {
+  const normalizedSelection = expectedParticipants.map((participant) => participant.invitationId).sort();
+  const duplicateCandidates = await prisma.communicationSession.findMany({ where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id, channelType: channelTypeInput, title, purpose: purpose || null, status: { in: ["PREPARED_NOT_STARTED", "REQUESTED"] } }, select: { id: true, metadata: true }, orderBy: { createdAt: "desc" }, take: 10 });
+  const duplicate = duplicateCandidates.find((candidate) => {
+    const candidateMetadata = asRecord(candidate.metadata);
+    const ids = Array.isArray(candidateMetadata.selectedParticipantInvitationIds) ? candidateMetadata.selectedParticipantInvitationIds.filter((id): id is string => typeof id === "string").sort() : [];
+    return ids.length === normalizedSelection.length && ids.every((id, index) => id === normalizedSelection[index]);
+  });
+  if (duplicate && textFromForm(formData, "forceCreate") !== "true") redirect(`/gouvernance/parcours/${formTemplateId}/pilotage?similarMeetingId=${duplicate.id}#meeting-${duplicate.id}`);
+
+  const activeGovernedInvitations = await prisma.governedJourneyInvitation.findMany({ where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id, status: "ACTIVE", revokedAt: null, accessTokenExpiresAt: { gt: new Date() } } });
+  const governedInvitationByPreparedId = new Map(expectedParticipants.map((participant) => {
+    const access = activeGovernedInvitations.find((invitation) => {
+      const accessMetadata = asRecord(invitation.metadata);
+      return text(accessMetadata.participantName)?.toLocaleLowerCase("fr") === participant.participantName.toLocaleLowerCase("fr") && text(accessMetadata.participantRole)?.toLocaleLowerCase("fr") === participant.participantRole.toLocaleLowerCase("fr");
+    });
+    return [participant.invitationId, access] as const;
+  }));
+  const session = await prisma.$transaction(async (tx) => {
+    const created = await tx.communicationSession.create({ data: {
       ownerId: owner.id,
       workspaceId: workspace.id,
-      relationTemplateId: formTemplate.relationTemplate.id,
+      relationTemplateId: formTemplate.relationTemplate!.id,
       relationCaseId: null,
       channelType: channelTypeInput,
       provider: "NONE",
@@ -285,11 +300,16 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
       tokenGenerated: false,
       accessOpened: false,
       workflowStarted: false,
-    },
+      metadata: { source: "governance-multi-actor-v1", selectedParticipantInvitationIds: normalizedSelection, selectedParticipants: expectedParticipants },
+    } });
+    const authorizedInvitationIds = Array.from(governedInvitationByPreparedId.values()).filter((invitation): invitation is NonNullable<typeof invitation> => Boolean(invitation)).map((invitation) => invitation.id);
+    if (authorizedInvitationIds.length > 0) await tx.governedMeetingParticipant.createMany({ data: authorizedInvitationIds.map((invitationId) => ({ communicationSessionId: created.id, governedJourneyInvitationId: invitationId, status: "AUTHORIZED" as const, authorizedById: owner.id })) });
+    return created;
   });
 
   revalidatePath("/gouvernance");
   revalidatePath(`/gouvernance/parcours/${formTemplateId}/pilotage`);
+  redirect(`/gouvernance/parcours/${formTemplateId}/pilotage?meetingPrepared=${encodeURIComponent(title)}#meeting-${session.id}`);
 }
 
 export const prepareGovernedMultiActorCommunicationAction = prepareGovernanceMultiActorCommunicationAction;

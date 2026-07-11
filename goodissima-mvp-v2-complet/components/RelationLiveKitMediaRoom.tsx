@@ -13,6 +13,7 @@ import {
 
 type ActorKind = "owner" | "candidate" | "guest";
 type RoomState = "not-joined" | "connecting" | "connected" | "error" | "ended";
+export type ExpectedMeetingParticipant = { identity: string; displayName: string; roleLabel: string; accessKind: string };
 
 type TokenResponse = {
   livekitUrl?: string;
@@ -112,6 +113,9 @@ export function RelationLiveKitMediaRoom({
   available,
   candidateAccessToken,
   guestAccessToken,
+  preferredSessionId,
+  joinLabel,
+  expectedParticipants = [],
 }: {
   caseId?: string;
   contextKind?: "relationCase" | "governedJourney";
@@ -120,6 +124,9 @@ export function RelationLiveKitMediaRoom({
   available: boolean;
   candidateAccessToken?: string;
   guestAccessToken?: string;
+  preferredSessionId?: string;
+  joinLabel?: string;
+  expectedParticipants?: ExpectedMeetingParticipant[];
 }) {
   const router = useRouter();
   const roomRef = useRef<Room | null>(null);
@@ -193,7 +200,7 @@ export function RelationLiveKitMediaRoom({
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(actorKind === "candidate" ? { candidateAccessToken } : {}),
+        body: JSON.stringify(actorKind === "candidate" ? { candidateAccessToken } : { preferredSessionId }),
       });
       const payload = (await response.json().catch(() => ({}))) as TokenResponse;
       if (!response.ok || !payload.livekitUrl || !payload.token || !payload.communicationSessionId) {
@@ -344,6 +351,8 @@ export function RelationLiveKitMediaRoom({
   const participants = room
     ? [room.localParticipant, ...Array.from(room.remoteParticipants.values())]
     : [];
+  const connectedIdentities = new Set(participants.map((participant) => participant.identity));
+  const waitingParticipants = expectedParticipants.filter((participant) => !connectedIdentities.has(participant.identity));
   void renderVersion;
 
   return (
@@ -375,7 +384,7 @@ export function RelationLiveKitMediaRoom({
             ? "Connexion..."
             : roomState === "ended" && actorKind === "owner"
               ? "Demarrer une nouvelle salle securisee"
-              : "Rejoindre la salle securisee"}
+              : joinLabel ?? "Rejoindre la salle securisee"}
         </button>
       ) : (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -405,6 +414,16 @@ export function RelationLiveKitMediaRoom({
         <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800">
           {notice}
         </p>
+      ) : null}
+
+      {expectedParticipants.length > 0 ? (
+        <div className="mt-4 rounded-xl border border-[#d6e7e8] bg-white p-3">
+          <h3 className="text-sm font-semibold text-[#2f3437]">Participants de cette réunion</h3>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <div><p className="text-xs font-bold uppercase tracking-wide text-[#247f88]">Présents</p>{participants.length > 0 ? <ul className="mt-1 space-y-1 text-sm">{participants.map((participant) => { const presentation = participantPresentation(participant); return <li key={participant.identity}>{participant === room?.localParticipant ? "Vous" : presentation.displayName} — {presentation.roleLabel} · Connecté</li>; })}</ul> : <p className="mt-1 text-sm text-slate-500">Personne n’est encore connecté.</p>}</div>
+            <div><p className="text-xs font-bold uppercase tracking-wide text-[#766f68]">En attente</p>{waitingParticipants.length > 0 ? <ul className="mt-1 space-y-1 text-sm">{waitingParticipants.map((participant) => <li key={participant.identity}>{participant.displayName} — {participant.roleLabel} · {participant.accessKind}</li>)}</ul> : <p className="mt-1 text-sm text-slate-500">Aucun participant en attente.</p>}</div>
+          </div>
+        </div>
       ) : null}
 
       {roomState === "connected" ? (

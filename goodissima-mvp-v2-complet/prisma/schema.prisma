@@ -229,6 +229,11 @@ enum CommunicationProvider {
   LIVEKIT_PENDING
 }
 
+enum GovernedMeetingParticipantStatus {
+  AUTHORIZED
+  REMOVED
+}
+
 model User {
   id                   String   @id @default(cuid())
   email                String   @unique
@@ -242,6 +247,7 @@ model User {
   portfolios              Portfolio[]                  @relation("OwnerPortfolios")
   workspaces              Workspace[]                 @relation("OwnerWorkspaces")
   communicationSessions   CommunicationSession[]
+  authorizedMeetingParticipants GovernedMeetingParticipant[] @relation("MeetingParticipantAuthorizer")
   goodissimaIdentity      GoodissimaIdentity?         @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
   notificationPreferences UserNotificationPreference?
   templateGenerations     TemplateGeneration[]
@@ -322,6 +328,7 @@ model GovernedJourneyInvitation {
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
   relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  meetingParticipants GovernedMeetingParticipant[]
 
   @@index([ownerId, relationTemplateId, status])
   @@index([accessTokenExpiresAt, status])
@@ -357,12 +364,33 @@ model CommunicationSession {
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   relationTemplate RelationTemplate? @relation(fields: [relationTemplateId], references: [id], onDelete: SetNull)
   relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  meetingParticipants GovernedMeetingParticipant[]
 
   @@index([ownerId, status, createdAt])
   @@index([workspaceId, status])
   @@index([relationTemplateId, status])
   @@index([relationCaseId, status])
   @@index([channelType, status])
+}
+
+model GovernedMeetingParticipant {
+  id String @id @default(cuid())
+  communicationSessionId String
+  governedJourneyInvitationId String
+  status GovernedMeetingParticipantStatus @default(AUTHORIZED)
+  authorizedAt DateTime @default(now())
+  removedAt DateTime?
+  authorizedById String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  communicationSession CommunicationSession @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
+  governedJourneyInvitation GovernedJourneyInvitation @relation(fields: [governedJourneyInvitationId], references: [id], onDelete: Cascade)
+  authorizedBy User? @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id], onDelete: SetNull)
+
+  @@unique([communicationSessionId, governedJourneyInvitationId])
+  @@index([governedJourneyInvitationId, status])
 }
 
 model AccessInvitation {
