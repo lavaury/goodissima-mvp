@@ -5,6 +5,7 @@ import { GovernedJourneyGuestAccessPanel } from "@/components/GovernedJourneyGue
 import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
 import { GovernedMeetingSubmitButton } from "@/components/GovernedMeetingSubmitButton";
 import { ConfirmMeetingCancellationButton } from "@/components/ConfirmMeetingCancellationButton";
+import { GovernanceReviewAIAssistant } from "@/components/GovernanceReviewAIAssistant";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
 import { authorizeGuestForGovernedMeetingAction, removeGuestFromGovernedMeetingAction } from "@/lib/governed-meeting-participant-actions";
@@ -1352,6 +1353,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 <p className="mt-3 text-xs font-semibold text-emerald-800">
                   Préparée le {formatDate(review.preparedAt)}. Dernière mise à jour : {formatDate(review.updatedAt)}.
                 </p>
+                <GovernanceReviewAIAssistant formTemplateId={formTemplate.id} reason={review.reason} question={review.question} humanNote={review.note} />
                 <div className="mt-3 grid gap-2 text-xs font-semibold text-emerald-900 sm:grid-cols-2 lg:grid-cols-5">
                   <p className="rounded-lg bg-white/80 px-3 py-2">Réunion créée : non</p>
                   <p className="rounded-lg bg-white/80 px-3 py-2">Notification envoyée : non</p>

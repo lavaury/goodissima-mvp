@@ -1,0 +1,19 @@
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { generateGovernancePilotageBriefAction } from "@/lib/governance-ai-actions";
+import type { GovernanceAIMode, GovernancePilotageBrief } from "@/lib/governance-ai-assistant";
+const actions: Array<[GovernanceAIMode, string]> = [["summary", "Résumer la situation"], ["priorities", "Prioriser les actions"], ["blockers", "Expliquer les blocages"], ["meetingBrief", "Préparer un point de pilotage"]];
+export function GovernancePilotageAssistant({ portfolios }: { portfolios: Array<{ id: string; title: string }> }) {
+  const [portfolioId, setPortfolioId] = useState(""); const [pending, setPending] = useState(false); const [error, setError] = useState<string | null>(null); const [brief, setBrief] = useState<GovernancePilotageBrief | null>(null);
+  async function run(mode: GovernanceAIMode) { setPending(true); setError(null); const result = await generateGovernancePilotageBriefAction({ scope: portfolioId ? "portfolio" : "global", portfolioId: portfolioId || undefined, mode }); setBrief(result.brief ?? null); setError(result.error ?? null); setPending(false); }
+  return <section className="mt-6 rounded-xl border border-[#b9dfe2] bg-[#f5ffff] p-5">
+    <h2 className="text-xl font-bold">Assistant de pilotage</h2><p className="mt-2 text-sm text-slate-600">L’assistant résume les signaux calculés par Goodissima. Il ne déclenche aucune action automatiquement.</p>
+    <label className="mt-4 block text-xs font-bold text-slate-600">Ce que l’assistant analyse<select value={portfolioId} onChange={(event) => setPortfolioId(event.target.value)} className="ml-2 rounded-lg border bg-white px-3 py-2 text-sm font-normal"><option value="">Tout mon pilotage</option>{portfolios.map((portfolio) => <option key={portfolio.id} value={portfolio.id}>{portfolio.title}</option>)}</select></label>
+    <p className="mt-2 text-xs text-slate-500">Choisissez si l’assistant doit analyser tout le pilotage ou un ensemble plus limité, par exemple un Portfolio quand il sera disponible.</p>
+    <div className="mt-4 flex flex-wrap gap-2">{actions.map(([mode, label]) => <button key={mode} disabled={pending} onClick={() => run(mode)} className="rounded-lg bg-[#247f88] px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{label}</button>)}</div>
+    {pending ? <p className="mt-3 text-sm">Analyse des signaux…</p> : null}{error ? <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{error}</p> : null}
+    {brief ? <div className="mt-5 space-y-4"><div><h3 className="font-bold">Synthèse</h3><p className="mt-1 text-sm">{brief.summary}</p></div><div><h3 className="font-bold">Priorités</h3>{brief.priorities.map((item, index) => <div key={`${item.title}-${index}`} className="mt-2 rounded-lg border bg-white p-3"><p className="font-semibold">{item.title}</p><p className="text-sm text-slate-600">{item.reason}</p><p className="mt-1 text-sm">Action humaine : {item.humanAction}</p>{item.targetUrl?.startsWith("/") ? <Link href={item.targetUrl} className="mt-2 inline-block text-xs font-bold underline">Ouvrir</Link> : null}</div>)}</div><div><h3 className="font-bold">Blocages</h3>{brief.blockers.map((item, index) => <p key={`${item.title}-${index}`} className="mt-1 text-sm">{item.title} — {item.reason}</p>)}</div><div><h3 className="font-bold">Prochaines actions humaines</h3><ul className="list-disc pl-5 text-sm">{brief.suggestedNextSteps.map((item) => <li key={item}>{item}</li>)}</ul></div><div><h3 className="font-bold">Limites</h3><ul className="list-disc pl-5 text-sm text-slate-600">{brief.limits.map((item) => <li key={item}>{item}</li>)}</ul></div></div> : null}
+    <p className="mt-4 text-xs font-bold text-slate-600">Les propositions de l’assistant doivent être validées par un humain.</p>
+  </section>;
+}
