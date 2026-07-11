@@ -98,9 +98,11 @@ function matchesSearch(item: DashboardLink, query: string) {
 export function DashboardLinkFilters({
   links,
   debugMode = false,
+  publicAppUrl,
 }: {
   links: DashboardLink[];
   debugMode?: boolean;
+  publicAppUrl: string;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
@@ -157,6 +159,7 @@ export function DashboardLinkFilters({
               key={item.id}
               item={item}
               debugMode={debugMode}
+              publicAppUrl={publicAppUrl}
             />
           ))}
         </div>

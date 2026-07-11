@@ -12,6 +12,7 @@ import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { localizeTemplateDescription, localizeTemplateName } from "@/lib/template-localization";
 import { ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
+import { isDemoSurfaceEnabled } from "@/lib/debug";
 
 function statusClasses(status: string) {
   if (status === "PUBLISHED") return "bg-emerald-50 text-emerald-700 ring-emerald-200";
@@ -62,11 +63,11 @@ export default async function TemplatesPage() {
       <div className="mt-6">
         <NewTemplateButton />
       </div>
-      <div className="mt-3">
+      {isDemoSurfaceEnabled() ? <div className="mt-3">
         <Link href="/templates/demo" className="inline-flex rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900">
           Démo · Expérimental · parcours IA guidé
         </Link>
-      </div>
+      </div> : null}
       <AITemplateDesigner />
 
       <div className="mt-8 overflow-hidden rounded-2xl border bg-white">

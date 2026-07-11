@@ -58,6 +58,7 @@ async function ensureDemoTrustedOrganization(tx: Prisma.TransactionClient) {
 }
 
 export async function POST() {
+  if (process.env.NODE_ENV === "production" || process.env.GOODISSIMA_ENV === "production" || process.env.VERCEL_ENV === "production") return NextResponse.json({ error: "Not found" }, { status: 404 });
   const currentUser = await getCurrentPrismaUser();
   const identityLink = await getOrCreateGoodissimaIdentityForUser(prisma, {
     userId: currentUser.id,

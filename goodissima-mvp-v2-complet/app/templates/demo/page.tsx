@@ -4,9 +4,12 @@ import Link from "next/link";
 import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { TemplateAIDemoFlow } from "@/components/TemplateAIDemoFlow";
+import { notFound } from "next/navigation";
+import { isDemoSurfaceEnabled } from "@/lib/debug";
 import { getCurrentPrismaUser } from "@/lib/auth";
 
 export default async function TemplateAIDemoPage() {
+  if (!isDemoSurfaceEnabled()) notFound();
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 

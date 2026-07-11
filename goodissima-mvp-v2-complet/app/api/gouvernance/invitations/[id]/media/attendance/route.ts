@@ -10,8 +10,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const media = body.media === "audio" || body.media === "video" || body.media === "screen" ? body.media : undefined;
   const invitation = await prisma.governedJourneyInvitation.findUnique({ where: { accessTokenHash: hashJourneyInvitationToken(params.id) } });
   if (!invitation || !sessionId || !event || invitation.status !== "ACTIVE" || invitation.revokedAt || invitation.accessTokenExpiresAt <= new Date()) return NextResponse.json({ error: "Accès invité invalide." }, { status: 403 });
-  const session = await prisma.communicationSession.findFirst({ where: { id: sessionId, ownerId: invitation.ownerId, relationTemplateId: invitation.relationTemplateId, relationCaseId: null }, select: { id: true } });
-  if (!session) return NextResponse.json({ error: "Session non autorisée." }, { status: 403 });
+  const authorization = await prisma.governedMeetingParticipant.findFirst({ where: { communicationSessionId: sessionId, governedJourneyInvitationId: invitation.id, status: "AUTHORIZED", communicationSession: { ownerId: invitation.ownerId, relationTemplateId: invitation.relationTemplateId, relationCaseId: null, provider: "LIVEKIT_PENDING", status: "REQUESTED", accessOpened: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } }, select: { id: true } });
+  if (!authorization) return NextResponse.json({ error: "Session non autorisée." }, { status: 403 });
   const metadata = invitation.metadata && typeof invitation.metadata === "object" && !Array.isArray(invitation.metadata) ? invitation.metadata as Record<string, unknown> : {};
   const roleLabel = typeof metadata.participantRole === "string" && metadata.participantRole.trim() ? metadata.participantRole.trim() : roleLabels[invitation.role];
   await updateCommunicationAttendance({ sessionId, participantKey: `guest:${invitation.id}`, displayName: invitation.displayName, roleLabel, accessKind: "Invité gouverné", actorKind: "guest", event, media });

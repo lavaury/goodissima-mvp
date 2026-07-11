@@ -7,12 +7,14 @@ import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { canAccessChampagneWorkspace } from "@/lib/champagne-workspace";
 import { canAccessFeedbackAdmin } from "@/lib/product-feedback";
+import { isDemoSurfaceEnabled } from "@/lib/debug";
 
 export default async function AdministrationPage() {
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const showChampagneScenarios = canAccessChampagneWorkspace(owner.role);
   const showFeedbackAdmin = canAccessFeedbackAdmin(owner.role);
+  const showDemoSurfaces = isDemoSurfaceEnabled();
 
   return <main className="mx-auto max-w-6xl px-6 py-10">
     <DashboardBackLink className="mb-4" />
@@ -42,7 +44,7 @@ export default async function AdministrationPage() {
             </p>
           </section>
         )}
-        <Link href="/templates/demo" className="rounded-2xl border bg-white p-5">
+        {showDemoSurfaces ? <><Link href="/templates/demo" className="rounded-2xl border bg-white p-5">
           <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Démo · Expérimental</span>
           <h2 className="mt-3 font-semibold">Démo parcours IA</h2>
           <p className="mt-1 text-sm text-slate-500">Flux guidé de démonstration pour validation produit.</p>
@@ -51,7 +53,7 @@ export default async function AdministrationPage() {
           <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Démo · Expérimental</span>
           <h2 className="mt-3 font-semibold">Démo candidats détectés</h2>
           <p className="mt-1 text-sm text-slate-500">Classement de candidats fictifs par le moteur existant.</p>
-        </Link>
+        </Link></> : null}
         <Link href="/admin/ai-costs" className="rounded-2xl border bg-white p-5">
           <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">Route admin historique</span>
           <h2 className="mt-3 font-semibold">Observabilité IA</h2>

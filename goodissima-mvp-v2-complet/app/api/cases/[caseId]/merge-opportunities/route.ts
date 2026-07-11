@@ -12,6 +12,7 @@ export async function GET(request: Request, { params }: { params: { caseId: stri
       select: { id: true },
     });
     if (!relationCase) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+    if (!isGoodissimaDebugMode()) return NextResponse.json({ requesterLabel: "", opportunities: [], unavailableReason: "Les scénarios de démonstration sont désactivés." });
 
     const url = new URL(request.url);
     const scenario = url.searchParams.get("scenario") === "employment" ? "employment" : "housing";

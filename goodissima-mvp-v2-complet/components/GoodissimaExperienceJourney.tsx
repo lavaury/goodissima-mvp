@@ -21,7 +21,7 @@ type Draft = {
 
 type QualityReport = { valid: boolean; errors: Array<{ message: string }>; warnings: Array<{ message: string }> };
 
-export function GoodissimaExperienceJourney({ offer, candidates, workspaceHref }: { offer: HousingRentalOffer; candidates: RankedHousingCandidate[]; workspaceHref: string }) {
+export function GoodissimaExperienceJourney({ offer, candidates, workspaceHref, demoSurfacesEnabled = false }: { offer: HousingRentalOffer; candidates: RankedHousingCandidate[]; workspaceHref: string; demoSurfacesEnabled?: boolean }) {
   const router = useRouter();
   const [need, setNeed] = useState("");
   const [generationId, setGenerationId] = useState<string | null>(null);
@@ -149,7 +149,7 @@ export function GoodissimaExperienceJourney({ offer, candidates, workspaceHref }
       </Phase>
 
       <Phase number="7" title="Mesurer les résultats et la valeur" subtitle="Accédez aux indicateurs existants depuis l'opportunité jusqu'aux résultats.">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><JourneyLink href="/analytics" label="Conversion" /><JourneyLink href="/demo/housing-candidates" label="Merge" /><JourneyLink href="/templates" label="Templates" /><JourneyLink href="/admin/ai-costs" label="Coûts IA" /><JourneyLink href="/admin/ai-costs" label="Valeur IA" /></div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><JourneyLink href="/analytics" label="Conversion" />{demoSurfacesEnabled ? <JourneyLink href="/demo/housing-candidates" label="Merge" /> : null}<JourneyLink href="/templates" label="Templates" /><JourneyLink href="/admin/ai-costs" label="Coûts IA" /><JourneyLink href="/admin/ai-costs" label="Valeur IA" /></div>
       </Phase>
       {error ? <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-red-700 px-4 py-3 text-sm text-white shadow-xl">{error}</div> : null}
     </div>

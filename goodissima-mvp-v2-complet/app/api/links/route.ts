@@ -8,6 +8,7 @@ import { getActiveTemplateVersion } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { parseSecureLinkAdmissionMode } from "@/lib/secure-link-admission";
+import { getPublicAppUrl } from "@/lib/public-app-url";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -57,9 +58,7 @@ export async function POST(req: Request) {
   revalidatePath("/links/new");
   revalidatePath("/opportunities");
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const appUrl = getPublicAppUrl();
 
   if (body.suppressNotification !== true) {
     await sendSecureLinkCreatedEmail({

@@ -13,6 +13,7 @@ import { announcementStatusLabel, type AnnouncementStatus } from "@/lib/announce
 
 export function LinkCard({
   item,
+  publicAppUrl,
   debugMode = false,
 }: {
   item: {
@@ -30,9 +31,10 @@ export function LinkCard({
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
   debugMode?: boolean;
+  publicAppUrl: string;
 }) {
   const publicPath = `/l/${item.slug}`;
-  const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${publicPath}`;
+  const publicUrl = `${publicAppUrl}${publicPath}`;
   const latestCase = item.cases?.[0];
   const latestCasePath = latestCase ? `/cases/${latestCase.id}?refresh=1` : null;
   const linkCasesPath = `/links/${item.id}`;

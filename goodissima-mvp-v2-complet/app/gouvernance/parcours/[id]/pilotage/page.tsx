@@ -391,6 +391,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       fields: { orderBy: [{ step: "asc" }, { position: "asc" }] },
       relationTemplate: {
         include: {
+          workspace: { select: { ownerId: true } },
           relationCases: { select: { id: true, candidateName: true }, orderBy: { createdAt: "desc" } },
           versions: {
             orderBy: { version: "desc" },
@@ -406,6 +407,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const version = formTemplate.relationTemplate?.versions[0];
   const snapshot = asRecord(version?.snapshot);
   const metadata = asRecord(snapshot.metadata);
+  const metadataOwnerId = text(metadata.createdById);
+  if (!formTemplate.relationTemplate || (formTemplate.relationTemplate.workspace?.ownerId !== owner.id && metadataOwnerId !== owner.id)) notFound();
   const creationPlan = asRecord(metadata.creationPlan);
   const validation = asRecord(metadata.humanValidation);
 

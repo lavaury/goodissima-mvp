@@ -4,8 +4,11 @@ import Link from "next/link";
 import { HousingCandidatesDemo } from "@/components/HousingCandidatesDemo";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { housingRentalOffer, rankHousingCandidates } from "@/lib/housing-candidate-demo";
+import { notFound } from "next/navigation";
+import { isDemoSurfaceEnabled } from "@/lib/debug";
 
 export default function HousingCandidatesDemoPage() {
+  if (!isDemoSurfaceEnabled()) notFound();
   const candidates = rankHousingCandidates();
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">

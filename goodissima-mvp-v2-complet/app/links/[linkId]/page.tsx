@@ -28,6 +28,7 @@ import {
   snapshotFieldsToDynamicFields,
 } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
+import { getPublicAppUrl } from "@/lib/public-app-url";
 
 type FieldOption = {
   label: string;
@@ -112,7 +113,7 @@ function parseConditionalRules(rules: unknown): ConditionalRule[] {
 }
 
 function getAppUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  return getPublicAppUrl();
 }
 
 function formatDateTime(date: Date) {

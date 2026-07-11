@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DemoCredentialRevocationButton } from "@/components/DemoCredentialRevocationButton";
 import { DemoIdentityVerificationButton } from "@/components/DemoIdentityVerificationButton";
+import { isDemoSurfaceEnabled } from "@/lib/debug";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -190,6 +191,8 @@ export default async function IdentityPage() {
   const hasActiveDemoVerifiedIdentityCredential = activeCredentials.some(
     isActiveDemoVerifiedIdentityCredential,
   );
+  const demoSurfacesEnabled = isDemoSurfaceEnabled();
+  const visibleTrustConnectors = demoSurfacesEnabled ? trustConnectors : trustConnectors.filter((connector) => connector.code !== demoTrustConnectorCode);
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -268,13 +271,13 @@ export default async function IdentityPage() {
             </p>
           </div>
 
-          {trustConnectors.length === 0 ? (
+          {visibleTrustConnectors.length === 0 ? (
             <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
               Aucune source de confiance référencée pour le moment.
             </p>
           ) : (
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {trustConnectors.map((connector) => {
+              {visibleTrustConnectors.map((connector) => {
                 const status = getConnectorDisplayStatus(connector.code);
                 const journeySteps = getConnectorJourneySteps(connector.code);
                 const isDemoConnector = connector.code === demoTrustConnectorCode;
@@ -354,7 +357,7 @@ export default async function IdentityPage() {
           </p>
         ) : (
           <>
-            {hasActiveDemoVerifiedIdentityCredential ? (
+            {demoSurfacesEnabled && hasActiveDemoVerifiedIdentityCredential ? (
               <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
                 <p className="text-sm font-medium text-red-950">
                   La révocation est immédiate et peut empêcher l'accès aux relations nécessitant une identité vérifiée.

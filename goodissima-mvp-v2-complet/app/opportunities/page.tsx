@@ -8,6 +8,8 @@ import { ProductLifecycle, ProductObjectDefinition } from "@/components/ProductO
 import { announcementListView } from "@/lib/announcement-archive";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getPublicAppUrl } from "@/lib/public-app-url";
+import { isDemoSurfaceEnabled } from "@/lib/debug";
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -15,6 +17,7 @@ export default async function OpportunitiesPage({
   searchParams?: { templateId?: string; view?: string };
 }) {
   const owner = await getCurrentPrismaUser();
+  const publicAppUrl = getPublicAppUrl();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const view = announcementListView(searchParams?.view);
   const templateFilter = searchParams?.templateId ? { templateId: searchParams.templateId } : {};
@@ -90,7 +93,7 @@ export default async function OpportunitiesPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/opportunities/new#creation-options" className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-semibold text-white">Créer une opportunité</Link>
-            <Link href="/demo/housing-candidates" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900">Démo · candidats détectés</Link>
+            {isDemoSurfaceEnabled() ? <Link href="/demo/housing-candidates" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900">Démo · candidats détectés</Link> : null}
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -101,7 +104,7 @@ export default async function OpportunitiesPage({
         {announcements.length || (view === "archived" && archivedJourneys.length) ? (
           <div className="grid gap-5 lg:grid-cols-2">
             {announcements.map((item) => (
-              <LinkCard key={item.id} item={{
+              <LinkCard key={item.id} publicAppUrl={publicAppUrl} item={{
                 id: item.id,
                 slug: item.slug,
                 title: item.title,

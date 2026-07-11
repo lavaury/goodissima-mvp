@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getPublicAppUrl } from "@/lib/public-app-url";
 
 type EmailLink = {
   label: string;
@@ -19,9 +20,7 @@ type TransactionalEmailInput = {
   candidateName: string;
 };
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const APP_URL = getPublicAppUrl();
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Goodissima <onboarding@resend.dev>";
 const LOGO_URL = "https://goodissima.app/logo-goodissima.png";
 const TRUST_FOOTER_FR =

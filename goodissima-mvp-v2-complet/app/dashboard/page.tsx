@@ -5,6 +5,7 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { ChampagneDashboardCard } from "@/components/ChampagneDashboardCard";
 import { DashboardLinkFilters } from "@/components/DashboardLinkFilters";
+import { getPublicAppUrl } from "@/lib/public-app-url";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { canAccessChampagneWorkspace } from "@/lib/champagne-workspace";
@@ -303,6 +304,7 @@ export default async function DashboardPage({
       <DashboardLinkFilters
         links={dashboardLinks}
         debugMode={debugMode}
+        publicAppUrl={getPublicAppUrl()}
       />
     </main>
   );

@@ -12,16 +12,14 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createTrustAdmissionToken } from "@/lib/trust-admission-tokens";
 import { issueTrustCredentialInTransaction } from "@/lib/trust-credentials";
+import { getPublicAppUrl } from "@/lib/public-app-url";
 
 const VERIFIED_IDENTITY = "VERIFIED_IDENTITY";
 const DEMO_ISSUER_ORGANIZATION_ID = "GOODISSIMA_DEMO_AUTHORITY";
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 function getAppUrl() {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
-  ).replace(/\/$/, "");
+  return getPublicAppUrl();
 }
 
 function createAdmissionUrl(input: { slug: string; token: string }) {

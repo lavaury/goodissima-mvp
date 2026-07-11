@@ -11,6 +11,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (!communicationSessionId || !usages.has(usage)) return NextResponse.json({ error: "Usage média invalide." }, { status: 400 });
   const invitation = await prisma.governedJourneyInvitation.findUnique({ where: { accessTokenHash: hashJourneyInvitationToken(params.id) } });
   if (!invitation || invitation.status !== "ACTIVE" || invitation.revokedAt || invitation.accessTokenExpiresAt <= new Date()) return NextResponse.json({ error: "Accès invité invalide." }, { status: 403 });
+  const authorization = await prisma.governedMeetingParticipant.findFirst({ where: { communicationSessionId, governedJourneyInvitationId: invitation.id, status: "AUTHORIZED", communicationSession: { ownerId: invitation.ownerId, relationTemplateId: invitation.relationTemplateId, relationCaseId: null, provider: "LIVEKIT_PENDING", status: "REQUESTED", accessOpened: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } }, select: { id: true } });
+  if (!authorization) return NextResponse.json({ error: "Votre accès ne permet pas de rejoindre cette réunion." }, { status: 403 });
   const session = await markLiveKitSessionMediaUsage({ communicationSessionId, relationTemplateId: invitation.relationTemplateId, usage: usage as "audio" | "video" | "screen" });
   return session ? NextResponse.json({ updated: true }) : NextResponse.json({ error: "Session active introuvable." }, { status: 404 });
 }
