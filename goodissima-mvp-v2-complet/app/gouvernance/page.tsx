@@ -18,6 +18,12 @@ import { getGovernancePortfolioSummaries } from "@/lib/governance-portfolio-repo
 
 const governanceActions = [
   {
+    title: "Salle de pilotage",
+    body: "Voir les actions humaines à traiter : accès invités, réunions préparées, participants à autoriser, communications récentes.",
+    href: "/gouvernance/pilotage",
+    cta: "Ouvrir la salle de pilotage",
+  },
+  {
     title: "Creer un parcours gouverne",
     body: "Creez un parcours brouillon reel, puis ouvrez son cockpit de preparation.",
     href: "/gouvernance/nouveau",

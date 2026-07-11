@@ -6,6 +6,7 @@ import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 const items = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Gouvernance", href: "/gouvernance" },
+  { label: "Salle de pilotage", href: "/gouvernance/pilotage" },
   { label: "Portfolios", href: "/gouvernance/portfolios/nouveau" },
   { label: "Nouveau parcours", href: "/gouvernance/nouveau" },
   { label: "Annuaire", href: "/annuaire" },
