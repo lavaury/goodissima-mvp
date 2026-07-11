@@ -4,8 +4,8 @@ import { useState } from "react";
 import { generateGovernancePilotageBriefAction } from "@/lib/governance-ai-actions";
 import type { GovernanceAIMode, GovernancePilotageBrief } from "@/lib/governance-ai-assistant";
 const actions: Array<[GovernanceAIMode, string]> = [["summary", "Résumer la situation"], ["priorities", "Prioriser les actions"], ["blockers", "Expliquer les blocages"], ["meetingBrief", "Préparer un point de pilotage"]];
-export function GovernancePilotageAssistant({ portfolios }: { portfolios: Array<{ id: string; title: string }> }) {
-  const [portfolioId, setPortfolioId] = useState(""); const [pending, setPending] = useState(false); const [error, setError] = useState<string | null>(null); const [brief, setBrief] = useState<GovernancePilotageBrief | null>(null);
+export function GovernancePilotageAssistant({ portfolios, initialPortfolioId = "" }: { portfolios: Array<{ id: string; title: string }>; initialPortfolioId?: string }) {
+  const [portfolioId, setPortfolioId] = useState(initialPortfolioId); const [pending, setPending] = useState(false); const [error, setError] = useState<string | null>(null); const [brief, setBrief] = useState<GovernancePilotageBrief | null>(null);
   async function run(mode: GovernanceAIMode) { setPending(true); setError(null); const result = await generateGovernancePilotageBriefAction({ scope: portfolioId ? "portfolio" : "global", portfolioId: portfolioId || undefined, mode }); setBrief(result.brief ?? null); setError(result.error ?? null); setPending(false); }
   return <section className="mt-6 rounded-xl border border-[#b9dfe2] bg-[#f5ffff] p-5">
     <h2 className="text-xl font-bold">Assistant de pilotage</h2><p className="mt-2 text-sm text-slate-600">L’assistant résume les signaux calculés par Goodissima. Il ne déclenche aucune action automatiquement.</p>

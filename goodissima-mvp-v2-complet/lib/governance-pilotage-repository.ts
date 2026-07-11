@@ -6,8 +6,8 @@ export type GovernancePilotageSignal = { id: string; kind: PilotageSignalKind; t
 function record(value: unknown) { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function selectedParticipants(value: unknown) { const rows = record(value).selectedParticipants; return Array.isArray(rows) ? rows.map(record).map((row) => ({ name: typeof row.participantName === "string" ? row.participantName : "", role: typeof row.participantRole === "string" ? row.participantRole : "" })).filter((row) => row.name) : []; }
 
-export async function getGovernancePilotage(ownerId: string) {
-  const workspaces = await prisma.workspace.findMany({ where: { ownerId }, include: { portfolio: true, relationTemplates: { include: { formTemplates: { select: { id: true } }, governedJourneyInvitations: true, communicationSessions: { include: { meetingParticipants: true } }, relationCases: { select: { id: true } }, links: { select: { id: true } } } } }, orderBy: { updatedAt: "desc" } });
+export async function getGovernancePilotage(ownerId: string, portfolioId?: string) {
+  const workspaces = await prisma.workspace.findMany({ where: { ownerId, ...(portfolioId ? { portfolioId } : {}) }, include: { portfolio: true, relationTemplates: { include: { formTemplates: { select: { id: true } }, governedJourneyInvitations: true, communicationSessions: { include: { meetingParticipants: true } }, relationCases: { select: { id: true } }, links: { select: { id: true } } } } }, orderBy: { updatedAt: "desc" } });
   const now = new Date(); const recentSince = new Date(now.getTime() - 14 * 86400000); const signals: GovernancePilotageSignal[] = [];
   for (const workspace of workspaces) for (const journey of workspace.relationTemplates) {
     const formId = journey.formTemplates[0]?.id; if (!formId) continue;

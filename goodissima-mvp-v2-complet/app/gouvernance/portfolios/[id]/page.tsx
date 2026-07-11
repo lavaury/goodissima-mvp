@@ -44,9 +44,7 @@ export default async function GovernancePortfolioDetailPage({ params }: { params
         <Link href="/gouvernance" className="text-sm font-semibold text-slate-600 underline underline-offset-4">
           Retour a la gouvernance
         </Link>
-        <Link href="/gouvernance/portfolios/nouveau" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
-          Creer un Portfolio
-        </Link>
+        <div className="flex flex-wrap gap-2"><Link href="/gouvernance/portfolios" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">Retour aux Portfolios</Link><Link href={`/gouvernance/portfolios/${portfolio.id}/pilotage`} className="rounded-lg bg-[#247f88] px-4 py-2 text-sm font-semibold text-white">Salle de pilotage du Portfolio</Link></div>
       </div>
 
       <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">

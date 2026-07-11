@@ -8,7 +8,7 @@ const items = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Gouvernance", href: "/gouvernance" },
   { label: "Salle de pilotage", href: "/gouvernance/pilotage" },
-  { label: "Portfolios", href: "/gouvernance/portfolios/nouveau" },
+  { label: "Portfolios", href: "/gouvernance/portfolios" },
   { label: "Nouveau parcours", href: "/gouvernance/nouveau" },
   { label: "Annuaire", href: "/annuaire" },
   { label: "Identite", href: "/identity" },
@@ -70,7 +70,7 @@ export function PlatformNavigation({
     : pathname === "/gouvernance/pilotage" || pathname.startsWith("/gouvernance/pilotage/")
       ? "/gouvernance/pilotage"
       : pathname === "/gouvernance/portfolios" || pathname.startsWith("/gouvernance/portfolios/")
-        ? "/gouvernance/portfolios/nouveau"
+        ? "/gouvernance/portfolios"
         : pathname === "/gouvernance/nouveau"
           ? "/gouvernance/nouveau"
           : activeHref;
