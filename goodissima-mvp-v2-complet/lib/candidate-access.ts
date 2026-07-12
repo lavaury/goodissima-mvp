@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
+import { prisma } from "./prisma";
 
 export const CANDIDATE_ACCESS_TTL_DAYS = 30;
 
@@ -20,4 +21,14 @@ export function activeCandidateAccessWhere(
     candidateAccessRevokedAt: null,
     OR: [{ candidateAccessExpiresAt: null }, { candidateAccessExpiresAt: { gt: now } }],
   };
+}
+
+export async function resolveCandidateSecureAccess(token: unknown) {
+  const normalizedToken = typeof token === "string" ? token.trim() : "";
+  if (!normalizedToken) return null;
+
+  return prisma.relationCase.findFirst({
+    where: activeCandidateAccessWhere(normalizedToken),
+    select: { id: true },
+  });
 }

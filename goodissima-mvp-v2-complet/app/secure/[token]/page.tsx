@@ -1,5 +1,5 @@
 import { RelationCaseWorkspace } from "@/components/RelationCaseWorkspace";
-import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { resolveCandidateSecureAccess } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
 import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
@@ -9,8 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function SecureCasePage({ params }: { params: { token: string } }) {
   noStore();
 
-  const item = await prisma.relationCase.findFirst({
-    where: activeCandidateAccessWhere(params.token),
+  const access = await resolveCandidateSecureAccess(params.token);
+  if (!access) notFound();
+
+  const item = await prisma.relationCase.findUnique({
+    where: { id: access.id },
     include: {
       gLink: true,
       messages: { orderBy: { createdAt: "asc" } },

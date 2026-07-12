@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { resolveCandidateSecureAccess } from "@/lib/candidate-access";
 import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
@@ -17,8 +17,10 @@ async function resolveCaseForAccess(params: {
   candidateAccessToken?: string | null;
 }) {
   if (params.candidateAccessToken) {
-    return prisma.relationCase.findFirst({
-      where: activeCandidateAccessWhere(params.candidateAccessToken),
+    const access = await resolveCandidateSecureAccess(params.candidateAccessToken);
+    if (!access) return null;
+    return prisma.relationCase.findUnique({
+      where: { id: access.id },
       select: {
         id: true,
         candidateAccessToken: true,
@@ -170,7 +172,6 @@ export async function POST(req: Request) {
   if (body.senderType === "OWNER" && relationCase.candidateEmailNotificationsEnabled) {
     console.info("[candidate-email] New owner message email trigger", {
       caseId: relationCase.id,
-      secureLink: `/secure/${relationCase.candidateAccessToken}`,
       hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
     });
 
