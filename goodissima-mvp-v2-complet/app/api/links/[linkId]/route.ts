@@ -10,14 +10,14 @@ export async function PATCH(req: Request, { params }: { params: { linkId: string
   const body = await req.json();
   const action = typeof body.action === "string" ? body.action : "update";
   if (action === "archive") {
-    await prisma.gLink.update({ where: { id: link.id }, data: { status: "ARCHIVED", archivedAt: new Date() } });
+    await prisma.gLink.update({ where: { id: link.id }, data: { status: "ARCHIVED" } });
     revalidatePath(`/links/${link.id}`);
     revalidatePath("/opportunities", "page");
     revalidatePath("/dashboard");
     return NextResponse.json({ status: "ARCHIVED", archived: true, deleted: false, relationshipsModified: false });
   }
   if (action === "publish") {
-    await prisma.gLink.update({ where: { id: link.id }, data: { status: "ACTIVE", archivedAt: null } });
+    await prisma.gLink.update({ where: { id: link.id }, data: { status: "ACTIVE" } });
     revalidatePath(`/links/${link.id}`);
     revalidatePath("/opportunities", "page");
     revalidatePath("/dashboard");

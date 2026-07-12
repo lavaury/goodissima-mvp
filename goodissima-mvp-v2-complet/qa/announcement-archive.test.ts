@@ -13,14 +13,21 @@ function source(path: string) {
 
 test("archive action targets the announcement secure link and persists ARCHIVED", () => {
   const actions = source("components/AnnouncementActions.tsx");
+  const ownerCard = source("components/LinkCard.tsx");
   const route = source("app/api/links/[linkId]/route.ts");
 
   assert.match(actions, /patch\("archive"\)/);
+  assert.match(ownerCard, /Archiver l'annonce/);
+  assert.match(ownerCard, /action: "archive"/);
+  assert.match(ownerCard, /Annonce archivée/);
+  assert.match(ownerCard, /router\.push\("\/opportunities\?view=archived"\)/);
+  assert.doesNotMatch(ownerCard, /debugMode[^\n]+Archiver l'annonce/);
   assert.match(actions, /fetch\(`\/api\/links\/\$\{linkId\}`/);
   assert.match(actions, /method:\s*"PATCH"/);
   assert.match(route, /action === "archive"/);
   assert.match(route, /prisma\.gLink\.update/);
   assert.match(route, /status:\s*"ARCHIVED"/);
+  assert.doesNotMatch(route, /archivedAt/);
   assert.match(route, /archived:\s*true/);
   assert.match(route, /deleted:\s*false/);
   assert.doesNotMatch(route, /\.delete\(/);
@@ -44,7 +51,7 @@ test("frontend updates immediately and refreshes server views after archive", ()
   assert.match(actions, /announcementStatusLabel\(status\)/);
   assert.match(actions, /router\.refresh\(\)/);
   assert.match(route, /revalidatePath\(`\/links\/\$\{link\.id\}`\)/);
-  assert.match(route, /revalidatePath\("\/opportunities"\)/);
+  assert.match(route, /revalidatePath\("\/opportunities", "page"\)/);
   assert.match(route, /revalidatePath\("\/dashboard"\)/);
 });
 

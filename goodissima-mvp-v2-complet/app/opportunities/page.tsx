@@ -114,7 +114,6 @@ export default async function OpportunitiesPage({
                 templateName: item.template?.name,
                 templateStatus: item.template?.status,
                 templateVersion: item.templateVersion?.version,
-                archivedAt: item.archivedAt?.toISOString() ?? null,
                 sourceJourneyHref: item.template?.formTemplates[0] ? `/templates/${item.template.formTemplates[0].id}` : undefined,
                 cases: item.cases,
               }} />
