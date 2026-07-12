@@ -10,8 +10,24 @@ import {
   findMissingRequiredCandidateField,
   formatMissingRequiredFieldError,
   getCandidateSystemFieldSubmissionPresence,
+  normalizePublicFormField,
   type CandidateFormField,
 } from "../lib/candidate-form-safety.ts";
+
+test("empty required choices are normalized to a fillable text field", () => {
+  const field = normalizePublicFormField({ key: "preference", label: "Préférence", type: "SELECT", required: true, options: [] });
+  assert.equal(field.type, "TEXT");
+  assert.equal((field as CandidateFormField & { placeholder?: string }).placeholder, "Précisez votre réponse.");
+});
+
+test("garage choice fields receive useful business options", () => {
+  const type = normalizePublicFormField({ key: "typeGarage", label: "Type de garage", type: "SELECT", required: true, options: null });
+  const size = normalizePublicFormField({ key: "tailleGarage", label: "Taille souhaitée garage", type: "RADIO", required: false, options: [] });
+  assert.equal(type.type, "SELECT");
+  assert.equal(size.type, "SELECT");
+  assert.equal((type.options as Array<unknown>).length, 6);
+  assert.equal((size.options as Array<unknown>).length, 7);
+});
 
 function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");

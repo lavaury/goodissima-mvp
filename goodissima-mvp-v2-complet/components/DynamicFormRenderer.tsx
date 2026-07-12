@@ -4,6 +4,7 @@ import { VoiceCaptureButton } from "@/components/VoiceCaptureButton";
 import type { ConditionalRule, FormValues } from "@/lib/form-rules";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
 import { mergeVoiceTranscript } from "@/lib/voice-opportunity";
+import { normalizePublicFormField } from "@/lib/candidate-form-safety";
 
 export type DynamicFieldValue = string | boolean;
 
@@ -110,6 +111,7 @@ export function DynamicFormRenderer({
   onFileChange?: (key: string, file: File | null) => void;
 }) {
   const ruleValues = toRuleValues(values);
+  const safeFields = fields.map((field) => normalizePublicFormField(field));
 
   function renderField(field: DynamicFormField) {
     const fieldType = normalizeFieldType(field.type);
@@ -227,5 +229,5 @@ export function DynamicFormRenderer({
     }
   }
 
-  return <>{fields.map(renderField)}</>;
+  return <>{safeFields.map(renderField)}</>;
 }

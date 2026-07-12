@@ -17,6 +17,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
 import { PublicOpportunityCard } from "@/components/PublicOpportunityCard";
+import { normalizePublicFormField } from "@/lib/candidate-form-safety";
 
 type FieldOption = {
   label: string;
@@ -158,7 +159,8 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           conditionalRules: parseConditionalRules(field.conditionalRules),
         }))
       : defaultFields;
-  const candidateFields = localizeTemplateFields(templateKey, candidateFieldsSource, locale);
+  const candidateFields = localizeTemplateFields(templateKey, candidateFieldsSource, locale)
+    .map((field) => normalizePublicFormField(field));
   const presentation = snapshot?.metadata.opportunityPresentation && typeof snapshot.metadata.opportunityPresentation === "object" && !Array.isArray(snapshot.metadata.opportunityPresentation)
     ? snapshot.metadata.opportunityPresentation as Record<string, unknown>
     : {};

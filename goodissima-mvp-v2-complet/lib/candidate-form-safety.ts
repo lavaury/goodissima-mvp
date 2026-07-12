@@ -17,6 +17,42 @@ export type CandidateFormField = {
   conditionalRules?: ConditionalRule[] | null;
 };
 
+export type CandidateFormOption = { label: string; value: string };
+
+const garageOptions: Record<string, CandidateFormOption[]> = {
+  type: ["Garage fermé", "Box", "Parking couvert", "Parking extérieur", "Place sécurisée", "Indifférent / à préciser"].map((label) => ({ label, value: label })),
+  size: ["Moto", "Petite voiture", "Citadine", "Berline", "SUV", "Utilitaire", "Grande taille / à préciser"].map((label) => ({ label, value: label })),
+};
+
+function normalizedWords(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+export function parseCandidateFieldOptions(options: unknown): CandidateFormOption[] {
+  if (!Array.isArray(options)) return [];
+  return options.flatMap((option) => {
+    if (typeof option === "string" && option.trim()) return [{ label: option.trim(), value: option.trim() }];
+    if (!option || typeof option !== "object" || Array.isArray(option)) return [];
+    const row = option as Record<string, unknown>;
+    const label = typeof row.label === "string" ? row.label.trim() : "";
+    const value = typeof row.value === "string" ? row.value.trim() : "";
+    return label && value ? [{ label, value }] : [];
+  });
+}
+
+export function normalizePublicFormField<T extends CandidateFormField>(field: T): T {
+  const type = field.type.toUpperCase();
+  if (!["SELECT", "RADIO", "CHOICE"].includes(type)) return { ...field, type };
+  let options = parseCandidateFieldOptions(field.options);
+  const identity = normalizedWords(`${field.key} ${field.label}`);
+  if (!options.length && identity.includes("garage")) {
+    if (identity.includes("type")) options = garageOptions.type;
+    else if (identity.includes("taille") || identity.includes("size")) options = garageOptions.size;
+  }
+  if (options.length) return { ...field, type: "SELECT", options };
+  return { ...field, type: "TEXT", options: [], placeholder: "Précisez votre réponse." } as T;
+}
+
 export type MissingCandidateField = {
   id: string;
   label: string;
@@ -124,7 +160,7 @@ export function toCandidateFormField(field: {
   options?: unknown;
   conditionalRules?: unknown;
 }): CandidateFormField {
-  return {
+  return normalizePublicFormField({
     key: field.key,
     label: field.label,
     type: normalizeFieldType(field.type),
@@ -132,7 +168,7 @@ export function toCandidateFormField(field: {
     defaultValue: field.defaultValue ?? null,
     options: field.options ?? null,
     conditionalRules: parseCandidateConditionalRules(field.conditionalRules),
-  };
+  });
 }
 
 export function candidateFieldsFromTemplateDraft(draft: unknown): CandidateFormField[] {
@@ -145,14 +181,15 @@ export function candidateFieldsFromTemplateDraft(draft: unknown): CandidateFormF
     const key = typeof row.key === "string" ? row.key.trim() : "";
     const label = typeof row.label === "string" && row.label.trim() ? row.label.trim() : key || `Champ ${index + 1}`;
 
-    return {
+    return normalizePublicFormField({
       key,
       label,
       type: typeof row.type === "string" ? row.type.trim().toUpperCase() : "",
       required: row.required === true,
       defaultValue: typeof row.defaultValue === "string" ? row.defaultValue : null,
+      options: row.options,
       conditionalRules: parseCandidateConditionalRules(row.conditionalRules),
-    };
+    });
   });
 }
 
