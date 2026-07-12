@@ -26,6 +26,7 @@ export function LinkCard({
     templateName?: string | null;
     templateStatus?: string | null;
     templateVersion?: number | null;
+    archivedAt?: string | null;
     admissionMode?: LinkAdmissionMode;
     openActionCount?: number;
     sourceJourneyHref?: string;
@@ -61,6 +62,7 @@ export function LinkCard({
       }
       setStatus("ARCHIVED");
       toast.success("Annonce archivée.");
+      router.push("/opportunities?view=archived");
       router.refresh();
     } finally {
       setArchiving(false);
@@ -137,7 +139,7 @@ export function LinkCard({
         </Link>
         {status === "ARCHIVED" ? (
           <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">
-            Annonce archivée
+            Annonce archivée{item.archivedAt ? ` · ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(item.archivedAt))}` : ""}
           </span>
         ) : status === "ACTIVE" ? (
           <button
