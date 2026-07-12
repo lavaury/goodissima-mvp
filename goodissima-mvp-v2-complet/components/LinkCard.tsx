@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
@@ -40,7 +41,31 @@ export function LinkCard({
   const linkCasesPath = `/links/${item.id}`;
   const caseCount = item.cases?.length ?? 0;
   const [shared, setShared] = useState(false);
+  const [status, setStatus] = useState<AnnouncementStatus>(item.status ?? "ACTIVE");
+  const [archiving, setArchiving] = useState(false);
   const toast = useToast();
+  const router = useRouter();
+
+  async function archiveAnnouncement() {
+    setArchiving(true);
+    try {
+      const response = await fetch(`/api/links/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "archive" }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast.error(typeof result.error === "string" ? result.error : "Archivage impossible");
+        return;
+      }
+      setStatus("ARCHIVED");
+      toast.success("Annonce archivée.");
+      router.refresh();
+    } finally {
+      setArchiving(false);
+    }
+  }
 
   async function shareLink() {
     try {
@@ -77,7 +102,7 @@ export function LinkCard({
         ) : null}
         {item.status ? (
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
-            {announcementStatusLabel(item.status)}
+            {announcementStatusLabel(status)}
           </span>
         ) : null}
       </div>
@@ -107,6 +132,23 @@ export function LinkCard({
         <Link className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
           Voir l'annonce publique
         </Link>
+        <Link className="rounded-xl border px-4 py-2 text-sm font-semibold" href={linkCasesPath}>
+          Gérer l'annonce
+        </Link>
+        {status === "ARCHIVED" ? (
+          <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">
+            Annonce archivée
+          </span>
+        ) : status === "ACTIVE" ? (
+          <button
+            type="button"
+            onClick={() => void archiveAnnouncement()}
+            disabled={archiving}
+            className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 disabled:opacity-40"
+          >
+            {archiving ? "Archivage..." : "Archiver l'annonce"}
+          </button>
+        ) : null}
         {!debugMode && caseCount === 0 ? (
           <span className="px-4 py-2 text-sm text-slate-500">Aucun dossier</span>
         ) : null}
