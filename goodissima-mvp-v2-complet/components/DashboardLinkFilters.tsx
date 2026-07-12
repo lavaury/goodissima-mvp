@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { LinkCard } from "@/components/LinkCard";
 import type { LinkAdmissionMode } from "@/components/LinkAdmissionPanel";
+import type { AnnouncementStatus } from "@/lib/announcement-archive";
 
 type DashboardLink = {
   id: string;
   slug: string;
   title: string;
+  status: AnnouncementStatus;
   city?: string | null;
   templateName?: string | null;
   templateStatus?: string | null;
@@ -55,10 +57,10 @@ function matchesFilter(item: DashboardLink, filter: string) {
     return item.cases?.some((relationCase) => relationCase.status === "CLOSED") ?? false;
   }
   if (filter === "ARCHIVED") {
-    return item.cases?.some((relationCase) => relationCase.status === "ARCHIVED") ?? false;
+    return item.status === "ARCHIVED";
   }
 
-  return true;
+  return item.status !== "ARCHIVED";
 }
 
 function getCasesForFilter(item: DashboardLink, filter: string) {
@@ -72,7 +74,7 @@ function getCasesForFilter(item: DashboardLink, filter: string) {
     return item.cases?.filter((relationCase) => relationCase.status === "CLOSED");
   }
   if (filter === "ARCHIVED") {
-    return item.cases?.filter((relationCase) => relationCase.status === "ARCHIVED");
+    return item.cases;
   }
 
   return item.cases;
@@ -150,7 +152,9 @@ export function DashboardLinkFilters({
 
       {filteredLinks.length === 0 ? (
         <div className="rounded-2xl border bg-white p-8 text-center">
-          <p className="text-slate-600">Aucune opportunité correspondante</p>
+          <p className="text-slate-600">
+            {filter === "ARCHIVED" ? "Aucune annonce archivée." : "Aucune opportunité correspondante"}
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

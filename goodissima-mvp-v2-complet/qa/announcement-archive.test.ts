@@ -65,6 +65,7 @@ test("active and archived announcement views are mutually exclusive", () => {
 
   const opportunities = source("app/opportunities/page.tsx");
   const dashboard = source("app/dashboard/page.tsx");
+  const dashboardFilters = source("components/DashboardLinkFilters.tsx");
   assert.match(opportunities, /view === "archived" \? "ARCHIVED" : \{ not: "ARCHIVED" \}/);
   assert.match(opportunities, /\/opportunities\?view=archived/);
   assert.match(opportunities, /Les annonces archivées resteront disponibles ici/);
@@ -72,7 +73,10 @@ test("active and archived announcement views are mutually exclusive", () => {
   assert.match(opportunities, /archivedJourneys/);
   assert.match(opportunities, /Parcours d'annonce archivé/);
   assert.match(opportunities, /totalArchivedCount/);
-  assert.match(dashboard, /status:\s*\{ not: "ARCHIVED" \}/);
+  assert.match(dashboard, /where:\s*\{ ownerId: owner\.id \}/);
+  assert.match(dashboardFilters, /item\.status === "ARCHIVED"/);
+  assert.match(dashboardFilters, /item\.status !== "ARCHIVED"/);
+  assert.match(dashboardFilters, /Aucune annonce archivée\./);
 });
 
 test("archive handling does not touch templates, relations, safety, anonymity or trust", () => {

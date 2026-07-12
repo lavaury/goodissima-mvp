@@ -64,7 +64,7 @@ export default async function DashboardPage({
   monthStart.setUTCHours(0, 0, 0, 0);
   const [links, cases, recentCases, recentDocuments, activeJourneyCount, publishedAnnouncementCount, ongoingRelationCount, draftOpportunityCount, pendingRelationCount, openActionCount, monthlyAIEvents, generatedTemplateCount, validatedTemplateCount, optimizedVersionCount] = await Promise.all([
     prisma.gLink.findMany({
-      where: { ownerId: owner.id, status: { not: "ARCHIVED" } },
+      where: { ownerId: owner.id },
       include: {
         template: { select: { name: true, status: true } },
         templateVersion: { select: { version: true } },
@@ -150,6 +150,7 @@ export default async function DashboardPage({
       .filter((item) => item.status !== "CLOSED" && item.status !== "ARCHIVED")
       .map((item) => item.gLinkId),
   );
+  const nonArchivedLinks = links.filter((item) => item.status !== "ARCHIVED");
   const stats = [
     { label: "Opportunités actives", value: links.filter((item) => item.status === "ACTIVE").length, href: "/opportunities" },
     { label: "Annonces publiées", value: publishedAnnouncementCount, href: "/opportunities" },
@@ -160,9 +161,9 @@ export default async function DashboardPage({
     { label: "Valeur estimée", value: new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(estimatedValue), href: "/ia-valeur" },
     { label: "Alertes ou actions ouvertes", value: openActionCount, href: "/relations" },
     { label: "Brouillons d'opportunités", value: draftOpportunityCount, href: "/parcours" },
-    { label: t("dashboard.kpi.linksCreated"), value: links.length, href: "/opportunities" },
+    { label: t("dashboard.kpi.linksCreated"), value: nonArchivedLinks.length, href: "/opportunities" },
     { label: t("dashboard.kpi.activeCases"), value: activeLinkIds.size, href: "/relations" },
-    { label: t("dashboard.kpi.waitingContact"), value: links.length - activeLinkIds.size, href: "/opportunities" },
+    { label: t("dashboard.kpi.waitingContact"), value: nonArchivedLinks.length - activeLinkIds.size, href: "/opportunities" },
     {
       label: t("dashboard.kpi.highPriority"),
       value: cases.filter((item) => item.priority === "HIGH").length,
@@ -170,7 +171,7 @@ export default async function DashboardPage({
     },
     { label: t("dashboard.kpi.urgent"), value: cases.filter((item) => item.priority === "URGENT").length, href: "/relations" },
     { label: t("dashboard.kpi.closed"), value: cases.filter((item) => item.status === "CLOSED").length, href: "/relations" },
-    { label: t("dashboard.kpi.archives"), value: cases.filter((item) => item.status === "ARCHIVED").length, href: "/relations" },
+    { label: t("dashboard.kpi.archives"), value: links.filter((item) => item.status === "ARCHIVED").length, href: "/opportunities?view=archived" },
     {
       label: t("dashboard.kpi.openRequests"),
       value: cases.reduce(
@@ -184,6 +185,7 @@ export default async function DashboardPage({
     id: item.id,
     slug: item.slug,
     title: item.title,
+    status: item.status,
     city: item.city,
     templateName: item.template?.name ?? null,
     templateStatus: item.template?.status ?? null,
