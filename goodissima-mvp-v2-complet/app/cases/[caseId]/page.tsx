@@ -1,10 +1,11 @@
 import { RelationCaseWorkspace } from "@/components/RelationCaseWorkspace";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { resolveCanonicalOwnerRelationCaseId } from "@/lib/canonical-relation-case";
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-repository";
 import { prisma } from "@/lib/prisma";
 import { unstable_noStore as noStore } from "next/cache";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,11 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
   noStore();
 
   const owner = await getCurrentPrismaUser();
+  const canonicalCaseId = await resolveCanonicalOwnerRelationCaseId(params.caseId, owner.id);
+  if (!canonicalCaseId) notFound();
+  if (canonicalCaseId !== params.caseId) {
+    redirect(`/cases/${encodeURIComponent(canonicalCaseId)}?refresh=1`);
+  }
   const debugMode = isGoodissimaDebugMode();
   const now = new Date();
   const [item, workspaceOptions] = await Promise.all([
