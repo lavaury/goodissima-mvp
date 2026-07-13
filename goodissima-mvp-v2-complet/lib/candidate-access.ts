@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
+import { secureTokenHash, secureTrace } from "./secure-trace";
 
 export const CANDIDATE_ACCESS_TTL_DAYS = 30;
 
@@ -34,16 +35,40 @@ export type CandidateSecureAccessDiagnostic =
 
 export async function diagnoseCandidateSecureAccess(token: unknown): Promise<CandidateSecureAccessDiagnostic> {
   const normalizedToken = typeof token === "string" ? token.trim() : "";
-  if (!normalizedToken) return { status: "rejected", reason: "absent-token" };
-
-  const relationCase = await prisma.relationCase.findUnique({
-    where: { candidateAccessToken: normalizedToken },
-    select: { id: true, candidateAccessRevokedAt: true, candidateAccessExpiresAt: true },
-  });
-  if (!relationCase) return { status: "rejected", reason: "unknown-token" };
-  if (relationCase.candidateAccessRevokedAt) return { status: "rejected", reason: "revoked" };
-  if (relationCase.candidateAccessExpiresAt && relationCase.candidateAccessExpiresAt <= new Date()) {
-    return { status: "rejected", reason: "expired" };
+  const tokenHash = await secureTokenHash(normalizedToken);
+  secureTrace("resolver_start", { tokenHash, tokenLength: normalizedToken.length });
+  if (!normalizedToken) {
+    secureTrace("resolver_result", { tokenHash, status: "missing-token", expiresAtPresent: false, revokedAtPresent: false });
+    return { status: "rejected", reason: "absent-token" };
   }
-  return { status: "resolved", relationCaseId: relationCase.id };
+
+  try {
+    const relationCase = await prisma.relationCase.findUnique({
+      where: { candidateAccessToken: normalizedToken },
+      select: { id: true, candidateAccessRevokedAt: true, candidateAccessExpiresAt: true },
+    });
+    if (!relationCase) {
+      secureTrace("resolver_result", { tokenHash, status: "unknown-token", expiresAtPresent: false, revokedAtPresent: false });
+      return { status: "rejected", reason: "unknown-token" };
+    }
+    const resultData = {
+      tokenHash,
+      relationCaseId: relationCase.id,
+      expiresAtPresent: Boolean(relationCase.candidateAccessExpiresAt),
+      revokedAtPresent: Boolean(relationCase.candidateAccessRevokedAt),
+    };
+    if (relationCase.candidateAccessRevokedAt) {
+      secureTrace("resolver_result", { ...resultData, status: "revoked" });
+      return { status: "rejected", reason: "revoked" };
+    }
+    if (relationCase.candidateAccessExpiresAt && relationCase.candidateAccessExpiresAt <= new Date()) {
+      secureTrace("resolver_result", { ...resultData, status: "expired" });
+      return { status: "rejected", reason: "expired" };
+    }
+    secureTrace("resolver_result", { ...resultData, status: "resolved" });
+    return { status: "resolved", relationCaseId: relationCase.id };
+  } catch (error) {
+    secureTrace("resolver_result", { tokenHash, status: "error", expiresAtPresent: false, revokedAtPresent: false });
+    throw error;
+  }
 }

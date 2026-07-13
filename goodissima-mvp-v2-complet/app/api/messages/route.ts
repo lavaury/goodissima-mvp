@@ -9,6 +9,7 @@ import { createRelationEvent } from "@/lib/events";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,19 @@ async function resolveCaseForAccess(params: {
   candidateAccessToken?: string | null;
 }) {
   if (params.candidateAccessToken) {
-    const access = await resolveCandidateSecureAccess(params.candidateAccessToken);
+    const tokenHash = await secureTokenHash(params.candidateAccessToken);
+    let access: Awaited<ReturnType<typeof resolveCandidateSecureAccess>>;
+    try {
+      access = await resolveCandidateSecureAccess(params.candidateAccessToken);
+    } catch (error) {
+      secureTrace("message_resolver_result", { tokenHash, status: "error" });
+      throw error;
+    }
+    secureTrace("message_resolver_result", {
+      tokenHash,
+      status: access ? "resolved" : "rejected",
+      ...(access ? { relationCaseId: access.id } : {}),
+    });
     if (!access) return null;
     return prisma.relationCase.findUnique({
       where: { id: access.id },

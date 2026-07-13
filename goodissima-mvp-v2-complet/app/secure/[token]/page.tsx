@@ -1,53 +1,50 @@
 import { RelationCaseWorkspace } from "@/components/RelationCaseWorkspace";
 import { resolveCandidateSecureAccess } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
+import { secureTokenHash, secureTrace, secureTraceEnvironment } from "@/lib/secure-trace";
 import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-type FailureStep = "resolver" | "case-load" | "messages-load" | "link-load" | "template-load" | "workspace-load" | "owner-load" | "render-guard" | "unknown";
-
-function logDiagnostic(input: { tokenPrefix: string; accessResolved: boolean; relationCaseId?: string; failureStep?: FailureStep }) {
-  if (process.env.NODE_ENV === "production" && process.env.GOODISSIMA_DEBUG !== "true") return;
-  console.info("[candidate-secure-access]", {
-    route: "/secure/[token]",
-    tokenPrefix: input.tokenPrefix,
-    accessResolved: input.accessResolved,
-    ...(input.relationCaseId ? { relationCaseId: input.relationCaseId } : {}),
-    ...(input.failureStep ? { failureStep: input.failureStep } : {}),
-  });
-}
-
 export default async function SecureCasePage({ params }: { params: { token: string } }) {
   noStore();
   const token = typeof params.token === "string" ? params.token : "";
-  const tokenPrefix = token.slice(0, 6);
+  const tokenHash = await secureTokenHash(token);
+  secureTrace("page_hit", {
+    route: "/secure/[token]",
+    paramsShape: typeof params?.token === "string" ? "token-string" : "token-missing",
+    tokenLength: token.length,
+    tokenHash,
+    env: secureTraceEnvironment(),
+  });
   let access: Awaited<ReturnType<typeof resolveCandidateSecureAccess>>;
 
   try {
     access = await resolveCandidateSecureAccess(token);
   } catch {
-    logDiagnostic({ tokenPrefix, accessResolved: false, failureStep: "resolver" });
+    secureTrace("render_mode", { route: "/secure/[token]", tokenHash, mode: "not-found", failureStep: "resolver" });
     notFound();
   }
   if (!access) {
-    logDiagnostic({ tokenPrefix, accessResolved: false, failureStep: "resolver" });
+    secureTrace("render_mode", { route: "/secure/[token]", tokenHash, mode: "not-found", failureStep: "resolver" });
     notFound();
   }
 
   const relationCaseId = access.id;
-  logDiagnostic({ tokenPrefix, accessResolved: true, relationCaseId });
+  secureTrace("case_load_start", { route: "/secure/[token]", tokenHash, relationCaseId });
   let item: Awaited<ReturnType<typeof prisma.relationCase.findUnique>>;
   try {
     // Scalar data first: a broken legacy relation must not reject a valid case.
     item = await prisma.relationCase.findUnique({ where: { id: relationCaseId } });
   } catch {
-    logDiagnostic({ tokenPrefix, accessResolved: true, relationCaseId, failureStep: "case-load" });
+    secureTrace("case_load_result", { tokenHash, relationCaseId, found: false, failureCode: "query-error" });
+    secureTrace("render_mode", { tokenHash, relationCaseId, mode: "not-found", failureStep: "case-load" });
     notFound();
   }
   if (!item) {
-    logDiagnostic({ tokenPrefix, accessResolved: true, relationCaseId, failureStep: "case-load" });
+    secureTrace("case_load_result", { tokenHash, relationCaseId, found: false, failureCode: "case-missing" });
+    secureTrace("render_mode", { tokenHash, relationCaseId, mode: "not-found", failureStep: "case-load" });
     notFound();
   }
 
@@ -68,14 +65,6 @@ export default async function SecureCasePage({ params }: { params: { token: stri
     ]),
   ]);
 
-  const diagnostics: Array<[PromiseSettledResult<unknown>, FailureStep]> = [
-    [messagesResult, "messages-load"], [linkResult, "link-load"], [templateResult, "template-load"],
-    [workspaceResult, "workspace-load"], [ownerResult, "owner-load"], [supportingResult, "unknown"],
-  ];
-  for (const [result, failureStep] of diagnostics) {
-    if (result.status === "rejected") logDiagnostic({ tokenPrefix, accessResolved: true, relationCaseId, failureStep });
-  }
-
   const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
   const gLink = linkResult.status === "fulfilled" ? linkResult.value : null;
   const workspace = workspaceResult.status === "fulfilled" ? workspaceResult.value : null;
@@ -85,6 +74,24 @@ export default async function SecureCasePage({ params }: { params: { token: stri
     || (Boolean(item.templateId) && (templateResult.status === "rejected" || !templateResult.value))
     || (Boolean(item.workspaceId) && !workspace)
     || ownerResult.status === "rejected" || !ownerResult.value;
+
+  secureTrace("case_load_result", {
+    tokenHash,
+    relationCaseId,
+    found: true,
+    status: item.status,
+    hasGLink: Boolean(gLink),
+    hasTemplate: templateResult.status === "fulfilled" && Boolean(templateResult.value),
+    hasWorkspace: Boolean(workspace),
+    hasOwner: ownerResult.status === "fulfilled" && Boolean(ownerResult.value),
+    messagesCount: messages.length,
+  });
+  const supportingDataMissing = messagesResult.status === "rejected" || supportingResult.status === "rejected";
+  secureTrace("render_mode", {
+    tokenHash,
+    relationCaseId,
+    mode: supportingDataMissing ? "minimal-conversation" : incompleteContext ? "legacy-compatible" : "full-context",
+  });
 
   const compatibleItem = {
     ...item,
