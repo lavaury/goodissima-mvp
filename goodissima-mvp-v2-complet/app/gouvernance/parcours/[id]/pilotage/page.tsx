@@ -18,6 +18,8 @@ import {
   governanceCommunicationChannelLabels,
 } from "@/lib/governance-communication-session-repository";
 import { getGovernanceCockpitConsolidation } from "@/lib/governance-cockpit-consolidation-repository";
+import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-repository";
+import { changeGovernedJourneyWorkspaceAction } from "@/lib/governance-workspace-actions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -409,6 +411,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const metadata = asRecord(snapshot.metadata);
   const metadataOwnerId = text(metadata.createdById);
   if (!formTemplate.relationTemplate || (formTemplate.relationTemplate.workspace?.ownerId !== owner.id && metadataOwnerId !== owner.id)) notFound();
+  const workspaceOptions = await getGovernanceWorkspaceOptions(owner.id);
   const creationPlan = asRecord(metadata.creationPlan);
   const validation = asRecord(metadata.humanValidation);
 
@@ -528,6 +531,22 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             <p className="mt-1 font-bold text-slate-950">{formatDate(version?.createdAt)}</p>
           </div>
         </div>
+      </section>
+
+      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Workspace du parcours</h2>
+        <p className="mt-2 text-sm text-slate-600">Workspace courant : <strong>{workspaceDisplay}</strong></p>
+        {workspaceOptions.length > 0 ? <form action={changeGovernedJourneyWorkspaceAction} className="mt-4 space-y-3">
+          <input type="hidden" name="formTemplateId" value={formTemplate.id} />
+          <label className="block text-sm font-semibold text-slate-700">Nouveau Workspace
+            <select required name="workspaceId" defaultValue={attachedWorkspaceId ?? ""} className="mt-1 block w-full max-w-xl rounded-lg border px-3 py-2 font-normal">
+              <option value="" disabled>Choisir un Workspace</option>
+              {workspaceOptions.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}</option>)}
+            </select>
+          </label>
+          <label className="flex max-w-2xl items-start gap-2 text-sm text-slate-600"><input required type="checkbox" name="humanConfirmed" value="yes" className="mt-1" /><span>Je confirme explicitement le changement de Workspace. Les invitations, acces et dossiers existants ne sont pas modifies.</span></label>
+          <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Changer le Workspace</button>
+        </form> : <p className="mt-3 text-sm text-slate-500">Aucun autre Workspace actif disponible.</p>}
       </section>
 
       <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">

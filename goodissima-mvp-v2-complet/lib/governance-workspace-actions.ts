@@ -204,6 +204,13 @@ export async function attachGovernedJourneyToWorkspaceAction(formData: FormData)
   redirect("/gouvernance");
 }
 
+export async function changeGovernedJourneyWorkspaceAction(formData: FormData) {
+  if (textFromForm(formData, "humanConfirmed") !== "yes") {
+    throw new Error("La confirmation explicite du changement de Workspace est obligatoire.");
+  }
+  return attachGovernedJourneyToWorkspaceAction(formData);
+}
+
 export async function attachRelationCaseToWorkspaceAction(formData: FormData) {
   const owner = await getCurrentPrismaUser();
   const relationCaseId = textFromForm(formData, "relationCaseId");

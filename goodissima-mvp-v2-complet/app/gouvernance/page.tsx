@@ -176,7 +176,7 @@ export default async function GovernanceWorkspacePage() {
               Creer un Workspace
             </Link>
             <Link href="/gouvernance/nouveau" className="w-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-              Commencer une activite
+              Creer un parcours gouverne
             </Link>
           </div>
         </div>

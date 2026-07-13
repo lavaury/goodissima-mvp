@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Access = { id: string; displayName: string; role: string; status: string; expiresAt: string; relationCaseId: string | null };
@@ -11,6 +11,8 @@ export function GovernedJourneyGuestAccessPanel({ formTemplateId, participantNam
 }) {
   const [link, setLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const linkInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const active = invitations.find((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date());
 
@@ -32,6 +34,18 @@ export function GovernedJourneyGuestAccessPanel({ formTemplateId, participantNam
     setLink(null); router.refresh();
   }
 
+  async function copyLink() {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopyStatus("Lien copie");
+    } catch {
+      linkInputRef.current?.focus();
+      linkInputRef.current?.select();
+      setCopyStatus("Copie impossible, selectionnez le lien manuellement");
+    }
+  }
+
   return <section className="mt-4 rounded-lg border-2 border-[#247f88]/30 bg-white p-4">
     <h3 className="font-bold text-slate-950">Accès invité gouverné</h3>
     <p className="mt-1 text-sm text-slate-600">Créez un accès sécurisé limité à ce parcours. Goodissima ne l’envoie pas automatiquement.</p>
@@ -49,8 +63,9 @@ export function GovernedJourneyGuestAccessPanel({ formTemplateId, participantNam
     </form>}
     {link ? <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3">
       <p className="font-semibold text-emerald-950">Copiez ce lien et transmettez-le par le canal de votre choix.</p>
-      <input readOnly value={link} className="mt-2 w-full rounded border bg-white px-2 py-2 text-sm" />
-      <button type="button" onClick={() => navigator.clipboard.writeText(link)} className="mt-2 rounded bg-emerald-800 px-3 py-2 text-sm font-semibold text-white">Copier le lien</button>
+      <input ref={linkInputRef} readOnly value={link} onFocus={(event) => event.currentTarget.select()} className="mt-2 w-full rounded border bg-white px-2 py-2 text-sm" />
+      <button type="button" onClick={copyLink} className="mt-2 rounded bg-emerald-800 px-3 py-2 text-sm font-semibold text-white">Copier le lien</button>
+      {copyStatus ? <p role="status" className="mt-2 text-sm font-semibold text-emerald-900">{copyStatus}</p> : null}
       <p className="mt-2 text-xs text-emerald-800">Ce lien en clair n’est affiché que dans cette confirmation.</p>
     </div> : null}
     {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
