@@ -83,6 +83,8 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
       select: {
         id: true,
         candidateAccessToken: true,
+        candidateAccessExpiresAt: true,
+        candidateAccessRevokedAt: true,
         candidateEmail: true,
         candidateEmailNotificationsEnabled: true,
         candidateName: true,
@@ -139,11 +141,13 @@ export async function PATCH(req: Request, { params }: { params: { caseId: string
         payload: { from: relationCase.status, to: data.status },
       });
 
-      if (notifiedStatuses.has(data.status) && relationCase.candidateEmailNotificationsEnabled) {
+      const candidateAccessIsActive =
+        !relationCase.candidateAccessRevokedAt &&
+        (!relationCase.candidateAccessExpiresAt || relationCase.candidateAccessExpiresAt > new Date());
+      if (notifiedStatuses.has(data.status) && relationCase.candidateEmailNotificationsEnabled && candidateAccessIsActive) {
         console.info("[candidate-email] Relation status email trigger", {
           caseId: relationCase.id,
           status: data.status,
-          secureLink: `/secure/${relationCase.candidateAccessToken}`,
           hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
         });
 

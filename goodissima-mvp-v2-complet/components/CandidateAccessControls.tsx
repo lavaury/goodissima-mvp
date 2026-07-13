@@ -26,7 +26,9 @@ export function CandidateAccessControls({
   const [loading, setLoading] = useState<"revoke" | "regenerate" | null>(null);
   const toast = useToast();
 
-  const securePath = `/secure/${encodeURIComponent(candidateAccessToken)}`;
+  const expiresAt = candidateAccessExpiresAt ? new Date(candidateAccessExpiresAt) : null;
+  const isActive = !candidateAccessRevokedAt && (!expiresAt || expiresAt > new Date());
+  const securePath = isActive ? `/secure/${encodeURIComponent(candidateAccessToken)}` : null;
   const expiresAtLabel = useMemo(() => {
     if (!candidateAccessExpiresAt) return "Aucune expiration";
 
@@ -61,9 +63,13 @@ export function CandidateAccessControls({
     <div className="rounded-2xl border bg-white p-4">
       <h2 className="font-semibold">Acces candidat</h2>
       <div className="mt-3 space-y-2 text-sm text-slate-600">
-        <p className="break-all">{securePath}</p>
+        {securePath ? (
+          <p className="break-all">{securePath}</p>
+        ) : (
+          <p>Aucun lien candidat actif. Regenerez l'acces pour creer un nouveau lien securise.</p>
+        )}
         <p>Expiration : {expiresAtLabel}</p>
-        {revokedAtLabel ? <p>Revoque le : {revokedAtLabel}</p> : <p>Acces actif</p>}
+        {revokedAtLabel ? <p>Revoque le : {revokedAtLabel}</p> : isActive ? <p>Acces actif</p> : <p>Acces expire</p>}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button

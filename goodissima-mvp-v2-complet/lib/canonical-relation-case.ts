@@ -38,7 +38,7 @@ export async function resolveCanonicalOwnerRelationCaseId(caseId: string, ownerI
       canonicalRelationCaseId: canonicalId,
     });
   }
-  return canonicalId;
+  return canonicalId ?? requested.id;
 }
 
 export { pickCanonicalRelationCaseId } from "./canonical-relation-case-picker";

@@ -32,6 +32,7 @@ import {
 } from "@/lib/trust-policy";
 import type { FormValues } from "@/lib/form-rules";
 import { canSubmitToSecureLink } from "@/lib/secure-link-admission";
+import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -141,7 +142,18 @@ function missingFieldBadRequest({
   });
 }
 
-function withCandidateCookie(token: string, gLinkId: string) {
+async function withCandidateCookie(token: string, gLinkId: string, relationCaseId: string) {
+  const tokenHash = await secureTokenHash(token);
+  secureTrace("candidate_case_created", {
+    relationCaseId,
+    returnedHasCandidateAccessToken: Boolean(token),
+    redirectTargetKind: "candidate-secure-token",
+  });
+  secureTrace("candidate_redirect", {
+    relationCaseId,
+    targetKind: "candidate-secure-token",
+    tokenHash,
+  });
   const response = NextResponse.json({ candidateAccessToken: token });
   response.cookies.set(`goodissima_candidate_${gLinkId}`, token, {
     httpOnly: true,
@@ -367,13 +379,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const existingRelationCase = candidateEmail
-    ? await prisma.relationCase.findFirst({
+  const existingRelationCases = resolvedCandidateIdentityId
+    ? await prisma.relationCase.findMany({
         where: {
           gLinkId: gLink.id,
-          candidateEmail: { equals: candidateEmail, mode: "insensitive" },
+          candidateIdentityId: resolvedCandidateIdentityId,
+          candidateAccessRevokedAt: null,
+          OR: [{ candidateAccessExpiresAt: null }, { candidateAccessExpiresAt: { gt: new Date() } }],
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
+        take: 2,
         select: {
           id: true,
           candidateAccessToken: true,
@@ -384,7 +399,9 @@ export async function POST(req: Request) {
           gLink: { select: { title: true } },
         },
       })
-    : null;
+    : [];
+  // Multiple active matches are ambiguous: do not reveal or reuse any of them.
+  const existingRelationCase = existingRelationCases.length === 1 ? existingRelationCases[0] : null;
 
   if (existingRelationCase) {
     if (!canCandidateWriteInRelation(existingRelationCase.governanceStatus)) {
@@ -487,7 +504,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return withCandidateCookie(existingRelationCase.candidateAccessToken, gLink.id);
+    return withCandidateCookie(existingRelationCase.candidateAccessToken, gLink.id, existingRelationCase.id);
   }
 
   const relationTemplate = await getRelationTemplateForLink(gLink.templateId);
@@ -829,5 +846,5 @@ export async function POST(req: Request) {
     });
   }
 
-  return withCandidateCookie(relationCase.candidateAccessToken, gLink.id);
+  return withCandidateCookie(relationCase.candidateAccessToken, gLink.id, relationCase.id);
 }

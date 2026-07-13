@@ -30,6 +30,8 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       select: {
         id: true,
         candidateAccessToken: true,
+        candidateAccessExpiresAt: true,
+        candidateAccessRevokedAt: true,
         candidateEmail: true,
         candidateEmailNotificationsEnabled: true,
         candidateName: true,
@@ -101,7 +103,10 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
 
     await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "timeline_updated" });
 
-    if (relationCase.candidateEmailNotificationsEnabled && !draftOnly) {
+    const candidateAccessIsActive =
+      !relationCase.candidateAccessRevokedAt &&
+      (!relationCase.candidateAccessExpiresAt || relationCase.candidateAccessExpiresAt > new Date());
+    if (relationCase.candidateEmailNotificationsEnabled && !draftOnly && candidateAccessIsActive) {
       await sendNewRelationActionEmail({
         candidateEmail: relationCase.candidateEmail,
         ownerEmail: owner.email,

@@ -138,7 +138,6 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
-          candidateAccessToken: true,
           candidateName: true,
           candidateEmail: true,
           candidateEmailNotificationsEnabled: true,
@@ -221,7 +220,6 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     ? localizeTemplateName(link.template.key, link.template.name, locale)
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
-  const secureToken = link.cases[0]?.candidateAccessToken ?? null;
   const sourceJourneyHref = snapshot?.formTemplate.id ? `/templates/${snapshot.formTemplate.id}` : formTemplate?.id ? `/templates/${formTemplate.id}` : null;
 
   return (
@@ -285,16 +283,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
                 {publicPath}
               </Link>
             </p>
-            {secureToken ? (
-              <p>
-                Lien secure:{" "}
-                <Link href={`/secure/${secureToken}`} className="font-medium underline" prefetch={false}>
-                  /secure/{secureToken}
-                </Link>
-              </p>
-            ) : (
-              <p>Aucun lien secure genere tant que le candidat n'a pas soumis le formulaire</p>
-            )}
+            <p>Les liens candidats securises sont disponibles dans chaque dossier disposant d'un acces actif.</p>
           </div>
           <div className="mt-4">
             <DebugCreateTestCaseButton linkId={link.id} />

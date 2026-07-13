@@ -1,13 +1,52 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { activeCandidateAccessWhere } from "@/lib/candidate-access";
+import { prisma } from "@/lib/prisma";
+import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
 
-export default function ConfirmationPage({
+export default async function ConfirmationPage({
   params,
   searchParams,
 }: {
   params: { slug: string };
   searchParams: { token?: string };
 }) {
-  const caseUrl = searchParams.token ? `/secure/${encodeURIComponent(searchParams.token)}` : `/l/${params.slug}`;
+  const link = await prisma.gLink.findUnique({
+    where: { slug: params.slug },
+    select: { id: true },
+  });
+  const cookieToken = link ? cookies().get(`goodissima_candidate_${link.id}`)?.value?.trim() : "";
+  const legacyQueryToken = typeof searchParams.token === "string" ? searchParams.token.trim() : "";
+  const candidateTokens = [cookieToken, legacyQueryToken].filter(Boolean) as string[];
+  let candidateAccessToken = "";
+
+  for (const token of candidateTokens) {
+    const relationCase = link
+      ? await prisma.relationCase.findFirst({
+          where: { ...activeCandidateAccessWhere(token), gLinkId: link.id },
+          select: { id: true, candidateAccessToken: true },
+        })
+      : null;
+    if (relationCase) {
+      candidateAccessToken = relationCase.candidateAccessToken;
+      secureTrace("candidate_redirect", {
+        relationCaseId: relationCase.id,
+        targetKind: "candidate-secure-token",
+        tokenHash: await secureTokenHash(candidateAccessToken),
+      });
+      break;
+    }
+  }
+
+  if (!candidateAccessToken && legacyQueryToken) {
+    secureTrace("candidate_redirect", {
+      targetKind: "unknown",
+      tokenHash: await secureTokenHash(legacyQueryToken),
+    });
+  }
+  const caseUrl = candidateAccessToken
+    ? `/secure/${encodeURIComponent(candidateAccessToken)}`
+    : `/l/${params.slug}`;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-6">

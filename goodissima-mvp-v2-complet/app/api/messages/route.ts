@@ -37,6 +37,8 @@ async function resolveCaseForAccess(params: {
       select: {
         id: true,
         candidateAccessToken: true,
+        candidateAccessExpiresAt: true,
+        candidateAccessRevokedAt: true,
         candidateEmail: true,
         candidateEmailNotificationsEnabled: true,
         candidateName: true,
@@ -61,6 +63,8 @@ async function resolveCaseForAccess(params: {
     select: {
       id: true,
       candidateAccessToken: true,
+      candidateAccessExpiresAt: true,
+      candidateAccessRevokedAt: true,
       candidateEmail: true,
       candidateEmailNotificationsEnabled: true,
       candidateName: true,
@@ -182,7 +186,10 @@ export async function POST(req: Request) {
     }
   }
 
-  if (body.senderType === "OWNER" && relationCase.candidateEmailNotificationsEnabled) {
+  const candidateAccessIsActive =
+    !relationCase.candidateAccessRevokedAt &&
+    (!relationCase.candidateAccessExpiresAt || relationCase.candidateAccessExpiresAt > new Date());
+  if (body.senderType === "OWNER" && relationCase.candidateEmailNotificationsEnabled && candidateAccessIsActive) {
     console.info("[candidate-email] New owner message email trigger", {
       caseId: relationCase.id,
       hasResendApiKey: Boolean(process.env.RESEND_API_KEY),

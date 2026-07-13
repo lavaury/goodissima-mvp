@@ -306,10 +306,17 @@ export default function CandidateForm({
       }
 
       const relationCase = await res.json();
-      await uploadFormFiles(relationCase.candidateAccessToken);
+      const candidateAccessToken =
+        relationCase && typeof relationCase.candidateAccessToken === "string"
+          ? relationCase.candidateAccessToken.trim()
+          : "";
+      if (!candidateAccessToken) {
+        throw new Error("Le dossier a ete cree, mais son acces securise est indisponible.");
+      }
+      await uploadFormFiles(candidateAccessToken);
 
       toast.success(copy.messageSentToast);
-      router.push(`/secure/${encodeURIComponent(relationCase.candidateAccessToken)}`);
+      router.push(`/secure/${encodeURIComponent(candidateAccessToken)}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur lors de l'action");
     } finally {

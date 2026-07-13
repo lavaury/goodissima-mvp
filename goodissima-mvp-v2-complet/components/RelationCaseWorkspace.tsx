@@ -698,7 +698,12 @@ export function RelationCaseWorkspace({
           <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
           <div className="mt-3 space-y-1">
             {item.gLink.slug ? <p>Lien public candidat: /l/{item.gLink.slug}</p> : null}
-            <p>Lien secure: /secure/{item.candidateAccessToken}</p>
+            {!item.candidateAccessRevokedAt &&
+            (!item.candidateAccessExpiresAt || new Date(item.candidateAccessExpiresAt) > new Date()) ? (
+              <p>Lien candidat actif disponible dans la section Acces.</p>
+            ) : (
+              <p>Aucun lien candidat actif.</p>
+            )}
           </div>
           <div className="mt-4">
             <DebugDeleteCaseButton caseId={item.id} />

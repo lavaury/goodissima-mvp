@@ -14,18 +14,18 @@ function candidate(id: string, messageAt?: string, revoked = false) {
   };
 }
 
-test("Trust Admission duplicate routes to the case carrying the conversation", () => {
+test("ambiguous active Trust Admission duplicates are not canonicalized", () => {
   assert.equal(pickCanonicalRelationCaseId([
     candidate("legacy", "2026-07-02T00:00:00Z"),
     candidate("canonical", "2026-07-12T00:00:00Z"),
-  ], now), "canonical");
+  ], now), null);
 });
 
 test("a standalone Garage case remains canonical", () => {
   assert.equal(pickCanonicalRelationCaseId([candidate("garage", "2026-07-12T00:00:00Z")], now), "garage");
 });
 
-test("active access wins when duplicate cases have no messages", () => {
+test("a unique active access is canonical when historical access is revoked", () => {
   assert.equal(pickCanonicalRelationCaseId([candidate("legacy", undefined, true), candidate("canonical")], now), "canonical");
 });
 
