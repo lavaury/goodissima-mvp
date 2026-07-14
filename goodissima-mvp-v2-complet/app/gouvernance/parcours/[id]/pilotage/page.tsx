@@ -6,13 +6,14 @@ import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom"
 import { GovernedMeetingSubmitButton } from "@/components/GovernedMeetingSubmitButton";
 import { ConfirmMeetingCancellationButton } from "@/components/ConfirmMeetingCancellationButton";
 import { GovernanceReviewAIAssistant } from "@/components/GovernanceReviewAIAssistant";
+import { ConfirmGovernanceReviewTransitionButton } from "@/components/ConfirmGovernanceReviewTransitionButton";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
 import { authorizeGuestForGovernedMeetingAction, removeGuestFromGovernedMeetingAction } from "@/lib/governed-meeting-participant-actions";
 import { cancelGovernedMeetingAction, updateGovernedMeetingScheduleAction } from "@/lib/governed-meeting-lifecycle-actions";
 import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
 import { prepareParticipantInvitationAction } from "@/lib/governance-participant-invitations-actions";
-import { prepareGovernanceReviewAction } from "@/lib/governance-review-preparations-actions";
+import { prepareGovernanceReviewAction, transitionGovernanceReviewAction } from "@/lib/governance-review-preparations-actions";
 import {
   getGovernanceCommunicationOverview,
   governanceCommunicationChannelLabels,
@@ -74,11 +75,13 @@ type DocumentReception = {
 
 type GovernanceReviewPreparation = {
   reviewPreparationId: string;
-  status: "PREPARED_NOT_STARTED";
+  status: "PREPARED_NOT_STARTED" | "IN_HUMAN_REVIEW" | "COMPLETED";
   reason: string;
   question: string;
   note: string | null;
   preparedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
   updatedAt: string;
   preparedById: string;
   meetingCreated: false;
@@ -361,11 +364,13 @@ function governanceReviewPreparationsFrom(value: unknown): GovernanceReviewPrepa
 
       return {
         reviewPreparationId,
-        status: "PREPARED_NOT_STARTED" as const,
+        status: row.status === "IN_HUMAN_REVIEW" || row.status === "COMPLETED" ? row.status : "PREPARED_NOT_STARTED",
         reason,
         question,
         note: text(row.note),
         preparedAt,
+        startedAt: text(row.startedAt),
+        completedAt: text(row.completedAt),
         updatedAt: text(row.updatedAt) ?? preparedAt,
         preparedById,
         meetingCreated: false as const,
@@ -1366,7 +1371,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           <div className="mt-5 space-y-3">
             {governanceReviewPreparations.map((review) => (
               <article id={`governance-review-${review.reviewPreparationId}`} key={review.reviewPreparationId} className="scroll-mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <p className="text-sm font-bold text-emerald-950">Revue préparée - non lancée automatiquement</p>
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-emerald-950">{review.status === "PREPARED_NOT_STARTED" ? "Revue préparée — à conduire humainement" : review.status === "IN_HUMAN_REVIEW" ? "Revue en conduite humaine" : "Revue conduite"}</p><span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">{review.status === "PREPARED_NOT_STARTED" ? "Préparée" : review.status === "IN_HUMAN_REVIEW" ? "En conduite humaine" : "Conduite"}</span></div>
                 <div className="mt-3 grid gap-3 text-sm lg:grid-cols-2">
                   <div className="rounded-lg bg-white/80 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Motif</p>
@@ -1381,6 +1386,17 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 <p className="mt-3 text-xs font-semibold text-emerald-800">
                   Préparée le {formatDate(review.preparedAt)}. Dernière mise à jour : {formatDate(review.updatedAt)}.
                 </p>
+                {review.status !== "COMPLETED" ? (
+                  <form action={transitionGovernanceReviewAction} className="mt-3">
+                    <input type="hidden" name="formTemplateId" value={formTemplate.id} />
+                    <input type="hidden" name="reviewPreparationId" value={review.reviewPreparationId} />
+                    <input type="hidden" name="nextStatus" value={review.status === "PREPARED_NOT_STARTED" ? "IN_HUMAN_REVIEW" : "COMPLETED"} />
+                    <input type="hidden" name="humanConfirmed" value="yes" />
+                    <ConfirmGovernanceReviewTransitionButton nextStatus={review.status === "PREPARED_NOT_STARTED" ? "IN_HUMAN_REVIEW" : "COMPLETED"} />
+                  </form>
+                ) : null}
+                {review.startedAt ? <p className="mt-2 text-xs font-semibold text-emerald-800">Conduite humaine démarrée le {formatDate(review.startedAt)}.</p> : null}
+                {review.completedAt ? <p className="mt-1 text-xs font-semibold text-emerald-800">Revue conduite le {formatDate(review.completedAt)}.</p> : null}
                 <GovernanceReviewAIAssistant formTemplateId={formTemplate.id} reason={review.reason} question={review.question} humanNote={review.note} />
                 <div className="mt-3 grid gap-2 text-xs font-semibold text-emerald-900 sm:grid-cols-2 lg:grid-cols-5">
                   <p className="rounded-lg bg-white/80 px-3 py-2">Réunion créée : non</p>

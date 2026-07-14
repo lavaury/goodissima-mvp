@@ -133,8 +133,9 @@ function governanceReviewPreparationsFrom(value: unknown) {
     const reviewPreparationId = text(row.reviewPreparationId);
     const reason = text(row.reason);
     const question = text(row.question);
-    return reviewPreparationId && reason && question ? { reviewPreparationId, reason, question } : null;
-  }).filter((review): review is { reviewPreparationId: string; reason: string; question: string } => {
+    const status = row.status === "IN_HUMAN_REVIEW" || row.status === "COMPLETED" ? row.status : "PREPARED_NOT_STARTED";
+    return reviewPreparationId && reason && question ? { reviewPreparationId, reason, question, status } : null;
+  }).filter((review): review is { reviewPreparationId: string; reason: string; question: string; status: "PREPARED_NOT_STARTED" | "IN_HUMAN_REVIEW" | "COMPLETED" } => {
     if (!review || seen.has(review.reviewPreparationId)) return false;
     seen.add(review.reviewPreparationId);
     return true;
@@ -431,7 +432,7 @@ export async function getGovernanceCockpitConsolidation(input: {
   for (const review of governanceReviewPreparations) {
     humanInterventions.push({
       id: `governance-review-${review.reviewPreparationId}`,
-      title: "Revue de gouvernance preparee - non lancee automatiquement",
+      title: review.status === "PREPARED_NOT_STARTED" ? "Revue preparee - a conduire humainement" : review.status === "IN_HUMAN_REVIEW" ? "Revue en conduite humaine" : "Revue conduite",
       description: `Motif : ${review.reason}. Question : ${review.question}`,
       source: "Revue de gouvernance",
       href: `${cockpitHref}#governance-review-${encodeURIComponent(review.reviewPreparationId)}`,
