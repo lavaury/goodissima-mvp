@@ -126,6 +126,21 @@ function arrayValue(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
+function governanceReviewPreparationsFrom(value: unknown) {
+  const seen = new Set<string>();
+  return arrayValue(value).map((item) => {
+    const row = asRecord(item);
+    const reviewPreparationId = text(row.reviewPreparationId);
+    const reason = text(row.reason);
+    const question = text(row.question);
+    return reviewPreparationId && reason && question ? { reviewPreparationId, reason, question } : null;
+  }).filter((review): review is { reviewPreparationId: string; reason: string; question: string } => {
+    if (!review || seen.has(review.reviewPreparationId)) return false;
+    seen.add(review.reviewPreparationId);
+    return true;
+  });
+}
+
 function participantKey(input: { name: string; role: string }) {
   return `${input.name.trim().toLowerCase()}::${input.role.trim().toLowerCase()}`;
 }
@@ -217,7 +232,7 @@ export async function getGovernanceCockpitConsolidation(input: {
     ),
   );
   const documentReceptions = arrayValue(metadata.documentReceptions);
-  const governanceReviewPreparations = arrayValue(metadata.governanceReviewPreparations);
+  const governanceReviewPreparations = governanceReviewPreparationsFrom(metadata.governanceReviewPreparations);
   const relationTemplateId = formTemplate.relationTemplate.id;
   const workspaceId = workspace?.id ?? null;
 
@@ -413,13 +428,13 @@ export async function getGovernanceCockpitConsolidation(input: {
     });
   }
 
-  for (const [index] of governanceReviewPreparations.entries()) {
+  for (const review of governanceReviewPreparations) {
     humanInterventions.push({
-      id: `governance-review-${index}`,
+      id: `governance-review-${review.reviewPreparationId}`,
       title: "Revue de gouvernance preparee - non lancee automatiquement",
-      description: "Une revue est preparee dans le cockpit et reste a conduire humainement.",
+      description: `Motif : ${review.reason}. Question : ${review.question}`,
       source: "Revue de gouvernance",
-      href: cockpitHref,
+      href: `${cockpitHref}#governance-review-${encodeURIComponent(review.reviewPreparationId)}`,
       actionLabel: "Ouvrir la revue",
       level: "INFO",
     });

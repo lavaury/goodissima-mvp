@@ -347,6 +347,8 @@ function governedJourneySummary(input: {
 function governanceReviewPreparationsFrom(value: unknown): GovernanceReviewPreparation[] {
   if (!Array.isArray(value)) return [];
 
+  const seen = new Set<string>();
+
   return value
     .map((item) => {
       const row = asRecord(item);
@@ -373,7 +375,11 @@ function governanceReviewPreparationsFrom(value: unknown): GovernanceReviewPrepa
         workflowStarted: false as const,
       };
     })
-    .filter((item): item is GovernanceReviewPreparation => item !== null);
+    .filter((item): item is GovernanceReviewPreparation => {
+      if (!item || seen.has(item.reviewPreparationId)) return false;
+      seen.add(item.reviewPreparationId);
+      return true;
+    });
 }
 
 function formatDate(value: Date | string | null | undefined) {
@@ -1359,7 +1365,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         {governanceReviewPreparations.length > 0 ? (
           <div className="mt-5 space-y-3">
             {governanceReviewPreparations.map((review) => (
-              <article key={review.reviewPreparationId} className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <article id={`governance-review-${review.reviewPreparationId}`} key={review.reviewPreparationId} className="scroll-mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                 <p className="text-sm font-bold text-emerald-950">Revue préparée - non lancée automatiquement</p>
                 <div className="mt-3 grid gap-3 text-sm lg:grid-cols-2">
                   <div className="rounded-lg bg-white/80 p-3">
