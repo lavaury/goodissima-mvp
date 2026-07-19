@@ -6,6 +6,7 @@ import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 
 const items = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Lien simple", href: "/links/simple" },
   { label: "Gouvernance", href: "/gouvernance" },
   { label: "Salle de pilotage", href: "/gouvernance/pilotage" },
   { label: "Portfolios", href: "/gouvernance/portfolios" },
@@ -18,8 +19,24 @@ const items = [
   { label: "Parcours", href: "/parcours", legacyHref: "/templates" },
   { label: "Relations", href: "/relations" },
   { label: "IA & Valeur", href: "/ia-valeur" },
+  { label: "Boussole", href: "/boussole" },
   { label: "Administration", href: "/administration" },
 ];
+
+const boussoleIds: Record<string, string> = {
+  "/dashboard": "open-dashboard",
+  "/links/simple": "create-simple-link",
+  "/gouvernance": "open-governance",
+  "/gouvernance/pilotage": "open-governance-pilotage",
+  "/gouvernance/portfolios": "open-portfolios",
+  "/gouvernance/nouveau": "create-governed-journey",
+  "/annuaire": "open-directory",
+  "/settings": "open-settings",
+  "/opportunities": "open-opportunities",
+  "/parcours": "open-journeys",
+  "/relations": "open-relations",
+  "/ia-valeur": "open-ai-value",
+};
 
 export function PlatformNavigation({
   active,
@@ -37,6 +54,7 @@ export function PlatformNavigation({
     | "admin"
     | "trust"
     | "identity"
+    | "boussole"
     | "settings";
   organizationName?: string | null;
 }) {
@@ -64,6 +82,8 @@ export function PlatformNavigation({
             ? "/trust/connectors"
             : active === "identity"
               ? "/identity"
+              : active === "boussole"
+                ? "/boussole"
               : "/settings";
   const resolvedActiveHref = pathname === "/gouvernance" || pathname.startsWith("/gouvernance/parcours/")
     ? "/gouvernance"
@@ -77,11 +97,12 @@ export function PlatformNavigation({
 
   return (
     <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <nav className="flex gap-2 overflow-x-auto rounded-2xl border bg-white p-2 pr-28 shadow-sm sm:pr-2">
+      <nav data-boussole-navigation="global" className="flex gap-2 overflow-x-auto rounded-2xl border bg-white p-2 pr-28 shadow-sm sm:pr-2">
         {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            data-boussole-id={boussoleIds[item.href]}
             className={
               item.href === resolvedActiveHref
                 ? "whitespace-nowrap rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"

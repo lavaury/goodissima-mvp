@@ -16,6 +16,8 @@ type DashboardLink = {
   templateVersion?: number | null;
   admissionMode?: LinkAdmissionMode;
   openActionCount?: number;
+  matchingStatus?: "DISABLED" | "TO_ANALYZE" | "MATCHES_TO_REVIEW" | "FOLLOW_UP_TO_DECIDE" | "NO_RESULTS";
+  matchingCount?: number;
   cases?: Array<{
     id: string;
     candidateEmail: string;
@@ -120,8 +122,8 @@ export function DashboardLinkFilters({
   );
 
   return (
-    <section>
-      <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm">
+    <section data-boussole-id="dashboard-links-list">
+      <div data-boussole-id="dashboard-link-filters" className="mb-4 rounded-2xl border bg-white p-4 shadow-sm">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}

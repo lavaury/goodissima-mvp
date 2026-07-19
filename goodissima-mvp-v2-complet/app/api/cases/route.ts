@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { describeSimpleFieldRule, evaluateSimpleFieldRule, parseSimpleFieldRule } from "@/lib/simple-field-rules";
 import { Prisma, RelationStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
@@ -42,6 +43,7 @@ type BadRequestCode =
   | "INVALID_REQUEST_BODY"
   | "INVALID_NOTIFICATION_EMAIL"
   | "REQUIRED_FIELD_MISSING"
+  | "FIELD_RULE_NOT_MET"
   | "GLINK_NOT_FOUND";
 
 function warnBadRequest({
@@ -318,6 +320,30 @@ export async function POST(req: Request) {
       field: missingSubmittedField,
       gLinkId,
     });
+  }
+  if (formSubmission) {
+    const ruleIssues = submittedFormFields.flatMap((field) => {
+      const rule = parseSimpleFieldRule(field.validationRules);
+      if (!rule || evaluateSimpleFieldRule(formSubmission.answers[field.key], rule).valid) return [];
+      return [{ field, rule, message: describeSimpleFieldRule(field) }];
+    });
+    const blockingRuleIssue = ruleIssues.find((issue) => issue.rule.mode === "BLOCKING");
+    if (blockingRuleIssue) {
+      return badRequest({
+        code: "FIELD_RULE_NOT_MET",
+        error: `${blockingRuleIssue.message}. Corrigez cette réponse avant l’envoi.`,
+        gLinkId,
+        reasons: ["blocking_field_rule_not_met"],
+      });
+    }
+    const indicativeSignals = ruleIssues
+      .filter((issue) => issue.rule.mode === "INDICATIVE")
+      .map((issue) => `Écart à examiner — ${issue.message}`);
+    if (indicativeSignals.length) {
+      formSubmission.answers.simpleRuleSignals = indicativeSignals;
+    } else {
+      delete formSubmission.answers.simpleRuleSignals;
+    }
   }
 
   const derivedCandidateFields = deriveCandidateSubmissionFields(formSubmission?.answers ?? {}, {

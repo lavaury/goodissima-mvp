@@ -5,6 +5,7 @@ export function ConfirmGovernanceReviewTransitionButton({ nextStatus }: { nextSt
   return (
     <button
       type="submit"
+      data-boussole-id={completing ? "complete-governance-review" : "conduct-governance-review"}
       onClick={(event) => {
         const message = completing
           ? "Confirmer que cette revue a été conduite humainement ? Aucune notification, réunion ou action automatique ne sera déclenchée."

@@ -10,6 +10,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPublicAppUrl } from "@/lib/public-app-url";
 import { isDemoSurfaceEnabled } from "@/lib/debug";
+import { deriveGLinkMatchingDisplayState } from "@/lib/glink-matching";
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -29,7 +30,7 @@ export default async function OpportunitiesPage({
     },
     orderBy: { createdAt: "desc" },
     include: {
-      template: { select: { name: true, status: true, formTemplates: { select: { id: true }, take: 1 } } },
+      template: { select: { name: true, status: true, formTemplates: { select: { id: true }, take: 1 }, aiEvents: { where: { action: { in: ["glink_matching_analysis", "glink_matching_interested", "glink_matching_ignored", "glink_matching_enabled", "glink_matching_disabled"] } }, orderBy: { createdAt: "desc" }, take: 30, select: { action: true, outputSummary: true, createdAt: true } } } },
       templateVersion: { select: { version: true } },
       cases: { orderBy: { createdAt: "desc" }, select: { id: true, candidateEmail: true } },
     },
@@ -68,24 +69,24 @@ export default async function OpportunitiesPage({
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div data-boussole-id="opportunities-overview" className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#247f88]">Mes opportunités et relations</p>
           <h1 className="mt-2 text-3xl font-bold">Opportunités</h1>
           <ProductObjectDefinition object="announcement" />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/opportunities/new" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Créer une opportunité</Link>
+          <Link href="/opportunities/new" data-boussole-id="create-opportunity" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Créer une opportunité</Link>
           <LogoutButton />
         </div>
       </div>
       <div className="mt-8"><PlatformNavigation active="opportunities" organizationName={organizationName} /></div>
       <ProductLifecycle current="announcement" />
       <nav className="mt-6 flex flex-wrap gap-2" aria-label="Vues des annonces">
-        <Link href="/opportunities" aria-current={view === "active" ? "page" : undefined} className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === "active" ? "bg-slate-900 text-white" : "border bg-white text-slate-700"}`}>Annonces actives</Link>
-        <Link href="/opportunities?view=archived" aria-current={view === "archived" ? "page" : undefined} className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === "archived" ? "bg-slate-900 text-white" : "border bg-white text-slate-700"}`}>Archives ({totalArchivedCount})</Link>
+        <Link href="/opportunities" data-boussole-id="opportunities-filter-active" aria-current={view === "active" ? "page" : undefined} className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === "active" ? "bg-slate-900 text-white" : "border bg-white text-slate-700"}`}>Annonces actives</Link>
+        <Link href="/opportunities?view=archived" data-boussole-id="opportunities-filter-archived" aria-current={view === "archived" ? "page" : undefined} className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === "archived" ? "bg-slate-900 text-white" : "border bg-white text-slate-700"}`}><span data-boussole-id="open-archives">Archives ({totalArchivedCount})</span></Link>
       </nav>
-      <section className="mt-6 rounded-3xl border bg-white p-6">
+      <section data-boussole-id="opportunities-summary" className="mt-6 rounded-3xl border bg-white p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-xl font-bold">Créer et suivre vos opportunités</h2>
@@ -97,14 +98,15 @@ export default async function OpportunitiesPage({
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {statusCards.map((card) => <Link key={card.label} href={card.href} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100"><p className="text-sm text-slate-500">{card.label}</p><p className="mt-2 text-2xl font-bold">{card.value}</p></Link>)}
+          {statusCards.map((card) => <Link key={card.label} data-boussole-id={card.label === "Publiées" ? "opportunity-status-active" : card.label === "Clôturées" ? "opportunity-status-closed" : card.label === "Archivées" ? "opportunity-status-archived" : undefined} href={card.href} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100"><p className="text-sm text-slate-500">{card.label}</p><p className="mt-2 text-2xl font-bold">{card.value}</p></Link>)}
         </div>
       </section>
-      <div className="mt-6">
+      <div data-boussole-id="opportunities-list" className="mt-6">
         {announcements.length || (view === "archived" && archivedJourneys.length) ? (
           <div className="grid gap-5 lg:grid-cols-2">
-            {announcements.map((item) => (
-              <LinkCard key={item.id} publicAppUrl={publicAppUrl} item={{
+            {announcements.map((item, index) => {
+              const matching = item.status === "ARCHIVED" ? { status: "DISABLED" as const, count: 0 } : deriveGLinkMatchingDisplayState({ rules: item.rules, sourceId: item.id, events: item.template?.aiEvents ?? [] });
+              return <LinkCard key={item.id} publicAppUrl={publicAppUrl} boussoleOpportunityExample={index === 0} item={{
                 id: item.id,
                 slug: item.slug,
                 title: item.title,
@@ -115,9 +117,11 @@ export default async function OpportunitiesPage({
                 templateStatus: item.template?.status,
                 templateVersion: item.templateVersion?.version,
                 sourceJourneyHref: item.template?.formTemplates[0] ? `/templates/${item.template.formTemplates[0].id}` : undefined,
+                matchingStatus: matching.status,
+                matchingCount: matching.count,
                 cases: item.cases,
-              }} />
-            ))}
+              }} />;
+            })}
             {view === "archived" ? archivedJourneys.map((journey) => (
               <article key={journey.id} className="rounded-2xl border bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">

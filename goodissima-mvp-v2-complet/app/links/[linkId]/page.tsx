@@ -12,6 +12,7 @@ import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { ProductContextBanner, ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AnnouncementActions } from "@/components/AnnouncementActions";
+import { GLinkMatchingPanel } from "@/components/GLinkMatchingPanel";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import type { ConditionalRule } from "@/lib/form-rules";
@@ -28,7 +29,9 @@ import {
   snapshotFieldsToDynamicFields,
 } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
-import { getPublicAppUrl } from "@/lib/public-app-url";
+import { buildPublicAppUrl } from "@/lib/public-app-url";
+import { hasUsefulGLinkMatchingCriteria, parseGLinkMatchingAnalysis } from "@/lib/ai/relational-matching-source";
+import { parseGLinkMatchingState } from "@/lib/glink-matching";
 
 type FieldOption = {
   label: string;
@@ -110,10 +113,6 @@ function parseConditionalRules(rules: unknown): ConditionalRule[] {
       } as ConditionalRule;
     })
     .filter((rule): rule is ConditionalRule => Boolean(rule));
-}
-
-function getAppUrl() {
-  return getPublicAppUrl();
 }
 
 function formatDateTime(date: Date) {
@@ -202,6 +201,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           step: field.step,
           options: parseFieldOptions(field.options),
           conditionalRules: parseConditionalRules(field.conditionalRules),
+          validationRules: field.validationRules,
         }))
       : [];
   const fields =
@@ -215,12 +215,41 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
       fields: fields.filter((field) => (field.step || 1) === step),
     }));
   const publicPath = `/l/${link.slug}`;
-  const publicUrl = `${getAppUrl()}${publicPath}`;
+  const publicUrl = buildPublicAppUrl(publicPath);
   const templateName = link.template
     ? localizeTemplateName(link.template.key, link.template.name, locale)
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
   const sourceJourneyHref = snapshot?.formTemplate.id ? `/templates/${snapshot.formTemplate.id}` : formTemplate?.id ? `/templates/${formTemplate.id}` : null;
+  const latestGLinkEvents = link.templateId
+    ? await prisma.aIEvent.findMany({
+        where: { templateId: link.templateId, organizationId: owner.id, action: { in: ["glink_matching_analysis", "glink_matching_enabled"] } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: { action: true, outputSummary: true, createdAt: true },
+      })
+    : [];
+  const latestEnableEvent = latestGLinkEvents.find((event) => event.action === "glink_matching_enabled" && event.outputSummary?.includes(`"sourceId":"${link.id}"`));
+  const latestGLinkAnalysisEvent = latestGLinkEvents.find((event) =>
+    event.action === "glink_matching_analysis" &&
+    parseGLinkMatchingAnalysis(event.outputSummary)?.sourceId === link.id &&
+    (!latestEnableEvent || event.createdAt >= latestEnableEvent.createdAt),
+  );
+  const latestGLinkAnalysis = parseGLinkMatchingAnalysis(latestGLinkAnalysisEvent?.outputSummary);
+  const gLinkMatchingState = parseGLinkMatchingState(link.rules);
+  const matchingSource = {
+    sourceType: "GLINK" as const,
+    sourceId: link.id,
+    ownerId: owner.id,
+    title: link.title,
+    description: link.description,
+    fields: rawFields.map((field) => ({
+      label: field.label,
+      type: field.type,
+      options: field.options,
+      validationRules: "validationRules" in field ? field.validationRules : undefined,
+    })),
+  };
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -255,7 +284,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
               readOnly
               className="min-h-11 w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm text-slate-800"
             />
-            <CopyLinkButton value={publicUrl} />
+            <span data-boussole-id="copy-public-link"><CopyLinkButton value={publicUrl} /></span>
           </div>
           <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900 ring-1 ring-emerald-200">
             {t("links.created.education")}
@@ -271,7 +300,16 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         </div>
       </section>
 
-      <LinkAdmissionPanel linkId={link.id} initialMode={link.admissionMode} />
+      <div data-boussole-id="explain-link-admission">
+        <LinkAdmissionPanel linkId={link.id} initialMode={link.admissionMode} />
+      </div>
+      <GLinkMatchingPanel
+        linkId={link.id}
+        criteriaSufficient={hasUsefulGLinkMatchingCriteria(matchingSource)}
+        initialMatches={latestGLinkAnalysis?.sourceId === link.id ? latestGLinkAnalysis.matches : []}
+        initialAnalyzed={latestGLinkAnalysis?.sourceId === link.id}
+        initialEnabled={gLinkMatchingState.enabled}
+      />
 
       {debugMode ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
@@ -425,6 +463,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link
           href={publicPath}
+          data-boussole-id="open-public-link"
           prefetch={false}
           className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-sm font-medium text-white"
         >

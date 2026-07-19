@@ -8,7 +8,7 @@ import { getActiveTemplateVersion } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { parseSecureLinkAdmissionMode } from "@/lib/secure-link-admission";
-import { getPublicAppUrl } from "@/lib/public-app-url";
+import { buildPublicAppUrl } from "@/lib/public-app-url";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -58,17 +58,15 @@ export async function POST(req: Request) {
   revalidatePath("/links/new");
   revalidatePath("/opportunities");
 
-  const appUrl = getPublicAppUrl();
-
   if (body.suppressNotification !== true) {
     await sendSecureLinkCreatedEmail({
       ownerEmail: owner.email,
       linkTitle: link.title,
-      publicUrl: `${appUrl}/l/${encodeURIComponent(link.slug)}`,
+      publicUrl: buildPublicAppUrl(`/l/${encodeURIComponent(link.slug)}`),
     });
   }
 
-  return NextResponse.json(link, {
+  return NextResponse.json({ ...link, publicUrl: buildPublicAppUrl(`/l/${encodeURIComponent(link.slug)}`) }, {
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
     },

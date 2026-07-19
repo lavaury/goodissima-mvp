@@ -523,7 +523,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         L'annuaire Goodissima est transversal ; en V1, il ne crée pas encore de contact global automatiquement depuis ce cockpit.
       </p>
 
-      <section className="mt-4 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governed-journey-overview" className="mt-4 rounded-lg border bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold text-[#247f88]">Pilotage V1 · préparation read-only</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">{title}</h1>
         <p className="mt-3 max-w-4xl text-sm leading-relaxed text-slate-700">{objective}</p>
@@ -544,7 +544,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </div>
       </section>
 
-      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governed-journey-workspace" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Workspace du parcours</h2>
         <p className="mt-2 text-sm text-slate-600">Workspace courant : <strong>{workspaceDisplay}</strong></p>
         {workspaceOptions.length > 0 ? <form action={changeGovernedJourneyWorkspaceAction} className="mt-4 space-y-3">
@@ -560,7 +560,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </form> : <p className="mt-3 text-sm text-slate-500">Aucun autre Workspace actif disponible.</p>}
       </section>
 
-      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governed-journey-summary" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-950">Synthèse du parcours gouverné</h2>
@@ -605,7 +605,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </p>
       </section>
 
-      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governed-journey-initial-need" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Besoin initial validé</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{initialNeed}</p>
       </section>
@@ -635,7 +635,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       </section>
 
       {consolidation?.workspace ? (
-        <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <section data-boussole-id="governed-journey-consolidation" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-[#247f88]">Vue consolidee du Workspace</p>
@@ -807,7 +807,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             </div>
           </div>
 
-          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div data-boussole-id="governed-journey-human-interventions" data-boussole-state={consolidation.humanInterventions.length > 0 ? "pending" : "empty"} className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold uppercase tracking-wide text-amber-900">Interventions humaines</h3>
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-amber-900">
@@ -819,7 +819,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             ) : (
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 {consolidation.humanInterventions.map((signal) => (
-                  <article key={signal.id} className="rounded-lg bg-white p-3 text-sm">
+                  <article key={signal.id} data-boussole-id="governed-journey-human-intervention" className="rounded-lg bg-white p-3 text-sm">
                     <p className="font-bold text-slate-950">{signal.title}</p>
                     <p className="mt-1 text-slate-600">{signal.description}</p>
                     <p className="mt-2 text-xs font-semibold text-slate-500">Source : {signal.source}</p>
@@ -842,7 +842,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </section>
       )}
 
-      <section className="mt-6 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-6 shadow-sm">
+      <section data-boussole-id="governed-journey-organizer" className="mt-6 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Organisateur du parcours</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div><p className="text-xs font-semibold uppercase text-slate-500">Identité</p><p className="mt-1 font-semibold text-slate-950">{owner.name || owner.email}</p>{owner.name && owner.name !== owner.email ? <p className="text-xs text-slate-500">{owner.email}</p> : null}</div>
@@ -852,7 +852,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <p className="mt-4 text-sm text-slate-700">L’organisateur pilote ce parcours depuis son compte. Aucun lien invité n’est nécessaire.</p>
       </section>
 
-      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governed-journey-secure-communication" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Communication sécurisée du parcours</h2>
         <p className="mt-2 text-sm text-slate-600">Vous êtes l’organisateur de ce parcours. Vous pouvez ouvrir la salle sécurisée depuis votre compte Goodissima. Les invités gouvernés pourront la rejoindre avec leur propre lien d’accès.</p>
         <div className="mt-4">
@@ -861,7 +861,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border bg-white p-6 shadow-sm">
+        <section data-boussole-id="governed-journey-participants" className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">Participants attendus</h2>
           <p className="mt-2 text-sm text-slate-600">Les accès invités gouvernés sont destinés aux personnes externes ou non authentifiées. Ne créez pas de lien invité pour l’organisateur.</p>
           <p className="mt-1 text-xs text-slate-500">Les liens invités gouvernés sont réservés aux personnes à qui vous souhaitez donner un accès limité au parcours. Goodissima ne transmet aucun lien automatiquement.</p>
@@ -891,7 +891,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     status: access.status, expiresAt: access.accessTokenExpiresAt.toISOString(), relationCaseId: access.relationCaseId }));
 
                 return (
-                <article key={`${participant.name}-${index}`} className="rounded-lg border bg-slate-50 p-4">
+                <article key={`${participant.name}-${index}`} data-boussole-id="governed-journey-participant" data-boussole-state={invitation ? "invitation-prepared" : "expected"} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{participant.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{participant.role}</p>
                   {invitation ? (
@@ -1021,7 +1021,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           )}
         </section>
 
-        <section className="rounded-lg border bg-white p-6 shadow-sm">
+        <section data-boussole-id="governed-journey-documents" className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">Documents attendus</h2>
           {documents.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucun document attendu n’a été renseigné.</p>
@@ -1031,7 +1031,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 const reception = documentReceptions.find((item) => documentKey(item.documentName) === documentKey(document.name));
 
                 return (
-                <article key={`${document.name}-${index}`} className="rounded-lg border bg-slate-50 p-4">
+                <article key={`${document.name}-${index}`} data-boussole-id="governed-journey-document" data-boussole-state={reception ? "received" : "pending"} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{document.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{document.reason}</p>
                   {reception ? (
@@ -1093,7 +1093,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border bg-white p-6 shadow-sm">
+        <section data-boussole-id="governed-journey-first-actions" className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">Règles de confidentialité</h2>
           {confidentialityRules.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucune règle spécifique n’a été renseignée.</p>
@@ -1127,7 +1127,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </section>
       </div>
 
-      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governed-communications" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-950">Communications gouvernees</h2>
@@ -1272,7 +1272,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         {communicationOverview.sessions.length > 0 ? (
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
             {communicationOverview.sessions.map((session) => (
-              <article id={`meeting-${session.id}`} key={session.id} className={`rounded-lg border border-emerald-200 bg-emerald-50 p-4 ${searchParams.meetingPrepared === session.title ? "ring-4 ring-emerald-200" : ""}`}>
+              <article id={`meeting-${session.id}`} key={session.id} data-boussole-id="governed-journey-communication" data-boussole-state={session.status} className={`rounded-lg border border-emerald-200 bg-emerald-50 p-4 ${searchParams.meetingPrepared === session.title ? "ring-4 ring-emerald-200" : ""}`}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
@@ -1354,7 +1354,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         )}
       </section>
 
-      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governance-reviews" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-950">Revue de gouvernance</h2>
@@ -1370,7 +1370,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         {governanceReviewPreparations.length > 0 ? (
           <div className="mt-5 space-y-3">
             {governanceReviewPreparations.map((review) => (
-              <article id={`governance-review-${review.reviewPreparationId}`} key={review.reviewPreparationId} className="scroll-mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <article id={`governance-review-${review.reviewPreparationId}`} data-boussole-id="open-governance-review" key={review.reviewPreparationId} className="scroll-mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-emerald-950">{review.status === "PREPARED_NOT_STARTED" ? "Revue préparée — à conduire humainement" : review.status === "IN_HUMAN_REVIEW" ? "Revue en conduite humaine" : "Revue conduite"}</p><span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">{review.status === "PREPARED_NOT_STARTED" ? "Préparée" : review.status === "IN_HUMAN_REVIEW" ? "En conduite humaine" : "Conduite"}</span></div>
                 <div className="mt-3 grid gap-3 text-sm lg:grid-cols-2">
                   <div className="rounded-lg bg-white/80 p-3">
@@ -1414,7 +1414,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           </p>
         )}
 
-        <form action={prepareGovernanceReviewAction} className="mt-5 rounded-lg border bg-slate-50 p-4">
+        <form action={prepareGovernanceReviewAction} data-boussole-id="prepare-governance-review" className="mt-5 rounded-lg border bg-slate-50 p-4">
           <input type="hidden" name="formTemplateId" value={formTemplate.id} />
           <p className="text-sm font-bold text-slate-950">Préparer une revue de gouvernance</p>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
@@ -1455,7 +1455,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </form>
       </section>
 
-      <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+      <section data-boussole-id="governed-journey-v1-limits" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
         <h2 className="font-bold">Limite V1 explicite</h2>
         <p className="mt-2 leading-relaxed">
           Cette salle de pilotage affiche le cadrage validé et les éléments de préparation du parcours. V1 : les messages

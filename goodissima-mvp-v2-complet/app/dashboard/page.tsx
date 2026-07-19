@@ -14,6 +14,7 @@ import { isGoodissimaDebugMode } from "@/lib/debug";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { DashboardRealtimeRefresh } from "./DashboardRealtimeRefresh";
+import { deriveGLinkMatchingDisplayState, wasGLinkMatchingEnabledAtCreation } from "@/lib/glink-matching";
 const legacyJourneyMetricLabel = "Templates/parcours actifs";
 void legacyJourneyMetricLabel;
 
@@ -66,7 +67,18 @@ export default async function DashboardPage({
     prisma.gLink.findMany({
       where: { ownerId: owner.id },
       include: {
-        template: { select: { name: true, status: true } },
+        template: {
+          select: {
+            name: true,
+            status: true,
+            aiEvents: {
+              where: { action: { in: ["glink_matching_analysis", "glink_matching_interested", "glink_matching_ignored", "glink_matching_enabled", "glink_matching_disabled"] } },
+              orderBy: { createdAt: "desc" },
+              take: 30,
+              select: { action: true, outputSummary: true, createdAt: true },
+            },
+          },
+        },
         templateVersion: { select: { version: true } },
         cases: {
           orderBy: { createdAt: "desc" },
@@ -181,7 +193,15 @@ export default async function DashboardPage({
       href: "/relations",
     },
   ];
-  const dashboardLinks = links.map((item) => ({
+  const dashboardLinks = links.map((item) => {
+    const matching = item.status === "ARCHIVED"
+      ? { status: "DISABLED" as const, count: 0 }
+      : deriveGLinkMatchingDisplayState({
+          rules: item.rules,
+          sourceId: item.id,
+          events: item.template?.aiEvents ?? [],
+        });
+    return {
     id: item.id,
     slug: item.slug,
     title: item.title,
@@ -191,6 +211,8 @@ export default async function DashboardPage({
     templateStatus: item.template?.status ?? null,
     templateVersion: item.templateVersion?.version ?? null,
     admissionMode: item.admissionMode,
+    matchingStatus: matching.status,
+    matchingCount: matching.count,
     openActionCount: item.cases.reduce(
       (count, relationCase) =>
         count + relationCase.relationActions.filter((action) => action.status !== "COMPLETED").length,
@@ -212,23 +234,36 @@ export default async function DashboardPage({
 
         return b.lastActivityAt - a.lastActivityAt;
       }),
-  }));
+    };
+  });
   const recentActivities = [
+    ...links.map((item) => {
+      return {
+        id: `link-${item.id}`,
+        href: `/links/${item.id}`,
+        label: "Lien sécurisé créé",
+        caseName: item.title,
+        subtitle: wasGLinkMatchingEnabledAtCreation(item.rules) ? "Publié · Matching activé" : "Publié",
+        date: item.createdAt,
+      };
+    }),
     ...recentCases.map((item) => ({
       id: `case-${item.id}`,
-      caseId: item.id,
+      href: `/cases/${item.id}?refresh=1`,
       label: t("dashboard.activity.newCase"),
       caseName: item.gLink.title,
+      subtitle: null,
       date: item.createdAt,
     })),
     ...recentDocuments.map((item) => ({
       id: `document-${item.id}`,
-      caseId: item.relationCase.id,
+      href: `/cases/${item.relationCase.id}?refresh=1`,
       label:
         item.uploadedByEmail === item.relationCase.candidateEmail
           ? t("dashboard.activity.candidateDocument")
           : t("dashboard.activity.ownerDocument"),
       caseName: item.relationCase.gLink.title,
+      subtitle: null,
       date: item.createdAt,
     })),
   ]
@@ -245,14 +280,17 @@ export default async function DashboardPage({
             {t("dashboard.account")} {owner.email}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div data-boussole-id="dashboard-create-actions" className="flex items-center gap-3">
+          <Link href="/links/simple" className="rounded-2xl border border-[#247f88] px-5 py-3 font-semibold text-[#247f88]">
+            Créer un lien simple
+          </Link>
           <Link href="/opportunities/new" className="rounded-2xl bg-slate-900 px-5 py-3 text-white">
             {t("dashboard.createLink")}
           </Link>
           <LogoutButton />
         </div>
       </div>
-      <PlatformNavigation active="dashboard" organizationName={organizationName} />
+      <div data-boussole-id="dashboard-menu"><PlatformNavigation active="dashboard" organizationName={organizationName} /></div>
       <section className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -261,14 +299,14 @@ export default async function DashboardPage({
             <p className="mt-2 max-w-3xl text-sm text-slate-500">Une synthèse opérationnelle sans exposer les détails internes de Merge, CIRO, Trust ou des moteurs IA.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/opportunities/new" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Créer une opportunité</Link>
+            <Link href="/opportunities/new" data-boussole-id="dashboard-create-announcement" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Créer une opportunité</Link>
             <Link href="/opportunities/new#creation-options" className="rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700">Choisir : IA ou manuel</Link>
             <Link href="/ia-valeur" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-900">Voir la valeur IA</Link>
           </div>
         </div>
       </section>
       {showChampagneScenarios ? <ChampagneDashboardCard /> : null}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-boussole-id="dashboard-indicators" className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link href={stat.href} key={stat.label} className="rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <p className="text-sm text-slate-500">{stat.label}</p>
@@ -276,7 +314,7 @@ export default async function DashboardPage({
           </Link>
         ))}
       </div>
-      <div className="mb-8 rounded-2xl border bg-white p-4 shadow-sm">
+      <div data-boussole-id="dashboard-recent-activity" className="mb-8 rounded-2xl border bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">{t("dashboard.recentActivity.title")}</h2>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{t("common.live")}</span>
@@ -290,13 +328,12 @@ export default async function DashboardPage({
             recentActivities.map((activity) => (
               <Link
                 key={activity.id}
-                href={`/cases/${activity.caseId}?refresh=1`}
+                href={activity.href}
+                data-boussole-id={activity.id.startsWith("link-") ? "timeline-created-link" : undefined}
                 prefetch={false}
                 className="flex flex-col gap-1 rounded-xl px-3 py-3 text-sm transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
               >
-                <span className="font-medium text-slate-800">
-                  {activity.label} — {activity.caseName}
-                </span>
+                <span><span className="font-medium text-slate-800">{activity.label} — {activity.caseName}</span>{activity.subtitle ? <span className="mt-1 block text-xs text-slate-500">{activity.subtitle}</span> : null}</span>
                 <span className="text-xs text-slate-500">{formatRelativeDate(activity.date)}</span>
               </Link>
             ))

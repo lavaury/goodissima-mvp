@@ -229,6 +229,7 @@ export function ChatBox({
 
       <div className="relative min-h-0 flex-1">
         <div
+          data-boussole-id="case-message-history"
           ref={messagesContainerRef}
           onScroll={updateNearBottomState}
           className="h-full space-y-3 overflow-y-auto px-4 py-5 sm:px-5"
@@ -296,7 +297,7 @@ export function ChatBox({
         ) : null}
       </div>
 
-      <div data-sticky-input="true" className="sticky bottom-0 flex flex-col gap-2 border-t border-[#e7e0d6] bg-[#fffcf8]/95 p-3 backdrop-blur sm:flex-row sm:items-end sm:p-4">
+      <div data-sticky-input="true" data-boussole-id="case-message-composer" className="sticky bottom-0 flex flex-col gap-2 border-t border-[#e7e0d6] bg-[#fffcf8]/95 p-3 backdrop-blur sm:flex-row sm:items-end sm:p-4">
         {readOnly ? (
           <div className="flex-1 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
             {readOnlyReason ?? "Les nouveaux messages sont bloques pour cette relation."}
@@ -331,6 +332,7 @@ export function ChatBox({
         ) : null}
 
         <button
+          data-boussole-id="case-send-message"
           onClick={sendMessage}
           disabled={readOnly || sending || !body.trim()}
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#263846] px-5 py-3 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30 disabled:translate-y-0 disabled:opacity-60"

@@ -57,6 +57,14 @@
     "qa:opportunity-refinement": "node --experimental-strip-types --test qa/opportunity-refinement.test.ts",
     "qa:manual-journey-editor": "node --experimental-strip-types --test qa/manual-journey-editor.test.ts",
     "qa:product-object-clarity": "node --experimental-strip-types --test qa/product-object-clarity.test.ts",
+    "qa:boussole": "node --experimental-strip-types --test qa/contextual-boussole.test.ts",
+    "qa:simple-link": "node --experimental-strip-types --test qa/simple-link-builder.test.ts",
+    "qa:opportunities-boussole": "node --experimental-strip-types --test qa/opportunities-boussole.test.ts",
+    "qa:governance-boussole": "node --experimental-strip-types --test qa/governance-boussole.test.ts",
+    "qa:portfolios-boussole": "node --experimental-strip-types --test qa/portfolios-boussole.test.ts",
+    "qa:new-governed-journey-boussole": "node --experimental-strip-types --test qa/new-governed-journey-boussole.test.ts",
+    "qa:governed-journey-cockpit-boussole": "node --experimental-strip-types --test qa/governed-journey-cockpit-boussole.test.ts",
+    "qa:dossier-conversation-boussole": "node --experimental-strip-types --test qa/dossier-conversation-boussole.test.ts",
     "admin:promote": "node --experimental-strip-types scripts/promote-admin.ts"
   },
   "dependencies": {

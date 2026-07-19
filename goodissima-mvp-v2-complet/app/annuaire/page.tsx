@@ -126,7 +126,7 @@ export default async function DirectoryPage() {
           </span>
         </div>
 
-        <div className="mt-5 rounded-xl border bg-slate-50 p-4">
+        <div data-boussole-id="directory-identity" className="mt-5 rounded-xl border bg-slate-50 p-4">
           <p className="text-sm font-semibold text-slate-950">Identité Goodissima de l’utilisateur</p>
           <p className="mt-2 text-sm text-slate-600">
             Statut : {identityLinked ? `liée, ${identityStatusLabel(identity?.status)}` : "non liée"}

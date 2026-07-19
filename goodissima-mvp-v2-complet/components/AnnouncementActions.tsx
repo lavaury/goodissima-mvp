@@ -80,7 +80,7 @@ export function AnnouncementActions({
         <button type="button" onClick={() => void copySecureLink()} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-900">
           Créer un lien sécurisé
         </button>
-        <button type="button" onClick={() => void patch("archive")} disabled={loading !== null || status === "ARCHIVED"} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 disabled:opacity-40">
+        <button type="button" data-boussole-id="archive-announcement" onClick={() => void patch("archive")} disabled={loading !== null || status === "ARCHIVED"} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 disabled:opacity-40">
           {loading === "archive" ? "Archivage..." : "Archiver l'annonce"}
         </button>
       </div>

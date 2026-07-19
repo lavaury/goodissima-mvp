@@ -20,6 +20,7 @@ import {
   SECURE_LINK_ADMISSION_LABELS,
   type SecureLinkAdmissionMode,
 } from "@/lib/secure-link-admission";
+import { describeSimpleFieldRule, evaluateSimpleFieldRule, parseSimpleFieldRule } from "@/lib/simple-field-rules";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateFieldKeys = new Set(["notificationEmail"]);
@@ -200,6 +201,16 @@ export default function CandidateForm({
     return true;
   }
 
+  function getRuleIssues() {
+    return fields.flatMap((field) => {
+      const rule = parseSimpleFieldRule(field.validationRules);
+      if (!rule || field.type === "SECTION") return [];
+      const result = evaluateSimpleFieldRule(answers[field.key], rule);
+      if (result.valid) return [];
+      return [{ field, rule, message: describeSimpleFieldRule(field) }];
+    });
+  }
+
   function goToNextStep() {
     if (!validateFields(currentFields)) {
       toast.error(copy.fieldErrorToast);
@@ -237,6 +248,14 @@ export default function CandidateForm({
       toast.error(copy.fieldErrorToast);
       return;
     }
+    const ruleIssues = getRuleIssues();
+    const blockingIssue = ruleIssues.find((issue) => issue.rule.mode === "BLOCKING");
+    if (blockingIssue) {
+      const message = `${blockingIssue.message}. Corrigez cette réponse avant l’envoi.`;
+      setAdmissionErrorMessage(message);
+      toast.error(message);
+      return;
+    }
 
     const fullName = getFirstAnswer(answers, ["Nom", "nom", "fullName", "name", "candidateName"]);
     const email = getFirstAnswer(answers, ["email", "candidateEmail"]);
@@ -265,6 +284,9 @@ export default function CandidateForm({
     const candidateName =
       derivedSubmission.candidateName || fullName || candidateEmail || privateNotificationEmail || "Candidat";
 
+    const indicativeSignals = ruleIssues
+      .filter((issue) => issue.rule.mode === "INDICATIVE")
+      .map((issue) => `Écart à examiner — ${issue.message}`);
     const payload = {
       gLinkId,
       candidateName,
@@ -275,7 +297,9 @@ export default function CandidateForm({
       documentUrl: documentFields.documentUrl,
       formTemplateId,
       templateVersionId,
-      answers: submissionAnswers,
+      answers: indicativeSignals.length
+        ? { ...submissionAnswers, simpleRuleSignals: indicativeSignals }
+        : submissionAnswers,
       emailNotificationsConsent: wantsNotifications,
       ...(trustAdmissionToken ? { trustAdmissionToken } : {}),
     };

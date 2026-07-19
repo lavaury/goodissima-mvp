@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { useI18n } from "@/components/I18nProvider";
 import { useToast } from "@/components/ToastProvider";
-import { buildGeneratedSecureLink, buildSecureLinkListingPreview, secureLinkGenerationState } from "@/lib/secure-link-preview";
+import { buildSecureLinkListingPreview, secureLinkGenerationState } from "@/lib/secure-link-preview";
 import { SECURE_LINK_ADMISSION_LABELS } from "@/lib/secure-link-admission";
 
 type RelationTemplateOption = {
@@ -55,8 +55,12 @@ export function NewLinkForm({ templates, defaultTemplateId }: { templates: Relat
         toast.error("Le lien sécurisé n'a pas pu être généré.");
         return;
       }
-      const link = await response.json() as { slug: string };
-      setGeneratedUrl(buildGeneratedSecureLink(window.location.origin, link.slug));
+      const link = await response.json() as { publicUrl?: string };
+      if (!link.publicUrl) {
+        toast.error("L’URL publique canonique est indisponible.");
+        return;
+      }
+      setGeneratedUrl(link.publicUrl);
       toast.success("Lien sécurisé généré. Aucun message n'a été envoyé.");
     } catch {
       toast.error("Le lien sécurisé n'a pas pu être généré.");

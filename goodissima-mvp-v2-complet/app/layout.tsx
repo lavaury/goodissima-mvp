@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { ContextualBoussole } from "@/components/ContextualBoussole";
 import { GlobalLanguageSwitcher } from "@/components/GlobalLanguageSwitcher";
 import { I18nProvider } from "@/components/I18nProvider";
 import { ToastProvider } from "@/components/ToastProvider";
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <I18nProvider initialLocale={locale} initialMessages={messages}>
           <ToastProvider>
             {children}
+            <ContextualBoussole />
             <GlobalLanguageSwitcher />
             <FeedbackButton />
           </ToastProvider>

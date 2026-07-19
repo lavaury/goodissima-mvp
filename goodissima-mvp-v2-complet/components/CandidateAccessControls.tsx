@@ -60,7 +60,7 @@ export function CandidateAccessControls({
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-4">
+    <div data-boussole-id="candidate-access-controls" className="rounded-2xl border bg-white p-4">
       <h2 className="font-semibold">Acces candidat</h2>
       <div className="mt-3 space-y-2 text-sm text-slate-600">
         {securePath ? (
@@ -82,6 +82,7 @@ export function CandidateAccessControls({
         </button>
         <button
           type="button"
+          data-boussole-id="regenerate-candidate-access"
           onClick={() => postAction("regenerate")}
           disabled={loading !== null}
           className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-50"

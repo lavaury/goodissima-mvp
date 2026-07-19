@@ -15,6 +15,7 @@ export type CandidateFormField = {
   defaultValue?: string | null;
   options?: unknown;
   conditionalRules?: ConditionalRule[] | null;
+  validationRules?: unknown;
 };
 
 export type CandidateFormOption = { label: string; value: string };
@@ -88,6 +89,7 @@ export type CandidatePublicationSafetyOptions = {
 };
 
 const supportedFieldTypes = new Set([
+  "SECTION",
   "TEXT",
   "EMAIL",
   "TEXTAREA",
@@ -95,6 +97,7 @@ const supportedFieldTypes = new Set([
   "NUMBER",
   "DATE",
   "SELECT",
+  "MULTISELECT",
   "CHECKBOX",
   "FILE",
 ]);
@@ -159,6 +162,7 @@ export function toCandidateFormField(field: {
   defaultValue?: string | null;
   options?: unknown;
   conditionalRules?: unknown;
+  validationRules?: unknown;
 }): CandidateFormField {
   return normalizePublicFormField({
     key: field.key,
@@ -168,6 +172,7 @@ export function toCandidateFormField(field: {
     defaultValue: field.defaultValue ?? null,
     options: field.options ?? null,
     conditionalRules: parseCandidateConditionalRules(field.conditionalRules),
+    validationRules: field.validationRules,
   });
 }
 

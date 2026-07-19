@@ -44,7 +44,11 @@ export function MatchingOptInPanel({
   }
 
   return (
-    <section className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4">
+    <section
+      data-boussole-id="candidate-case-matching"
+      data-boussole-state={enabled ? "enabled" : "disabled"}
+      className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5 lg:p-4"
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-semibold">

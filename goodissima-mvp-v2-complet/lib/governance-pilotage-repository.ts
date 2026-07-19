@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { hasUsefulGLinkMatchingCriteria } from "@/lib/ai/relational-matching-source";
+import { deriveGLinkMatchingDisplayState, parseGLinkMatchingState } from "@/lib/glink-matching";
 
 export type PilotageSignalKind = "ACTION" | "MATCHING" | "UPCOMING" | "ACCESS" | "RECENT" | "HISTORY";
 export type GovernancePilotageSignal = { id: string; kind: PilotageSignalKind; title: string; subject: string; journey: string; workspace: string | null; portfolio: string | null; reason: string; actionLabel: string; href: string; date: Date | null };
@@ -7,7 +9,25 @@ function record(value: unknown) { return value && typeof value === "object" && !
 function selectedParticipants(value: unknown) { const rows = record(value).selectedParticipants; return Array.isArray(rows) ? rows.map(record).map((row) => ({ name: typeof row.participantName === "string" ? row.participantName : "", role: typeof row.participantRole === "string" ? row.participantRole : "" })).filter((row) => row.name) : []; }
 
 export async function getGovernancePilotage(ownerId: string, portfolioId?: string) {
-  const workspaces = await prisma.workspace.findMany({ where: { ownerId, ...(portfolioId ? { portfolioId } : {}) }, include: { portfolio: true, relationTemplates: { include: { formTemplates: { select: { id: true } }, governedJourneyInvitations: true, communicationSessions: { include: { meetingParticipants: true } }, relationCases: { select: { id: true, candidateName: true, matchingEnabled: true, embeddingStatus: true, embeddingUpdatedAt: true, createdAt: true, aiEvents: { where: { action: { in: ["matching_analysis", "semantic_matching_analysis", "matching_proposed"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { action: true, outputSummary: true, createdAt: true } }, relationEvents: { where: { type: "MATCHING_PROPOSED" }, orderBy: { createdAt: "desc" }, take: 10, select: { createdAt: true } } } }, links: { select: { id: true } } } } }, orderBy: { updatedAt: "desc" } });
+  const [workspaces, gLinks] = await Promise.all([
+    prisma.workspace.findMany({ where: { ownerId, ...(portfolioId ? { portfolioId } : {}) }, include: { portfolio: true, relationTemplates: { include: { formTemplates: { select: { id: true } }, governedJourneyInvitations: true, communicationSessions: { include: { meetingParticipants: true } }, relationCases: { select: { id: true, candidateName: true, matchingEnabled: true, embeddingStatus: true, embeddingUpdatedAt: true, createdAt: true, aiEvents: { where: { action: { in: ["matching_analysis", "semantic_matching_analysis", "matching_proposed"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { action: true, outputSummary: true, createdAt: true } }, relationEvents: { where: { type: "MATCHING_PROPOSED" }, orderBy: { createdAt: "desc" }, take: 10, select: { createdAt: true } } } }, links: { select: { id: true } } } } }, orderBy: { updatedAt: "desc" } }),
+    prisma.gLink.findMany({
+      where: { ownerId, status: "ACTIVE", ...(portfolioId ? { workspace: { portfolioId } } : {}) },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true, title: true, description: true, createdAt: true, templateId: true, rules: true,
+        workspace: { select: { name: true, portfolio: { select: { name: true } } } },
+        cases: { where: { matchingEnabled: true }, select: { id: true }, take: 1 },
+        template: {
+          select: {
+            name: true,
+            formTemplates: { take: 1, orderBy: { createdAt: "asc" }, select: { fields: { orderBy: [{ step: "asc" }, { position: "asc" }], select: { label: true, type: true, options: true, validationRules: true } } } },
+            aiEvents: { where: { action: { in: ["glink_matching_analysis", "glink_matching_interested", "glink_matching_ignored", "glink_matching_enabled", "glink_matching_disabled"] } }, orderBy: { createdAt: "desc" }, take: 30, select: { action: true, outputSummary: true, createdAt: true } },
+          },
+        },
+      },
+    }),
+  ]);
   const now = new Date(); const recentSince = new Date(now.getTime() - 14 * 86400000); const signals: GovernancePilotageSignal[] = [];
   for (const workspace of workspaces) for (const journey of workspace.relationTemplates) {
     const formId = journey.formTemplates[0]?.id; if (!formId) continue;
@@ -44,6 +64,40 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
       const activeNames = new Set(journey.governedJourneyInvitations.filter((item) => item.status === "ACTIVE" && !item.revokedAt && item.accessTokenExpiresAt > now).map((item) => item.displayName.toLocaleLowerCase("fr")));
       for (const participant of selectedParticipants(meeting.metadata)) if (!activeNames.has(participant.name.toLocaleLowerCase("fr"))) signals.push({ id: `missing-${meeting.id}-${participant.name}`, kind: "ACTION", title: "Participant sans accès actif", subject: participant.name, ...base, reason: `Sélectionné pour « ${meeting.title} », mais aucun accès invité actif ne correspond.`, actionLabel: "Créer ou renouveler l’accès invité", href: meetingHref, date: meeting.scheduledAt });
     }
+  }
+  for (const link of gLinks) {
+    if (!link.template || link.cases.length > 0 || !parseGLinkMatchingState(link.rules).enabled) continue;
+    const source = {
+      sourceType: "GLINK" as const, sourceId: link.id, ownerId, title: link.title, description: link.description,
+      fields: link.template.formTemplates[0]?.fields ?? [],
+    };
+    if (!hasUsefulGLinkMatchingCriteria(source)) continue;
+    const base = {
+      journey: link.template.name,
+      workspace: link.workspace?.name ?? null,
+      portfolio: link.workspace?.portfolio?.name ?? null,
+    };
+    const href = `/links/${link.id}#matching`;
+    const matchingState = deriveGLinkMatchingDisplayState({ rules: link.rules, sourceId: link.id, events: link.template.aiEvents });
+    if (matchingState.status === "TO_ANALYZE") {
+      signals.push({
+        id: `GLINK:${link.id}:MATCHING_TO_ANALYZE`, kind: "MATCHING", title: "Matching à analyser", subject: link.title,
+        ...base, reason: "Le besoin défini dans ce lien peut être comparé aux opportunités existantes. Aucun contact automatique.",
+        actionLabel: "Analyser le matching", href, date: link.createdAt,
+      });
+      continue;
+    }
+    const latestAnalysisDate = link.template.aiEvents.find((event) => event.action === "glink_matching_analysis")?.createdAt ?? link.createdAt;
+    if (matchingState.status === "MATCHES_TO_REVIEW") signals.push({
+      id: `GLINK:${link.id}:MATCHES_TO_REVIEW`, kind: "MATCHING", title: "Correspondances à examiner", subject: link.title,
+      ...base, reason: `${matchingState.count} correspondance(s) potentielle(s) détectée(s) pour ce lien. Examen humain requis. Aucun contact automatique.`,
+      actionLabel: "Examiner les correspondances", href, date: latestAnalysisDate,
+    });
+    if (matchingState.status === "FOLLOW_UP_TO_DECIDE") signals.push({
+      id: `GLINK:${link.id}:MATCH_FOLLOW_UP_TO_DECIDE`, kind: "MATCHING", title: "Suite à décider", subject: link.title,
+      ...base, reason: "Une correspondance a été marquée intéressante. La suite reste à décider humainement. Aucun contact automatique.",
+      actionLabel: "Ouvrir le matching", href, date: link.template.aiEvents.find((event) => event.action === "glink_matching_interested")?.createdAt ?? latestAnalysisDate,
+    });
   }
   return { signals, workspaces: workspaces.map((workspace) => ({ id: workspace.id, name: workspace.name, status: workspace.status, portfolio: workspace.portfolio?.name ?? null, journeyCount: workspace.relationTemplates.length, caseCount: workspace.relationTemplates.reduce((sum, journey) => sum + journey.relationCases.length, 0), linkCount: workspace.relationTemplates.reduce((sum, journey) => sum + journey.links.length, 0) })), activeJourneyCount: workspaces.reduce((sum, workspace) => sum + workspace.relationTemplates.filter((journey) => journey.status !== "ARCHIVED").length, 0) };
 }

@@ -27,6 +27,7 @@ export type DynamicFormField = {
 };
 
 export const supportedFieldTypes = new Set([
+  "SECTION",
   "TEXT",
   "EMAIL",
   "TEXTAREA",
@@ -34,6 +35,7 @@ export const supportedFieldTypes = new Set([
   "NUMBER",
   "DATE",
   "SELECT",
+  "MULTISELECT",
   "CHECKBOX",
   "FILE",
 ]);
@@ -122,6 +124,12 @@ export function DynamicFormRenderer({
     const required = isFieldRequired(field, ruleValues);
 
     switch (fieldType) {
+      case "SECTION":
+        return (
+          <div key={field.key} className="border-b border-slate-200 pb-2 pt-4">
+            <h3 className="text-lg font-bold text-slate-950">{field.label}</h3>
+          </div>
+        );
       case "TEXTAREA":
         return (
           <div key={field.key} className="block space-y-2">
@@ -163,6 +171,26 @@ export function DynamicFormRenderer({
                 </option>
               ))}
             </select>
+          </FieldShell>
+        );
+      case "MULTISELECT":
+        return (
+          <FieldShell key={field.key} field={field} required={required}>
+            <select
+              multiple
+              className="min-h-28 w-full rounded-xl border px-4 py-3"
+              value={getStringFieldValue(values[field.key]).split("\u001f").filter(Boolean)}
+              required={required}
+              disabled={disabled}
+              onChange={(event) =>
+                onChange(field.key, Array.from(event.currentTarget.selectedOptions, (option) => option.value).join("\u001f"))
+              }
+            >
+              {field.options.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <span className="text-xs text-slate-500">Maintenez Ctrl ou Cmd pour sélectionner plusieurs réponses.</span>
           </FieldShell>
         );
       case "CHECKBOX":

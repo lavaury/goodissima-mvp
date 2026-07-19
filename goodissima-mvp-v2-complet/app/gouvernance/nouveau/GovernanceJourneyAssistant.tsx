@@ -43,16 +43,19 @@ function TextAreaField({
   value,
   onChange,
   minRows = 3,
+  boussoleId,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   minRows?: number;
+  boussoleId?: string;
 }) {
   return (
     <label className="block text-sm font-semibold text-slate-800">
       {label}
       <textarea
+        data-boussole-id={boussoleId}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={minRows}
@@ -149,7 +152,7 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
   }
 
   return (
-    <section className="mt-6 rounded-lg border border-cyan-200 bg-cyan-50 p-6 shadow-sm">
+    <section data-boussole-id="governed-journey-ai-assistant" className="mt-6 rounded-lg border border-cyan-200 bg-cyan-50 p-6 shadow-sm">
       <div className="flex flex-col gap-2">
         <p className="text-sm font-semibold text-cyan-800">Creer avec l'assistance IA</p>
         <h2 className="text-2xl font-bold text-cyan-950">Besoin exprime, cadrage propose, validation humaine</h2>
@@ -159,13 +162,14 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <TextAreaField label="Besoin libre" value={need} onChange={setNeed} minRows={6} />
-        <div className="rounded-lg border border-cyan-200 bg-white p-4">
+        <TextAreaField label="Besoin libre" value={need} onChange={setNeed} minRows={6} boussoleId="governed-journey-ai-need" />
+        <div data-boussole-id="governed-journey-ai-workspace" className="rounded-lg border border-cyan-200 bg-white p-4">
           <p className="text-sm font-semibold text-slate-800">Workspace persistant</p>
           <div className="mt-3 grid gap-3">
             <label className="block text-xs font-semibold text-slate-700">
               Workspace existant
               <select
+                data-boussole-id="governed-journey-ai-workspace-select"
                 value={workspaceId}
                 onChange={(event) => setWorkspaceId(event.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
@@ -181,6 +185,7 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
             <label className="block text-xs font-semibold text-slate-700">
               Nouveau nom de Workspace
               <input
+                data-boussole-id="governed-journey-ai-workspace-name"
                 value={workspaceName}
                 onChange={(event) => setWorkspaceName(event.target.value)}
                 maxLength={120}
@@ -198,6 +203,7 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="button"
+          data-boussole-id="generate-governed-journey-proposal"
           onClick={generateProposal}
           disabled={!canGenerate}
           className="rounded-lg bg-cyan-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
@@ -208,7 +214,7 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
       </div>
 
       {proposal ? (
-        <div className="mt-6 rounded-lg border border-cyan-200 bg-white p-5">
+        <div data-boussole-id="governed-journey-proposal" className="mt-6 rounded-lg border border-cyan-200 bg-white p-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">Proposition a valider</p>
             <p className="mt-1 text-sm text-slate-600">{proposal.rationale}</p>
@@ -228,16 +234,17 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
             <label className="block text-sm font-semibold text-slate-800">
               Nom du parcours
               <input
+                data-boussole-id="governed-journey-title"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
               />
             </label>
-            <TextAreaField label="Objectif" value={objective} onChange={setObjective} minRows={4} />
-            <TextAreaField label="Participants pressentis" value={participants} onChange={setParticipants} />
-            <TextAreaField label="Documents attendus" value={documents} onChange={setDocuments} />
-            <TextAreaField label="Regles de confidentialite" value={confidentialityRules} onChange={setConfidentialityRules} />
-            <TextAreaField label="Premieres actions" value={firstActions} onChange={setFirstActions} />
+            <TextAreaField label="Objectif" value={objective} onChange={setObjective} minRows={4} boussoleId="governed-journey-objective" />
+            <TextAreaField label="Participants pressentis" value={participants} onChange={setParticipants} boussoleId="governed-journey-participants-section" />
+            <TextAreaField label="Documents attendus" value={documents} onChange={setDocuments} boussoleId="governed-journey-documents-section" />
+            <TextAreaField label="Regles de confidentialite" value={confidentialityRules} onChange={setConfidentialityRules} boussoleId="governed-journey-confidentiality" />
+            <TextAreaField label="Premieres actions" value={firstActions} onChange={setFirstActions} boussoleId="governed-journey-first-actions" />
           </div>
 
           <div className="mt-5 rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-600">
@@ -248,6 +255,7 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
           <div className="mt-5 flex flex-wrap gap-3">
             <button
               type="button"
+              data-boussole-id="validate-governed-journey"
               onClick={validateAndCreate}
               disabled={!canCreate}
               className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"

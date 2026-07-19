@@ -108,7 +108,7 @@ export default async function SettingsPage() {
       </div>
 
       <PlatformNavigation active="settings" organizationName={organizationName} />
-      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+      <section data-boussole-id="ai-governance-settings" className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">IA & Gouvernance</p>

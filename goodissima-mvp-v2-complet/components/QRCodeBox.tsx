@@ -39,6 +39,7 @@ export function QRCodeBox({
             À imprimer ou afficher pour permettre un contact sécurisé sans donner votre téléphone.
           </p>
           <button
+            data-boussole-id="dashboard-link-qr-download"
             type="button"
             onClick={downloadQRCode}
             className="mt-3 rounded-xl border px-4 py-2 text-sm font-medium hover:bg-slate-50"

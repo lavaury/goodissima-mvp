@@ -107,7 +107,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
     include: { owner: true, template: true, templateVersion: true },
   });
 
-  if (!link || link.status !== "ACTIVE") notFound();
+  if (!link || link.status !== "ACTIVE" || (link.expiresAt && link.expiresAt.getTime() < Date.now())) notFound();
 
   const candidateCookie = cookies().get(`goodissima_candidate_${link.id}`)?.value;
 
@@ -157,6 +157,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           step: field.step,
           options: parseFieldOptions(field.options),
           conditionalRules: parseConditionalRules(field.conditionalRules),
+          validationRules: field.validationRules,
         }))
       : defaultFields;
   const candidateFields = localizeTemplateFields(templateKey, candidateFieldsSource, locale)
@@ -164,6 +165,10 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
   const presentation = snapshot?.metadata.opportunityPresentation && typeof snapshot.metadata.opportunityPresentation === "object" && !Array.isArray(snapshot.metadata.opportunityPresentation)
     ? snapshot.metadata.opportunityPresentation as Record<string, unknown>
     : {};
+  const linkRules = link.rules && typeof link.rules === "object" && !Array.isArray(link.rules)
+    ? link.rules as Record<string, unknown>
+    : {};
+  const welcomeMessage = typeof linkRules.welcomeMessage === "string" ? linkRules.welcomeMessage : "";
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -174,6 +179,11 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
       </div>
 
       <PublicOpportunityCard title={link.title} city={link.city} description={link.description} presentation={presentation} />
+      {welcomeMessage ? (
+        <p className="mt-6 rounded-2xl border border-teal-100 bg-teal-50 px-5 py-4 text-sm leading-relaxed text-teal-950">
+          {welcomeMessage}
+        </p>
+      ) : null}
 
       <div id="respond" className="mt-8 rounded-3xl border bg-white p-8 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-wide text-slate-500">

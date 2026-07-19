@@ -356,7 +356,7 @@ export function RelationLiveKitMediaRoom({
   void renderVersion;
 
   return (
-    <section className="rounded-2xl border border-[#b9dfe2] bg-[#f5ffff] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+    <section data-boussole-id={contextKind === "governedJourney" ? "governed-journey-media-room" : "case-secure-media-room"} className="rounded-2xl border border-[#b9dfe2] bg-[#f5ffff] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="font-semibold text-[#2f3437]">Communication securisee</h2>
@@ -376,6 +376,7 @@ export function RelationLiveKitMediaRoom({
       ) : roomState !== "connected" ? (
         <button
           type="button"
+          data-boussole-id="join-secure-communication"
           onClick={joinRoom}
           disabled={roomState === "connecting"}
           className="mt-4 rounded-xl bg-[#247f88] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d6970] disabled:cursor-not-allowed disabled:opacity-60"
@@ -387,7 +388,7 @@ export function RelationLiveKitMediaRoom({
               : joinLabel ?? "Rejoindre la salle securisee"}
         </button>
       ) : (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div data-boussole-id={contextKind === "governedJourney" ? "governed-journey-media-controls" : "case-secure-media-controls"} className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => toggleMedia("microphone")} disabled={Boolean(mediaPending)} className="rounded-lg border border-[#b9dfe2] bg-white px-3 py-2 text-sm font-semibold text-[#247f88] disabled:opacity-60">
             {microphoneEnabled ? "Couper micro" : "Activer micro"}
           </button>
@@ -417,7 +418,7 @@ export function RelationLiveKitMediaRoom({
       ) : null}
 
       {expectedParticipants.length > 0 ? (
-        <div className="mt-4 rounded-xl border border-[#d6e7e8] bg-white p-3">
+        <div data-boussole-id={contextKind === "governedJourney" ? "governed-journey-meeting-participants" : undefined} className="mt-4 rounded-xl border border-[#d6e7e8] bg-white p-3">
           <h3 className="text-sm font-semibold text-[#2f3437]">Participants de cette réunion</h3>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <div><p className="text-xs font-bold uppercase tracking-wide text-[#247f88]">Présents</p>{participants.length > 0 ? <ul className="mt-1 space-y-1 text-sm">{participants.map((participant) => { const presentation = participantPresentation(participant); return <li key={participant.identity}>{participant === room?.localParticipant ? "Vous" : presentation.displayName} — {presentation.roleLabel} · Connecté</li>; })}</ul> : <p className="mt-1 text-sm text-slate-500">Personne n’est encore connecté.</p>}</div>

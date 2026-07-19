@@ -8,6 +8,7 @@ import {
   workspaceCategoryLabels,
   type GovernanceWorkspaceOption,
 } from "@/lib/governance-workspace-repository";
+import { GovernedJourneyEducationalPreview } from "./GovernedJourneyEducationalPreview";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const categoryOptions = ["PROFESSIONAL", "PRIVATE", "FAMILY", "ASSOCIATION", "PR
 
 function WorkspaceFields({ workspaces }: { workspaces: GovernanceWorkspaceOption[] }) {
   return (
-    <div className="rounded-lg border bg-slate-50 p-4">
+    <div data-boussole-id="manual-governed-journey-workspace" className="rounded-lg border bg-slate-50 p-4">
       <p className="text-sm font-bold text-slate-950">Workspace persistant</p>
       <p className="mt-1 text-xs text-slate-500">
         Choisissez un Workspace existant, ou saisissez un nouveau nom si aucun ne convient.
@@ -24,6 +25,7 @@ function WorkspaceFields({ workspaces }: { workspaces: GovernanceWorkspaceOption
         <label className="block text-xs font-semibold text-slate-700">
           Workspace existant
           <select
+            data-boussole-id="manual-governed-journey-workspace-select"
             name="workspaceId"
             defaultValue=""
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
@@ -40,6 +42,7 @@ function WorkspaceFields({ workspaces }: { workspaces: GovernanceWorkspaceOption
         <label className="block text-xs font-semibold text-slate-700">
           Nouveau nom de Workspace
           <input
+            data-boussole-id="manual-governed-journey-workspace-name"
             name="workspaceName"
             maxLength={120}
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
@@ -50,6 +53,7 @@ function WorkspaceFields({ workspaces }: { workspaces: GovernanceWorkspaceOption
         <label className="block text-xs font-semibold text-slate-700">
           Rubrique du nouveau Workspace
           <select
+            data-boussole-id="manual-governed-journey-category"
             name="workspaceCategory"
             defaultValue="OTHER"
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
@@ -81,18 +85,22 @@ export default async function NewGovernedJourneyPage() {
         </Link>
       </div>
 
-      <section className="mt-4 rounded-lg border bg-white p-6 shadow-sm">
+      <section data-boussole-id="governed-journey-builder-overview" className="mt-4 rounded-lg border bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold text-[#247f88]">Creation V1</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Creer un parcours gouverne</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-700">
           Ce formulaire cree un parcours brouillon reel et ouvre son cockpit de preparation. Aucun participant n'est contacte et aucun
           workflow n'est execute automatiquement.
         </p>
+        <p data-boussole-id="governed-journey-vs-simple-link" className="mt-4 rounded-lg bg-cyan-50 p-3 text-sm leading-relaxed text-cyan-950">Utilisez un lien simple pour collecter rapidement des informations. Utilisez un parcours gouverné lorsque plusieurs acteurs, étapes ou décisions doivent être organisés et suivis dans le temps.</p>
+        <p data-boussole-id="governed-journey-human-governance-notice" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">Goodissima prépare la structure. Les décisions, invitations, accès et revues restent humains.</p>
       </section>
+
+      <GovernedJourneyEducationalPreview />
 
       <GovernanceJourneyAssistant workspaces={workspaces} />
 
-      <form action={createGovernedJourneyAction} className="mt-6 space-y-5 rounded-lg border bg-white p-6 shadow-sm">
+      <form action={createGovernedJourneyAction} data-boussole-id="manual-governed-journey-form" className="mt-6 space-y-5 rounded-lg border bg-white p-6 shadow-sm">
         <div>
           <p className="text-sm font-semibold text-slate-500">Mode manuel</p>
           <h2 className="mt-1 text-xl font-bold text-slate-950">Creer sans assistance</h2>
@@ -101,6 +109,7 @@ export default async function NewGovernedJourneyPage() {
         <label className="block text-sm font-semibold text-slate-800">
           Nom du parcours
           <input
+            data-boussole-id="manual-governed-journey-title"
             name="name"
             required
             minLength={2}
@@ -114,6 +123,7 @@ export default async function NewGovernedJourneyPage() {
           Besoin initial
           <textarea
             name="initialNeed"
+            data-boussole-id="governed-journey-need"
             required
             minLength={10}
             maxLength={2000}
@@ -127,6 +137,7 @@ export default async function NewGovernedJourneyPage() {
         <label className="block text-sm font-semibold text-slate-800">
           Participants attendus
           <textarea
+            data-boussole-id="manual-governed-journey-participants"
             name="participants"
             maxLength={1000}
             className="mt-2 min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
@@ -137,6 +148,7 @@ export default async function NewGovernedJourneyPage() {
         <label className="block text-sm font-semibold text-slate-800">
           Documents attendus
           <textarea
+            data-boussole-id="manual-governed-journey-documents"
             name="documents"
             maxLength={1000}
             className="mt-2 min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
@@ -145,7 +157,7 @@ export default async function NewGovernedJourneyPage() {
         </label>
 
         <div className="flex flex-wrap gap-3">
-          <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+          <button type="submit" data-boussole-id="submit-governed-journey" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
             Creer le parcours gouverne
           </button>
           <Link href="/gouvernance" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">

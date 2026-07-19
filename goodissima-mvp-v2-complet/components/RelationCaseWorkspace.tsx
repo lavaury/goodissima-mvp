@@ -473,7 +473,11 @@ function getSubmissionAnswerEntries(submission: NonNullable<RelationCaseWorkspac
   const extraEntries = Object.entries(answers)
     .filter(([key]) => !displayedKeys.has(key))
     .filter(([key]) => !isTechnicalAnswerField(key))
-    .map(([key, value]) => ({ key, label: key, value }));
+    .map(([key, value]) => ({
+      key,
+      label: key === "simpleRuleSignals" ? "Écart à examiner" : key,
+      value,
+    }));
 
   return [...knownEntries, ...extraEntries];
 }
@@ -594,7 +598,7 @@ export function RelationCaseWorkspace({
   });
 
   return (
-    <main className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
+    <main data-boussole-id="case-relational-overview" className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
       {isCandidateView ? (
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Image
@@ -692,7 +696,7 @@ export function RelationCaseWorkspace({
           </div>
         </section>
       ) : null}
-      <nav className="mt-4 flex flex-wrap gap-2 rounded-2xl border bg-white p-3" aria-label="Actions de la relation">{["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"].map((label) => <span key={label} className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{label}</span>)}</nav>
+      <nav data-boussole-id="case-relational-navigation" className="mt-4 flex flex-wrap gap-2 rounded-2xl border bg-white p-3" aria-label="Actions de la relation">{["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"].map((label) => <span key={label} className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{label}</span>)}</nav>
       {debugMode && senderType === "OWNER" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
@@ -738,7 +742,7 @@ export function RelationCaseWorkspace({
           </div>
         </details>
       ) : null}
-      <section className="mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+      <section data-boussole-id="case-communication-history" className="mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-semibold text-[#2f3437]">Historique des communications du jour</h2>
@@ -768,7 +772,7 @@ export function RelationCaseWorkspace({
         data-case-layout="conversation-ai-sidebar"
         className="mt-6 grid gap-5 lg:mt-8 xl:grid-cols-[minmax(420px,1.2fr)_minmax(390px,0.98fr)_280px] xl:gap-5"
       >
-        <section data-conversation-zone="true" className="min-w-0 space-y-4">
+        <section data-conversation-zone="true" data-boussole-id="case-conversation" className="min-w-0 space-y-4">
           <ChatBox
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
@@ -779,7 +783,7 @@ export function RelationCaseWorkspace({
             readOnlyReason={governanceBlockedMessage}
             senderType={senderType}
           />
-          <div className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)] transition hover:shadow-[0_18px_40px_rgba(47,52,55,0.08)]">
+          <div data-boussole-id="case-documents" className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)] transition hover:shadow-[0_18px_40px_rgba(47,52,55,0.08)]">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="font-semibold text-[#2f3437]">Documents</h2>
@@ -984,7 +988,7 @@ export function RelationCaseWorkspace({
             </details>
           ) : null}
           {senderType === "OWNER" ? (
-            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+            <details data-boussole-id="candidate-access-controls-section" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
                 Acces
                 <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>

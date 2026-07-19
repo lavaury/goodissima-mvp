@@ -36,10 +36,6 @@ export function buildSecureLinkListingPreview(input: SecureLinkPreviewInput) {
   };
 }
 
-export function buildGeneratedSecureLink(origin: string, slug: string) {
-  return `${origin.replace(/\/$/, "")}/l/${encodeURIComponent(slug)}`;
-}
-
 export function secureLinkGenerationState(slug?: string | null) {
   return slug ? "GENERATED" as const : "DRAFT" as const;
 }
