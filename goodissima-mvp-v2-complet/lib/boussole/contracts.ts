@@ -2,6 +2,23 @@ export const BOUSSOLE_PAGE_STATES = ["EMPTY", "POPULATED", "FOCUSED"] as const;
 
 export type BoussolePageState = (typeof BOUSSOLE_PAGE_STATES)[number];
 
+export type BoussoleObjectType = "WORKSPACE" | "GOVERNED_JOURNEY" | "PORTFOLIO" | "RELATION_CASE";
+
+export type BoussoleTargetStrategy = {
+  kind: "FIRST_VISIBLE_MATCH";
+  objectType: BoussoleObjectType;
+  functionalState?: string;
+};
+
+export type BoussoleRuntimeContext = {
+  pageState: BoussolePageState;
+  focusedObjectType?: BoussoleObjectType;
+  focusedObjectId?: string;
+  visibleObjectCount: number;
+  availableTargetIds?: string[];
+  functionalStates?: string[];
+};
+
 export type BoussoleStepDefinition = {
   id?: string;
   targetId?: string;
@@ -12,6 +29,7 @@ export type BoussoleStepDefinition = {
   glossaryTermIds?: string[];
   optional?: boolean;
   fallbackTargetId?: string;
+  targetStrategy?: BoussoleTargetStrategy;
 };
 
 export type BoussoleJourneyDefinition = {
@@ -19,6 +37,7 @@ export type BoussoleJourneyDefinition = {
   pageId: string;
   version: number;
   title: string;
+  applicableStates: BoussolePageState[];
   steps: BoussoleStepDefinition[];
 };
 

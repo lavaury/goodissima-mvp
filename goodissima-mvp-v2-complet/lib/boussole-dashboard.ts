@@ -1,6 +1,6 @@
 import type { CompassStep } from "./boussole-context.ts";
 
-export type BoussoleSequence = { id: string; title: string; description: string; steps: CompassStep[] };
+export type BoussoleSequence = { id: string; title: string; description: string; applicableStates?: import("./boussole/contracts.ts").BoussolePageState[]; steps: CompassStep[] };
 
 const step = (id: string, title: string, shortBody: string, detailedBody: string, duration = 7): CompassStep => ({
   id, title, body: shortBody, detailedBody, targetId: id, glossaryTermIds: dashboardGlossaryTermIds[id] ?? [],

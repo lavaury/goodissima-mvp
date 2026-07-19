@@ -148,8 +148,8 @@ export default async function GovernanceWorkspacePage() {
           </p>
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {portfolios.map((portfolio) => (
-              <article key={portfolio.id} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+            {portfolios.map((portfolio, index) => (
+              <article key={portfolio.id} data-boussole-id={index === 0 ? "governance-first-portfolio" : undefined} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="break-words text-xl font-bold text-slate-950">{portfolio.name}</h3>

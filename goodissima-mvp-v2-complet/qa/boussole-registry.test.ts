@@ -8,6 +8,13 @@ import {
   formatBoussoleIntegrityIssue,
   validateBoussoleRegistry,
 } from "../lib/boussole/registry.ts";
+import { resolveBoussolePageState } from "../lib/boussole/page-state.ts";
+
+test("resolves EMPTY, POPULATED and FOCUSED deterministically", () => {
+  assert.equal(resolveBoussolePageState({ focusedObjectId: "real-object", visibleObjectCount: 0 }), "FOCUSED");
+  assert.equal(resolveBoussolePageState({ visibleObjectCount: 2 }), "POPULATED");
+  assert.equal(resolveBoussolePageState({ visibleObjectCount: 0 }), "EMPTY");
+});
 
 test("validates the central Boussole registry", () => {
   const errors = validateBoussoleRegistry();
@@ -23,6 +30,14 @@ test("registers the three real sources without duplicating their steps", () => {
       assert.equal(journey.steps, expected[pageIndex][journeyIndex].steps);
     }
   }
+});
+
+test("declares real page states and typed first-visible strategies", () => {
+  assert.deepEqual(governedJourneySequences.flatMap((journey) => journey.applicableStates ?? []), Array(6).fill("FOCUSED"));
+  assert.ok(governanceSequences.find((journey) => journey.id === "understand-governance")?.applicableStates?.includes("EMPTY"));
+  const strategies = governanceSequences.flatMap((journey) => journey.steps).map((step) => step.targetStrategy).filter(Boolean);
+  assert.deepEqual(new Set(strategies.map((strategy) => strategy!.kind)), new Set(["FIRST_VISIBLE_MATCH"]));
+  assert.deepEqual(new Set(strategies.map((strategy) => strategy!.objectType)), new Set(["WORKSPACE", "PORTFOLIO", "GOVERNED_JOURNEY", "RELATION_CASE"]));
 });
 
 test("reports page, journey, step and invalid reference", () => {

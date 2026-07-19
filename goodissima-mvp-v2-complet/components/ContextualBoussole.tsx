@@ -13,6 +13,8 @@ import { governedJourneySequences } from "@/lib/boussole-governed-journey";
 import { dossierSequences } from "@/lib/boussole-dossiers";
 import { boussoleGlossary, getGlossaryTerm, searchGlossary, type GlossaryTerm } from "@/lib/boussole/glossary";
 import { resolveNextTargetInSequence } from "@/lib/boussole/target-resolver";
+import { resolveBoussolePageState } from "@/lib/boussole/page-state";
+import type { BoussoleRuntimeContext } from "@/lib/boussole/contracts";
 
 const unavailableMessage = "Cette action n’est pas disponible sur cette page ou dans cet état.";
 const positionStorageKey = "goodissima:boussole-position-v1";
@@ -55,6 +57,23 @@ export function ContextualBoussole() {
   const dragRef = useRef<DragState | null>(null);
   const speechRun = useRef(0);
   const missingTargetWarnings = useRef(new Set<string>());
+  const runtimeContext = useMemo<BoussoleRuntimeContext>(() => {
+    if (typeof document === "undefined") return { pageState: "EMPTY", visibleObjectCount: 0 };
+    const targets = Array.from(document.querySelectorAll<HTMLElement>("[data-boussole-id]"));
+    const availableTargetIds = [...new Set(targets.filter((element) => element.getClientRects().length > 0).map((element) => element.dataset.boussoleId).filter((id): id is string => Boolean(id)))];
+    const focusedObjectId = context?.id === "governed-journey" && availableTargetIds.includes("governed-journey-overview") ? pathname.match(/^\/gouvernance\/parcours\/([^/]+)/)?.[1] : undefined;
+    const visibleObjectCount = context?.id === "governance"
+      ? ["governance-first-workspace", "governance-first-journey", "governance-first-portfolio", "first-unassigned-governed-journey", "first-unassigned-relational-case"].filter((id) => availableTargetIds.includes(id)).length
+      : focusedObjectId ? 1 : 0;
+    return {
+      pageState: resolveBoussolePageState({ focusedObjectId, visibleObjectCount }),
+      focusedObjectType: focusedObjectId ? "GOVERNED_JOURNEY" : undefined,
+      focusedObjectId,
+      visibleObjectCount,
+      availableTargetIds,
+      functionalStates: [...new Set(targets.map((element) => element.dataset.boussoleState).filter((state): state is string => Boolean(state)))],
+    };
+  }, [context?.id, pathname, domRevision]);
   const visibleSteps = useMemo(() => {
     if (!context || typeof document === "undefined") return context?.steps ?? [];
     return context.steps.filter((candidate) => {
@@ -72,7 +91,8 @@ export function ContextualBoussole() {
       return available;
     });
   }, [context, domRevision]);
-  const availableSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : [];
+  const allSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : [];
+  const availableSequences = allSequences.filter((item) => !item.applicableStates || item.applicableStates.includes(runtimeContext.pageState));
   const sequence = sequenceId === "all" ? null : availableSequences.find((item) => item.id === sequenceId);
   const selectedSteps = sequence ? visibleSteps.filter((item) => sequence.steps.some((candidate) => candidate.id === item.id)) : visibleSteps;
   const steps = sequence ? selectedSteps : visibleSteps;
@@ -105,8 +125,8 @@ export function ContextualBoussole() {
     setCompact(false);
     clearHighlight();
     stopSpeech();
-    setSequenceId(context?.id === "dashboard" ? "repères" : context?.id === "simple-link" ? "start" : context?.id === "opportunities" || context?.id === "archives" ? "discover-opportunities" : context?.id === "governance" ? "understand-governance" : context?.id === "portfolio" ? "portfolio-landmarks" : context?.id === "new-governed-journey" ? "choose-governed-format" : context?.id === "governed-journey" ? "discover-governed-journey" : context?.id === "dossiers" ? "understand-secure-case" : "all");
-  }, [context?.id]);
+    setSequenceId(context?.id === "dashboard" ? "repères" : context?.id === "simple-link" ? "start" : context?.id === "opportunities" || context?.id === "archives" ? "discover-opportunities" : context?.id === "governance" ? runtimeContext.pageState === "EMPTY" ? "governance-summary" : "understand-governance" : context?.id === "portfolio" ? "portfolio-landmarks" : context?.id === "new-governed-journey" ? "choose-governed-format" : context?.id === "governed-journey" ? "discover-governed-journey" : context?.id === "dossiers" ? "understand-secure-case" : "all");
+  }, [context?.id, runtimeContext.pageState]);
 
   function openBoussole() {
     if (context?.id === "governed-journey") {
@@ -205,9 +225,9 @@ export function ContextualBoussole() {
     const candidates = Array.from(document.querySelectorAll(`[data-boussole-id="${step.targetId}"]`));
     const target = candidates.find((candidate) => !candidate.closest('[data-boussole-navigation="global"]')) ?? candidates[0];
     if (!(target instanceof HTMLElement)) {
-      if (process.env.NODE_ENV !== "production") console.warn(`[Boussole] Cible introuvable : ${step.targetId}`);
+      if (process.env.NODE_ENV !== "production") console.warn(`[Boussole] pageId=${context.id} journeyId=${sequence?.id ?? "all"} stepId=${step.id ?? stepIndex} targetId=${step.targetId} manquant`);
       const alternative = resolveNextTargetInSequence(steps, stepIndex, (targetId) => Boolean(document.querySelector(`[data-boussole-id="${targetId}"]`)));
-      setGuidance(alternative ? `${unavailableMessage} Étape suivante disponible : ${alternative.title}.` : "Cette zone n’est pas disponible dans l’état actuel.");
+      setGuidance(alternative ? `${unavailableMessage} Étape suivante disponible : ${alternative.title}.` : "Cette partie du guide n’est pas disponible dans l’état actuel de la page.");
       return;
     }
     target.classList.add("goodissima-boussole-highlight");

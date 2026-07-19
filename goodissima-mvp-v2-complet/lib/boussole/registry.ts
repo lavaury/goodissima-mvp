@@ -27,6 +27,7 @@ function registerPage(
     pageId,
     version,
     title: journey.title,
+    applicableStates: journey.applicableStates ?? [...commonStates],
     steps: journey.steps,
   }));
 
