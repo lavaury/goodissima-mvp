@@ -15,6 +15,15 @@ export type BoussoleRegistryEntry = {
 };
 
 const commonStates: BoussolePageState[] = ["EMPTY", "POPULATED", "FOCUSED"];
+const journeyVersions: Record<string, number> = {
+  ...Object.fromEntries(governanceSequences.map((journey) => [journey.id, 1])),
+  ...Object.fromEntries(newGovernedJourneySequences.map((journey) => [journey.id, 1])),
+  ...Object.fromEntries(governedJourneySequences.map((journey) => [journey.id, 1])),
+};
+
+export function getBoussoleJourneyVersion(journeyId: string) {
+  return journeyVersions[journeyId] ?? 1;
+}
 
 function registerPage(
   pageId: string,
@@ -25,7 +34,7 @@ function registerPage(
   const journeys = sourceJourneys.map((journey) => ({
     id: journey.id,
     pageId,
-    version,
+    version: getBoussoleJourneyVersion(journey.id),
     title: journey.title,
     applicableStates: journey.applicableStates ?? [...commonStates],
     steps: journey.steps,

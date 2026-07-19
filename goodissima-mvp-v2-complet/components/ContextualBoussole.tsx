@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getCompassContext } from "@/lib/boussole-context";
-import { dashboardSequences } from "@/lib/boussole-dashboard";
+import { dashboardSequences, type BoussoleSequence } from "@/lib/boussole-dashboard";
 import { simpleLinkSequences } from "@/lib/boussole-simple-link";
 import { opportunitySequences } from "@/lib/boussole-opportunities";
 import { governanceSequences } from "@/lib/boussole-governance";
@@ -15,6 +15,8 @@ import { boussoleGlossary, getGlossaryTerm, searchGlossary, type GlossaryTerm } 
 import { resolveNextTargetInSequence } from "@/lib/boussole/target-resolver";
 import { resolveBoussolePageState } from "@/lib/boussole/page-state";
 import type { BoussoleRuntimeContext } from "@/lib/boussole/contracts";
+import { createBoussoleProgress, parseBoussoleProgressStore, resolveBoussoleProgress } from "@/lib/boussole/progress";
+import { getBoussoleJourneyVersion } from "@/lib/boussole/registry";
 
 const unavailableMessage = "Cette action n’est pas disponible sur cette page ou dans cet état.";
 const positionStorageKey = "goodissima:boussole-position-v1";
@@ -50,8 +52,11 @@ export function ContextualBoussole() {
   const [glossaryQuery, setGlossaryQuery] = useState("");
   const [selectedGlossaryTermId, setSelectedGlossaryTermId] = useState<string | null>(null);
   const [experience, setExperience] = useState<Experience>(defaultExperience);
+  const [experienceReady, setExperienceReady] = useState(false);
   const [experienceHelpOpen, setExperienceHelpOpen] = useState(false);
   const [resetExperiencePending, setResetExperiencePending] = useState(false);
+  const [progressReady, setProgressReady] = useState(false);
+  const [guideUpdateNotice, setGuideUpdateNotice] = useState(false);
   const highlighted = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -133,8 +138,7 @@ export function ContextualBoussole() {
       let alreadyVisited = false;
       try { alreadyVisited = window.localStorage.getItem(governedJourneyVisitedKey) === "yes"; } catch { /* Repère local facultatif. */ }
       const pendingInterventions = document.querySelector('[data-boussole-id="governed-journey-human-interventions"][data-boussole-state="pending"]');
-      setSequenceId(alreadyVisited && pendingInterventions ? "human-interventions" : "discover-governed-journey");
-      setStepIndex(0);
+      chooseSequence(alreadyVisited && pendingInterventions ? "human-interventions" : "discover-governed-journey");
       try { window.localStorage.setItem(governedJourneyVisitedKey, "yes"); } catch { /* Repère local facultatif. */ }
     }
     setOpen(true);
@@ -172,14 +176,69 @@ export function ContextualBoussole() {
     try {
       const saved = window.localStorage.getItem(experienceStorageKey);
       if (saved) setExperience({ ...defaultExperience, ...JSON.parse(saved) });
-      const progress = JSON.parse(window.localStorage.getItem(`${progressStorageKey}:${context?.id}`) ?? "{}") as { sequenceId?: string; stepIndex?: number };
-      if (progress.sequenceId) setSequenceId(progress.sequenceId === "discover-builder" ? "start" : progress.sequenceId);
-      if (Number.isInteger(progress.stepIndex)) setStepIndex(progress.stepIndex!);
-    } catch { /* Préférences locales facultatives. */ }
-  }, [context?.id]);
+    } catch { /* Une préférence corrompue ne bloque pas la progression. */ }
+    finally { setExperienceReady(true); }
+  }, []);
 
-  useEffect(() => { try { window.localStorage.setItem(experienceStorageKey, JSON.stringify(experience)); } catch { /* Stockage facultatif. */ } }, [experience]);
-  useEffect(() => { if (experience.resume && (context?.id === "dashboard" || context?.id === "simple-link")) try { window.localStorage.setItem(`${progressStorageKey}:${context.id}`, JSON.stringify({ sequenceId, stepIndex })); } catch { /* Stockage facultatif. */ } }, [context?.id, experience.resume, sequenceId, stepIndex]);
+  function applicableStepsFor(journey: BoussoleSequence) {
+    return visibleSteps.filter((item) => journey.steps.some((candidate) => candidate.id === item.id));
+  }
+
+  function resumeJourney(journey: BoussoleSequence) {
+    if (!context || !experienceReady) return;
+    const journeySteps = applicableStepsFor(journey);
+    const validStepIds = journeySteps.map((item) => item.id).filter((id): id is string => Boolean(id));
+    const storageKey = `${progressStorageKey}:${context.id}`;
+    const raw = window.localStorage.getItem(storageKey);
+    let legacy: { sequenceId?: string; stepIndex?: number } = {};
+    try { legacy = JSON.parse(raw ?? "{}") as typeof legacy; } catch { /* Ancien JSON corrompu ignoré. */ }
+    const legacyJourneyId = legacy.sequenceId === "discover-builder" ? "start" : legacy.sequenceId;
+    const resolved = resolveBoussoleProgress({
+      raw,
+      pageId: context.id,
+      journeyId: journey.id,
+      journeyVersion: getBoussoleJourneyVersion(journey.id),
+      validStepIds,
+      legacyStepIndex: legacyJourneyId === journey.id ? legacy.stepIndex : undefined,
+      resume: experience.resume,
+    });
+    if (resolved.shouldPersist) {
+      resolved.store.activeJourneyId = journey.id;
+      try { window.localStorage.setItem(storageKey, JSON.stringify(resolved.store)); } catch { /* Stockage local facultatif. */ }
+    }
+    if (resolved.missingStepId && process.env.NODE_ENV !== "production") console.warn(`[Boussole] Progression incompatible : pageId=${context.id} journeyId=${journey.id} stepId=${resolved.missingStepId}`);
+    setSequenceId(journey.id);
+    setStepIndex(Math.max(0, journeySteps.findIndex((item) => item.id === resolved.stepId)));
+    setGuideUpdateNotice(resolved.guideUpdated);
+    setProgressReady(true);
+  }
+
+  useEffect(() => {
+    if (!experienceReady || !context || !availableSequences.length) return;
+    setProgressReady(false);
+    setGuideUpdateNotice(false);
+    const storageKey = `${progressStorageKey}:${context.id}`;
+    const raw = window.localStorage.getItem(storageKey);
+    const store = parseBoussoleProgressStore(raw);
+    let legacy: { sequenceId?: string; stepIndex?: number } = {};
+    try { legacy = JSON.parse(raw ?? "{}") as typeof legacy; } catch { /* Ancien JSON corrompu ignoré. */ }
+    const legacyJourneyId = legacy.sequenceId === "discover-builder" ? "start" : legacy.sequenceId;
+    const requestedJourneyId = experience.resume ? store.activeJourneyId ?? legacyJourneyId : undefined;
+    const selectedJourney = availableSequences.find((item) => item.id === requestedJourneyId) ?? availableSequences.find((item) => item.id === sequenceId) ?? availableSequences[0];
+    resumeJourney(selectedJourney);
+  }, [context?.id, runtimeContext.pageState, experience.resume, experienceReady]);
+
+  useEffect(() => { if (experienceReady) try { window.localStorage.setItem(experienceStorageKey, JSON.stringify(experience)); } catch { /* Stockage facultatif. */ } }, [experience, experienceReady]);
+  useEffect(() => {
+    if (!progressReady || !experience.resume || !context || !sequence || !step?.id) return;
+    try {
+      const storageKey = `${progressStorageKey}:${context.id}`;
+      const store = parseBoussoleProgressStore(window.localStorage.getItem(storageKey));
+      store.activeJourneyId = sequence.id;
+      store.progressions[sequence.id] = createBoussoleProgress({ pageId: context.id, journeyId: sequence.id, journeyVersion: getBoussoleJourneyVersion(sequence.id), stepId: step.id });
+      window.localStorage.setItem(storageKey, JSON.stringify(store));
+    } catch { /* Stockage facultatif, sans donnée métier. */ }
+  }, [context?.id, experience.resume, progressReady, sequence, step?.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -321,7 +380,13 @@ export function ContextualBoussole() {
     window.speechSynthesis.speak(utterance);
   }
 
-  function chooseSequence(id: string) { clearHighlight(); setSequenceId(id); setStepIndex(0); setGuidance(""); }
+  function chooseSequence(id: string) {
+    clearHighlight();
+    setGuidance("");
+    if (id === "all") { setSequenceId(id); setStepIndex(0); setGuideUpdateNotice(false); return; }
+    const journey = availableSequences.find((item) => item.id === id);
+    if (journey) resumeJourney(journey);
+  }
   function updateExperience(patch: Partial<Experience>) { setExperience((current) => ({ ...current, ...patch })); }
   function resetExperiencePreferences() {
     setExperience(defaultExperience);
@@ -405,6 +470,7 @@ export function ContextualBoussole() {
           <nav className="flex rounded-xl bg-slate-100 p-1" aria-label="Vues Boussole">{([['guide','Guide'],['glossary','Glossaire'],['experience','Mon expérience']] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setView(id)} aria-current={view === id ? "page" : undefined} className={`flex-1 rounded-lg px-2 py-2 text-xs font-bold ${view === id ? "bg-white shadow-sm" : "text-slate-600"}`}>{label}</button>)}</nav>
           {view === "guide" ? <>
           <div className="rounded-xl border bg-slate-50 p-4"><h3 className="font-bold">Où suis-je ?</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{context.summary}</p></div>
+          {guideUpdateNotice ? <p role="status" className="rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-950">Ce guide a été mis à jour pour tenir compte des évolutions de cette page.</p> : null}
           {availableSequences.length ? <div className="rounded-xl border p-4"><div className="flex items-center justify-between gap-3"><h3 className="font-bold">Choisir un micro-parcours</h3><button type="button" onClick={() => chooseSequence("all")} className={`rounded-lg border px-3 py-2 text-xs font-bold ${sequenceId === "all" ? "bg-slate-900 text-white" : "bg-white"}`}>Visite complète</button></div><p className="mt-2 text-sm leading-relaxed text-slate-600">Choisissez un micro-parcours, puis utilisez « Étape suivante » pour le découvrir pas à pas. « Montrer la zone » repère l’élément sans déclencher d’action.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{availableSequences.map((item) => { const available = visibleSteps.some((candidate) => item.steps.some((candidateStep) => candidateStep.id === candidate.id)); return <button key={item.id} type="button" disabled={!available} onClick={() => chooseSequence(item.id)} className={`rounded-lg border p-3 text-left text-xs disabled:opacity-40 ${sequenceId === item.id ? "border-cyan-500 bg-cyan-50" : "bg-white"}`}><strong className="block text-sm">{item.title}</strong><span className="mt-1 block text-slate-500">{available ? item.description : "Aucune cible visible dans l’état actuel."}</span></button>; })}</div></div> : null}
           <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-[#247f88]">Étape {stepIndex + 1} sur {steps.length}</p><h3 className="mt-1 font-bold">Pourquoi cette étape ?</h3><p className="mt-2 text-sm leading-relaxed text-slate-700"><strong>{step.title}.</strong> {stepBody}</p><p className="mt-3 text-xs font-bold uppercase tracking-wide text-[#247f88]">Que dois-je faire maintenant ?</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={showStep} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">Montrer la zone</button><button type="button" onClick={previousStep} className="rounded-lg border bg-white px-3 py-2 text-xs font-bold text-slate-700">Étape précédente</button><button type="button" onClick={nextStep} className="rounded-lg border bg-white px-3 py-2 text-xs font-bold text-slate-700">Étape suivante</button><button type="button" onClick={() => { setOpen(false); setCompact(false); clearHighlight(); stopSpeech(); }} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700">Quitter</button></div>{guidance ? <p className="mt-3 text-sm font-medium text-cyan-950" role="status">{guidance}</p> : null}</div>
           <div className="rounded-xl border p-4"><h3 className="font-bold">Lecture vocale locale</h3><div className="mt-3 flex gap-2"><button type="button" onClick={speak} disabled={speaking} className="rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-50">Écouter</button><button type="button" onClick={stopSpeech} disabled={!speaking} className="rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-50">Arrêter</button></div></div>

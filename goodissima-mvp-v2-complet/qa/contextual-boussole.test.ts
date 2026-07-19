@@ -48,6 +48,10 @@ test("covers the expected internal actions in contextual journeys", () => {
 test("keeps the floating guide state-aware and locally controlled", () => {
   const source = read("components/ContextualBoussole.tsx");
   assert.match(source, /getClientRects\(\)\.length > 0/);
+  assert.match(source, /experienceReady/);
+  assert.match(source, /resumeJourney\(journey\)/);
+  assert.match(source, /if \(!progressReady \|\| !experience\.resume/);
+  assert.match(source, /applicableStepsFor/);
   assert.match(source, /MutationObserver/);
   assert.match(source, /data-boussole-state/);
   assert.match(source, /Étape précédente/);

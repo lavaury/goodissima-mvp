@@ -19,6 +19,20 @@ export type BoussoleRuntimeContext = {
   functionalStates?: string[];
 };
 
+export type BoussoleProgress = {
+  pageId: string;
+  journeyId: string;
+  journeyVersion: number;
+  stepId: string;
+  updatedAt: string;
+};
+
+export type BoussoleProgressStore = {
+  progressions: Record<string, BoussoleProgress>;
+  notifiedVersions: Record<string, number>;
+  activeJourneyId?: string;
+};
+
 export type BoussoleStepDefinition = {
   id?: string;
   targetId?: string;
