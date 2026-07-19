@@ -58,6 +58,7 @@
     "qa:manual-journey-editor": "node --experimental-strip-types --test qa/manual-journey-editor.test.ts",
     "qa:product-object-clarity": "node --experimental-strip-types --test qa/product-object-clarity.test.ts",
     "qa:boussole": "node --experimental-strip-types --test qa/contextual-boussole.test.ts",
+    "qa:boussole-registry": "node --experimental-strip-types --test qa/boussole-registry.test.ts",
     "qa:simple-link": "node --experimental-strip-types --test qa/simple-link-builder.test.ts",
     "qa:opportunities-boussole": "node --experimental-strip-types --test qa/opportunities-boussole.test.ts",
     "qa:governance-boussole": "node --experimental-strip-types --test qa/governance-boussole.test.ts",

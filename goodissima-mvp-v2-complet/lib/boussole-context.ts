@@ -7,7 +7,7 @@ import { newGovernedJourneySteps } from "./boussole-new-governed-journey.ts";
 import { governedJourneySteps } from "./boussole-governed-journey.ts";
 import { dossierSteps } from "./boussole-dossiers.ts";
 
-export type CompassStep = { id?: string; title: string; body: string; detailedBody?: string; targetId?: string; targetStates?: string[]; glossaryTermIds?: string[]; animation?: { focus: string; movement: string; narration: string; subtitles: string; duration: number; transition: string; tryNow: boolean } };
+export type CompassStep = { id?: string; title: string; body: string; detailedBody?: string; targetId?: string; targetStates?: string[]; glossaryTermIds?: string[]; optional?: boolean; fallbackTargetId?: string; animation?: { focus: string; movement: string; narration: string; subtitles: string; duration: number; transition: string; tryNow: boolean } };
 export type CompassContext = { id: string; pageName: string; summary: string; caution: string; steps: CompassStep[] };
 
 const contexts: CompassContext[] = [
