@@ -16,7 +16,7 @@ type Field = { id: string; label: string; type: FieldType; required: boolean; op
 const fieldTypes: Array<{ value: FieldType; label: string }> = [
   { value: "SECTION", label: "Titre de section" },
   { value: "TEXT", label: "Texte court" }, { value: "TEXTAREA", label: "Texte long" },
-  { value: "EMAIL", label: "Email" }, { value: "PHONE", label: "Téléphone" },
+  { value: "PHONE", label: "Téléphone" },
   { value: "NUMBER", label: "Nombre" }, { value: "DATE", label: "Date" },
   { value: "SELECT", label: "Choix unique" }, { value: "MULTISELECT", label: "Choix multiple" }, { value: "FILE", label: "Fichier" },
   { value: "CHECKBOX", label: "Case à cocher" },
@@ -24,7 +24,6 @@ const fieldTypes: Array<{ value: FieldType; label: string }> = [
 
 const starter: Field[] = [
   { id: crypto.randomUUID(), label: "Nom complet", type: "TEXT", required: true, options: [] },
-  { id: crypto.randomUUID(), label: "Email", type: "EMAIL", required: true, options: [] },
 ];
 
 function blankField(): Field {
@@ -90,11 +89,11 @@ export function SimpleLinkBuilder() {
   function proposeFields() {
     const need = aiNeed.toLowerCase();
     const labels = need.includes("garage")
-      ? ["Nom complet", "Email", "Téléphone", "Ville ou secteur recherché", "Type de garage", "Budget", "Message libre"]
-      : ["Nom complet", "Email", "Téléphone", "Votre besoin", "Message libre"];
+      ? ["Nom complet", "Téléphone", "Ville ou secteur recherché", "Type de garage", "Budget", "Message libre"]
+      : ["Nom complet", "Téléphone", "Votre besoin", "Message libre"];
     setFields(labels.map((label, index) => ({
       id: crypto.randomUUID(), label,
-      type: label === "Email" ? "EMAIL" : label === "Téléphone" ? "PHONE" : label.includes("Budget") ? "NUMBER" : label.includes("Message") || label.includes("besoin") ? "TEXTAREA" : "TEXT",
+      type: label === "Téléphone" ? "PHONE" : label.includes("Budget") ? "NUMBER" : label.includes("Message") || label.includes("besoin") ? "TEXTAREA" : "TEXT",
       required: index < 2, options: [],
     })));
     setAiFieldsAdded(true);
@@ -104,7 +103,7 @@ export function SimpleLinkBuilder() {
     setTitle(selected.title);
     setDescription(selected.description);
     setWelcomeMessage(selected.welcomeMessage);
-    setFields(selected.fields.map((field) => ({
+    setFields(selected.fields.filter((field) => field.type !== "EMAIL").map((field) => ({
       id: crypto.randomUUID(),
       label: field.label,
       type: field.type,

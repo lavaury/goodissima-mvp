@@ -34,9 +34,16 @@ import {
 import type { FormValues } from "@/lib/form-rules";
 import { canSubmitToSecureLink } from "@/lib/secure-link-admission";
 import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
+import { isSimpleLink, isSimpleLinkRelationalEmailField } from "@/lib/simple-link-fields";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
+const simpleLinkPrivateAnswerKeys = [
+  "notificationEmail",
+  "notificationOptIn",
+  "emailNotificationsConsent",
+  "candidateNotificationEmail",
+] as const;
 type TrustAdmissionMode = "OBSERVE" | "SIMULATE_BLOCK" | "ENFORCE";
 type ResolvedTrustAdmissionToken = { identityId: string; tokenId: string } | null;
 type BadRequestCode =
@@ -310,7 +317,29 @@ export async function POST(req: Request) {
     );
   }
 
-  const submittedFormFields = await getSubmittedCandidateFormFields(formSubmission, body);
+  const simpleLinkSubmission = isSimpleLink(gLink.rules);
+  const allSubmittedFormFields = await getSubmittedCandidateFormFields(formSubmission, body);
+  const submittedFormFields = simpleLinkSubmission
+    ? allSubmittedFormFields.filter((field) => !isSimpleLinkRelationalEmailField(field))
+    : allSubmittedFormFields;
+  if (simpleLinkSubmission && formSubmission) {
+    const ignoredEmailKeys = new Set(
+      allSubmittedFormFields
+        .filter((field) => isSimpleLinkRelationalEmailField(field))
+        .map((field) => field.key),
+    );
+    ignoredEmailKeys.add("email");
+    ignoredEmailKeys.add("candidateEmail");
+    ignoredEmailKeys.add("contactEmail");
+    for (const key of simpleLinkPrivateAnswerKeys) ignoredEmailKeys.add(key);
+    for (const key of ignoredEmailKeys) delete formSubmission.answers[key];
+  }
+  if (simpleLinkSubmission) {
+    candidateEmail = wantsCandidateNotifications
+      ? candidateNotificationEmail
+      : `private-${crypto.randomUUID()}@goodissima.local`;
+    if (candidateName.includes("@goodissima.local")) candidateName = "";
+  }
   const missingSubmittedField = formSubmission
     ? findMissingRequiredCandidateField(submittedFormFields, formSubmission.answers)
     : null;
@@ -348,12 +377,15 @@ export async function POST(req: Request) {
 
   const derivedCandidateFields = deriveCandidateSubmissionFields(formSubmission?.answers ?? {}, {
     candidateName,
-    candidateEmail,
+    candidateEmail: simpleLinkSubmission ? "" : candidateEmail,
     message: messageBody,
   });
-  candidateName = derivedCandidateFields.candidateName;
-  candidateEmail = derivedCandidateFields.candidateEmail.trim().toLowerCase();
+  candidateName = derivedCandidateFields.candidateName || (simpleLinkSubmission ? "Candidat" : "");
+  if (!simpleLinkSubmission) candidateEmail = derivedCandidateFields.candidateEmail.trim().toLowerCase();
   messageBody = derivedCandidateFields.message;
+  const relationActorEmail = simpleLinkSubmission
+    ? `simple-link-actor-${crypto.randomUUID()}@goodissima.local`
+    : candidateEmail;
 
   messageBody = messageBody || (formSubmission
     ? buildHumanReadableFormMessage(submittedFormFields, formSubmission.answers)
@@ -441,7 +473,7 @@ export async function POST(req: Request) {
       data: {
         caseId: existingRelationCase.id,
         senderType: "CANDIDATE",
-        senderEmail: candidateEmail,
+        senderEmail: relationActorEmail,
         body: messageBody,
       },
     });
@@ -458,7 +490,7 @@ export async function POST(req: Request) {
       const document = await prisma.document.create({
         data: {
           caseId: existingRelationCase.id,
-          uploadedByEmail: candidateEmail,
+          uploadedByEmail: relationActorEmail,
           fileName: documentName,
           fileUrl: documentUrl,
           mimeType: "application/octet-stream",
@@ -476,7 +508,7 @@ export async function POST(req: Request) {
 
     await auditLog({
       caseId: existingRelationCase.id,
-      actorEmail: candidateEmail,
+      actorEmail: relationActorEmail,
       eventType: "MESSAGE_SENT",
       metadata: { existing: true },
     });
@@ -484,7 +516,7 @@ export async function POST(req: Request) {
     if (documentName && documentUrl) {
       await auditLog({
         caseId: existingRelationCase.id,
-        actorEmail: candidateEmail,
+        actorEmail: relationActorEmail,
         eventType: "DOCUMENT_UPLOADED",
         metadata: { fileName: documentName },
       });
@@ -501,7 +533,7 @@ export async function POST(req: Request) {
     if (isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "messages")) {
       await sendNewMessageEmail({
         ownerEmail: existingRelationCase.owner.email,
-        candidateEmail,
+        candidateEmail: relationActorEmail,
         caseId: existingRelationCase.id,
         caseTitle: existingRelationCase.gLink.title,
         candidateName: existingRelationCase.candidateName,
@@ -517,7 +549,7 @@ export async function POST(req: Request) {
     if (documentName && documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
       await sendNewDocumentEmail({
         ownerEmail: existingRelationCase.owner.email,
-        candidateEmail,
+        candidateEmail: relationActorEmail,
         caseId: existingRelationCase.id,
         caseTitle: existingRelationCase.gLink.title,
         candidateName: existingRelationCase.candidateName,
@@ -540,7 +572,7 @@ export async function POST(req: Request) {
   });
   const admissionEvaluation = evaluateRelationAdmissionPolicyV1({
     policy: admissionTrustPolicy.policy,
-    candidateEmail,
+    candidateEmail: relationActorEmail,
     candidateConsentAccepted: false,
   });
 
@@ -778,7 +810,7 @@ export async function POST(req: Request) {
     data: {
       caseId: relationCase.id,
       senderType: "CANDIDATE",
-      senderEmail: candidateEmail,
+      senderEmail: relationActorEmail,
       body: messageBody,
     },
   });
@@ -788,7 +820,7 @@ export async function POST(req: Request) {
       ? await prisma.document.create({
           data: {
             caseId: relationCase.id,
-            uploadedByEmail: candidateEmail,
+            uploadedByEmail: relationActorEmail,
             fileName: documentName,
             fileUrl: documentUrl,
             mimeType: "application/octet-stream",
@@ -798,13 +830,13 @@ export async function POST(req: Request) {
 
   await auditLog({
     caseId: relationCase.id,
-    actorEmail: candidateEmail,
+    actorEmail: relationActorEmail,
     eventType: "CASE_CREATED",
     metadata: { gLinkId: gLink.id },
   });
   await auditLog({
     caseId: relationCase.id,
-    actorEmail: candidateEmail,
+    actorEmail: relationActorEmail,
     eventType: "MESSAGE_SENT",
     metadata: { initial: true },
   });
@@ -819,7 +851,7 @@ export async function POST(req: Request) {
   if (document) {
     await auditLog({
       caseId: relationCase.id,
-      actorEmail: candidateEmail,
+      actorEmail: relationActorEmail,
       eventType: "DOCUMENT_UPLOADED",
       metadata: { fileName: documentName },
     });
@@ -843,7 +875,7 @@ export async function POST(req: Request) {
   if (isNotificationEnabled(relationCase.owner.notificationPreferences, "requests")) {
     await sendNewRelationCaseEmail({
       ownerEmail: relationCase.owner.email,
-      candidateEmail,
+      candidateEmail: relationActorEmail,
       caseId: relationCase.id,
       caseTitle: relationCase.gLink.title,
       candidateName: relationCase.candidateName,
@@ -859,7 +891,7 @@ export async function POST(req: Request) {
   if (document && isNotificationEnabled(relationCase.owner.notificationPreferences, "documents")) {
     await sendNewDocumentEmail({
       ownerEmail: relationCase.owner.email,
-      candidateEmail,
+      candidateEmail: relationActorEmail,
       caseId: relationCase.id,
       caseTitle: relationCase.gLink.title,
       candidateName: relationCase.candidateName,

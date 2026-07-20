@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { resolveCandidateIdentityState } from "@/lib/candidate-identity";
 import { prisma } from "@/lib/prisma";
+import { isSimpleLink } from "@/lib/simple-link-fields";
 
 export default async function CasesPage() {
   noStore();
@@ -41,10 +42,11 @@ export default async function CasesPage() {
           <p className="p-8 text-slate-500">Aucun dossier pour le moment.</p>
         ) : (
           cases.map((item) => {
+            const isSimpleLinkCase = isSimpleLink(item.gLink.rules);
             const identity = resolveCandidateIdentityState({
               id: item.id,
               candidateName: item.candidateName,
-              candidateEmail: item.candidateEmail,
+              candidateEmail: isSimpleLinkCase && item.candidateEmailNotificationsEnabled ? null : item.candidateEmail,
             });
 
             return (

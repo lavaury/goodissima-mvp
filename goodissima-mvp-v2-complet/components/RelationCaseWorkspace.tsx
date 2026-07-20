@@ -39,6 +39,7 @@ import type {
   RelationStatus,
 } from "@prisma/client";
 import Image from "next/image";
+import { isSimpleLink } from "@/lib/simple-link-fields";
 
 type RelationCaseWorkspaceItem = {
   id: string;
@@ -47,6 +48,7 @@ type RelationCaseWorkspaceItem = {
   candidateAccessRevokedAt?: Date | string | null;
   candidateName: string;
   candidateEmail?: string;
+  candidateEmailNotificationsEnabled?: boolean;
   matchingEnabled: boolean;
   priority: RelationPriority;
   status: RelationStatus;
@@ -68,7 +70,7 @@ type RelationCaseWorkspaceItem = {
       };
     }>;
   } | null;
-  gLink: { id: string; title: string; slug?: string | null };
+  gLink: { id: string; title: string; slug?: string | null; rules?: Prisma.JsonValue | null };
   workspace?: {
     id: string;
     name: string;
@@ -579,10 +581,11 @@ export function RelationCaseWorkspace({
   const formSubmissions = item.formSubmissions ?? [];
   const relationWritable = canWriteInRelation(item.governanceStatus);
   const governanceBlockedMessage = getRelationGovernanceBlockedMessage(item.governanceStatus);
+  const isSimpleLinkCase = isSimpleLink(item.gLink.rules);
   const candidateIdentityState = resolveCandidateIdentityState({
     id: item.id,
     candidateName: item.candidateName,
-    candidateEmail: item.candidateEmail,
+    candidateEmail: isSimpleLinkCase && item.candidateEmailNotificationsEnabled ? null : item.candidateEmail,
     identityVerificationStatus: item.candidateIdentity?.status,
   });
   const dossierSituation = buildDossierSituation({

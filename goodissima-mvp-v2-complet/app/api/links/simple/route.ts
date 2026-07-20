@@ -5,6 +5,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
+import { isSimpleLinkRelationalEmailField } from "@/lib/simple-link-fields";
 
 const allowedTypes = new Set(["SECTION", "TEXT", "TEXTAREA", "EMAIL", "PHONE", "NUMBER", "DATE", "SELECT", "MULTISELECT", "FILE", "CHECKBOX"]);
 
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
     const label = text(row.label, 160);
     const type = text(row.type, 20).toUpperCase();
     if (!label || !allowedTypes.has(type)) return [];
+    const key = fieldKey(label, index);
+    if (isSimpleLinkRelationalEmailField({ key, type })) return [];
     const options = Array.isArray(row.options)
       ? row.options.map((option) => text(option, 120)).filter(Boolean).slice(0, 30)
       : [];
@@ -52,7 +55,7 @@ export async function POST(request: Request) {
       ? row.validationRules as Record<string, unknown>
       : null;
     return [{
-      key: fieldKey(label, index),
+      key,
       label,
       type,
       required: type === "SECTION" ? false : row.required === true,

@@ -62,7 +62,7 @@ export const defaultSecureConversationCopy = {
     en: "Document URL",
   },
   notificationConsentTitle: {
-    fr: "Souhaitez-vous recevoir des notifications concernant cette relation sécurisée ?",
+    fr: "Me prévenir par e-mail",
     en: "Would you like to receive notifications about this secure relationship?",
   },
   notificationConsentHelp: {
@@ -74,7 +74,7 @@ export const defaultSecureConversationCopy = {
     en: "Notification email",
   },
   notificationEmailHelp: {
-    fr: "Canal technique privé utilisé uniquement pour les notifications de cette relation sécurisée.",
+    fr: "Cette adresse sert uniquement à vous envoyer vos notifications. Elle n’est pas communiquée au propriétaire du lien et n’apparaît pas dans les échanges.",
     en: "Private technical channel used only for notifications about this secure relationship.",
   },
   notificationEmailPlaceholder: {
