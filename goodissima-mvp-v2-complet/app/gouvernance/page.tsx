@@ -15,6 +15,7 @@ import {
   getUnassignedRelationCaseSummaries,
 } from "@/lib/governance-workspace-repository";
 import { getGovernancePortfolioSummaries } from "@/lib/governance-portfolio-repository";
+import { filterSignalsByWorkspaceId, getGovernancePilotage, summarizeGovernanceAttention } from "@/lib/governance-pilotage-repository";
 
 const governanceActions = [
   {
@@ -79,13 +80,14 @@ function formatDate(value: Date) {
 export default async function GovernanceWorkspacePage() {
   noStore();
   const owner = await getCurrentPrismaUser();
-  const [portfolios, workspaces, workspaceOptions, unassignedJourneys, unassignedRelationCases, unassignedGLinks] = await Promise.all([
+  const [portfolios, workspaces, workspaceOptions, unassignedJourneys, unassignedRelationCases, unassignedGLinks, pilotage] = await Promise.all([
     getGovernancePortfolioSummaries(owner.id),
     getRealGovernanceWorkspaceSummaries(owner.id),
     getGovernanceWorkspaceOptions(owner.id),
     getUnassignedGovernedJourneySummaries(owner.id),
     getUnassignedRelationCaseSummaries(owner.id),
     getUnassignedGLinkSummaries(owner.id),
+    getGovernancePilotage(owner.id),
   ]);
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const firstGovernedJourneyId = workspaces.flatMap((workspace) => workspace.journeys).at(0)?.relationTemplateId;
@@ -242,6 +244,19 @@ export default async function GovernanceWorkspacePage() {
                   <Metric label="Expirees" value={workspace.expiredCommunicationCount} />
                 </dl>
                 <p className="mt-4 rounded-lg bg-white px-3 py-2 text-sm text-slate-700">{workspace.observation}</p>
+
+                {(() => {
+                  const attention = summarizeGovernanceAttention({
+                    signals: filterSignalsByWorkspaceId(pilotage.signals, workspace.workspaceId),
+                    scope: "WORKSPACE",
+                    scopeId: workspace.workspaceId,
+                    fallbackHref: "/gouvernance/pilotage",
+                  });
+                  return <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-900">À examiner</p>
+                    {attention.length ? <ul className="mt-2 space-y-1 text-sm text-amber-950">{attention.map((signal) => <li key={signal.type}><Link href={signal.href} className="font-semibold underline">{signal.label}</Link></li>)}</ul> : <p className="mt-2 text-sm text-amber-950">Aucune intervention humaine requise détectée.</p>}
+                  </div>;
+                })()}
 
                 {workspace.journeys.length > 0 ? (
                   <div className="mt-4 space-y-2">
