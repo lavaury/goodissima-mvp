@@ -71,8 +71,12 @@ test("orchestrator recommends candidate identification when identity is missing"
 
   const orchestrator = source("components/AIOrchestratorPanel.tsx");
   assert.match(orchestrator, /Identité candidat/);
-  assert.match(orchestrator, /Demander les coordonnées/);
+  assert.match(orchestrator, /Préparer la demande/);
   assert.match(orchestrator, /onRequestCoordinates/);
+
+  const workspace = source("components/AIWorkspace.tsx");
+  assert.match(workspace, /prepareDraft\("CLARIFICATION_REQUEST"/);
+  assert.doesNotMatch(workspace, /fetch\(/);
 
   const actions = source("components/RelationActionsPanel.tsx");
   assert.match(actions, /candidateIdentityRequestTitle/);

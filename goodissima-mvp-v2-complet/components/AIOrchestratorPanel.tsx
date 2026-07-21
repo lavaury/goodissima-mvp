@@ -5,62 +5,28 @@ import type { DossierSituation } from "@/lib/dossier-situation";
 
 export type AIOrchestratorModule = "summary" | "timeline" | "signals" | "matching" | "drafts";
 
-const orchestrationSteps: Array<{
-  id: AIOrchestratorModule;
-  title: string;
-  purpose: string;
-  output: string;
-  actionLabel: string;
-}> = [
-  {
-    id: "summary",
-    title: "Résumé IA",
-    purpose: "Comprendre rapidement le dossier, les points clés, les risques et les documents manquants.",
-    output: "Synthèse exploitable avant toute décision humaine.",
-    actionLabel: "Ouvrir le résumé",
-  },
-  {
-    id: "timeline",
-    title: "Timeline IA",
-    purpose: "Repérer les blocages, l'inactivité et les prochaines actions possibles.",
-    output: "Lecture chronologique et recommandations de suivi.",
-    actionLabel: "Ouvrir la timeline",
-  },
-  {
-    id: "signals",
-    title: "Signaux IA",
-    purpose: "Mettre en évidence les points de vigilance sans score caché ni décision automatique.",
-    output: "Signaux explicables et prise en compte auditée.",
-    actionLabel: "Ouvrir les signaux",
-  },
-  {
-    id: "matching",
-    title: "Matching",
-    purpose: "Identifier des correspondances opt-in, pseudonymisées et explicables.",
-    output: "Suggestions relationnelles à confirmer manuellement.",
-    actionLabel: "Ouvrir le matching",
-  },
-  {
-    id: "drafts",
-    title: "Brouillons IA",
-    purpose: "Préparer une réponse, une relance, une clarification ou une demande de document.",
-    output: "Texte placé dans l'éditeur uniquement après validation humaine.",
-    actionLabel: "Ouvrir les brouillons",
-  },
-];
+function recommendedActionLabel(actionType: DossierSituation["recommendedActionType"]) {
+  if (actionType === "IDENTITY_REQUEST" || actionType === "DOCUMENT_REQUEST") return "Préparer la demande";
+  if (actionType === "FOLLOW_UP") return "Préparer une relance";
+  if (actionType === "SIGNALS") return "Voir les signaux";
+  if (actionType === "TIMELINE") return "Voir la timeline";
+  return "Préparer le résumé";
+}
 
 export function AIOrchestratorPanel({
-  matchingEnabled,
   situation,
   onOpenModule,
   onPrepareDraft,
   onRequestCoordinates,
+  onShowAnalysis,
+  analysisOpen,
 }: {
-  matchingEnabled: boolean;
   situation: DossierSituation;
   onOpenModule: (module: AIOrchestratorModule) => void;
   onPrepareDraft: (draftType: AIDraftType, instruction: string) => void;
   onRequestCoordinates?: () => void;
+  onShowAnalysis: () => void;
+  analysisOpen: boolean;
 }) {
   function runRecommendedAction() {
     if (situation.recommendedActionType === "IDENTITY_REQUEST") {
@@ -87,26 +53,56 @@ export function AIOrchestratorPanel({
   }
 
   return (
-    <section data-ai-orchestrator="true" className="h-full">
-      <div className="rounded-2xl border border-[#d6e7e8] bg-white p-4 shadow-sm">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#247f88]">État du dossier</p>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-semibold text-[#2f3437]">Situation du dossier</h2>
-          <OperationalStatusBadge situation={situation} />
+    <section data-ai-orchestrator="true" data-dossier-situation="true" className="rounded-2xl border border-[#d6e7e8] bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#247f88]">Situation du dossier</p>
+          <h2 className="mt-1 text-lg font-semibold text-[#2f3437]">Que dois-je comprendre et faire maintenant ?</h2>
         </div>
-        <p className="mt-2 text-sm leading-relaxed text-[#746d66]">
-          Résumé de l'état du dossier et actions recommandées.
-        </p>
+        <OperationalStatusBadge situation={situation} />
       </div>
 
-      <section className="mt-4 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm" data-dossier-situation="true">
+      <div className="mt-4 rounded-2xl border border-[#e7e0d6] bg-[#f6f0e8] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#766f68]">Action recommandée</p>
+        <p className="mt-2 font-semibold text-[#2f3437]">{situation.recommendedAction}</p>
+        <p className="mt-2 text-sm text-[#746d66]">{situation.operationalStatus.description}</p>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#766f68]">Repères importants</p>
+        <dl className="mt-2 grid gap-2 sm:grid-cols-3">
+          <SituationMetric label="Dernière activité" value={situation.lastActivityLabel} />
+          <SituationMetric label="Documents manquants" value={String(situation.missingDocumentsCount)} />
+          <SituationMetric label="Blocages détectés" value={String(situation.detectedBlockersCount)} />
+        </dl>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <button type="button" onClick={runRecommendedAction} className="rounded-xl bg-[#263846] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/40">
+          {recommendedActionLabel(situation.recommendedActionType)}
+        </button>
+        <button
+          type="button"
+          onClick={onShowAnalysis}
+          aria-expanded={analysisOpen}
+          aria-controls="ai-workspace-analysis"
+          className="rounded-xl border border-[#d6e7e8] bg-white px-4 py-2 text-xs font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/40"
+        >
+          {analysisOpen ? "Masquer l’analyse" : "Voir l’analyse"}
+        </button>
+      </div>
+      <p className="mt-3 text-xs text-[#746d66]">Prépare un brouillon sans l’envoyer automatiquement.</p>
+    </section>
+  );
+}
+
+export function AISituationDetails({ situation, matchingEnabled }: { situation: DossierSituation; matchingEnabled: boolean }) {
+  return (
+    <section className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm" aria-label="Informations détaillées de situation">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#247f88]">Situation du dossier</p>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-semibold text-[#2f3437]">Que dois-je faire maintenant ?</h3>
-              <OperationalStatusBadge situation={situation} />
-            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#247f88]">Analyse détaillée</p>
+            <h3 className="mt-1 text-lg font-semibold text-[#2f3437]">Informations de situation</h3>
           </div>
           <span className={statusClassName(situation.status)}>
             Statut : {situation.statusDetail}
@@ -114,47 +110,10 @@ export function AIOrchestratorPanel({
         </div>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <SituationMetric label="Dernière activité" value={situation.lastActivityLabel} />
-          <SituationMetric label="Documents manquants" value={String(situation.missingDocumentsCount)} />
           <SituationMetric label="Demandes ouvertes" value={String(situation.openRelationalRequestsCount)} />
-          <SituationMetric label="Blocages détectés" value={String(situation.detectedBlockersCount)} />
           <SituationMetric label="Identité candidat" value={situation.identityStatus} />
-          <SituationMetric label="État du dossier" value={situation.operationalStatus.label} />
           <SituationMetric label="Actions relationnelles en attente" value={String(situation.pendingRelationshipActionsCount)} />
-          <SituationMetric label="Matching" value={matchingEnabled ? "Activé" : "Non activé"} />
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-[#e7e0d6] bg-[#f6f0e8] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#766f68]">Action recommandée</p>
-          <p className="mt-2 font-semibold text-[#2f3437]">{situation.recommendedAction}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={runRecommendedAction} className="rounded-xl bg-[#263846] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858]">
-              Suivre cette recommandation
-            </button>
-            <button type="button" onClick={() => onPrepareDraft("FOLLOW_UP", situation.recommendedDraftInstruction)} className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-xs font-semibold text-[#2f3437]">
-              Préparer une relance
-            </button>
-            {situation.identityMissing && onRequestCoordinates ? (
-              <button type="button" onClick={onRequestCoordinates} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-                Demander les coordonnées
-              </button>
-            ) : null}
-            <button type="button" onClick={() => onPrepareDraft("DOCUMENT_REQUEST", situation.recommendedDraftInstruction)} className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-xs font-semibold text-[#2f3437]">
-              Demander un document
-            </button>
-            <button type="button" onClick={() => onOpenModule("summary")} className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-xs font-semibold text-[#2f3437]">
-              Préparer un résumé
-            </button>
-            <button type="button" onClick={() => onOpenModule("signals")} className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-xs font-semibold text-[#2f3437]">
-              Voir les signaux
-            </button>
-            <button type="button" onClick={() => onOpenModule("timeline")} className="rounded-xl border border-[#d6e7e8] bg-white px-3 py-2 text-xs font-semibold text-[#2f3437]">
-              Voir la timeline
-            </button>
-          </div>
-          <p className="mt-3 text-xs text-[#746d66]">
-            Les brouillons sont placés dans l'éditeur de brouillon IA. Aucun message n'est envoyé automatiquement.
-          </p>
+          <SituationMetric label="Compatibilité relationnelle" value={matchingEnabled ? "Accessible (opt-in actif)" : "Indisponible (opt-in inactif)"} />
         </div>
 
         <details className="mt-4 rounded-2xl border border-dashed border-[#d6e7e8] bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
@@ -178,50 +137,7 @@ export function AIOrchestratorPanel({
             <EvidenceItem label="Matching" value={situation.evidence.matchingState} />
           </dl>
         </details>
-      </section>
-
-      <div className="mt-4 grid gap-3">
-        {orchestrationSteps.map((step, index) => {
-          const matchingBlocked = step.id === "matching" && !matchingEnabled;
-
-          return (
-            <article key={step.id} className="rounded-2xl border border-[#e7e0d6] bg-[#f6f0e8] p-4 text-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-[#247f88] ring-1 ring-[#d6e7e8]">
-                      Étape {index + 1}
-                    </span>
-                    {matchingBlocked ? (
-                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-                        Opt-in requis
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
-                        Disponible
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="mt-3 font-semibold text-[#2f3437]">{step.title}</h3>
-                  <p className="mt-1 text-[#746d66]">{step.purpose}</p>
-                  <p className="mt-2 rounded-xl bg-white px-3 py-2 text-xs text-[#5f686b] ring-1 ring-[#e7e0d6]">
-                    Sortie attendue : {step.output}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onOpenModule(step.id)}
-                  className="shrink-0 rounded-xl bg-[#263846] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858]"
-                >
-                  {step.actionLabel}
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-dashed border-[#d6e7e8] bg-[#fffcf8] p-4 text-xs leading-relaxed text-[#746d66]">
+      <div className="mt-4 rounded-2xl border border-dashed border-[#d6e7e8] bg-white p-4 text-xs leading-relaxed text-[#746d66]">
         <p className="font-semibold text-[#2f3437]">Garde-fous conservés</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Aucune décision automatique.</li>

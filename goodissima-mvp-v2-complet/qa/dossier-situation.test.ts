@@ -31,14 +31,13 @@ const fullCandidateIdentity = {
   isMissingIdentity: false,
 };
 
-test("renders the dossier situation card before orchestration modules", () => {
+test("renders one compact dossier situation before the detailed analysis", () => {
   const orchestrator = source("components/AIOrchestratorPanel.tsx");
-  const situationIndex = orchestrator.indexOf("Situation du dossier");
-  const modulesIndex = orchestrator.indexOf("orchestrationSteps.map");
-  assert.ok(situationIndex > -1);
-  assert.ok(modulesIndex > situationIndex);
-  assert.match(orchestrator, /Que dois-je faire maintenant \?/);
+  const workspace = source("components/AIWorkspace.tsx");
+  assert.equal((orchestrator.match(/Situation du dossier/g) ?? []).length, 1);
+  assert.match(orchestrator, /Que dois-je comprendre et faire maintenant \?/);
   assert.match(orchestrator, /data-dossier-situation/);
+  assert.match(workspace, /hidden=\{!analysisOpen\}/);
 });
 
 test("detects missing documents from pending document requests", () => {
@@ -142,9 +141,8 @@ test("renders status explainability and accessible labels", () => {
   assert.match(orchestrator, /Pourquoi ce statut \?/);
   assert.match(orchestrator, /operationalStatus\.reasons\.map/);
   assert.match(orchestrator, /aria-label=\{`Statut du dossier : \$\{situation\.operationalStatus\.label\}`\}/);
-  assert.match(workspace, /aria-label=\{`Statut du dossier : \$\{situation\.operationalStatus\.label\}`\}/);
   assert.match(orchestrator, /dark:bg-/);
-  assert.match(workspace, /dark:bg-/);
+  assert.match(workspace, /aria-controls="ai-workspace-analysis"|ai-workspace-analysis/);
 });
 
 test("detects blockers from governance and open requests", () => {
