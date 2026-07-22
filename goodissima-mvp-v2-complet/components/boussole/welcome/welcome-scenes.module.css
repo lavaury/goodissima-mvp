@@ -4,7 +4,7 @@
   border: 1px dashed rgb(148 163 184);
   border-radius: 1rem;
   background: linear-gradient(145deg, rgb(248 250 252), rgb(236 254 255));
-  padding: 1rem;
+  padding: 1.25rem;
 }
 
 .animatedItem {
@@ -20,12 +20,20 @@
   border: 1px solid rgb(207 250 254);
   border-radius: .75rem;
   background: white;
-  padding: .75rem;
+  padding: 1rem;
   color: rgb(30 41 59);
-  font-size: .875rem;
+  font-size: 1rem;
   font-weight: 700;
   box-shadow: 0 8px 20px rgb(15 23 42 / .06);
 }
+
+.situation { display: grid; gap: 1rem; align-items: center; }
+.situationInitial { border: 1px dashed rgb(148 163 184); border-radius: .875rem; padding: 1rem; background: rgb(255 255 255 / .65); }
+.goodissimaFrame { border: 2px solid rgb(14 116 144); border-radius: 1rem; padding: 1rem; background: rgb(236 254 255); }
+.sceneStageLabel { margin-bottom: .75rem; color: rgb(51 65 85); font-size: .875rem; font-weight: 700; }
+.scatteredCard:nth-child(odd) { transform: translateX(.25rem); }
+.scatteredCard:nth-child(even) { transform: translateX(-.25rem); }
+.flow { text-align: center; color: rgb(14 116 144); font-size: 1.5rem; font-weight: 700; }
 
 .selected { transform: scale(1.025); border-color: rgb(14 116 144); }
 .secondary { opacity: .58; }
@@ -39,4 +47,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animatedItem { animation: none !important; transition: none !important; }
+}
+
+@media (min-width: 640px) {
+  .scene { padding: 1.75rem; }
+  .situation { grid-template-columns: 1fr auto 1.15fr; }
+  .flow { transform: none; }
 }

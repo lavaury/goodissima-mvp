@@ -24,6 +24,12 @@ export function useWelcomeAudioGuide() {
     setState((current) => current === "unavailable" ? current : "idle");
   }, [cancelActiveUtterance]);
 
+  const reset = useCallback(() => {
+    cancelActiveUtterance();
+    setState((current) => current === "unavailable" ? current : "idle");
+    setTranscript("");
+  }, [cancelActiveUtterance]);
+
   useEffect(() => {
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) setState("unavailable");
     return () => {
@@ -77,5 +83,5 @@ export function useWelcomeAudioGuide() {
     setState("playing");
   }, [state]);
 
-  return { state, transcript, play, pause, resume, stop };
+  return { state, transcript, play, pause, resume, stop, reset };
 }

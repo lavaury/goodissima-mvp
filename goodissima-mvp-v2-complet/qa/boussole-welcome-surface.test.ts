@@ -87,3 +87,27 @@ test("uses explicit heading levels for cards, notices and confirmations", () => 
   const directSection = component.slice(component.indexOf('{mode === "DIRECT"'), component.indexOf('{mode === "HELP"'));
   assert.doesNotMatch(directSection, /<h4\b|headingLevel=\{4\}/);
 });
+
+test("places the dominant mode surface before optional media controls", () => {
+  const renderedMedia = component.lastIndexOf("<WelcomeMediaControls");
+  assert.ok(component.indexOf('{mode === "DISCOVER"') < renderedMedia);
+  assert.ok(component.indexOf('{mode === "DIRECT"') < renderedMedia);
+  assert.ok(component.indexOf('{mode === "HELP"') < renderedMedia);
+  assert.match(component, /<WelcomePrincipleScene key=\{sceneProps\.runId\}/);
+});
+
+test("keeps a compact global human reminder and a detailed dedicated step", () => {
+  assert.match(component, /Vous gardez la main/);
+  assert.match(component, /Rien n’est publié, envoyé, créé ou décidé sans votre action\./);
+  assert.match(component, /<details[^>]*>[^]*Voir les garanties de contrôle humain[^]*welcomeGeneralContent\.humanControl\.map/);
+  const dedicatedStart = component.indexOf('if (headingLevel === 3)');
+  const dedicatedNotice = component.slice(dedicatedStart, component.indexOf("\n  }\n  return", dedicatedStart));
+  assert.match(dedicatedNotice, /welcomeGeneralContent\.humanControl\.map/);
+  assert.doesNotMatch(dedicatedNotice, /<details/);
+});
+
+test("keeps one explicit business navigation after confirmation", () => {
+  assert.equal((component.match(/<Link\b/g) ?? []).length, 1);
+  assert.match(component, /<Link href=\{entry\.route\} onClick=\{onNavigate\}/);
+  assert.doesNotMatch(component, /router\.(?:push|replace)|useRouter|fetch\s*\(|\/api\/|Mistral|Repository|repository|localStorage|sessionStorage/);
+});
