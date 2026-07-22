@@ -1,0 +1,42 @@
+.scene {
+  position: relative;
+  overflow: hidden;
+  border: 1px dashed rgb(148 163 184);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgb(248 250 252), rgb(236 254 255));
+  padding: 1rem;
+}
+
+.animatedItem {
+  animation: welcomeReveal 900ms ease-out both;
+  animation-delay: var(--scene-delay, 0ms);
+  animation-play-state: var(--scene-play-state, running);
+}
+
+.scene[data-animation-state="paused"] { --scene-play-state: paused; }
+.scene[data-reduced-motion="true"] .animatedItem { animation: none; }
+
+.card {
+  border: 1px solid rgb(207 250 254);
+  border-radius: .75rem;
+  background: white;
+  padding: .75rem;
+  color: rgb(30 41 59);
+  font-size: .875rem;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgb(15 23 42 / .06);
+}
+
+.selected { transform: scale(1.025); border-color: rgb(14 116 144); }
+.secondary { opacity: .58; }
+.line { height: 1px; background: repeating-linear-gradient(90deg, rgb(14 116 144) 0 8px, transparent 8px 14px); }
+.threshold { border: 2px solid rgb(217 119 6); border-radius: .75rem; background: rgb(255 251 235); padding: .75rem; }
+
+@keyframes welcomeReveal {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animatedItem { animation: none !important; transition: none !important; }
+}

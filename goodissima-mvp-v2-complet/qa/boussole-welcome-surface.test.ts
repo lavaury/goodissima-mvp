@@ -6,6 +6,7 @@ import { welcomeGeneralContent } from "../lib/boussole/welcome-content.ts";
 
 const page = readFileSync(new URL("../app/boussole/decouverte/page.tsx", import.meta.url), "utf8");
 const component = readFileSync(new URL("../components/BoussoleWelcomeDiscovery.tsx", import.meta.url), "utf8");
+const scenes = readFileSync(new URL("../components/boussole/welcome/WelcomeScenes.tsx", import.meta.url), "utf8");
 
 test("creates an authenticated discovery route with one h1", () => {
   assert.match(page, /requireCurrentUser\(\)/);
@@ -63,9 +64,9 @@ test("contains no automatic navigation, external call, AI, storage or business r
 
 test("exposes human-control notices and static illustration labels", () => {
   assert.match(component, /welcomeGeneralContent\.humanControl\.map/);
-  assert.match(component, /Illustration — aucune donnée enregistrée/g);
-  assert.match(component, /welcome-situation-illustration/);
-  assert.match(component, /welcome-principle-illustration/);
+  assert.match(scenes, /Illustration pédagogique — aucune donnée enregistrée/);
+  assert.match(scenes, /welcome-situation-illustration/);
+  assert.match(scenes, /welcome-principle-illustration/);
   assert.match(component, /welcome-recommendation/);
   assert.match(component, /welcome-primary-navigation/);
 });

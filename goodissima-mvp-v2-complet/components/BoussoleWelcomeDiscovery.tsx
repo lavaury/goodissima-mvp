@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { WelcomeMediaControls } from "@/components/boussole/welcome/WelcomeMediaControls";
+import { WelcomeEntryScene, WelcomeHandoffScene, WelcomePrincipleScene, WelcomeSituationScene, type WelcomeAnimationState } from "@/components/boussole/welcome/WelcomeScenes";
+import { useWelcomeAudioGuide } from "@/components/boussole/welcome/useWelcomeAudioGuide";
 import {
   WELCOME_INTENTS,
   WELCOME_MODES,
@@ -31,14 +34,39 @@ export function BoussoleWelcomeDiscovery() {
   const [selectedEntryKey, setSelectedEntryKey] = useState<WelcomeEntryKey | null>(null);
   const [confirmationEntryKey, setConfirmationEntryKey] = useState<WelcomeEntryKey | null>(null);
   const [orientation, setOrientation] = useState<WelcomeOrientationResult | null>(null);
+  const [animationState, setAnimationState] = useState<WelcomeAnimationState>("playing");
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [sceneRunId, setSceneRunId] = useState(0);
+  const audio = useWelcomeAudioGuide();
   const selectedEntry = selectedEntryKey ? getWelcomeEntry(selectedEntryKey) : null;
   const confirmationEntry = confirmationEntryKey ? getWelcomeEntry(confirmationEntryKey) : null;
 
   function changeMode(nextMode: WelcomeMode) {
+    audio.stop();
     setMode(nextMode);
     setConfirmationEntryKey(null);
     setOrientation(null);
   }
+
+  function changeDiscoverStep(index: number) {
+    audio.stop();
+    setSceneRunId((current) => current + 1);
+    setDiscoverStepIndex(index);
+  }
+
+  function changeReducedMotion(value: boolean) {
+    setReducedMotion(value);
+    setAnimationState("paused");
+  }
+
+  const sceneProps = { animationState, reducedMotion, runId: sceneRunId };
+  const narrationText = confirmationEntry
+    ? `${confirmationEntry.title}. ${confirmationEntry.description} ${welcomeGeneralContent.completion.contextualHandoff}`
+    : mode === "DIRECT" || mode === "HELP" || discoverStepIndex >= 3
+      ? welcomeEntries.map((entry) => entry.title).join(". ")
+      : discoverStepIndex === 0
+        ? `${welcomeGeneralContent.situation.join(" ")} Goodissima aide à organiser ces éléments dans un cadre commun.`
+        : `${welcomeGeneralContent.principle} ${welcomeGeneralContent.humanControl.join(" ")}`;
 
   function chooseEntry(entry: WelcomeEntry) {
     setSelectedEntryKey(entry.key);
@@ -70,12 +98,29 @@ export function BoussoleWelcomeDiscovery() {
         </div>
       </section>
 
+      <WelcomeMediaControls
+        animationState={animationState}
+        reducedMotion={reducedMotion}
+        audioState={audio.state}
+        transcript={audio.transcript}
+        onPlayAnimation={() => setAnimationState("playing")}
+        onPauseAnimation={() => setAnimationState("paused")}
+        onRestartAnimation={() => { setSceneRunId((current) => current + 1); setAnimationState("playing"); }}
+        onReducedMotionChange={changeReducedMotion}
+        onPlayAudio={() => audio.play(narrationText)}
+        onPauseAudio={audio.pause}
+        onResumeAudio={audio.resume}
+        onStopAudio={audio.stop}
+      />
+
       {mode === "DISCOVER" ? (
         <DiscoverMode
           stepIndex={discoverStepIndex}
           selectedEntry={selectedEntry}
           confirmationEntry={confirmationEntry}
-          onStepChange={setDiscoverStepIndex}
+          onStepChange={changeDiscoverStep}
+          sceneProps={sceneProps}
+          onNavigate={audio.stop}
           onEntrySelect={chooseEntry}
           onConfirm={(entry) => setConfirmationEntryKey(entry.key)}
           onCancelConfirmation={() => setConfirmationEntryKey(null)}
@@ -86,9 +131,9 @@ export function BoussoleWelcomeDiscovery() {
         <section aria-labelledby="welcome-direct-title" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
           <h2 id="welcome-direct-title" className="text-2xl font-bold text-slate-950">Choisissez ce que vous voulez faire</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">Sélectionnez une possibilité pour la vérifier avant d’ouvrir la page correspondante.</p>
-          <EntryChoices headingLevel={3} selectedKey={selectedEntryKey} onSelect={chooseEntry} />
+          <EntryChoices headingLevel={3} selectedKey={selectedEntryKey} onSelect={chooseEntry} sceneProps={sceneProps} />
           {selectedEntry ? <button type="button" onClick={() => setConfirmationEntryKey(selectedEntry.key)} className="mt-5 min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">Confirmer ce choix</button> : null}
-          {confirmationEntry ? <EntryConfirmation headingLevel={3} entry={confirmationEntry} onCancel={() => setConfirmationEntryKey(null)} /> : null}
+          {confirmationEntry ? <EntryConfirmation headingLevel={3} entry={confirmationEntry} onCancel={() => setConfirmationEntryKey(null)} sceneProps={sceneProps} onNavigate={audio.stop} /> : null}
         </section>
       ) : null}
 
@@ -102,14 +147,14 @@ export function BoussoleWelcomeDiscovery() {
           onShowDirect={() => changeMode("DIRECT")}
         />
       ) : null}
-      {mode === "HELP" && confirmationEntry ? <EntryConfirmation headingLevel={2} entry={confirmationEntry} onCancel={() => setConfirmationEntryKey(null)} /> : null}
+      {mode === "HELP" && confirmationEntry ? <EntryConfirmation headingLevel={2} entry={confirmationEntry} onCancel={() => setConfirmationEntryKey(null)} sceneProps={sceneProps} onNavigate={audio.stop} /> : null}
 
       {mode !== "DISCOVER" || discoverStepIds[discoverStepIndex] !== "welcome-human-control" ? <HumanControlNotice headingLevel={2} /> : null}
     </div>
   );
 }
 
-function DiscoverMode({ stepIndex, selectedEntry, confirmationEntry, onStepChange, onEntrySelect, onConfirm, onCancelConfirmation }: {
+function DiscoverMode({ stepIndex, selectedEntry, confirmationEntry, onStepChange, onEntrySelect, onConfirm, onCancelConfirmation, sceneProps, onNavigate }: {
   stepIndex: number;
   selectedEntry: WelcomeEntry | null;
   confirmationEntry: WelcomeEntry | null;
@@ -117,6 +162,8 @@ function DiscoverMode({ stepIndex, selectedEntry, confirmationEntry, onStepChang
   onEntrySelect: (entry: WelcomeEntry) => void;
   onConfirm: (entry: WelcomeEntry) => void;
   onCancelConfirmation: () => void;
+  sceneProps: { animationState: WelcomeAnimationState; reducedMotion: boolean; runId: number };
+  onNavigate: () => void;
 }) {
   const stepId = discoverStepIds[stepIndex];
   const canContinue = stepId !== "welcome-first-action" || Boolean(selectedEntry);
@@ -132,12 +179,12 @@ function DiscoverMode({ stepIndex, selectedEntry, confirmationEntry, onStepChang
       </div>
 
       <div className="mt-5 min-h-64" data-welcome-step-id={stepId}>
-        {stepId === "welcome-situation" ? <SituationStep /> : null}
-        {stepId === "welcome-principle" ? <PrincipleStep /> : null}
+        {stepId === "welcome-situation" ? <div><h3 className="text-xl font-bold">Des informations difficiles à suivre</h3><div className="mt-4"><WelcomeSituationScene {...sceneProps} /></div></div> : null}
+        {stepId === "welcome-principle" ? <div><h3 className="text-xl font-bold">Le principe Goodissima</h3><p className="mt-3 text-sm leading-relaxed text-slate-700">{welcomeGeneralContent.principle}</p><div className="mt-4"><WelcomePrincipleScene key={sceneProps.runId} {...sceneProps} /></div></div> : null}
         {stepId === "welcome-human-control" ? <HumanControlNotice headingLevel={3} heading="Ce qui reste toujours sous votre contrôle" /> : null}
-        {stepId === "welcome-entry-points" ? <EntryOverview /> : null}
-        {stepId === "welcome-first-action" ? <div><h3 className="text-xl font-bold">Choisissez une première action</h3><p className="mt-2 text-sm text-slate-600">Ce choix ne vous redirige pas. Vous le confirmerez à l’étape suivante.</p><EntryChoices headingLevel={4} selectedKey={selectedEntry?.key ?? null} onSelect={onEntrySelect} /></div> : null}
-        {stepId === "welcome-handoff" ? selectedEntry ? <div><h3 className="text-xl font-bold">Vérifiez avant d’ouvrir la vraie page</h3>{confirmationEntry ? <EntryConfirmation headingLevel={4} entry={confirmationEntry} onCancel={onCancelConfirmation} /> : <div className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50 p-4"><p className="font-bold text-cyan-950">{selectedEntry.title}</p><p className="mt-1 text-sm text-cyan-900">La page ne s’ouvrira qu’après votre confirmation.</p><button type="button" onClick={() => onConfirm(selectedEntry)} className="mt-4 min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">Voir la confirmation</button></div>}</div> : <p role="status">Revenez à l’étape précédente pour choisir une première action.</p> : null}
+        {stepId === "welcome-entry-points" ? <EntryOverview sceneProps={sceneProps} /> : null}
+        {stepId === "welcome-first-action" ? <div><h3 className="text-xl font-bold">Choisissez une première action</h3><p className="mt-2 text-sm text-slate-600">Ce choix ne vous redirige pas. Vous le confirmerez à l’étape suivante.</p><EntryChoices headingLevel={4} selectedKey={selectedEntry?.key ?? null} onSelect={onEntrySelect} sceneProps={sceneProps} /></div> : null}
+        {stepId === "welcome-handoff" ? selectedEntry ? <div><h3 className="text-xl font-bold">Vérifiez avant d’ouvrir la vraie page</h3>{confirmationEntry ? <EntryConfirmation headingLevel={4} entry={confirmationEntry} onCancel={onCancelConfirmation} sceneProps={sceneProps} onNavigate={onNavigate} /> : <div className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50 p-4"><WelcomeHandoffScene entry={selectedEntry} {...sceneProps} /><p className="mt-3 text-sm text-cyan-900">La page ne s’ouvrira qu’après votre confirmation.</p><button type="button" onClick={() => onConfirm(selectedEntry)} className="mt-4 min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">Voir la confirmation</button></div>}</div> : <p role="status">Revenez à l’étape précédente pour choisir une première action.</p> : null}
       </div>
 
       <div data-boussole-id="welcome-resume-controls" className="mt-6 flex flex-wrap gap-3 border-t pt-5">
@@ -148,21 +195,12 @@ function DiscoverMode({ stepIndex, selectedEntry, confirmationEntry, onStepChang
   );
 }
 
-function SituationStep() {
-  return <div><h3 className="text-xl font-bold">Des informations difficiles à suivre</h3><div data-boussole-id="welcome-situation-illustration" className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Illustration — aucune donnée enregistrée</p><ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-700">{welcomeGeneralContent.situation.map((item) => <li key={item} className="rounded-lg bg-white p-3">{item}</li>)}</ul></div></div>;
+function EntryOverview({ sceneProps }: { sceneProps: { animationState: WelcomeAnimationState; reducedMotion: boolean; runId: number } }) {
+  return <div><h3 className="text-xl font-bold">Quatre manières principales de commencer</h3><p className="mt-2 text-sm text-slate-600">Chaque possibilité ouvre une vraie page seulement après votre choix explicite.</p><div className="mt-4"><WelcomeEntryScene selectedKey={null} {...sceneProps} /></div><EntryCards headingLevel={4} selectable={false} selectedKey={null} onSelect={() => undefined} /></div>;
 }
 
-function PrincipleStep() {
-  const chain = ["Une intention", "Des réponses recueillies", "Des rapprochements possibles", "Des suites organisées", "Une décision humaine"];
-  return <div><h3 className="text-xl font-bold">Le principe Goodissima</h3><p className="mt-3 text-sm leading-relaxed text-slate-700">{welcomeGeneralContent.principle}</p><div data-boussole-id="welcome-principle-illustration" className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Illustration — aucune donnée enregistrée</p><ol className="mt-3 grid gap-2 text-sm font-semibold text-slate-700 sm:grid-cols-5">{chain.map((item, index) => <li key={item} className="rounded-lg bg-white p-3 text-center"><span className="sr-only">Étape {index + 1} : </span>{item}{index < chain.length - 1 ? <span aria-hidden="true" className="mt-2 block text-cyan-700">→</span> : null}</li>)}</ol></div></div>;
-}
-
-function EntryOverview() {
-  return <div><h3 className="text-xl font-bold">Quatre manières principales de commencer</h3><p className="mt-2 text-sm text-slate-600">Chaque possibilité ouvre une vraie page seulement après votre choix explicite.</p><EntryCards headingLevel={4} selectable={false} selectedKey={null} onSelect={() => undefined} /></div>;
-}
-
-function EntryChoices({ headingLevel, selectedKey, onSelect }: { headingLevel: 3 | 4; selectedKey: WelcomeEntryKey | null; onSelect: (entry: WelcomeEntry) => void }) {
-  return <fieldset className="mt-5"><legend className="text-sm font-bold text-slate-900">Sélectionner une possibilité</legend><EntryCards headingLevel={headingLevel} selectable selectedKey={selectedKey} onSelect={onSelect} /></fieldset>;
+function EntryChoices({ headingLevel, selectedKey, onSelect, sceneProps }: { headingLevel: 3 | 4; selectedKey: WelcomeEntryKey | null; onSelect: (entry: WelcomeEntry) => void; sceneProps: { animationState: WelcomeAnimationState; reducedMotion: boolean; runId: number } }) {
+  return <fieldset className="mt-5"><legend className="text-sm font-bold text-slate-900">Sélectionner une possibilité</legend><WelcomeEntryScene selectedKey={selectedKey} {...sceneProps} /><EntryCards headingLevel={headingLevel} selectable selectedKey={selectedKey} onSelect={onSelect} /></fieldset>;
 }
 
 function EntryCards({ headingLevel, selectable, selectedKey, onSelect }: { headingLevel: 3 | 4; selectable: boolean; selectedKey: WelcomeEntryKey | null; onSelect: (entry: WelcomeEntry) => void }) {
@@ -181,10 +219,10 @@ function HelpMode({ orientation, onIntentSelect, onReset, onConfirm, onShowDisco
   return <section data-boussole-id="welcome-entry-help" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6" aria-labelledby="welcome-help-title"><h2 id="welcome-help-title" className="text-2xl font-bold">Qu’aimeriez-vous accomplir aujourd’hui ?</h2><fieldset className="mt-5"><legend className="text-sm font-bold text-slate-900">Choisir l’objectif qui se rapproche le plus de votre situation</legend><div className="mt-3 grid gap-3">{WELCOME_INTENTS.map((intent) => <button key={intent} type="button" onClick={() => onIntentSelect(intent)} className="min-h-11 rounded-xl border bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 outline-none hover:border-cyan-300 focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">{intentLabels[intent]}</button>)}</div></fieldset>{orientation ? <div data-boussole-id="welcome-recommendation" className="mt-6 rounded-xl border border-cyan-200 bg-cyan-50 p-5"><div role="status" aria-live="polite"><h3 className="font-bold text-cyan-950">Orientation proposée</h3><p className="mt-2 text-sm text-cyan-950">{orientation.understoodGoal}</p><p className="mt-2 text-sm text-cyan-900">{orientation.rationale}</p><p className="mt-3 text-xs font-semibold text-amber-900">{orientation.humanControlNotice}</p></div>{orientation.recommendedEntry ? <div className="mt-4"><p className="font-bold text-slate-950">{orientation.recommendedEntry.title}</p><button type="button" onClick={() => onConfirm(orientation.recommendedEntry!)} className="mt-3 min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">Examiner cette porte</button></div> : <div className="mt-4"><p className="text-sm text-slate-700">{orientation.nextStep}</p><div className="mt-3 flex flex-wrap gap-3"><button type="button" onClick={onShowDiscover} className="min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Découvrir Goodissima</button><button type="button" onClick={onShowDirect} className="min-h-11 rounded-lg border bg-white px-4 py-2 text-sm font-bold text-slate-700">Voir les quatre possibilités</button></div></div>}<button type="button" onClick={onReset} className="mt-4 text-sm font-bold text-cyan-950 underline underline-offset-4">Revenir aux autres choix</button></div> : null}</section>;
 }
 
-function EntryConfirmation({ headingLevel, entry, onCancel }: { headingLevel: 2 | 3 | 4; entry: WelcomeEntry; onCancel: () => void }) {
+function EntryConfirmation({ headingLevel, entry, onCancel, sceneProps, onNavigate }: { headingLevel: 2 | 3 | 4; entry: WelcomeEntry; onCancel: () => void; sceneProps: { animationState: WelcomeAnimationState; reducedMotion: boolean; runId: number }; onNavigate: () => void }) {
   const Heading = headingLevel === 2 ? "h2" : headingLevel === 3 ? "h3" : "h4";
   const headingId = `welcome-confirmation-title-${headingLevel}`;
-  return <section data-boussole-id="welcome-primary-navigation" className="mt-5 rounded-xl border border-cyan-300 bg-white p-5" aria-labelledby={headingId}><p className="text-xs font-bold uppercase tracking-wide text-[#247f88]">Confirmation humaine</p><Heading id={headingId} className="mt-1 text-xl font-bold text-slate-950">{entry.title}</Heading><p className="mt-2 text-sm leading-relaxed text-slate-700">{entry.description}</p>{entry.explanationOfGoodissimaTerm ? <p className="mt-2 text-sm font-semibold text-cyan-900">{entry.explanationOfGoodissimaTerm}</p> : null}<p className="mt-3 text-sm text-slate-600"><strong>Exemple :</strong> {entry.usageExample}</p><p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950"><strong>Ce que Goodissima ne fera pas automatiquement :</strong> {entry.humanControlNotice}</p><div className="mt-4 flex flex-wrap gap-3"><Link href={entry.route} className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">Ouvrir cette page</Link><button type="button" onClick={onCancel} className="min-h-11 rounded-lg border px-4 py-2 text-sm font-bold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-cyan-700">Changer de choix</button></div></section>;
+  return <section data-boussole-id="welcome-primary-navigation" className="mt-5 rounded-xl border border-cyan-300 bg-white p-5" aria-labelledby={headingId}><p className="text-xs font-bold uppercase tracking-wide text-[#247f88]">Confirmation humaine</p><Heading id={headingId} className="mt-1 text-xl font-bold text-slate-950">{entry.title}</Heading><div className="mt-4"><WelcomeHandoffScene entry={entry} {...sceneProps} /></div><p className="mt-2 text-sm leading-relaxed text-slate-700">{entry.description}</p>{entry.explanationOfGoodissimaTerm ? <p className="mt-2 text-sm font-semibold text-cyan-900">{entry.explanationOfGoodissimaTerm}</p> : null}<p className="mt-3 text-sm text-slate-600"><strong>Exemple :</strong> {entry.usageExample}</p><p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950"><strong>Ce que Goodissima ne fera pas automatiquement :</strong> {entry.humanControlNotice}</p><div className="mt-4 flex flex-wrap gap-3"><Link href={entry.route} onClick={onNavigate} className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">Ouvrir cette page</Link><button type="button" onClick={onCancel} className="min-h-11 rounded-lg border px-4 py-2 text-sm font-bold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-cyan-700">Changer de choix</button></div></section>;
 }
 
 function HumanControlNotice({ headingLevel, heading = "Vous restez maître de chaque suite" }: { headingLevel: 2 | 3; heading?: string }) {
