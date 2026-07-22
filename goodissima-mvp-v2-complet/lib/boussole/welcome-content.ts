@@ -10,7 +10,7 @@ export const welcomeGeneralContent = {
     HELP: "J’ai besoin d’aide pour choisir",
   } satisfies Record<WelcomeMode, string>,
   exitLabels: {
-    dashboard: "Continuer vers le Dashboard",
+    dashboard: "Passer la découverte et ouvrir le Dashboard",
     later: "Je découvrirai plus tard",
   },
   situation: [

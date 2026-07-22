@@ -40,6 +40,7 @@ test("uses shared stable entry targets and requires selection before navigation"
 
 test("implements the six manual DISCOVER steps without persistence", () => {
   assert.match(component, /WELCOME_STEP_IDS\["welcome-discover"\]/);
+  assert.equal(WELCOME_STEP_IDS["welcome-discover"].length, 6);
   for (const stepId of WELCOME_STEP_IDS["welcome-discover"]) assert.ok(component.includes(`stepId === "${stepId}"`));
   assert.match(component, /Précédent/);
   assert.match(component, /Suivant/);
@@ -73,8 +74,7 @@ test("exposes human-control notices and static illustration labels", () => {
 
 test("uses explicit heading levels for cards, notices and confirmations", () => {
   assert.match(component, /<EntryChoices headingLevel=\{3\} selectedKey=\{selectedEntryKey\}/);
-  assert.match(component, /<EntryCards headingLevel=\{4\} selectable=\{false\}/);
-  assert.match(component, /<EntryChoices headingLevel=\{4\} selectedKey=\{selectedEntry\?\.key/);
+  assert.match(component, /<EntryChoices headingLevel=\{4\} selectedKey=\{selectedEntry\?\.key[^>]*showScene=\{false\}/);
   assert.match(component, /<HumanControlNotice headingLevel=\{2\}/);
   assert.match(component, /<HumanControlNotice headingLevel=\{3\} heading=/);
   assert.match(component, /<EntryConfirmation headingLevel=\{4\} entry=\{confirmationEntry\}/);
@@ -86,6 +86,61 @@ test("uses explicit heading levels for cards, notices and confirmations", () => 
 
   const directSection = component.slice(component.indexOf('{mode === "DIRECT"'), component.indexOf('{mode === "HELP"'));
   assert.doesNotMatch(directSection, /<h4\b|headingLevel=\{4\}/);
+});
+
+test("makes step four illustrative and explicitly leads to selection", () => {
+  const stepFourStart = component.indexOf('{stepId === "welcome-entry-points" ?');
+  const stepFour = component.slice(stepFourStart, component.indexOf('{stepId === "welcome-first-action" ?', stepFourStart));
+  assert.match(stepFour, /<EntryOverview sceneProps=\{sceneProps\}/);
+  assert.doesNotMatch(stepFour, /EntryCards|EntryChoices|onEntrySelect|aria-pressed/);
+
+  const overviewStart = component.indexOf("function EntryOverview");
+  const overview = component.slice(overviewStart, component.indexOf("function EntryChoices", overviewStart));
+  assert.match(overview, /<WelcomeEntryScene selectedKey=\{null\} \{\.\.\.sceneProps\}/);
+  assert.doesNotMatch(overview, /<EntryCards|selectable/);
+  assert.match(overview, /À l’étape suivante, vous choisirez la possibilité qui vous correspond\./);
+  assert.match(component, /stepId === "welcome-entry-points"[^]*\? "Continuer pour choisir"/);
+});
+
+test("makes step five the only selectable DISCOVER step", () => {
+  const stepFive = component.slice(component.indexOf('stepId === "welcome-first-action" ?'), component.indexOf('stepId === "welcome-handoff" ?'));
+  assert.match(stepFive, /Choisissez une première action/);
+  assert.match(stepFive, /Sélectionnez une possibilité pour continuer vers la vérification\./);
+  assert.match(stepFive, /<EntryChoices headingLevel=\{4\}[^>]*showScene=\{false\}/);
+  assert.match(stepFive, /<p role="status" aria-live="polite" aria-atomic="true"[^>]*>\{selectedEntry \? `Vous avez choisi : \$\{selectedEntry\.title\}\. Vous pouvez maintenant vérifier ce choix\.` : ""\}<\/p>/);
+  assert.doesNotMatch(stepFive, /selectedEntry \? <p role="status"/);
+  assert.match(stepFive, /className=\{`mt-4 min-h-6[^`]*\$\{selectedEntry \? "rounded-lg bg-cyan-50 p-3 text-cyan-950" : "text-slate-700"\}`\}/);
+  assert.doesNotMatch(stepFive, /bg-amber|text-amber/);
+  assert.doesNotMatch(stepFive, /cechoix/);
+
+  const chooseEntry = component.slice(component.indexOf("function chooseEntry"), component.indexOf("function chooseIntent"));
+  assert.match(chooseEntry, /setSelectedEntryKey\(entry\.key\)/);
+  assert.doesNotMatch(chooseEntry, /setDiscoverStepIndex|onStepChange|focus\s*\(|autoFocus/);
+  assert.doesNotMatch(component, /autoFocus|\.focus\s*\(/);
+
+  const cardsStart = component.indexOf("function EntryCards");
+  const cards = component.slice(cardsStart, component.indexOf("function HelpMode", cardsStart));
+  assert.match(cards, /welcomeEntries\.map/);
+  assert.match(cards, /aria-pressed=\{selectedKey === entry\.key\}/);
+  assert.match(cards, /w-full[^]*sm:w-auto/);
+  assert.match(cards, /Possibilité sélectionnée : \$\{entry\.title\}/);
+});
+
+test("explains and gates the human-controlled transition to step six", () => {
+  assert.match(component, /const canContinue = stepId !== "welcome-first-action" \|\| Boolean\(selectedEntry\)/);
+  assert.match(component, /stepId === "welcome-first-action" && !selectedEntry \? <p[^>]*>Choisissez une possibilité pour accéder à l’étape 6\.<\/p>/);
+  assert.match(component, /disabled=\{stepIndex === discoverStepIds\.length - 1 \|\| !canContinue\}/);
+  assert.match(component, /onClick=\{\(\) => onStepChange\(Math\.min\(discoverStepIds\.length - 1, stepIndex \+ 1\)\)\}/);
+  assert.match(component, /stepId === "welcome-first-action" && selectedEntry[^]*\? "Suivant : vérifier ce choix"/);
+  assert.match(component, /stepId === "welcome-handoff" \? selectedEntry \?/);
+  assert.match(component, /Étape \{stepIndex \+ 1\} sur \{discoverStepIds\.length\}/);
+});
+
+test("keeps the Dashboard escape explicit and secondary", () => {
+  assert.equal(welcomeGeneralContent.exitLabels.dashboard, "Passer la découverte et ouvrir le Dashboard");
+  assert.match(page, /<Link href="\/dashboard"[^>]*border[^>]*bg-white[^>]*>\s*\{welcomeGeneralContent\.exitLabels\.dashboard\}\s*<\/Link>/);
+  assert.equal((page.match(/Passer la découverte et ouvrir le Dashboard/g) ?? []).length, 0);
+  assert.doesNotMatch(page, /router\.(?:push|replace)|useRouter/);
 });
 
 test("places the dominant mode surface before optional media controls", () => {
