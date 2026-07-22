@@ -129,11 +129,44 @@ test("makes step five the only selectable DISCOVER step", () => {
 test("explains and gates the human-controlled transition to step six", () => {
   assert.match(component, /const canContinue = stepId !== "welcome-first-action" \|\| Boolean\(selectedEntry\)/);
   assert.match(component, /stepId === "welcome-first-action" && !selectedEntry \? <p[^>]*>Choisissez une possibilité pour accéder à l’étape 6\.<\/p>/);
-  assert.match(component, /disabled=\{stepIndex === discoverStepIds\.length - 1 \|\| !canContinue\}/);
+  assert.match(component, /stepIndex < discoverStepIds\.length - 1 \? <button[^>]*disabled=\{!canContinue\}/);
   assert.match(component, /onClick=\{\(\) => onStepChange\(Math\.min\(discoverStepIds\.length - 1, stepIndex \+ 1\)\)\}/);
   assert.match(component, /stepId === "welcome-first-action" && selectedEntry[^]*\? "Suivant : vérifier ce choix"/);
   assert.match(component, /stepId === "welcome-handoff" \? selectedEntry \?/);
   assert.match(component, /Étape \{stepIndex \+ 1\} sur \{discoverStepIds\.length\}/);
+});
+
+test("finishes step six without a fictitious next control", () => {
+  const controlsStart = component.indexOf('data-boussole-id="welcome-resume-controls"');
+  const controls = component.slice(controlsStart, component.indexOf("</section>", controlsStart));
+  assert.match(controls, /<button[^]*?>Précédent<\/button>/);
+  assert.match(controls, /stepIndex < discoverStepIds\.length - 1 \? <button[^]*?>\{nextLabel\}<\/button> : null/);
+  assert.doesNotMatch(controls, /disabled=\{stepIndex === discoverStepIds\.length - 1/);
+  assert.equal(WELCOME_STEP_IDS["welcome-discover"].length, 6);
+});
+
+test("keeps one handoff reassurance and opens confirmation locally", () => {
+  const handoffStart = component.indexOf('{stepId === "welcome-handoff" ?');
+  const handoff = component.slice(handoffStart, component.indexOf("</div> : null}", handoffStart));
+  assert.match(handoff, /<WelcomeHandoffScene entry=\{selectedEntry\} \{\.\.\.sceneProps\}/);
+  assert.equal((handoff.match(/La page ne s’ouvre qu’après votre confirmation\./g) ?? []).length, 0);
+  assert.match(handoff, /<button type="button" onClick=\{\(\) => onConfirm\(selectedEntry\)\}[^>]*>Continuer vers la confirmation<\/button>/);
+  assert.doesNotMatch(component, /text-smfont-bold/);
+  assert.match(handoff, /<button type="button" onClick=\{\(\) => onConfirm\(selectedEntry\)\} className="[^"]*\btext-sm\b[^"]*\bfont-bold\b[^"]*">Continuer vers la confirmation<\/button>/);
+  const localConfirmationStart = handoff.indexOf("<WelcomeHandoffScene");
+  const localConfirmation = handoff.slice(localConfirmationStart, handoff.indexOf("</button>", localConfirmationStart));
+  assert.doesNotMatch(localConfirmation, /<Link|href=|onNavigate/);
+  assert.equal((localConfirmation.match(/onConfirm\(selectedEntry\)/g) ?? []).length, 1);
+
+  const handoffSceneStart = scenes.indexOf("export function WelcomeHandoffScene");
+  const handoffScene = scenes.slice(handoffSceneStart);
+  assert.equal((handoffScene.match(/La vraie page ne s’ouvre qu’après votre confirmation\./g) ?? []).length, 1);
+  assert.match(handoffScene, /text=\{`\$\{entry\.title\} conduit vers une vraie page uniquement après un clic humain\. \$\{welcomeGeneralContent\.completion\.contextualHandoff\}`\}/);
+
+  const confirmationStart = component.indexOf("function EntryConfirmation");
+  const confirmation = component.slice(confirmationStart, component.indexOf("function HumanControlNotice", confirmationStart));
+  assert.equal((confirmation.match(/<Link\b/g) ?? []).length, 1);
+  assert.match(confirmation, /<Link href=\{entry\.route\} onClick=\{onNavigate\}/);
 });
 
 test("keeps the Dashboard escape explicit and secondary", () => {
