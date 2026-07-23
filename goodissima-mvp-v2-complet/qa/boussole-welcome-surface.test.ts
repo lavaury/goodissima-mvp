@@ -98,6 +98,9 @@ test("makes step four illustrative and explicitly leads to selection", () => {
   const overview = component.slice(overviewStart, component.indexOf("function EntryChoices", overviewStart));
   assert.match(overview, /<WelcomeEntryScene selectedKey=\{null\} \{\.\.\.sceneProps\}/);
   assert.doesNotMatch(overview, /<EntryCards|selectable/);
+  assert.match(scenes, /entry\.compactFlow\.map/);
+  assert.match(scenes, /<ol className=\{styles\.compactFlow\}/);
+  assert.doesNotMatch(scenes.slice(scenes.indexOf("export function WelcomeEntryScene"), scenes.indexOf("export function WelcomeHandoffScene")), /<button|onClick|aria-pressed/);
   assert.match(overview, /À l’étape suivante, vous choisirez la possibilité qui vous correspond\./);
   assert.match(component, /stepId === "welcome-entry-points"[^]*\? "Continuer pour choisir"/);
 });
@@ -124,6 +127,11 @@ test("makes step five the only selectable DISCOVER step", () => {
   assert.match(cards, /aria-pressed=\{selectedKey === entry\.key\}/);
   assert.match(cards, /w-full[^]*sm:w-auto/);
   assert.match(cards, /Possibilité sélectionnée : \$\{entry\.title\}/);
+  assert.match(cards, /<strong>Situation type :<\/strong> \{entry\.situationType\}/);
+  assert.match(cards, /entry\.compactFlow\.map/);
+  assert.match(cards, /<details className="mt-3"><summary[^>]*>Voir un exemple détaillé<\/summary>[^]*\{entry\.detailedExample\}[^]*<\/details>/);
+  assert.doesNotMatch(cards, /<details[^>]*\sopen(?:=|\s|>)/);
+  assert.ok(cards.indexOf("</details>") < cards.indexOf('aria-pressed={selectedKey === entry.key}'));
 });
 
 test("explains and gates the human-controlled transition to step six", () => {
@@ -149,6 +157,9 @@ test("keeps one handoff reassurance and opens confirmation locally", () => {
   const handoffStart = component.indexOf('{stepId === "welcome-handoff" ?');
   const handoff = component.slice(handoffStart, component.indexOf("</div> : null}", handoffStart));
   assert.match(handoff, /<WelcomeHandoffScene entry=\{selectedEntry\} \{\.\.\.sceneProps\}/);
+  assert.match(handoff, /Sur la page suivante, vous pourrez/);
+  assert.match(handoff, /selectedEntry\.nextPageCapabilities\.map/);
+  assert.match(handoff, /Rien ne sera créé, publié, envoyé ou décidé avant votre action explicite\./);
   assert.equal((handoff.match(/La page ne s’ouvre qu’après votre confirmation\./g) ?? []).length, 0);
   assert.match(handoff, /<button type="button" onClick=\{\(\) => onConfirm\(selectedEntry\)\}[^>]*>Continuer vers la confirmation<\/button>/);
   assert.doesNotMatch(component, /text-smfont-bold/);

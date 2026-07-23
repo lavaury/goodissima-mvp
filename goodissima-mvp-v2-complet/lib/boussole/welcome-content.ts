@@ -1,5 +1,14 @@
 import type { WelcomeEntry, WelcomeMode } from "./welcome-contracts.ts";
 
+export type WelcomeEntryExample = {
+  situationType: string;
+  detailedExample: string;
+  compactFlow: readonly [string, string, string, string];
+  nextPageCapabilities: readonly [string, string] | readonly [string, string, string];
+};
+
+export type WelcomeEntryContent = WelcomeEntry & WelcomeEntryExample;
+
 export const welcomeGeneralContent = {
   title: "Bienvenue dans Goodissima",
   reassurance: "Vous n’avez pas besoin de tout connaître pour commencer. Vous gardez la maîtrise de chaque suite donnée.",
@@ -34,13 +43,17 @@ export const welcomeGeneralContent = {
   },
 } as const;
 
-export const welcomeEntries: readonly WelcomeEntry[] = [
+export const welcomeEntries: readonly WelcomeEntryContent[] = [
   {
     key: "SIMPLE_LINK",
     stableId: "welcome-entry-simple-link",
     title: "Recevoir des demandes",
     description: "Préparez un formulaire sécurisé, puis partagez son lien lorsque vous êtes prêt.",
     usageExample: "Recueillir des inscriptions, des candidatures ou des demandes de contact.",
+    situationType: "Vous souhaitez recueillir des informations auprès de plusieurs personnes sans multiplier les échanges dispersés.",
+    detailedExample: "Une association prépare une journée de bénévolat. Elle définit les informations utiles, partage elle-même un lien avec les personnes concernées, puis consulte les réponses regroupées dans Goodissima. Elle décide ensuite qui recontacter et comment. Aucun contact n’est effectué automatiquement.",
+    compactFlow: ["Vous préparez les questions", "Vous partagez le lien", "Les réponses sont regroupées", "Vous décidez de la suite"],
+    nextPageCapabilities: ["préparer le recueil", "vérifier les informations demandées", "décider quand partager le lien"],
     humanControlNotice: "Goodissima ne diffuse pas le lien et ne contacte personne automatiquement.",
     route: "/links/simple",
     targetContextId: "simple-link",
@@ -55,7 +68,11 @@ export const welcomeEntries: readonly WelcomeEntry[] = [
     description: "Préparez ce que vous recherchez ou proposez avant de décider de sa publication.",
     explanationOfGoodissimaTerm: "Goodissima appelle cela une opportunité.",
     usageExample: "Présenter un besoin de partenariat, une recherche ou une proposition de service.",
-    humanControlNotice: "La proposition reste à relire et aucune publication n’est automatique.",
+    situationType: "Vous cherchez une ressource, un partenaire ou une compétence, ou vous souhaitez proposer quelque chose.",
+    detailedExample: "Une structure recherche un partenaire local pour un projet. Elle décrit son besoin, relit la proposition, puis décide elle-même si elle souhaite la publier. Elle examine ensuite les réponses reçues. Aucune publication n’a lieu sans validation explicite.",
+    compactFlow: ["Vous décrivez votre besoin", "Vous relisez la proposition", "Vous décidez de publier", "Vous examinez les réponses"],
+    nextPageCapabilities: ["formuler le besoin ou la proposition", "préciser le contexte", "relire avant publication"],
+    humanControlNotice: "Aucune publication n’a lieu sans votre validation explicite.",
     route: "/opportunities/new",
     targetContextId: "opportunities",
     targetJourneyId: null,
@@ -69,7 +86,11 @@ export const welcomeEntries: readonly WelcomeEntry[] = [
     description: "Structurez les personnes, les étapes, les documents et les décisions à suivre.",
     explanationOfGoodissimaTerm: "Goodissima appelle ce cadre un parcours gouverné.",
     usageExample: "Coordonner un projet nécessitant plusieurs responsabilités et validations.",
-    humanControlNotice: "Aucun participant n’est invité et aucun processus ne démarre automatiquement.",
+    situationType: "Plusieurs personnes doivent intervenir, suivre des étapes, consulter des documents ou participer à des décisions.",
+    detailedExample: "Une équipe doit organiser la sélection de candidats. Elle définit l’objectif, structure les étapes, précise les rôles et prépare les validations nécessaires. Aucun participant n’est invité et aucune décision n’est prise automatiquement.",
+    compactFlow: ["Un objectif commun", "Des étapes organisées", "Des personnes concernées", "Des validations humaines"],
+    nextPageCapabilities: ["définir le cadre du parcours", "organiser les étapes", "vérifier les responsabilités avant invitation"],
+    humanControlNotice: "Aucun participant n’est invité et aucune décision n’est prise automatiquement.",
     route: "/gouvernance/nouveau",
     targetContextId: "new-governed-journey",
     targetJourneyId: "choose-governed-format",
@@ -82,7 +103,11 @@ export const welcomeEntries: readonly WelcomeEntry[] = [
     title: "Retrouver et piloter mon activité",
     description: "Retrouvez vos liens, opportunités, parcours et événements récents depuis votre vue d’ensemble.",
     usageExample: "Reprendre une activité existante et ouvrir les éléments qui demandent votre attention.",
-    humanControlNotice: "Les indicateurs vous orientent, mais ils ne choisissent ni ne traitent vos priorités automatiquement.",
+    situationType: "Vous avez déjà commencé à utiliser Goodissima et souhaitez retrouver ce qui mérite votre attention.",
+    detailedExample: "Vous souhaitez reprendre un lien récemment partagé, retrouver une opportunité ou ouvrir un parcours en attente. Vous consultez votre vue d’ensemble, examinez les éléments récents, puis choisissez vous-même la priorité à traiter.",
+    compactFlow: ["Vos activités existantes", "Une vue d’ensemble", "Les éléments à examiner", "Vous choisissez la priorité"],
+    nextPageCapabilities: ["retrouver les activités récentes", "identifier les éléments à examiner", "ouvrir l’activité choisie"],
+    humanControlNotice: "Les indicateurs vous orientent, mais ne choisissent ni ne traitent vos priorités automatiquement.",
     route: "/dashboard",
     targetContextId: "dashboard",
     targetJourneyId: "repères",
@@ -91,7 +116,7 @@ export const welcomeEntries: readonly WelcomeEntry[] = [
   },
 ] as const;
 
-export function getWelcomeEntry(key: WelcomeEntry["key"]): WelcomeEntry {
+export function getWelcomeEntry(key: WelcomeEntry["key"]): WelcomeEntryContent {
   const entry = welcomeEntries.find((candidate) => candidate.key === key);
   if (!entry) throw new Error(`Unknown welcome entry: ${key}`);
   return entry;

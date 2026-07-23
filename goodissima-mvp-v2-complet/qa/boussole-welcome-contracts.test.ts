@@ -38,12 +38,26 @@ test("maps every entry key to its exact stable target and route", () => {
 test("provides complete, progressive and human-controlled entry content", () => {
   for (const entry of welcomeEntries) {
     assert.ok(entry.title.trim() && entry.description.trim() && entry.usageExample.trim());
+    assert.ok(entry.situationType.trim() && entry.detailedExample.trim());
+    assert.equal(entry.compactFlow.length, 4);
+    assert.ok(entry.compactFlow.every((step) => step.trim().length > 0));
+    assert.ok(entry.nextPageCapabilities.length === 2 || entry.nextPageCapabilities.length === 3);
+    assert.ok(entry.nextPageCapabilities.every((capability) => capability.trim().length > 0));
     assert.match(entry.humanControlNotice, /ne |aucun|aucune|mais/i);
   }
   assert.match(welcomeEntries[1].explanationOfGoodissimaTerm ?? "", /opportunité/i);
   assert.match(welcomeEntries[2].explanationOfGoodissimaTerm ?? "", /parcours gouverné/i);
   assert.equal(welcomeEntries[1].targetJourneyId, null);
   assert.equal(welcomeEntries[1].contextualGuidanceStatus, "NEEDS_DEDICATED_JOURNEY");
+});
+
+test("keeps pedagogical examples generic and free of identifiers or fictitious figures", () => {
+  const examples = welcomeEntries.map(({ situationType, detailedExample, compactFlow, nextPageCapabilities }) => (
+    JSON.stringify({ situationType, detailedExample, compactFlow, nextPageCapabilities })
+  )).join(" ");
+
+  assert.doesNotMatch(examples, /https?:\/\/|[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:^|\W)\d+(?:\W|$)/i);
+  assert.doesNotMatch(examples, /\b(?:SIREN|SIRET|UUID|identifiant|dossier\s+n[°º])\b/i);
 });
 
 test("orients four goals and leaves UNSURE unselected", () => {
