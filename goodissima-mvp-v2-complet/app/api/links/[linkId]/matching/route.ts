@@ -93,6 +93,22 @@ export async function POST(request: Request, { params }: { params: { linkId: str
   }
 }
 
+export async function GET(_request: Request, { params }: { params: { linkId: string } }) {
+  const owner = await getCurrentPrismaUser();
+  const source = await new PrismaGLinkMatchingSourceStore(prisma).findSourceForOwner(owner.id, params.linkId);
+  if (!source) return NextResponse.json({ error: "MATCHING_SOURCE_NOT_FOUND" }, { status: 404 });
+  const lifecycle = new MatchingLifecycleService(createPrismaMatchingRepository(prisma));
+  const persisted = await lifecycle.getLatestMatchingRunWithResultsForGLink({
+    ownerId: owner.id,
+    gLinkId: params.linkId,
+  });
+  return NextResponse.json({
+    enabled: parseGLinkMatchingState(source.rules).enabled,
+    run: persisted ? publicDetailedRun(persisted.run) : null,
+    results: persisted?.results.map(publicResult) ?? [],
+  });
+}
+
 export async function PATCH(request: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
   const resolved = await linkSource(params.linkId, owner.id);
@@ -145,6 +161,14 @@ function publicRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatc
     createdAt: run.createdAt.toISOString(),
     completedAt: run.completedAt?.toISOString() ?? null,
     failureCode: run.failureCode,
+  };
+}
+
+function publicDetailedRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatchingRun"]>>) {
+  return {
+    ...publicRun(run),
+    startedAt: run.startedAt?.toISOString() ?? null,
+    failedAt: run.failedAt?.toISOString() ?? null,
   };
 }
 

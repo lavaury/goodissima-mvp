@@ -131,6 +131,10 @@ export class MatchingLifecycleService {
     return this.repository.findRunWithResultsForOwner(input.ownerId, input.runId);
   }
 
+  getLatestMatchingRunWithResultsForGLink(input: { ownerId: string; gLinkId: string }) {
+    return this.repository.findLatestRunWithResultsForGLink(input.ownerId, input.gLinkId);
+  }
+
   async listMatchingRunsForGLink(input: {
     ownerId: string; gLinkId: string; limit?: number; cursor?: string;
   }): Promise<MatchingRunListPage> {

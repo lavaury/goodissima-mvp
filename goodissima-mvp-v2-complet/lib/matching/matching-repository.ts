@@ -48,6 +48,7 @@ export type MatchingRepository = {
   findRunForOwner(ownerId: string, runId: string): Promise<MatchingRunRecord | null>;
   findRunByIdempotencyKey(ownerId: string, idempotencyKey: string): Promise<MatchingRunRecord | null>;
   findRunWithResultsForOwner(ownerId: string, runId: string): Promise<{ run: MatchingRunRecord; results: MatchingResultRecord[] } | null>;
+  findLatestRunWithResultsForGLink(ownerId: string, gLinkId: string): Promise<{ run: MatchingRunRecord; results: MatchingResultRecord[] } | null>;
   listRunsForGLink(ownerId: string, gLinkId: string, limit: number, cursor?: string): Promise<MatchingRunListPage>;
   createRun(input: MatchingRunCreate): Promise<MatchingRunRecord>;
   updateRunConditionally(input: {
@@ -162,6 +163,15 @@ export class PrismaMatchingRepository implements MatchingRepository {
   async findRunWithResultsForOwner(ownerId: string, runId: string) {
     const row = await this.client.matchingRun.findFirst({
       where: { id: runId, ownerId },
+      include: { results: { orderBy: [{ internalRank: "asc" }, { createdAt: "asc" }, { id: "asc" }] } },
+    });
+    return row ? { run: mapRun(row), results: row.results.map(mapResult) } : null;
+  }
+
+  async findLatestRunWithResultsForGLink(ownerId: string, gLinkId: string) {
+    const row = await this.client.matchingRun.findFirst({
+      where: { ownerId, gLinkId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: { results: { orderBy: [{ internalRank: "asc" }, { createdAt: "asc" }, { id: "asc" }] } },
     });
     return row ? { run: mapRun(row), results: row.results.map(mapResult) } : null;

@@ -60,6 +60,13 @@ class MemoryMatchingRepository implements MatchingRepository {
     };
   }
 
+  async findLatestRunWithResultsForGLink(ownerId: string, gLinkId: string) {
+    const run = [...this.runs.values()]
+      .filter((item) => item.ownerId === ownerId && item.gLinkId === gLinkId)
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime() || right.id.localeCompare(left.id))[0];
+    return run ? this.findRunWithResultsForOwner(ownerId, run.id) : null;
+  }
+
   async listRunsForGLink(ownerId: string, gLinkId: string, limit: number, cursor?: string): Promise<MatchingRunListPage> {
     const all = [...this.runs.values()]
       .filter((run) => run.ownerId === ownerId && run.gLinkId === gLinkId)
