@@ -51,8 +51,8 @@ test("GLink route and pilotage reuse existing engines with human actions only", 
   assert.match(route, /semanticMatchV2/);
   assert.match(route, /glink_matching_analysis/);
   assert.match(pilotage, /GLINK:\$\{link\.id\}:MATCHING_TO_ANALYZE/);
-  assert.match(pilotage, /Correspondances à examiner/);
-  assert.match(pilotage, /Suite à décider/);
+  assert.match(pilotage, /MATCHES_TO_REVIEW/);
+  assert.match(pilotage, /FOLLOW_UP_TO_DECIDE/);
   assert.match(page, /Aucun contact automatique/);
   assert.match(page, /Activer le matching/);
   assert.match(page, /window\.confirm/);

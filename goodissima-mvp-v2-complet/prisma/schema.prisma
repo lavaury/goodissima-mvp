@@ -47,6 +47,21 @@ enum RelationGovernanceStatus {
   BLOCKED
 }
 
+enum MatchingRunStatus {
+  PREPARED
+  RUNNING
+  RESULTS_AVAILABLE
+  FAILED
+  CLOSED
+}
+
+enum MatchingResultStatus {
+  AVAILABLE
+  SELECTED
+  DISMISSED
+  LINKED
+}
+
 enum SenderType {
   OWNER
   CANDIDATE
@@ -244,6 +259,7 @@ model User {
 
   links                   GLink[]
   cases                   RelationCase[]              @relation("OwnerCases")
+  matchingRuns            MatchingRun[]                @relation("MatchingRunOwner")
   portfolios              Portfolio[]                  @relation("OwnerPortfolios")
   workspaces              Workspace[]                 @relation("OwnerWorkspaces")
   communicationSessions   CommunicationSession[]
@@ -450,6 +466,8 @@ model GLink {
   cases                RelationCase[]
   trustPolicies        TrustPolicy[]
   trustAdmissionTokens TrustAdmissionToken[]
+  matchingRuns         MatchingRun[]    @relation("MatchingRunSourceGLink")
+  matchingResults      MatchingResult[] @relation("MatchingResultTargetGLink")
 
   @@index([workspaceId])
 }
@@ -497,10 +515,63 @@ model RelationCase {
   trustPolicies     TrustPolicy[]
   productFeedback   ProductFeedback[]
   communicationSessions CommunicationSession[]
+  matchingResults   MatchingResult[]
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
   @@index([workspaceId])
+}
+
+model MatchingRun {
+  id               String            @id @default(cuid())
+  gLinkId          String
+  ownerId          String
+  status           MatchingRunStatus @default(PREPARED)
+  isPaused         Boolean           @default(false)
+  engineVersion    String
+  criteriaSnapshot Json
+  startedAt        DateTime?
+  completedAt      DateTime?
+  failedAt         DateTime?
+  pausedAt         DateTime?
+  closedAt         DateTime?
+  failureCode      String?
+  idempotencyKey   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  gLink   GLink            @relation("MatchingRunSourceGLink", fields: [gLinkId], references: [id], onDelete: Restrict)
+  owner   User             @relation("MatchingRunOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  results MatchingResult[]
+
+  @@index([gLinkId, createdAt])
+  @@index([ownerId, status])
+  @@index([ownerId, isPaused])
+  @@unique([ownerId, idempotencyKey])
+}
+
+model MatchingResult {
+  id             String               @id @default(cuid())
+  runId          String
+  targetGLinkId  String
+  status         MatchingResultStatus @default(AVAILABLE)
+  explanation    Json
+  internalRank   Int?
+  selectedAt     DateTime?
+  dismissedAt    DateTime?
+  linkedAt       DateTime?
+  relationCaseId String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  run          MatchingRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  targetGLink  GLink         @relation("MatchingResultTargetGLink", fields: [targetGLinkId], references: [id], onDelete: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+
+  @@unique([runId, targetGLinkId])
+  @@index([runId, status])
+  @@index([targetGLinkId])
+  @@index([relationCaseId])
 }
 
 model EmbeddingJob {
