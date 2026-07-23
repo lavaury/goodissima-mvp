@@ -19,7 +19,7 @@ const items = [
   { label: "Parcours", href: "/parcours", legacyHref: "/templates" },
   { label: "Relations", href: "/relations" },
   { label: "IA & Valeur", href: "/ia-valeur" },
-  { label: "Boussole", href: "/boussole" },
+  { label: "Boussole", href: "/boussole/decouverte" },
   { label: "Administration", href: "/administration" },
 ];
 
@@ -36,6 +36,7 @@ const boussoleIds: Record<string, string> = {
   "/parcours": "open-journeys",
   "/relations": "open-relations",
   "/ia-valeur": "open-ai-value",
+  "/boussole/decouverte": "open-boussole-from-navigation",
 };
 
 export function PlatformNavigation({
@@ -83,7 +84,7 @@ export function PlatformNavigation({
             : active === "identity"
               ? "/identity"
               : active === "boussole"
-                ? "/boussole"
+                ? "/boussole/decouverte"
               : "/settings";
   const resolvedActiveHref = pathname === "/gouvernance" || pathname.startsWith("/gouvernance/parcours/")
     ? "/gouvernance"
@@ -97,12 +98,13 @@ export function PlatformNavigation({
 
   return (
     <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <nav data-boussole-navigation="global" className="flex gap-2 overflow-x-auto rounded-2xl border bg-white p-2 pr-28 shadow-sm sm:pr-2">
+      <nav aria-label="Navigation principale" data-boussole-navigation="global" className="flex gap-2 overflow-x-auto rounded-2xl border bg-white p-2 pr-28 shadow-sm sm:pr-2">
         {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             data-boussole-id={boussoleIds[item.href]}
+            aria-current={item.href === resolvedActiveHref ? "page" : undefined}
             className={
               item.href === resolvedActiveHref
                 ? "whitespace-nowrap rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"

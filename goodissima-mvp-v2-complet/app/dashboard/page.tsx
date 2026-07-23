@@ -269,6 +269,7 @@ export default async function DashboardPage({
   ]
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .slice(0, 10);
+  const hasDashboardActivity = links.length > 0 || cases.length > 0;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -291,6 +292,22 @@ export default async function DashboardPage({
         </div>
       </div>
       <div data-boussole-id="dashboard-menu"><PlatformNavigation active="dashboard" organizationName={organizationName} /></div>
+      <section data-boussole-id="open-boussole-from-dashboard" className="mb-8 rounded-2xl border border-cyan-200 bg-cyan-50/70 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#247f88]">Découvrir Goodissima</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Choisir le bon point de départ</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-700">
+              {hasDashboardActivity
+                ? "La Boussole vous aide à retrouver le parcours adapté à votre intention, sans modifier votre activité existante."
+                : "Vous ne savez pas par où commencer ? La Boussole présente les possibilités et vous laisse choisir librement votre point de départ."}
+            </p>
+          </div>
+          <Link href="/boussole/decouverte" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-cyan-900 px-4 py-2 text-sm font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2">
+            Ouvrir la Boussole
+          </Link>
+        </div>
+      </section>
       <section className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>

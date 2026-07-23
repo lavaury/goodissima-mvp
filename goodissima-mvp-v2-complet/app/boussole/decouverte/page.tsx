@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BoussoleWelcomeDiscovery } from "@/components/BoussoleWelcomeDiscovery";
+import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { requireCurrentUser } from "@/lib/auth";
 import { welcomeGeneralContent } from "@/lib/boussole/welcome-content";
 
@@ -8,6 +9,7 @@ export default async function BoussoleWelcomeDiscoveryPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <PlatformNavigation active="boussole" />
       <header className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50 to-white p-6 shadow-sm sm:p-8">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#247f88]">Boussole d’accueil</p>
         <h1 className="mt-3 text-3xl font-bold text-slate-950 sm:text-4xl">{welcomeGeneralContent.title}</h1>
