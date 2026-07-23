@@ -44,11 +44,16 @@ test("GLink matching is disabled by default and requires explicit opt-in", () =>
 
 test("GLink route and pilotage reuse existing engines with human actions only", () => {
   const route = source("app/api/links/[linkId]/matching/route.ts");
+  const execution = source("lib/matching/matching-execution-service.ts");
+  const engineAdapter = source("lib/matching/glink-matching-engine-adapter.ts");
   const pilotage = source("lib/governance-pilotage-repository.ts");
   const page = source("components/GLinkMatchingPanel.tsx");
   const creation = source("app/api/links/simple/route.ts");
-  assert.match(route, /rankMatches/);
-  assert.match(route, /semanticMatchV2/);
+  assert.match(engineAdapter, /rankMatches/);
+  assert.match(engineAdapter, /semanticMatchV2/);
+  assert.match(route, /MatchingExecutionService/);
+  assert.match(route, /Idempotency-Key/);
+  assert.match(route, /matchingResult\.findFirst/);
   assert.match(route, /glink_matching_analysis/);
   assert.match(pilotage, /GLINK:\$\{link\.id\}:MATCHING_TO_ANALYZE/);
   assert.match(pilotage, /MATCHES_TO_REVIEW/);
@@ -57,5 +62,5 @@ test("GLink route and pilotage reuse existing engines with human actions only", 
   assert.match(page, /Activer le matching/);
   assert.match(page, /window\.confirm/);
   assert.match(creation, /matchingEnabled: body\.matchingEnabled === true/);
-  assert.doesNotMatch(route, /sendEmail|sendMail|notification|candidateAccessToken|RelationCase\.create/);
+  assert.doesNotMatch(`${route}\n${execution}`, /sendEmail|sendMail|notification|candidateAccessToken|RelationCase\.create/);
 });

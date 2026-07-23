@@ -213,6 +213,7 @@ export class PrismaMatchingRepository implements MatchingRepository {
   }
 
   async createMissingResults(ownerId: string, runId: string, results: MatchingResultCreate[]) {
+    if (results.length === 0) return;
     const ownedRun = await this.client.matchingRun.findFirst({
       where: { id: runId, ownerId, status: "RUNNING", isPaused: false },
       select: { id: true },
