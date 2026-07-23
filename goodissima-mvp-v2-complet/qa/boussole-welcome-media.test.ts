@@ -20,6 +20,27 @@ test("provides four local pedagogical scenes backed by shared content", () => {
   assert.doesNotMatch(scenes, /[\w.+-]+@[\w.-]+|faux dossier|notification inventée|résultat de matching/i);
 });
 
+test("uses one accessible inline SVG system for all four entry families", () => {
+  assert.match(scenes, /function WelcomeFlowIcon\(\{ entryKey, stepIndex \}: \{ entryKey: WelcomeEntryKey; stepIndex: number \}\)/);
+  assert.match(scenes, /<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1\.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">/);
+  assert.doesNotMatch(scenes, /[◆⋮♙◇▦◷]/);
+  assert.match(scenes, /SIMPLE_LINK: \["form", "link", "responses", "human"\]/);
+  assert.match(scenes, /OPPORTUNITY: \["write", "review", "publish", "responses"\]/);
+  assert.match(scenes, /GOVERNED_JOURNEY: \["goal", "steps", "people", "shield"\]/);
+  assert.match(scenes, /EXISTING_ACTIVITY: \["activity", "overview", "items", "human"\]/);
+  assert.match(scenes, /WelcomeEntryBanner[^]*<WelcomeFlowIcon entryKey=\{entryKey\} stepIndex=\{index\}/);
+  assert.match(scenes, /WelcomeEntryFlow[^]*<WelcomeFlowIcon entryKey=\{entry\.key\} stepIndex=\{index\}/);
+});
+
+test("moves the global detail panel beside readable cards only on wide desktops", () => {
+  assert.match(discovery, /welcomeStyles\.entryChoices[^]*detailEntry \? welcomeStyles\.entryChoicesWithDetail/);
+  assert.match(discovery, /welcomeStyles\.entryCardsGrid[^]*detailEntry \? <section id="welcome-entry-detail-panel"/);
+  assert.match(css, /\.entryChoices \{ display: grid;[^}]*gap: 1\.5rem/);
+  assert.match(css, /@media \(min-width: 1280px\) \{[^]*\.entryChoicesWithDetail \{ grid-template-columns: minmax\(0, 2fr\) minmax\(20rem, 1fr\)/);
+  assert.doesNotMatch(css, /position:\s*fixed/);
+  assert.doesNotMatch(discovery, /role="dialog"|aria-modal|fixed inset|overlay/i);
+});
+
 test("preserves targets and makes the human-decision threshold explicit", () => {
   assert.match(scenes, /targetId="welcome-situation-illustration"/);
   assert.match(scenes, /targetId="welcome-principle-illustration"/);
@@ -120,6 +141,10 @@ test("keeps complete scene descriptions accessible behind native disclosures", (
     assert.match(scene, /<SceneFrame[^>]*shortDescription=/);
     assert.match(scene, /text=/);
   }
+  const entryScene = scenes.slice(scenes.indexOf("export function WelcomeEntryScene"), scenes.indexOf("export function WelcomeHandoffScene"));
+  assert.match(entryScene, /showDetails=\{false\}/);
+  assert.doesNotMatch(entryScene, /<details|<button|onClick/);
+  assert.match(scenes, /<p id=\{shortDescriptionId\} className="sr-only">\{text\}<\/p>/);
 });
 
 test("separates manual stop from contextual audio reset", () => {

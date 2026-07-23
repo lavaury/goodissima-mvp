@@ -99,8 +99,11 @@ test("makes step four illustrative and explicitly leads to selection", () => {
   assert.match(overview, /<WelcomeEntryScene selectedKey=\{null\} \{\.\.\.sceneProps\}/);
   assert.doesNotMatch(overview, /<EntryCards|selectable/);
   assert.match(scenes, /entry\.compactFlow\.map/);
-  assert.match(scenes, /<ol className=\{styles\.compactFlow\}/);
-  assert.doesNotMatch(scenes.slice(scenes.indexOf("export function WelcomeEntryScene"), scenes.indexOf("export function WelcomeHandoffScene")), /<button|onClick|aria-pressed/);
+  assert.match(scenes, /<WelcomeEntryFlow entry=\{entry\} compact \/>/);
+  const entryScene = scenes.slice(scenes.indexOf("export function WelcomeEntryScene"), scenes.indexOf("export function WelcomeHandoffScene"));
+  assert.match(entryScene, /showDetails=\{false\}/);
+  assert.match(entryScene, /welcomeEntries\.map/);
+  assert.doesNotMatch(entryScene, /<button|onClick|aria-pressed|<details/);
   assert.match(overview, /À l’étape suivante, vous choisirez la possibilité qui vous correspond\./);
   assert.match(component, /stepId === "welcome-entry-points"[^]*\? "Continuer pour choisir"/);
 });
@@ -125,13 +128,18 @@ test("makes step five the only selectable DISCOVER step", () => {
   const cards = component.slice(cardsStart, component.indexOf("function HelpMode", cardsStart));
   assert.match(cards, /welcomeEntries\.map/);
   assert.match(cards, /aria-pressed=\{selectedKey === entry\.key\}/);
-  assert.match(cards, /w-full[^]*sm:w-auto/);
+  assert.match(cards, /aria-pressed=\{selectedKey === entry\.key\}[^]*className="[^"]*w-full[^"]*bg-slate-900/);
   assert.match(cards, /Possibilité sélectionnée : \$\{entry\.title\}/);
-  assert.match(cards, /<strong>Situation type :<\/strong> \{entry\.situationType\}/);
-  assert.match(cards, /entry\.compactFlow\.map/);
-  assert.match(cards, /<details className="mt-3"><summary[^>]*>Voir un exemple détaillé<\/summary>[^]*\{entry\.detailedExample\}[^]*<\/details>/);
-  assert.doesNotMatch(cards, /<details[^>]*\sopen(?:=|\s|>)/);
-  assert.ok(cards.indexOf("</details>") < cards.indexOf('aria-pressed={selectedKey === entry.key}'));
+  assert.match(cards, /<WelcomeEntryBanner entryKey=\{entry\.key\} \/>/);
+  assert.match(cards, /<WelcomeEntryFlow entry=\{entry\} \/>/);
+  assert.match(cards, /Situation type[^]*\{entry\.situationType\}/);
+  assert.doesNotMatch(cards.slice(0, cards.indexOf("</article>")), /entry\.detailedExample|<details/);
+  assert.match(cards, /aria-expanded=\{detailKey === entry\.key\}/);
+  assert.match(cards, /aria-controls="welcome-entry-detail-panel"/);
+  assert.match(cards, /const \[detailKey, setDetailKey\] = useState<WelcomeEntryKey \| null>\(null\)/);
+  assert.match(cards, /detailEntry \? <section id="welcome-entry-detail-panel"[^]*\{detailEntry\.title\}[^]*\{detailEntry\.detailedExample\}/);
+  assert.match(cards, /onClick=\{\(\) => setDetailKey\(null\)\}[^>]*>Fermer l’exemple détaillé<\/button>/);
+  assert.ok(cards.indexOf('aria-expanded={detailKey === entry.key}') < cards.indexOf('aria-pressed={selectedKey === entry.key}'));
 });
 
 test("explains and gates the human-controlled transition to step six", () => {
