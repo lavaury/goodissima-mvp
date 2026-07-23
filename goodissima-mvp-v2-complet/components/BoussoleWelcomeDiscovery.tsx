@@ -142,10 +142,13 @@ export function BoussoleWelcomeDiscovery() {
         reducedMotion={reducedMotion}
         audioState={audio.state}
         transcript={audio.transcript}
+        chimeEnabled={audio.chimeEnabled}
+        isIntroducing={audio.isIntroducing}
         onPlayAnimation={() => setAnimationState("playing")}
         onPauseAnimation={() => setAnimationState("paused")}
         onRestartAnimation={() => { setSceneRunId((current) => current + 1); setAnimationState("playing"); }}
         onReducedMotionChange={changeReducedMotion}
+        onChimeEnabledChange={audio.setChimeEnabled}
         onPlayAudio={() => audio.play(narrationText)}
         onPauseAudio={audio.pause}
         onResumeAudio={audio.resume}

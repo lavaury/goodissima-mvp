@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { playWelcomeChime } from "../components/boussole/welcome/useWelcomeAudioGuide.ts";
 
 const discovery = readFileSync(new URL("../components/BoussoleWelcomeDiscovery.tsx", import.meta.url), "utf8");
 const scenes = readFileSync(new URL("../components/boussole/welcome/WelcomeScenes.tsx", import.meta.url), "utf8");
@@ -78,7 +79,7 @@ test("handles unavailable speech and cleans narration lifecycle", () => {
   assert.match(audio, /utteranceRef\.current = null[^]*speechSynthesis\?\.cancel\(\)/);
   assert.match(discovery, /function changeMode[^]*audio\.reset\(\)/);
   assert.match(discovery, /onClick=\{onNavigate\}/);
-  assert.doesNotMatch(audio, /fetch\s*\(|AudioContext|MediaRecorder|getUserMedia/);
+  assert.doesNotMatch(audio, /fetch\s*\(|MediaRecorder|getUserMedia/);
 });
 
 test("preserves pause across steps and makes restart explicitly resume animation", () => {
@@ -123,6 +124,59 @@ test("keeps media options collapsed and renders only relevant audio commands", (
   assert.match(controls, /<details[^>]*>[^]*Transcription de la présentation[^]*\{transcript\}/);
 });
 
+test("offers an enabled-by-default, local-only musical introduction", () => {
+  assert.match(audio, /const \[chimeEnabled, setChimeEnabled\] = useState\(true\)/);
+  assert.match(controls, /checked=\{chimeEnabled\}[^]*onChimeEnabledChange\(event\.target\.checked\)[^]*Jouer la courte introduction musicale/);
+  assert.match(discovery, /chimeEnabled=\{audio\.chimeEnabled\}[^]*onChimeEnabledChange=\{audio\.setChimeEnabled\}/);
+  assert.match(audio, /if \(chimeEnabled && "AudioContext" in window\)/);
+  assert.match(audio, /await playWelcomeChime[^]*window\.speechSynthesis\.speak\(utterance\)/);
+  assert.match(audio, /catch \{[^]*optional chime must never prevent the spoken presentation/);
+});
+
+test("synthesizes three finite ascending notes without a loop", async () => {
+  const frequencies: number[] = [];
+  let oscillatorCount = 0;
+  const context = {
+    currentTime: 0,
+    destination: {},
+    createOscillator() {
+      oscillatorCount += 1;
+      const oscillator = {
+        type: "",
+        onended: null as null | (() => void),
+        frequency: { setValueAtTime(value: number) { frequencies.push(value); } },
+        connect() {},
+        disconnect() {},
+        start() {},
+        stop() { queueMicrotask(() => oscillator.onended?.()); },
+      };
+      return oscillator;
+    },
+    createGain() {
+      return {
+        gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+        connect() {},
+        disconnect() {},
+      };
+    },
+  };
+
+  await playWelcomeChime({ audioContext: context as unknown as AudioContext });
+  assert.equal(oscillatorCount, 3);
+  assert.deepEqual(frequencies, [392, 493.88, 587.33]);
+  assert.doesNotMatch(audio, /\.loop\s*=|loop:\s*true|setInterval/);
+});
+
+test("reuses one AudioContext and invalidates stopped or superseded sessions", () => {
+  assert.match(audio, /const audioContextRef = useRef<AudioContext \| null>\(null\)/);
+  assert.match(audio, /audioContextRef\.current \?\? new AudioContext\(\)/);
+  assert.match(audio, /audioContext\.state === "suspended"[^]*await audioContext\.resume\(\)/);
+  assert.match(audio, /cancelActiveSession\(\)[^]*const sessionId = sessionRef\.current/);
+  assert.match(audio, /sessionRef\.current !== sessionId \|\| chimeAbort\.signal\.aborted/);
+  assert.match(audio, /chimeAbortRef\.current\?\.abort\(\)[^]*speechSynthesis\?\.cancel\(\)/);
+  assert.match(audio, /audioContext\.state !== "closed"[^]*audioContext\.close\(\)/);
+});
+
 test("keeps complete scene descriptions accessible behind native disclosures", () => {
   assert.match(scenes, /const generatedId = useId\(\)/);
   assert.match(scenes, /const shortDescriptionId = `[^`]*\$\{generatedId\}[^`]*`/);
@@ -151,10 +205,10 @@ test("separates manual stop from contextual audio reset", () => {
   const stop = audio.slice(audio.indexOf("const stop"), audio.indexOf("const reset"));
   const resetStart = audio.indexOf("const reset");
   const reset = audio.slice(resetStart, audio.indexOf("useEffect", resetStart));
-  assert.match(stop, /cancelActiveUtterance\(\)[^]*setState/);
+  assert.match(stop, /cancelActiveSession\(\)[^]*setState/);
   assert.doesNotMatch(stop, /setTranscript/);
-  assert.match(reset, /cancelActiveUtterance\(\)[^]*setState[^]*setTranscript\(""\)/);
-  assert.match(audio, /return \{ state, transcript, play, pause, resume, stop, reset \}/);
+  assert.match(reset, /cancelActiveSession\(\)[^]*setState[^]*setTranscript\(""\)/);
+  assert.match(audio, /return \{ state, transcript, chimeEnabled, isIntroducing, setChimeEnabled, play, pause, resume, stop, reset \}/);
 
   const modeHandler = discovery.slice(discovery.indexOf("function changeMode"), discovery.indexOf("function changeDiscoverStep"));
   const stepHandler = discovery.slice(discovery.indexOf("function changeDiscoverStep"), discovery.indexOf("function changeReducedMotion"));
@@ -178,7 +232,7 @@ test("makes the first scene tell a calm dispersed-to-common-frame story", () => 
 
 test("guards current utterance callbacks and neutralizes stale callbacks before cancel", () => {
   assert.match(audio, /if \(utteranceRef\.current !== utterance\) return/g);
-  const cancelHelper = audio.slice(audio.indexOf("const cancelActiveUtterance"), audio.indexOf("const stop"));
+  const cancelHelper = audio.slice(audio.indexOf("const cancelActiveSession"), audio.indexOf("const stop"));
   assert.match(cancelHelper, /activeUtterance\.onend = null[^]*activeUtterance\.onerror = null[^]*utteranceRef\.current = null[^]*cancel\(\)/);
   const cleanup = audio.slice(audio.indexOf("return \(\) => {"), audio.indexOf("const play"));
   assert.match(cleanup, /activeUtterance\.onend = null[^]*activeUtterance\.onerror = null[^]*utteranceRef\.current = null[^]*cancel\(\)/);
@@ -188,5 +242,5 @@ test("adds no persistence, external service or automatic navigation", () => {
   assert.doesNotMatch(source, /localStorage|sessionStorage|document\.cookie|cookies\s*\(/);
   assert.doesNotMatch(source, /router\.(?:push|replace)|useRouter|setTimeout|requestAnimationFrame/);
   assert.doesNotMatch(source, /fetch\s*\(|\/api\/|Mistral|Repository|repository/);
-  assert.doesNotMatch(source, /<audio|\.mp3|\.wav|https?:\/\//i);
+  assert.doesNotMatch(source, /<audio\b|\.mp3|\.wav|https?:\/\//i);
 });
