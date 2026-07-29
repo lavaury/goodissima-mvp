@@ -1,14 +1,41 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import test from "node:test";
 import { playWelcomeChime } from "../components/boussole/welcome/useWelcomeAudioGuide.ts";
 
 const discovery = readFileSync(new URL("../components/BoussoleWelcomeDiscovery.tsx", import.meta.url), "utf8");
+const page = readFileSync(new URL("../app/boussole/decouverte/page.tsx", import.meta.url), "utf8");
+const welcomeVideo = readFileSync(new URL("../components/BoussoleWelcomeVideo.tsx", import.meta.url), "utf8");
 const scenes = readFileSync(new URL("../components/boussole/welcome/WelcomeScenes.tsx", import.meta.url), "utf8");
 const controls = readFileSync(new URL("../components/boussole/welcome/WelcomeMediaControls.tsx", import.meta.url), "utf8");
 const audio = readFileSync(new URL("../components/boussole/welcome/useWelcomeAudioGuide.ts", import.meta.url), "utf8");
 const css = readFileSync(new URL("../components/boussole/welcome/welcome-scenes.module.css", import.meta.url), "utf8");
 const source = [discovery, scenes, controls, audio, css].join("\n");
+
+test("adds the optional local introduction video without automatic playback", () => {
+  assert.ok(statSync(new URL("../public/media/boussole-introduction.mp4", import.meta.url)).size > 0);
+  assert.match(page, /<BoussoleWelcomeVideo \/>/);
+  assert.match(page, /lg:grid-cols-/);
+  assert.match(welcomeVideo, /<figure/);
+  assert.match(welcomeVideo, /<video/);
+  assert.match(welcomeVideo, /controls/);
+  assert.match(welcomeVideo, /playsInline/);
+  assert.match(welcomeVideo, /preload="metadata"/);
+  assert.match(welcomeVideo, /aspect-video/);
+  assert.match(welcomeVideo, /<source src="\/media\/boussole-introduction\.mp4" type="video\/mp4" \/>/);
+  assert.match(welcomeVideo, /Une introduction visuelle à la raison d’être de Goodissima\./);
+  assert.match(welcomeVideo, /Vous pouvez poursuivre la découverte sans la regarder\./);
+  assert.match(welcomeVideo, /focus-visible:ring/);
+  assert.doesNotMatch(welcomeVideo, /autoPlay|\.play\s*\(|https?:\/\//i);
+  assert.doesNotMatch(welcomeVideo, /poster=|<track\b|\.vtt|transcription[^\n]*href/i);
+});
+
+test("keeps the video independent from Boussole state and business actions", () => {
+  const videoSurface = page + welcomeVideo;
+  assert.doesNotMatch(videoSurface, /onPlay=|onEnded=|onTimeUpdate=|onLoadedMetadata=|fetch\s*\(|router\.(?:push|replace)|useRouter/);
+  assert.doesNotMatch(videoSurface, /WELCOME_STEP_IDS|WELCOME_MODES|welcomeEntries|matching|journeyVersion|data-boussole-id/i);
+  assert.match(page, /<Link href="\/dashboard"/);
+});
 
 test("provides four local pedagogical scenes backed by shared content", () => {
   for (const name of ["WelcomeSituationScene", "WelcomePrincipleScene", "WelcomeEntryScene", "WelcomeHandoffScene"]) {
