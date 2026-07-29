@@ -11,6 +11,7 @@ import {
   GLINK_MATCHING_ENGINE_VERSION,
   GLINK_MATCHING_RESULT_LIMIT,
   MatchingExecutionService,
+  matchingProfileSnapshot,
   parseMatchingIdempotencyKey,
   type ExecutableGLinkMatchingSource,
   type GLinkMatchingSourceStore,
@@ -280,6 +281,12 @@ test("execution contracts keep engine, candidates, results and keys bounded", ()
   assert.equal(parseMatchingIdempotencyKey(null), undefined);
   assert.equal(parseMatchingIdempotencyKey(" key-1 "), "key-1");
   assert.throws(() => parseMatchingIdempotencyKey(" "), (error: unknown) => error instanceof MatchingDomainError && error.code === "MATCHING_IDEMPOTENCY_KEY_INVALID");
+  assert.deepEqual(matchingProfileSnapshot({
+    categories: [], interests: [], constraints: [], location: undefined,
+  }), { categories: [], interests: [], constraints: [] });
+  assert.doesNotMatch(JSON.stringify(matchingProfileSnapshot({
+    categories: [], interests: [], constraints: [], location: undefined,
+  })), /undefined/);
 });
 
 test("Prisma source store and route preserve owner scope and avoid automatic consequences", () => {

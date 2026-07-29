@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import type { RelationalMatchingSource } from "@/lib/ai/relational-matching-source";
 import { prisma } from "@/lib/prisma";
 import { parseGLinkMatchingState } from "@/lib/glink-matching";
 import { MatchingDomainError, type MatchingResultRecord } from "@/lib/matching-contracts";
@@ -18,25 +17,9 @@ import { glinkMatchingEngines } from "@/lib/matching/glink-matching-engine-adapt
 async function linkSource(linkId: string, ownerId: string) {
   const link = await prisma.gLink.findFirst({
     where: { id: linkId, ownerId, status: "ACTIVE" },
-    select: {
-      id: true, ownerId: true, title: true, description: true, templateId: true, rules: true,
-      template: {
-        select: {
-          formTemplates: {
-            take: 1,
-            orderBy: { createdAt: "asc" },
-            select: { fields: { orderBy: [{ step: "asc" }, { position: "asc" }], select: { label: true, type: true, options: true, validationRules: true } } },
-          },
-        },
-      },
-    },
+    select: { id: true, rules: true },
   });
-  if (!link) return null;
-  const source: Extract<RelationalMatchingSource, { sourceType: "GLINK" }> = {
-    sourceType: "GLINK", sourceId: link.id, ownerId: link.ownerId, title: link.title,
-    description: link.description, fields: link.template?.formTemplates[0]?.fields ?? [],
-  };
-  return { link, source };
+  return link;
 }
 
 export async function POST(request: Request, { params }: { params: { linkId: string } }) {
@@ -95,50 +78,67 @@ export async function POST(request: Request, { params }: { params: { linkId: str
 
 export async function GET(_request: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
-  const source = await new PrismaGLinkMatchingSourceStore(prisma).findSourceForOwner(owner.id, params.linkId);
-  if (!source) return NextResponse.json({ error: "MATCHING_SOURCE_NOT_FOUND" }, { status: 404 });
-  const lifecycle = new MatchingLifecycleService(createPrismaMatchingRepository(prisma));
-  const persisted = await lifecycle.getLatestMatchingRunWithResultsForGLink({
-    ownerId: owner.id,
-    gLinkId: params.linkId,
-  });
-  return NextResponse.json({
-    enabled: parseGLinkMatchingState(source.rules).enabled,
-    run: persisted ? publicDetailedRun(persisted.run) : null,
-    results: persisted?.results.map(publicResult) ?? [],
-  });
+  try {
+    const source = await new PrismaGLinkMatchingSourceStore(prisma).findSourceForOwner(owner.id, params.linkId);
+    if (!source) return NextResponse.json({ error: "MATCHING_SOURCE_NOT_FOUND" }, { status: 404 });
+    const lifecycle = new MatchingLifecycleService(createPrismaMatchingRepository(prisma));
+    const persisted = await lifecycle.getLatestMatchingRunWithResultsForGLink({
+      ownerId: owner.id,
+      gLinkId: params.linkId,
+    });
+    return NextResponse.json({
+      enabled: parseGLinkMatchingState(source.rules).enabled,
+      run: persisted ? publicDetailedRun(persisted.run) : null,
+      results: persisted?.results.map(publicResult) ?? [],
+    });
+  } catch (error) {
+    console.error("[matching-read] Unexpected route failure", {
+      gLinkId: params.linkId,
+      error: error instanceof Error ? error.message : "UNKNOWN",
+    });
+    return NextResponse.json({ error: "MATCHING_READ_FAILED" }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
-  const resolved = await linkSource(params.linkId, owner.id);
-  if (!resolved?.link.templateId) return NextResponse.json({ error: "Lien introuvable" }, { status: 404 });
-  if (!parseGLinkMatchingState(resolved.link.rules).enabled) {
-    return NextResponse.json({ error: "MATCHING_DISABLED" }, { status: 409 });
+  try {
+    const source = await linkSource(params.linkId, owner.id);
+    if (!source) return NextResponse.json({ error: "MATCHING_SOURCE_NOT_FOUND" }, { status: 404 });
+    if (!parseGLinkMatchingState(source.rules).enabled) {
+      return NextResponse.json({ error: "MATCHING_DISABLED" }, { status: 409 });
+    }
+
+    const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+    const runId = typeof body?.runId === "string" ? body.runId.trim() : "";
+    const resultId = typeof body?.resultId === "string" ? body.resultId.trim() : "";
+    const decision = body?.decision === "SELECTED" || body?.decision === "DISMISSED" ? body.decision : null;
+    if (!runId || !resultId || !decision) {
+      return NextResponse.json({ error: "MATCHING_DECISION_INVALID" }, { status: 400 });
+    }
+
+    const lifecycle = new MatchingLifecycleService(createPrismaMatchingRepository(prisma));
+    const run = await lifecycle.getMatchingRunForOwner({ ownerId: owner.id, runId });
+    if (!run || run.gLinkId !== source.id) {
+      return NextResponse.json({ error: "MATCHING_RUN_NOT_FOUND" }, { status: 404 });
+    }
+    const result = await lifecycle.transitionMatchingResult({
+      ownerId: owner.id,
+      runId,
+      resultId,
+      nextStatus: decision,
+    });
+    return NextResponse.json({ result: publicResult(result) });
+  } catch (error) {
+    if (error instanceof MatchingDomainError) {
+      return NextResponse.json({ error: error.code }, { status: matchingDecisionHttpStatus(error.code) });
+    }
+    console.error("[matching-decision] Unexpected route failure", {
+      gLinkId: params.linkId,
+      error: error instanceof Error ? error.message : "UNKNOWN",
+    });
+    return NextResponse.json({ error: "MATCHING_DECISION_FAILED" }, { status: 500 });
   }
-  const body = await request.json();
-  const targetId = typeof body.targetId === "string" ? body.targetId : "";
-  const decision = body.decision === "INTERESTING" ? "INTERESTING" : body.decision === "IGNORED" ? "IGNORED" : null;
-  if (!targetId || !decision) return NextResponse.json({ error: "Décision invalide" }, { status: 400 });
-  const persistedTarget = await prisma.matchingResult.findFirst({
-    where: {
-      targetGLinkId: targetId,
-      run: { ownerId: owner.id, gLinkId: resolved.link.id, status: "RESULTS_AVAILABLE" },
-    },
-    select: { id: true },
-    orderBy: { run: { createdAt: "desc" } },
-  });
-  if (!persistedTarget) return NextResponse.json({ error: "MATCHING_RESULT_NOT_FOUND" }, { status: 404 });
-  // Legacy audit-only decision. Structured MatchingResult transitions remain reserved for Lot 5.
-  await prisma.aIEvent.create({
-    data: {
-      templateId: resolved.link.templateId, organizationId: owner.id, featureName: "matching_analysis",
-      provider: "human", model: "human-review", action: decision === "INTERESTING" ? "glink_matching_interested" : "glink_matching_ignored",
-      status: "success", promptVersion: "matching-v1.1-glink",
-      outputSummary: JSON.stringify({ sourceType: "GLINK", sourceId: resolved.link.id, targetId, decision }),
-    },
-  });
-  return NextResponse.json({ ok: true });
 }
 
 async function readIdempotencyKey(request: Request) {
@@ -159,6 +159,7 @@ function publicRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatc
     status: run.status,
     isPaused: run.isPaused,
     createdAt: run.createdAt.toISOString(),
+    startedAt: run.startedAt?.toISOString() ?? null,
     completedAt: run.completedAt?.toISOString() ?? null,
     failureCode: run.failureCode,
   };
@@ -167,7 +168,6 @@ function publicRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatc
 function publicDetailedRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatchingRun"]>>) {
   return {
     ...publicRun(run),
-    startedAt: run.startedAt?.toISOString() ?? null,
     failedAt: run.failedAt?.toISOString() ?? null,
   };
 }
@@ -179,7 +179,14 @@ function publicResult(result: MatchingResultRecord) {
     status: result.status,
     explanation: result.explanation,
     internalRank: result.internalRank,
+    selectedAt: result.selectedAt?.toISOString() ?? null,
+    dismissedAt: result.dismissedAt?.toISOString() ?? null,
   };
+}
+
+function matchingDecisionHttpStatus(code: MatchingDomainError["code"]) {
+  if (code === "MATCHING_RUN_NOT_FOUND" || code === "MATCHING_RESULT_NOT_FOUND") return 404;
+  return 409;
 }
 
 function legacyMatch(result: MatchingResultRecord, index: number) {

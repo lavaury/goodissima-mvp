@@ -99,7 +99,7 @@ const RUN_TRANSITIONS: Readonly<Record<MatchingRunStatus, readonly MatchingRunSt
 const RESULT_TRANSITIONS: Readonly<Record<MatchingResultStatus, readonly MatchingResultStatus[]>> = {
   AVAILABLE: ["SELECTED", "DISMISSED"],
   SELECTED: ["AVAILABLE", "DISMISSED", "LINKED"],
-  DISMISSED: ["AVAILABLE"],
+  DISMISSED: ["AVAILABLE", "SELECTED"],
   LINKED: ["SELECTED"],
 };
 

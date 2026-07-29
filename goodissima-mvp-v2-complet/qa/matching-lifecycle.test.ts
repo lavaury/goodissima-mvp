@@ -207,6 +207,31 @@ test("preparation is owner-scoped, canonical and idempotent", async () => {
   assert.equal(await service.getMatchingRunForOwner({ ownerId: "owner-2", runId: first.id }), null);
 });
 
+test("latest matching read returns null without a run and an empty result list for an empty run", async () => {
+  const { service } = fixture();
+  assert.equal(await service.getLatestMatchingRunWithResultsForGLink({
+    ownerId: "owner-1",
+    gLinkId: "source",
+  }), null);
+
+  const run = await service.prepareMatchingRun({
+    ownerId: "owner-1",
+    gLinkId: "source",
+    engineVersion: "v2",
+    criteriaSnapshot: {},
+  });
+  const persisted = await service.getLatestMatchingRunWithResultsForGLink({
+    ownerId: "owner-1",
+    gLinkId: "source",
+  });
+  assert.equal(persisted?.run.id, run.id);
+  assert.deepEqual(persisted?.results, []);
+  assert.equal(await service.getLatestMatchingRunWithResultsForGLink({
+    ownerId: "owner-2",
+    gLinkId: "source",
+  }), null);
+});
+
 test("concurrent idempotency violations are classified without masking technical errors", async () => {
   const compatible = fixture();
   const compatibleCreate = compatible.repository.createRun.bind(compatible.repository);
@@ -327,7 +352,7 @@ test("result creation is atomic in scope, deterministic and idempotent", async (
 });
 
 test("result decisions are persistent-result scoped and LINKED is not exposed", async () => {
-  const { service } = fixture();
+  const { repository, service } = fixture();
   const run = await service.prepareMatchingRun({
     ownerId: "owner-1", gLinkId: "source", engineVersion: "v2", criteriaSnapshot: {},
   });
@@ -335,24 +360,42 @@ test("result decisions are persistent-result scoped and LINKED is not exposed", 
   const [result] = await service.createMatchingResults({
     ownerId: "owner-1", runId: run.id, results: [{ targetGLinkId: "target-a", explanation: {} }],
   });
+  await expectCode(service.transitionMatchingResult({
+    ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "SELECTED",
+  }), "MATCHING_INVALID_RESULT_TRANSITION");
+  await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: run.id });
   const selected = await service.transitionMatchingResult({
     ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "SELECTED",
   });
   assert.equal(selected.status, "SELECTED");
   assert.ok(selected.selectedAt);
-  const available = await service.transitionMatchingResult({
-    ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "AVAILABLE",
+  assert.equal(selected.dismissedAt, null);
+  const writesAfterSelection = repository.writes;
+  const repeated = await service.transitionMatchingResult({
+    ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "SELECTED",
   });
-  assert.equal(available.selectedAt, null);
+  assert.equal(repeated.id, selected.id);
+  assert.equal(repository.writes, writesAfterSelection);
   const dismissed = await service.transitionMatchingResult({
     ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "DISMISSED",
   });
+  assert.equal(dismissed.status, "DISMISSED");
   assert.ok(dismissed.dismissedAt);
+  assert.equal(dismissed.selectedAt, null);
+  const reselected = await service.transitionMatchingResult({
+    ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "SELECTED",
+  });
+  assert.equal(reselected.status, "SELECTED");
+  assert.ok(reselected.selectedAt);
+  assert.equal(reselected.dismissedAt, null);
   await expectCode(service.transitionMatchingResult({
     ownerId: "owner-1", runId: run.id, resultId: "target-a", nextStatus: "SELECTED",
   }), "MATCHING_RESULT_NOT_FOUND");
+  await expectCode(service.transitionMatchingResult({
+    ownerId: "owner-2", runId: run.id, resultId: result.id, nextStatus: "DISMISSED",
+  }), "MATCHING_RUN_NOT_FOUND");
   await service.pauseMatchingRun({ ownerId: "owner-1", runId: run.id });
   await expectCode(service.transitionMatchingResult({
-    ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "AVAILABLE",
+    ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "DISMISSED",
   }), "MATCHING_RUN_PAUSED");
 });

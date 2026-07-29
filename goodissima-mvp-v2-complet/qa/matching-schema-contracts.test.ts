@@ -85,6 +85,7 @@ test("result transitions require an open, unpaused run and prior selection befor
   const activeRun = { status: "RESULTS_AVAILABLE" as const, isPaused: false };
   assert.equal(canTransitionMatchingResult(activeRun, "AVAILABLE", "LINKED"), false);
   assert.equal(canTransitionMatchingResult(activeRun, "SELECTED", "LINKED"), true);
+  assert.equal(canTransitionMatchingResult(activeRun, "DISMISSED", "SELECTED"), true);
   assert.equal(canTransitionMatchingResult({ ...activeRun, isPaused: true }, "AVAILABLE", "SELECTED"), false);
   assert.equal(canTransitionMatchingResult({ status: "CLOSED", isPaused: false }, "SELECTED", "LINKED"), false);
 });

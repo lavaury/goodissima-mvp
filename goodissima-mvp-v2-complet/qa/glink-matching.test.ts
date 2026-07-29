@@ -53,7 +53,9 @@ test("GLink route and pilotage reuse existing engines with human actions only", 
   assert.match(engineAdapter, /semanticMatchV2/);
   assert.match(route, /MatchingExecutionService/);
   assert.match(route, /Idempotency-Key/);
-  assert.match(route, /matchingResult\.findFirst/);
+  assert.match(route, /transitionMatchingResult/);
+  const decisionPatch = route.slice(route.indexOf("export async function PATCH"), route.indexOf("async function readIdempotencyKey"));
+  assert.doesNotMatch(decisionPatch, /aIEvent|glink_matching_interested|glink_matching_ignored/);
   assert.match(route, /glink_matching_analysis/);
   assert.match(pilotage, /GLINK:\$\{link\.id\}:MATCHING_TO_ANALYZE/);
   assert.match(pilotage, /MATCHES_TO_REVIEW/);

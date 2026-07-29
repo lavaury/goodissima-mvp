@@ -248,11 +248,14 @@ export class MatchingLifecycleService {
     ownerId: string;
     runId: string;
     resultId: string;
-    nextStatus: Exclude<MatchingResultStatus, "LINKED">;
+    nextStatus: Extract<MatchingResultStatus, "SELECTED" | "DISMISSED">;
   }): Promise<MatchingResultRecord> {
     return this.repository.transaction(async (repository) => {
       const run = requireRun(await repository.findRunForOwner(input.ownerId, input.runId));
       assertMutableRun(run);
+      if (run.status !== "RESULTS_AVAILABLE") {
+        throw new MatchingDomainError("MATCHING_INVALID_RESULT_TRANSITION");
+      }
       const result = await repository.findResultForOwner(input.ownerId, input.runId, input.resultId);
       if (!result) throw new MatchingDomainError("MATCHING_RESULT_NOT_FOUND");
       if (input.nextStatus === result.status) return result;
@@ -263,9 +266,7 @@ export class MatchingLifecycleService {
       const now = this.now();
       const data = input.nextStatus === "SELECTED"
         ? { status: input.nextStatus, selectedAt: now, dismissedAt: null, linkedAt: null }
-        : input.nextStatus === "DISMISSED"
-          ? { status: input.nextStatus, selectedAt: null, dismissedAt: now, linkedAt: null }
-          : { status: input.nextStatus, selectedAt: null, dismissedAt: null, linkedAt: null };
+        : { status: input.nextStatus, selectedAt: null, dismissedAt: now, linkedAt: null };
       const updated = await repository.updateResultConditionally({
         ownerId: input.ownerId,
         runId: input.runId,

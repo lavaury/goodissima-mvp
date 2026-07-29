@@ -58,6 +58,7 @@ test("server matching layer has no automatic consequences or legacy event depend
 });
 
 test("LINKED remains a contract-only transition in lot two", () => {
-  assert.match(lifecycle, /Exclude<MatchingResultStatus, "LINKED">/);
+  assert.match(lifecycle, /Extract<MatchingResultStatus, "SELECTED" \| "DISMISSED">/);
+  assert.doesNotMatch(lifecycle, /nextStatus:\s*"LINKED"/);
   assert.doesNotMatch(lifecycle, /relationCaseId:\s*[^n]/);
 });

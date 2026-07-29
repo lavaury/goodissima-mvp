@@ -30,7 +30,7 @@ import {
 } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
-import { hasUsefulGLinkMatchingCriteria, parseGLinkMatchingAnalysis } from "@/lib/ai/relational-matching-source";
+import { hasUsefulGLinkMatchingCriteria } from "@/lib/ai/relational-matching-source";
 import { parseGLinkMatchingState } from "@/lib/glink-matching";
 
 type FieldOption = {
@@ -221,21 +221,6 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
   const sourceJourneyHref = snapshot?.formTemplate.id ? `/templates/${snapshot.formTemplate.id}` : formTemplate?.id ? `/templates/${formTemplate.id}` : null;
-  const latestGLinkEvents = link.templateId
-    ? await prisma.aIEvent.findMany({
-        where: { templateId: link.templateId, organizationId: owner.id, action: { in: ["glink_matching_analysis", "glink_matching_enabled"] } },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        select: { action: true, outputSummary: true, createdAt: true },
-      })
-    : [];
-  const latestEnableEvent = latestGLinkEvents.find((event) => event.action === "glink_matching_enabled" && event.outputSummary?.includes(`"sourceId":"${link.id}"`));
-  const latestGLinkAnalysisEvent = latestGLinkEvents.find((event) =>
-    event.action === "glink_matching_analysis" &&
-    parseGLinkMatchingAnalysis(event.outputSummary)?.sourceId === link.id &&
-    (!latestEnableEvent || event.createdAt >= latestEnableEvent.createdAt),
-  );
-  const latestGLinkAnalysis = parseGLinkMatchingAnalysis(latestGLinkAnalysisEvent?.outputSummary);
   const gLinkMatchingState = parseGLinkMatchingState(link.rules);
   const matchingSource = {
     sourceType: "GLINK" as const,
@@ -306,8 +291,6 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
       <GLinkMatchingPanel
         linkId={link.id}
         criteriaSufficient={hasUsefulGLinkMatchingCriteria(matchingSource)}
-        initialMatches={latestGLinkAnalysis?.sourceId === link.id ? latestGLinkAnalysis.matches : []}
-        initialAnalyzed={latestGLinkAnalysis?.sourceId === link.id}
         initialEnabled={gLinkMatchingState.enabled}
       />
 

@@ -28,6 +28,8 @@ type MatchingResultView = {
     engine: string;
   };
   internalRank: number | null;
+  selectedAt: string | null;
+  dismissedAt: string | null;
 };
 
 type MatchingViewPayload = {
@@ -42,17 +44,6 @@ type MatchingReadPayload = {
   results: MatchingResultView[];
 };
 
-type LegacyMatchItem = {
-  relationId: string;
-  pseudonym: string;
-  explanation: {
-    compatibleElements: string[];
-    semanticSignals?: string[];
-    clarificationsNeeded: string[];
-    warnings: string[];
-  };
-};
-
 const MAX_POLL_ATTEMPTS = 5;
 const POLL_INTERVAL_MS = 4000;
 
@@ -63,8 +54,6 @@ export function GLinkMatchingPanel({
 }: {
   linkId: string;
   criteriaSufficient: boolean;
-  initialMatches: LegacyMatchItem[];
-  initialAnalyzed: boolean;
   initialEnabled: boolean;
 }) {
   const toast = useToast();
@@ -75,8 +64,7 @@ export function GLinkMatchingPanel({
   const [run, setRun] = useState<MatchingRunView | null>(null);
   const [results, setResults] = useState<MatchingResultView[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [decisions, setDecisions] = useState<Record<string, "INTERESTING" | "IGNORED">>({});
-  const [decidingTargets, setDecidingTargets] = useState<Record<string, boolean>>({});
+  const [decidingResults, setDecidingResults] = useState<Record<string, boolean>>({});
   const attemptKey = useRef<string | null>(null);
   const pollAttempts = useRef(0);
   const enabledMutationPending = useRef(false);
@@ -206,32 +194,38 @@ export function GLinkMatchingPanel({
     }
   }
 
-  async function decide(targetGLinkId: string, decision: "INTERESTING" | "IGNORED") {
-    if (decisionPending.current.has(targetGLinkId)) return;
-    decisionPending.current.add(targetGLinkId);
-    setDecidingTargets((current) => ({ ...current, [targetGLinkId]: true }));
+  async function decide(resultId: string, decision: "SELECTED" | "DISMISSED") {
+    if (!run || decisionPending.current.has(resultId)) return;
+    decisionPending.current.add(resultId);
+    setDecidingResults((current) => ({ ...current, [resultId]: true }));
     setErrorMessage(null);
     try {
       const response = await fetch(`/api/links/${encodeURIComponent(linkId)}/matching`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetId: targetGLinkId, decision }),
+        body: JSON.stringify({ runId: run.id, resultId, decision }),
       });
+      const payload = await response.json() as { result?: MatchingResultView };
       if (!response.ok) {
+        if (response.status === 409) {
+          try { await readPersistentState(); } catch { /* The decision error remains the primary feedback. */ }
+        }
         const message = "La décision n’a pas pu être enregistrée.";
         setErrorMessage(message);
         toast.error(message);
         return;
       }
-      setDecisions((current) => ({ ...current, [targetGLinkId]: decision }));
-      toast.success(decision === "INTERESTING" ? "Correspondance marquée intéressante" : "Correspondance ignorée");
+      if (!payload.result) throw new Error("DECISION_RESPONSE_INVALID");
+      const persistedResult = payload.result;
+      setResults((current) => current.map((result) => result.id === persistedResult.id ? persistedResult : result));
+      toast.success(decision === "SELECTED" ? "Correspondance retenue" : "Correspondance écartée");
     } catch {
       const message = "Impossible d’enregistrer la décision. Vérifiez votre connexion et réessayez.";
       setErrorMessage(message);
       toast.error(message);
     } finally {
-      decisionPending.current.delete(targetGLinkId);
-      setDecidingTargets((current) => ({ ...current, [targetGLinkId]: false }));
+      decisionPending.current.delete(resultId);
+      setDecidingResults((current) => ({ ...current, [resultId]: false }));
     }
   }
 
@@ -283,20 +277,22 @@ export function GLinkMatchingPanel({
       {enabled && results.length ? (
         <div className="mt-5 space-y-3">
           <p className="text-sm font-semibold text-slate-700">{results.length} correspondance{results.length > 1 ? "s" : ""} à examiner humainement</p>
-          {results.filter((result) => decisions[result.targetGLinkId] !== "IGNORED").map((result) => (
-            <article key={result.id} data-boussole-id="review-link-matches" className="rounded-xl border bg-slate-50 p-4">
+          {results.map((result) => (
+            <article key={result.id} data-boussole-id="review-link-matches" className={`rounded-xl border p-4 ${result.status === "SELECTED" ? "border-emerald-300 bg-emerald-50" : result.status === "DISMISSED" ? "border-slate-300 bg-slate-100" : "bg-slate-50"}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h3 className="font-bold text-slate-950">{resultPseudonym(result)}</h3>
                   <p className="mt-1 text-sm text-slate-700">{result.explanation.summary}</p>
                   <p className="mt-1 text-xs text-slate-500">Aucune identité révélée · aucun score présenté comme vérité</p>
+                  {result.status === "SELECTED" ? <p className="mt-2 text-xs font-bold text-emerald-800">Retenu</p> : null}
+                  {result.status === "DISMISSED" ? <p className="mt-2 text-xs font-bold text-slate-700">Écarté</p> : null}
                 </div>
                 {run?.status === "RESULTS_AVAILABLE" && !run.isPaused ? (
                   <div className="flex gap-2">
-                    <button type="button" data-boussole-id="decide-link-match" onClick={() => decide(result.targetGLinkId, "INTERESTING")} disabled={decidingTargets[result.targetGLinkId]} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-                      {decisions[result.targetGLinkId] === "INTERESTING" ? "Intéressante" : "Marquer intéressante"}
+                    <button type="button" data-boussole-id="decide-link-match" aria-pressed={result.status === "SELECTED"} onClick={() => decide(result.id, "SELECTED")} disabled={decidingResults[result.id]} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                      {result.status === "SELECTED" ? "Retenu" : "Retenir"}
                     </button>
-                    <button type="button" onClick={() => decide(result.targetGLinkId, "IGNORED")} disabled={decidingTargets[result.targetGLinkId]} className="rounded-lg border bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Ignorer</button>
+                    <button type="button" aria-pressed={result.status === "DISMISSED"} onClick={() => decide(result.id, "DISMISSED")} disabled={decidingResults[result.id]} className="rounded-lg border bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{result.status === "DISMISSED" ? "Écarté" : "Écarter"}</button>
                   </div>
                 ) : null}
               </div>

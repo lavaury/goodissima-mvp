@@ -17,6 +17,12 @@ export const GLINK_MATCHING_CANDIDATE_LIMIT = 80;
 export const GLINK_MATCHING_RESULT_LIMIT = 8;
 export const GLINK_MATCHING_IDEMPOTENCY_KEY_MAX_LENGTH = 160;
 
+export function matchingProfileSnapshot(profile: ReturnType<typeof matchingProfileFromSource>) {
+  return Object.fromEntries(
+    Object.entries(profile).filter((entry): entry is [string, string | string[]] => entry[1] !== undefined),
+  );
+}
+
 type GLinkSource = Extract<RelationalMatchingSource, { sourceType: "GLINK" }>;
 
 export type ExecutableGLinkMatchingSource = GLinkSource & {
@@ -146,7 +152,7 @@ export class MatchingExecutionService {
     const sourceProfile = matchingProfileFromSource(source);
     const criteriaSnapshot = {
       sourceId: source.sourceId,
-      profile: sourceProfile,
+      profile: matchingProfileSnapshot(sourceProfile),
       engineVersion: GLINK_MATCHING_ENGINE_VERSION,
       searchScope: {
         ownerOnly: true,
