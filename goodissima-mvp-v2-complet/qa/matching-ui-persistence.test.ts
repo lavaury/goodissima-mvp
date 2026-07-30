@@ -101,11 +101,38 @@ test("PATCH persists an owner-scoped decision through the lifecycle service", ()
   assert.match(patch, /linkSource\(params\.linkId, owner\.id\)/);
   assert.match(patch, /body\?\.decision === "SELECTED" \|\| body\?\.decision === "DISMISSED"/);
   assert.match(patch, /getMatchingRunForOwner\(\{ ownerId: owner\.id, runId \}\)/);
-  assert.match(patch, /run\.gLinkId !== source\.id/);
+  assert.match(patch, /decisionRun\.gLinkId !== source\.id/);
   assert.match(patch, /transitionMatchingResult\(\{/);
   assert.match(patch, /ownerId: owner\.id[^]*runId[^]*resultId[^]*nextStatus: decision/);
   assert.match(patch, /NextResponse\.json\(\{ result: publicResult\(result\) \}\)/);
   assert.doesNotMatch(patch, /aIEvent|AIEvent|INTERESTING|IGNORED|glink_matching_interested|glink_matching_ignored/);
+});
+
+test("PATCH discriminates explicit lifecycle actions and returns public run state", () => {
+  const patch = route.slice(route.indexOf("export async function PATCH"), route.indexOf("async function readIdempotencyKey"));
+  assert.match(patch, /body\?\.action === "SUSPEND"[^]*body\?\.action === "RESUME"[^]*body\?\.action === "CLOSE"/);
+  assert.match(patch, /isLifecyclePayload/);
+  assert.match(patch, /isDecisionPayload/);
+  assert.match(patch, /transitionMatchingRunLifecycle\(\{/);
+  assert.match(patch, /gLinkId: source\.id/);
+  assert.match(patch, /run: publicDetailedRun\(run\)/);
+  assert.match(route, /pausedAt: run\.pausedAt\?\.toISOString\(\) \?\? null/);
+  assert.match(route, /closedAt: run\.closedAt\?\.toISOString\(\) \?\? null/);
+  assert.match(route, /allowedActions: allowedMatchingRunActions\(run\)/);
+});
+
+test("UI exposes lifecycle controls, confirms closure and resynchronizes conflicts", () => {
+  const lifecycleMutation = panel.slice(panel.indexOf("async function changeRunLifecycle"), panel.indexOf("const boussoleState"));
+  assert.match(panel, /Suspendre/);
+  assert.match(panel, /Reprendre/);
+  assert.match(panel, /Clôturer/);
+  assert.match(lifecycleMutation, /window\.confirm/);
+  assert.match(lifecycleMutation, /JSON\.stringify\(\{ runId: run\.id, action \}\)/);
+  assert.match(lifecycleMutation, /response\.status === 409[^]*await readPersistentState\(\)/);
+  assert.doesNotMatch(lifecycleMutation, /method: "POST"|analyze\(\)/);
+  assert.match(panel, /\["RESULTS_AVAILABLE", "CLOSED"\]\.includes\(run\.status\)/);
+  assert.match(panel, /run\.isPaused \|\| run\.status === "CLOSED"/);
+  assert.match(panel, /results\.map/);
 });
 
 test("persistent decision mutation resynchronizes conflicts and blocks duplicate clicks", () => {
@@ -115,7 +142,7 @@ test("persistent decision mutation resynchronizes conflicts and blocks duplicate
   assert.match(decide, /response\.status === 409[^]*await readPersistentState\(\)/);
   assert.match(decide, /setResults\(\(current\) => current\.map/);
   assert.match(decide, /finally \{/);
-  assert.match(panel, /disabled=\{decidingResults\[result\.id\]\}/);
+  assert.match(panel, /disabled=\{decidingResults\[result\.id\] \|\| run\.isPaused \|\| run\.status === "CLOSED"\}/);
 });
 
 test("reactivation restores persistence without launching an analysis", () => {
@@ -156,6 +183,8 @@ test("decision failures expose only stable public errors", () => {
   const patch = route.slice(route.indexOf("export async function PATCH"), route.indexOf("async function readIdempotencyKey"));
   assert.match(patch, /MATCHING_DECISION_INVALID/);
   assert.match(patch, /MATCHING_DECISION_FAILED/);
+  assert.match(patch, /MATCHING_LIFECYCLE_INVALID/);
+  assert.match(patch, /MATCHING_LIFECYCLE_FAILED/);
   assert.match(patch, /error instanceof MatchingDomainError/);
   assert.doesNotMatch(patch, /error\.stack|PrismaClient|P20\d\d/);
 });

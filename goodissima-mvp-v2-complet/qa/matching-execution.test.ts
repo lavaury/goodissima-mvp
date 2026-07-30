@@ -61,6 +61,8 @@ class FakeSourceStore implements GLinkMatchingSourceStore {
 class FakeLifecycle {
   run: MatchingRunRecord | null = null;
   results: MatchingResultRecord[] = [];
+  runs = new Map<string, MatchingRunRecord>();
+  resultsByRun = new Map<string, MatchingResultRecord[]>();
   startCount = 0;
   failedCode: string | null = null;
   private sequence = 0;
@@ -88,13 +90,16 @@ class FakeLifecycle {
       createdAt: now,
       updatedAt: now,
     };
+    this.runs.set(this.run.id, this.run);
     this.results = [];
+    this.resultsByRun.set(this.run.id, this.results);
     return this.run;
   }
 
   async startMatchingRun() {
     this.startCount += 1;
     this.run = { ...this.requiredRun(), status: "RUNNING", startedAt: new Date("2026-07-24T10:00:01.000Z") };
+    this.runs.set(this.run.id, this.run);
     return this.run;
   }
 
@@ -115,17 +120,20 @@ class FakeLifecycle {
       createdAt: new Date("2026-07-24T10:00:02.000Z"),
       updatedAt: new Date("2026-07-24T10:00:02.000Z"),
     }));
+    this.resultsByRun.set(this.requiredRun().id, this.results);
     return this.results;
   }
 
   async markMatchingResultsAvailable() {
     this.run = { ...this.requiredRun(), status: "RESULTS_AVAILABLE", completedAt: new Date("2026-07-24T10:00:03.000Z") };
+    this.runs.set(this.run.id, this.run);
     return this.run;
   }
 
   async failMatchingRun(input: { failureCode: string }) {
     this.failedCode = input.failureCode;
     this.run = { ...this.requiredRun(), status: "FAILED", failureCode: input.failureCode };
+    this.runs.set(this.run.id, this.run);
     return this.run;
   }
 
@@ -222,6 +230,37 @@ test("idempotent available and running runs never execute twice", async () => {
   const response = await running.execution.execute({ ownerId: "owner-1", gLinkId: "source", idempotencyKey: "running-key" });
   assert.equal(response.run.status, "RUNNING");
   assert.deepEqual(running.calls(), { lexicalCalls: 0, semanticCalls: 0 });
+});
+
+test("a new manual analysis after closure creates a distinct run and preserves closed history", async () => {
+  const { lifecycle, execution, calls } = fixture();
+  const first = await execution.execute({ ownerId: "owner-1", gLinkId: "source", idempotencyKey: "manual-closed-1" });
+  const oldRunId = first.run.id;
+  const closedAt = new Date("2026-07-24T11:00:00.000Z");
+  const historicalResults = first.results.map((result, index) => ({
+    ...result,
+    status: index === 0 ? "SELECTED" as const : "DISMISSED" as const,
+    selectedAt: index === 0 ? new Date("2026-07-24T10:30:00.000Z") : null,
+    dismissedAt: index === 1 ? new Date("2026-07-24T10:31:00.000Z") : null,
+  }));
+  const closedRun = { ...first.run, status: "CLOSED" as const, isPaused: false, pausedAt: null, closedAt };
+  lifecycle.run = closedRun;
+  lifecycle.results = historicalResults;
+  lifecycle.runs.set(oldRunId, closedRun);
+  lifecycle.resultsByRun.set(oldRunId, historicalResults);
+
+  const second = await execution.execute({ ownerId: "owner-1", gLinkId: "source", idempotencyKey: "manual-after-close-2" });
+  const newRunId = second.run.id;
+
+  assert.notEqual(newRunId, oldRunId);
+  assert.equal(lifecycle.runs.get(oldRunId)?.status, "CLOSED");
+  assert.equal(lifecycle.runs.get(oldRunId)?.closedAt?.toISOString(), closedAt.toISOString());
+  assert.equal(lifecycle.runs.get(oldRunId)?.isPaused, false);
+  assert.deepEqual(lifecycle.resultsByRun.get(oldRunId), historicalResults);
+  assert.deepEqual(lifecycle.resultsByRun.get(oldRunId)?.map((result) => result.status), ["SELECTED", "DISMISSED"]);
+  assert.equal(second.run.status, "RESULTS_AVAILABLE");
+  assert.ok(second.results.every((result) => result.runId === newRunId && result.status === "AVAILABLE"));
+  assert.deepEqual(calls(), { lexicalCalls: 2, semanticCalls: 2 });
 });
 
 test("source validation is owner-safe and explicit", async () => {

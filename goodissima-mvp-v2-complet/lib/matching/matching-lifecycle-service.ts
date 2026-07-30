@@ -4,6 +4,7 @@ import {
   canTransitionMatchingRun,
   type MatchingResultRecord,
   type MatchingResultStatus,
+  type MatchingRunAction,
   type MatchingRunRecord,
   type MatchingRunStatus,
 } from "../matching-contracts.ts";
@@ -208,6 +209,20 @@ export class MatchingLifecycleService {
 
   async resumeMatchingRun(input: { ownerId: string; runId: string }) {
     return this.setPaused(input, false);
+  }
+
+  async transitionMatchingRunLifecycle(input: {
+    ownerId: string;
+    gLinkId: string;
+    runId: string;
+    action: MatchingRunAction;
+  }) {
+    const run = requireRun(await this.repository.findRunForOwner(input.ownerId, input.runId));
+    if (run.gLinkId !== input.gLinkId) throw new MatchingDomainError("MATCHING_RUN_NOT_FOUND");
+    const scoped = { ownerId: input.ownerId, runId: input.runId };
+    if (input.action === "SUSPEND") return this.pauseMatchingRun(scoped);
+    if (input.action === "RESUME") return this.resumeMatchingRun(scoped);
+    return this.closeMatchingRun(scoped);
   }
 
   async createMatchingResults(input: {

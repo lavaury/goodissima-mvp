@@ -311,6 +311,42 @@ test("run lifecycle validates transitions, timestamps, pause and idempotent clos
   await expectCode(service.resumeMatchingRun({ ownerId: "owner-1", runId: run.id }), "MATCHING_RUN_CLOSED");
 });
 
+test("explicit lifecycle actions are GLink scoped, idempotent and preserve results", async () => {
+  const { repository, service } = fixture();
+  const prepared = await service.prepareMatchingRun({ ownerId: "owner-1", gLinkId: "source", engineVersion: "v2", criteriaSnapshot: {} });
+  await service.startMatchingRun({ ownerId: "owner-1", runId: prepared.id });
+  const [created] = await service.createMatchingResults({ ownerId: "owner-1", runId: prepared.id, results: [{ targetGLinkId: "target-a", explanation: {} }] });
+  await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: prepared.id });
+  const selected = await service.transitionMatchingResult({ ownerId: "owner-1", runId: prepared.id, resultId: created.id, nextStatus: "SELECTED" });
+  const suspended = await service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "source", runId: prepared.id, action: "SUSPEND" });
+  assert.equal(suspended.isPaused, true);
+  assert.ok(suspended.pausedAt);
+  const writesAfterSuspend = repository.writes;
+  assert.equal((await service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "source", runId: prepared.id, action: "SUSPEND" })).isPaused, true);
+  assert.equal(repository.writes, writesAfterSuspend);
+  await expectCode(service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "target-a", runId: prepared.id, action: "RESUME" }), "MATCHING_RUN_NOT_FOUND");
+  await expectCode(service.transitionMatchingRunLifecycle({ ownerId: "owner-2", gLinkId: "source", runId: prepared.id, action: "RESUME" }), "MATCHING_RUN_NOT_FOUND");
+  const resumed = await service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "source", runId: prepared.id, action: "RESUME" });
+  assert.equal(resumed.isPaused, false);
+  assert.equal(resumed.pausedAt, null);
+  const closed = await service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "source", runId: prepared.id, action: "CLOSE" });
+  assert.equal(closed.status, "CLOSED");
+  assert.equal(repository.results.get(created.id)?.status, selected.status);
+  await expectCode(service.transitionMatchingResult({ ownerId: "owner-1", runId: prepared.id, resultId: created.id, nextStatus: "DISMISSED" }), "MATCHING_RUN_CLOSED");
+  await expectCode(service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "source", runId: prepared.id, action: "RESUME" }), "MATCHING_RUN_CLOSED");
+});
+
+test("a RUNNING run cannot close and lifecycle concurrency conflicts are stable", async () => {
+  const { repository, service } = fixture();
+  const prepared = await service.prepareMatchingRun({ ownerId: "owner-1", gLinkId: "source", engineVersion: "v2", criteriaSnapshot: {} });
+  await service.startMatchingRun({ ownerId: "owner-1", runId: prepared.id });
+  await expectCode(service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "source", runId: prepared.id, action: "CLOSE" }), "MATCHING_INVALID_RUN_TRANSITION");
+  const original = repository.updateRunConditionally.bind(repository);
+  repository.updateRunConditionally = async () => null;
+  await expectCode(service.transitionMatchingRunLifecycle({ ownerId: "owner-1", gLinkId: "source", runId: prepared.id, action: "SUSPEND" }), "MATCHING_INVALID_RUN_TRANSITION");
+  repository.updateRunConditionally = original;
+});
+
 test("result creation is atomic in scope, deterministic and idempotent", async () => {
   const { service } = fixture();
   const run = await service.prepareMatchingRun({

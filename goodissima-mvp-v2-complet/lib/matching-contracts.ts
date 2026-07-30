@@ -8,6 +8,9 @@ export const MATCHING_RUN_STATUSES = [
 
 export type MatchingRunStatus = (typeof MATCHING_RUN_STATUSES)[number];
 
+export const MATCHING_RUN_ACTIONS = ["SUSPEND", "RESUME", "CLOSE"] as const;
+export type MatchingRunAction = (typeof MATCHING_RUN_ACTIONS)[number];
+
 export const MATCHING_RESULT_STATUSES = [
   "AVAILABLE",
   "SELECTED",
@@ -117,6 +120,13 @@ export function canPauseMatchingRun(current: MatchingRunControlState): boolean {
 
 export function canResumeMatchingRun(current: MatchingRunControlState): boolean {
   return current.status !== "CLOSED" && current.isPaused;
+}
+
+export function allowedMatchingRunActions(current: MatchingRunControlState): MatchingRunAction[] {
+  if (current.status === "CLOSED") return [];
+  const actions: MatchingRunAction[] = [current.isPaused ? "RESUME" : "SUSPEND"];
+  if (["PREPARED", "RESULTS_AVAILABLE", "FAILED"].includes(current.status)) actions.push("CLOSE");
+  return actions;
 }
 
 export function setMatchingRunPaused(

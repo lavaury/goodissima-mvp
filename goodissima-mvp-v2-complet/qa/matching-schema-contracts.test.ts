@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  allowedMatchingRunActions,
   MATCHING_RESULT_STATUSES,
   MATCHING_RUN_STATUSES,
   canPauseMatchingRun,
@@ -79,6 +80,10 @@ test("run transitions keep CLOSED terminal and pause orthogonal", () => {
   assert.equal(paused && canResumeMatchingRun(paused), true);
   assert.deepEqual(paused && setMatchingRunPaused(paused, false), { status: "RESULTS_AVAILABLE", isPaused: false });
   assert.equal(canPauseMatchingRun({ status: "CLOSED", isPaused: false }), false);
+  assert.deepEqual(allowedMatchingRunActions({ status: "RUNNING", isPaused: false }), ["SUSPEND"]);
+  assert.deepEqual(allowedMatchingRunActions({ status: "RESULTS_AVAILABLE", isPaused: false }), ["SUSPEND", "CLOSE"]);
+  assert.deepEqual(allowedMatchingRunActions({ status: "RESULTS_AVAILABLE", isPaused: true }), ["RESUME", "CLOSE"]);
+  assert.deepEqual(allowedMatchingRunActions({ status: "CLOSED", isPaused: false }), []);
 });
 
 test("result transitions require an open, unpaused run and prior selection before linking", () => {

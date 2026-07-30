@@ -5,6 +5,7 @@ import { useToast } from "@/components/ToastProvider";
 
 type MatchingRunStatus = "PREPARED" | "RUNNING" | "RESULTS_AVAILABLE" | "FAILED" | "CLOSED";
 type MatchingResultStatus = "AVAILABLE" | "SELECTED" | "DISMISSED" | "LINKED";
+type MatchingRunAction = "SUSPEND" | "RESUME" | "CLOSE";
 
 type MatchingRunView = {
   id: string;
@@ -14,7 +15,10 @@ type MatchingRunView = {
   startedAt?: string | null;
   completedAt: string | null;
   failedAt?: string | null;
+  pausedAt?: string | null;
+  closedAt?: string | null;
   failureCode: string | null;
+  allowedActions: MatchingRunAction[];
 };
 
 type MatchingResultView = {
@@ -65,6 +69,7 @@ export function GLinkMatchingPanel({
   const [results, setResults] = useState<MatchingResultView[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [decidingResults, setDecidingResults] = useState<Record<string, boolean>>({});
+  const [lifecycleAction, setLifecycleAction] = useState<MatchingRunAction | null>(null);
   const attemptKey = useRef<string | null>(null);
   const pollAttempts = useRef(0);
   const enabledMutationPending = useRef(false);
@@ -229,6 +234,39 @@ export function GLinkMatchingPanel({
     }
   }
 
+  async function changeRunLifecycle(action: MatchingRunAction) {
+    if (!run || lifecycleAction) return;
+    if (action === "CLOSE" && !window.confirm("Clôturer définitivement cette analyse ? Les résultats resteront consultables, mais aucune nouvelle décision ne pourra être prise sur ce run.")) return;
+    setLifecycleAction(action);
+    setErrorMessage(null);
+    try {
+      const response = await fetch(`/api/links/${encodeURIComponent(linkId)}/matching`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId: run.id, action }),
+      });
+      const payload = await response.json() as { run?: MatchingRunView };
+      if (!response.ok) {
+        if (response.status === 409) {
+          try { await readPersistentState(); } catch { /* Lifecycle feedback remains primary. */ }
+        }
+        const message = "Le cycle de vie de l’analyse n’a pas pu être modifié.";
+        setErrorMessage(message);
+        toast.error(message);
+        return;
+      }
+      if (!payload.run) throw new Error("LIFECYCLE_RESPONSE_INVALID");
+      setRun(payload.run);
+      toast.success(action === "SUSPEND" ? "Analyse suspendue" : action === "RESUME" ? "Analyse reprise sans nouveau calcul" : "Analyse clôturée");
+    } catch {
+      const message = "Impossible de modifier l’analyse. Vérifiez votre connexion et réessayez.";
+      setErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setLifecycleAction(null);
+    }
+  }
+
   const boussoleState = !enabled
     ? "disabled"
     : run?.isPaused
@@ -274,6 +312,14 @@ export function GLinkMatchingPanel({
         {errorMessage ? <p id="matching-error" role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{errorMessage}</p> : null}
       </div>
 
+      {enabled && run && run.allowedActions.length ? (
+        <div className="mt-4 flex flex-wrap gap-2 rounded-xl border bg-slate-50 p-3">
+          {run.allowedActions.includes("SUSPEND") ? <button type="button" onClick={() => changeRunLifecycle("SUSPEND")} disabled={Boolean(lifecycleAction)} className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40">Suspendre</button> : null}
+          {run.allowedActions.includes("RESUME") ? <button type="button" onClick={() => changeRunLifecycle("RESUME")} disabled={Boolean(lifecycleAction)} className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40">Reprendre</button> : null}
+          {run.allowedActions.includes("CLOSE") ? <button type="button" onClick={() => changeRunLifecycle("CLOSE")} disabled={Boolean(lifecycleAction)} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 disabled:opacity-40">Clôturer</button> : null}
+        </div>
+      ) : null}
+
       {enabled && results.length ? (
         <div className="mt-5 space-y-3">
           <p className="text-sm font-semibold text-slate-700">{results.length} correspondance{results.length > 1 ? "s" : ""} à examiner humainement</p>
@@ -287,12 +333,12 @@ export function GLinkMatchingPanel({
                   {result.status === "SELECTED" ? <p className="mt-2 text-xs font-bold text-emerald-800">Retenu</p> : null}
                   {result.status === "DISMISSED" ? <p className="mt-2 text-xs font-bold text-slate-700">Écarté</p> : null}
                 </div>
-                {run?.status === "RESULTS_AVAILABLE" && !run.isPaused ? (
+                {run && ["RESULTS_AVAILABLE", "CLOSED"].includes(run.status) ? (
                   <div className="flex gap-2">
-                    <button type="button" data-boussole-id="decide-link-match" aria-pressed={result.status === "SELECTED"} onClick={() => decide(result.id, "SELECTED")} disabled={decidingResults[result.id]} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                    <button type="button" data-boussole-id="decide-link-match" aria-pressed={result.status === "SELECTED"} onClick={() => decide(result.id, "SELECTED")} disabled={decidingResults[result.id] || run.isPaused || run.status === "CLOSED"} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
                       {result.status === "SELECTED" ? "Retenu" : "Retenir"}
                     </button>
-                    <button type="button" aria-pressed={result.status === "DISMISSED"} onClick={() => decide(result.id, "DISMISSED")} disabled={decidingResults[result.id]} className="rounded-lg border bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{result.status === "DISMISSED" ? "Écarté" : "Écarter"}</button>
+                    <button type="button" aria-pressed={result.status === "DISMISSED"} onClick={() => decide(result.id, "DISMISSED")} disabled={decidingResults[result.id] || run.isPaused || run.status === "CLOSED"} className="rounded-lg border bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{result.status === "DISMISSED" ? "Écarté" : "Écarter"}</button>
                   </div>
                 ) : null}
               </div>

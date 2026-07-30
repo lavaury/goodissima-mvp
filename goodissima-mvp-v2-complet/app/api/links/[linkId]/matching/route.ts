@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseGLinkMatchingState } from "@/lib/glink-matching";
-import { MatchingDomainError, type MatchingResultRecord } from "@/lib/matching-contracts";
+import { allowedMatchingRunActions, MatchingDomainError, type MatchingResultRecord, type MatchingRunAction } from "@/lib/matching-contracts";
 import { MatchingLifecycleService } from "@/lib/matching/matching-lifecycle-service";
 import {
   GLINK_MATCHING_ENGINE_VERSION,
@@ -102,6 +102,7 @@ export async function GET(_request: Request, { params }: { params: { linkId: str
 
 export async function PATCH(request: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
+  let lifecycleRequest = false;
   try {
     const source = await linkSource(params.linkId, owner.id);
     if (!source) return NextResponse.json({ error: "MATCHING_SOURCE_NOT_FOUND" }, { status: 404 });
@@ -111,15 +112,31 @@ export async function PATCH(request: Request, { params }: { params: { linkId: st
 
     const body = await request.json().catch(() => null) as Record<string, unknown> | null;
     const runId = typeof body?.runId === "string" ? body.runId.trim() : "";
+    const action = body?.action === "SUSPEND" || body?.action === "RESUME" || body?.action === "CLOSE" ? body.action : null;
     const resultId = typeof body?.resultId === "string" ? body.resultId.trim() : "";
     const decision = body?.decision === "SELECTED" || body?.decision === "DISMISSED" ? body.decision : null;
-    if (!runId || !resultId || !decision) {
-      return NextResponse.json({ error: "MATCHING_DECISION_INVALID" }, { status: 400 });
+    const isLifecyclePayload = Boolean(runId && action && !resultId && !decision);
+    const isDecisionPayload = Boolean(runId && resultId && decision && !action);
+    lifecycleRequest = Boolean(action || body?.action !== undefined);
+    if (!isLifecyclePayload && !isDecisionPayload) {
+      return NextResponse.json({ error: lifecycleRequest ? "MATCHING_LIFECYCLE_INVALID" : "MATCHING_DECISION_INVALID" }, { status: 400 });
     }
 
     const lifecycle = new MatchingLifecycleService(createPrismaMatchingRepository(prisma));
-    const run = await lifecycle.getMatchingRunForOwner({ ownerId: owner.id, runId });
-    if (!run || run.gLinkId !== source.id) {
+    if (isLifecyclePayload) {
+      const run = await lifecycle.transitionMatchingRunLifecycle({
+        ownerId: owner.id,
+        gLinkId: source.id,
+        runId,
+        action: action as MatchingRunAction,
+      });
+      return NextResponse.json({ run: publicDetailedRun(run) });
+    }
+    if (!decision || !resultId) {
+      return NextResponse.json({ error: "MATCHING_DECISION_INVALID" }, { status: 400 });
+    }
+    const decisionRun = await lifecycle.getMatchingRunForOwner({ ownerId: owner.id, runId });
+    if (!decisionRun || decisionRun.gLinkId !== source.id) {
       return NextResponse.json({ error: "MATCHING_RUN_NOT_FOUND" }, { status: 404 });
     }
     const result = await lifecycle.transitionMatchingResult({
@@ -133,11 +150,11 @@ export async function PATCH(request: Request, { params }: { params: { linkId: st
     if (error instanceof MatchingDomainError) {
       return NextResponse.json({ error: error.code }, { status: matchingDecisionHttpStatus(error.code) });
     }
-    console.error("[matching-decision] Unexpected route failure", {
+    console.error(lifecycleRequest ? "[matching-lifecycle] Unexpected route failure" : "[matching-decision] Unexpected route failure", {
       gLinkId: params.linkId,
       error: error instanceof Error ? error.message : "UNKNOWN",
     });
-    return NextResponse.json({ error: "MATCHING_DECISION_FAILED" }, { status: 500 });
+    return NextResponse.json({ error: lifecycleRequest ? "MATCHING_LIFECYCLE_FAILED" : "MATCHING_DECISION_FAILED" }, { status: 500 });
   }
 }
 
@@ -161,7 +178,10 @@ function publicRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatc
     createdAt: run.createdAt.toISOString(),
     startedAt: run.startedAt?.toISOString() ?? null,
     completedAt: run.completedAt?.toISOString() ?? null,
+    pausedAt: run.pausedAt?.toISOString() ?? null,
+    closedAt: run.closedAt?.toISOString() ?? null,
     failureCode: run.failureCode,
+    allowedActions: allowedMatchingRunActions(run),
   };
 }
 
