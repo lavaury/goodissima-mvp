@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getPublicAppUrl } from "@/lib/public-app-url";
 import { isDemoSurfaceEnabled } from "@/lib/debug";
 import { deriveGLinkMatchingDisplayState } from "@/lib/glink-matching";
+import { getGLinkMatchingSummariesForOwner } from "@/lib/matching/glink-matching-summary-repository";
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -30,11 +31,12 @@ export default async function OpportunitiesPage({
     },
     orderBy: { createdAt: "desc" },
     include: {
-      template: { select: { name: true, status: true, formTemplates: { select: { id: true }, take: 1 }, aiEvents: { where: { action: { in: ["glink_matching_analysis", "glink_matching_interested", "glink_matching_ignored", "glink_matching_enabled", "glink_matching_disabled"] } }, orderBy: { createdAt: "desc" }, take: 30, select: { action: true, outputSummary: true, createdAt: true } } } },
+      template: { select: { name: true, status: true, formTemplates: { select: { id: true }, take: 1 } } },
       templateVersion: { select: { version: true } },
       cases: { orderBy: { createdAt: "desc" }, select: { id: true, candidateEmail: true } },
     },
   });
+  const matchingSummaries = await getGLinkMatchingSummariesForOwner(owner.id, announcements.map((item) => item.id));
   const archivedCount = await prisma.gLink.count({
     where: { ownerId: owner.id, status: "ARCHIVED", ...templateFilter },
   });
@@ -105,7 +107,7 @@ export default async function OpportunitiesPage({
         {announcements.length || (view === "archived" && archivedJourneys.length) ? (
           <div className="grid gap-5 lg:grid-cols-2">
             {announcements.map((item, index) => {
-              const matching = item.status === "ARCHIVED" ? { status: "DISABLED" as const, count: 0 } : deriveGLinkMatchingDisplayState({ rules: item.rules, sourceId: item.id, events: item.template?.aiEvents ?? [] });
+              const matching = item.status === "ARCHIVED" ? { status: "DISABLED" as const, count: 0 } : deriveGLinkMatchingDisplayState({ rules: item.rules, summary: matchingSummaries.get(item.id) });
               return <LinkCard key={item.id} publicAppUrl={publicAppUrl} boussoleOpportunityExample={index === 0} item={{
                 id: item.id,
                 slug: item.slug,
@@ -119,6 +121,7 @@ export default async function OpportunitiesPage({
                 sourceJourneyHref: item.template?.formTemplates[0] ? `/templates/${item.template.formTemplates[0].id}` : undefined,
                 matchingStatus: matching.status,
                 matchingCount: matching.count,
+                matchingLastRunAt: matchingSummaries.get(item.id)?.lastRunAt?.toISOString() ?? null,
                 cases: item.cases,
               }} />;
             })}

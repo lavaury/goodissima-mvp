@@ -31,6 +31,7 @@ export function LinkCard({
     openActionCount?: number;
     matchingStatus?: "DISABLED" | "TO_ANALYZE" | "MATCHES_TO_REVIEW" | "FOLLOW_UP_TO_DECIDE" | "NO_RESULTS";
     matchingCount?: number;
+    matchingLastRunAt?: string | null;
     sourceJourneyHref?: string;
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
@@ -142,6 +143,11 @@ export function LinkCard({
                   ? "Une correspondance intéressante attend une décision humaine."
                   : "L’analyse est terminée sans correspondance exploitable."}
           </p>
+          {item.matchingLastRunAt ? (
+            <p className="mt-1 text-xs text-cyan-700">
+              Dernière analyse : {new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(item.matchingLastRunAt))}
+            </p>
+          ) : null}
           {item.matchingStatus !== "NO_RESULTS" ? (
             <Link data-boussole-id={boussoleOpportunityExample ? "open-opportunity-matching" : "dashboard-link-open-matching"} href={`/links/${item.id}#matching`} className="mt-3 inline-block rounded-lg bg-cyan-900 px-3 py-2 text-xs font-bold text-white">
               {item.matchingStatus === "TO_ANALYZE" ? "Ouvrir le matching" : item.matchingStatus === "MATCHES_TO_REVIEW" ? "Examiner" : "Décider de la suite"}

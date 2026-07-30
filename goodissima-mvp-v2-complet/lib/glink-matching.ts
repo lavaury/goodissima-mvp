@@ -22,7 +22,7 @@ export function wasGLinkMatchingEnabledAtCreation(rules: unknown) {
   return Boolean(rules && typeof rules === "object" && !Array.isArray(rules) && (rules as Record<string, unknown>).matchingEnabledAtCreation === true);
 }
 
-type GLinkMatchingEvent = { action: string; outputSummary: string | null; createdAt: Date };
+import type { MatchingResultStatus, MatchingRunStatus } from "./matching-contracts.ts";
 
 export type GLinkMatchingDisplayState =
   | { status: "DISABLED"; count: 0 }
@@ -31,43 +31,56 @@ export type GLinkMatchingDisplayState =
   | { status: "FOLLOW_UP_TO_DECIDE"; count: number }
   | { status: "NO_RESULTS"; count: 0 };
 
-function parseJson(value: string | null) {
-  if (!value?.startsWith("{")) return null;
-  try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
+export type GLinkMatchingSummary = {
+  hasRun: boolean;
+  runStatus: MatchingRunStatus | null;
+  lastRunAt: Date | null;
+  totalResults: number;
+  availableCount: number;
+  selectedCount: number;
+  dismissedCount: number;
+  linkedCount: number;
+  hasResultsToReview: boolean;
+  hasHumanFollowUp: boolean;
+  hasNoResults: boolean;
+};
+
+type MatchingSummaryRun = {
+  status: MatchingRunStatus;
+  createdAt: Date;
+  completedAt: Date | null;
+  results: Array<{ status: MatchingResultStatus }>;
+};
+
+export function deriveGLinkMatchingSummary(run: MatchingSummaryRun | null): GLinkMatchingSummary {
+  const counts = { AVAILABLE: 0, SELECTED: 0, DISMISSED: 0, LINKED: 0 } satisfies Record<MatchingResultStatus, number>;
+  for (const result of run?.results ?? []) counts[result.status] += 1;
+  const isFinalResults = run?.status === "RESULTS_AVAILABLE" || run?.status === "CLOSED";
+  return {
+    hasRun: Boolean(run),
+    runStatus: run?.status ?? null,
+    lastRunAt: run ? run.completedAt ?? run.createdAt : null,
+    totalResults: run?.results.length ?? 0,
+    availableCount: counts.AVAILABLE,
+    selectedCount: counts.SELECTED,
+    dismissedCount: counts.DISMISSED,
+    linkedCount: counts.LINKED,
+    hasResultsToReview: Boolean(isFinalResults && counts.AVAILABLE > 0),
+    hasHumanFollowUp: Boolean(isFinalResults && counts.SELECTED > 0),
+    hasNoResults: Boolean(isFinalResults && run?.results.length === 0),
+  };
 }
 
 export function deriveGLinkMatchingDisplayState({
   rules,
-  sourceId,
-  events,
+  summary,
 }: {
   rules: unknown;
-  sourceId: string;
-  events: GLinkMatchingEvent[];
+  summary: GLinkMatchingSummary | undefined;
 }): GLinkMatchingDisplayState {
   if (!parseGLinkMatchingState(rules).enabled) return { status: "DISABLED", count: 0 };
-  const latestEnable = events.find((event) => event.action === "glink_matching_enabled" && parseJson(event.outputSummary)?.sourceId === sourceId);
-  const analysisEvent = events.find((event) => {
-    const payload = parseJson(event.outputSummary);
-    return event.action === "glink_matching_analysis" && payload?.sourceId === sourceId &&
-      (!latestEnable || event.createdAt >= latestEnable.createdAt);
-  });
-  if (!analysisEvent) return { status: "TO_ANALYZE", count: 0 };
-  const analysis = parseJson(analysisEvent.outputSummary);
-  const matches = Array.isArray(analysis?.matches)
-    ? analysis.matches.flatMap((match) => match && typeof match === "object" && typeof (match as Record<string, unknown>).relationId === "string" ? [(match as Record<string, unknown>).relationId as string] : [])
-    : [];
-  const latestByTarget = new Map<string, string>();
-  for (const event of events) {
-    if (!["glink_matching_interested", "glink_matching_ignored"].includes(event.action)) continue;
-    const payload = parseJson(event.outputSummary);
-    const targetId = typeof payload?.targetId === "string" ? payload.targetId : "";
-    if (payload?.sourceId !== sourceId || !targetId || latestByTarget.has(targetId)) continue;
-    latestByTarget.set(targetId, event.action);
-  }
-  const interestingCount = matches.filter((id) => latestByTarget.get(id) === "glink_matching_interested").length;
-  if (interestingCount > 0) return { status: "FOLLOW_UP_TO_DECIDE", count: interestingCount };
-  const reviewCount = matches.filter((id) => !latestByTarget.has(id)).length;
-  if (reviewCount > 0) return { status: "MATCHES_TO_REVIEW", count: reviewCount };
+  if (!summary?.hasRun || summary.runStatus !== "RESULTS_AVAILABLE" && summary.runStatus !== "CLOSED") return { status: "TO_ANALYZE", count: 0 };
+  if (summary.hasHumanFollowUp) return { status: "FOLLOW_UP_TO_DECIDE", count: summary.selectedCount };
+  if (summary.hasResultsToReview) return { status: "MATCHES_TO_REVIEW", count: summary.availableCount };
   return { status: "NO_RESULTS", count: 0 };
 }

@@ -44,7 +44,8 @@ test("adapts matching guidance to every real display state", () => {
   assert.deepEqual(states, ["DISABLED", "TO_ANALYZE", "MATCHES_TO_REVIEW", "FOLLOW_UP_TO_DECIDE", "NO_RESULTS"]);
   const page = read("app/opportunities/page.tsx");
   assert.match(page, /deriveGLinkMatchingDisplayState/);
-  assert.match(page, /aiEvents/);
+  assert.match(page, /getGLinkMatchingSummariesForOwner/);
+  assert.doesNotMatch(page, /aiEvents/);
 });
 
 test("explains Opportunity admission without changing it", () => {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { hasUsefulGLinkMatchingCriteria } from "@/lib/ai/relational-matching-source";
 import { deriveGLinkMatchingDisplayState, parseGLinkMatchingState } from "@/lib/glink-matching";
+import { getGLinkMatchingSummariesForOwner } from "@/lib/matching/glink-matching-summary-repository";
 import { selectDeterministicMatchingSources, type PilotageSignalKind } from "@/lib/governance-attention";
 export { filterSignalsByWorkspaceId, isInterventionSignalKind, summarizeGovernanceAttention } from "@/lib/governance-attention";
 
@@ -23,12 +24,12 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
           select: {
             name: true,
             formTemplates: { take: 1, orderBy: { createdAt: "asc" }, select: { fields: { orderBy: [{ step: "asc" }, { position: "asc" }], select: { label: true, type: true, options: true, validationRules: true } } } },
-            aiEvents: { where: { action: { in: ["glink_matching_analysis", "glink_matching_interested", "glink_matching_ignored", "glink_matching_enabled", "glink_matching_disabled"] } }, orderBy: { createdAt: "desc" }, take: 30, select: { action: true, outputSummary: true, createdAt: true } },
           },
         },
       },
     }),
   ]);
+  const matchingSummaries = await getGLinkMatchingSummariesForOwner(ownerId, gLinks.map((link) => link.id));
   const now = new Date(); const recentSince = new Date(now.getTime() - 14 * 86400000); const signals: GovernancePilotageSignal[] = [];
   for (const workspace of workspaces) for (const journey of workspace.relationTemplates) {
     const formId = journey.formTemplates[0]?.id; if (!formId) continue;
@@ -83,7 +84,8 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
       portfolio: link.workspace?.portfolio?.name ?? null,
     };
     const href = `/links/${link.id}#matching`;
-    const matchingState = deriveGLinkMatchingDisplayState({ rules: link.rules, sourceId: link.id, events: link.template.aiEvents });
+    const matchingSummary = matchingSummaries.get(link.id);
+    const matchingState = deriveGLinkMatchingDisplayState({ rules: link.rules, summary: matchingSummary });
     if (matchingState.status === "TO_ANALYZE") {
       signals.push({
         id: `GLINK:${link.id}:MATCHING_TO_ANALYZE`, kind: "MATCHING", title: "Matching du lien", subject: link.title,
@@ -92,7 +94,7 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
       });
       continue;
     }
-    const latestAnalysisDate = link.template.aiEvents.find((event) => event.action === "glink_matching_analysis")?.createdAt ?? link.createdAt;
+    const latestAnalysisDate = matchingSummary?.lastRunAt ?? link.createdAt;
     if (matchingState.status === "MATCHES_TO_REVIEW") signals.push({
       id: `GLINK:${link.id}:MATCHES_TO_REVIEW`, kind: "MATCHING", title: "Résultats à examiner", subject: link.title,
       ...base, reason: `${matchingState.count} correspondance(s) potentielle(s) détectée(s) pour ce lien. Examen humain requis. Aucun contact automatique.`,
@@ -101,7 +103,7 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
     if (matchingState.status === "FOLLOW_UP_TO_DECIDE") signals.push({
       id: `GLINK:${link.id}:MATCH_FOLLOW_UP_TO_DECIDE`, kind: "MATCHING", title: "Intervention humaine requise", subject: link.title,
       ...base, reason: "Une correspondance a été marquée intéressante. La suite reste à décider humainement. Aucun contact automatique.",
-      actionLabel: "Ouvrir le matching", href, date: link.template.aiEvents.find((event) => event.action === "glink_matching_interested")?.createdAt ?? latestAnalysisDate,
+      actionLabel: "Ouvrir le matching", href, date: latestAnalysisDate,
     });
   }
   return { signals, workspaces: workspaces.map((workspace) => ({ id: workspace.id, name: workspace.name, status: workspace.status, portfolio: workspace.portfolio?.name ?? null, journeyCount: workspace.relationTemplates.length, caseCount: workspace.relationTemplates.reduce((sum, journey) => sum + journey.relationCases.length, 0), linkCount: workspace.relationTemplates.reduce((sum, journey) => sum + journey.links.length, 0) })), activeJourneyCount: workspaces.reduce((sum, workspace) => sum + workspace.relationTemplates.filter((journey) => journey.status !== "ARCHIVED").length, 0) };

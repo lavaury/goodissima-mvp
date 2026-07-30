@@ -15,6 +15,7 @@ import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { DashboardRealtimeRefresh } from "./DashboardRealtimeRefresh";
 import { deriveGLinkMatchingDisplayState, wasGLinkMatchingEnabledAtCreation } from "@/lib/glink-matching";
+import { getGLinkMatchingSummariesForOwner } from "@/lib/matching/glink-matching-summary-repository";
 const legacyJourneyMetricLabel = "Templates/parcours actifs";
 void legacyJourneyMetricLabel;
 
@@ -71,12 +72,6 @@ export default async function DashboardPage({
           select: {
             name: true,
             status: true,
-            aiEvents: {
-              where: { action: { in: ["glink_matching_analysis", "glink_matching_interested", "glink_matching_ignored", "glink_matching_enabled", "glink_matching_disabled"] } },
-              orderBy: { createdAt: "desc" },
-              take: 30,
-              select: { action: true, outputSummary: true, createdAt: true },
-            },
           },
         },
         templateVersion: { select: { version: true } },
@@ -155,6 +150,7 @@ export default async function DashboardPage({
     prisma.templateGeneration.count({ where: { createdById: owner.id, status: "VALIDATED", validatedAt: { gte: monthStart } } }),
     prisma.templateOptimization.count({ where: { approvedAt: { gte: monthStart } } }),
   ]);
+  const matchingSummaries = await getGLinkMatchingSummariesForOwner(owner.id, links.map((link) => link.id));
   const monthlyAICost = monthlyAIEvents.reduce((sum, event) => sum + Number(event.estimatedCostEur ?? 0), 0);
   const estimatedValue = Math.round((validatedTemplateCount * 120) + (optimizedVersionCount * 80) + (publishedAnnouncementCount * 25));
   const activeLinkIds = new Set(
@@ -198,8 +194,7 @@ export default async function DashboardPage({
       ? { status: "DISABLED" as const, count: 0 }
       : deriveGLinkMatchingDisplayState({
           rules: item.rules,
-          sourceId: item.id,
-          events: item.template?.aiEvents ?? [],
+          summary: matchingSummaries.get(item.id),
         });
     return {
     id: item.id,
@@ -213,6 +208,7 @@ export default async function DashboardPage({
     admissionMode: item.admissionMode,
     matchingStatus: matching.status,
     matchingCount: matching.count,
+    matchingLastRunAt: matchingSummaries.get(item.id)?.lastRunAt?.toISOString() ?? null,
     openActionCount: item.cases.reduce(
       (count, relationCase) =>
         count + relationCase.relationActions.filter((action) => action.status !== "COMPLETED").length,

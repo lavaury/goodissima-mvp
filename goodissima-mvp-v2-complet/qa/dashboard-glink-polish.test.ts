@@ -35,7 +35,7 @@ test("creation matching metadata remains distinct from later activation", () => 
   assert.equal(wasGLinkMatchingEnabledAtCreation({ matchingEnabled: true }), false);
   assert.equal(wasGLinkMatchingEnabledAtCreation({ matchingEnabledAtCreation: true }), true);
   assert.deepEqual(
-    deriveGLinkMatchingDisplayState({ rules: { matchingEnabled: true }, sourceId: "link-1", events: [] }),
+    deriveGLinkMatchingDisplayState({ rules: { matchingEnabled: true }, summary: undefined }),
     { status: "TO_ANALYZE", count: 0 },
   );
 });
