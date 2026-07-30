@@ -240,7 +240,7 @@ export class MatchingExecutionService {
           runId: running.id,
           gLinkId: input.gLinkId,
           failureCode,
-          error: finalizationError instanceof Error ? finalizationError.message : "UNKNOWN",
+          errorType: finalizationError instanceof Error ? finalizationError.name : "UNKNOWN",
         });
       }
       await this.auditSafely({
@@ -257,7 +257,7 @@ export class MatchingExecutionService {
         gLinkId: input.gLinkId,
         engineVersion: GLINK_MATCHING_ENGINE_VERSION,
         failureCode,
-        error: error instanceof Error ? error.message : "UNKNOWN",
+        errorType: error instanceof Error ? error.name : "UNKNOWN",
       });
       throw new MatchingDomainError("MATCHING_EXECUTION_FAILED");
     }
@@ -293,7 +293,7 @@ export class MatchingExecutionService {
       console.warn("[matching] Audit event unavailable", {
         runId: input.runId,
         failureCode: input.failureCode,
-        error: error instanceof Error ? error.message : "UNKNOWN",
+        errorType: error instanceof Error ? error.name : "UNKNOWN",
       });
     }
   }

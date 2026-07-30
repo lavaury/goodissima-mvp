@@ -514,3 +514,19 @@ Sources de veille :
 - https://nextjs.org/support-policy
 - https://nextjs.org/docs/app/getting-started/upgrading
 - https://nextjs.org/docs/app/guides/upgrading/version-16
+
+## 21. Matching GLink persistant V1.1
+
+Le matching des GLinks utilise `MatchingRun` et `MatchingResult` comme source de verite fonctionnelle. Les decisions humaines sont `SELECTED` et `DISMISSED`; elles ne creent ni contact, ni dossier, ni acces. `LINKED` reste un etat historique sans transition automatique.
+
+Cycle de vie :
+
+- `PREPARED`, `RESULTS_AVAILABLE` et `FAILED` peuvent etre suspendus ou clotures ;
+- `RUNNING` peut etre suspendu, mais doit finir ou echouer avant cloture ;
+- `CLOSED` est terminal et ses resultats restent lisibles ;
+- une nouvelle analyse apres cloture cree un nouveau run et ne recopie aucune decision historique ;
+- pause, reprise et cloture sont des actions explicites du proprietaire.
+
+Les lectures et ecritures sont filtrees par proprietaire. Les mutations verifient aussi le GLink, le run, le resultat et l'etat concurrent attendu. Les syntheses Dashboard, Opportunites et Pilotage chargent en une requete groupee le dernier run de chaque GLink et uniquement les statuts necessaires.
+
+`glink_matching_analysis` est conserve comme audit technique de l'execution. Il n'est pas une source de decision ou de synthese fonctionnelle. Le matching standard reste independant de toute offre IA premium decisionnaire.

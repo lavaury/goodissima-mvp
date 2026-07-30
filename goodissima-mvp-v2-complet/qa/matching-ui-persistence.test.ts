@@ -11,12 +11,12 @@ const linkPage = source("app/links/[linkId]/page.tsx");
 
 test("GET reads the latest owner-scoped persistent run without executing matching", () => {
   assert.match(route, /export async function GET/);
-  assert.match(route, /findSourceForOwner\(owner\.id, params\.linkId\)/);
+  assert.match(route, /findSourceForOwner\(owner\.id, linkId\)/);
   assert.match(route, /getLatestMatchingRunWithResultsForGLink/);
   assert.match(route, /results: persisted\?\.results\.map\(publicResult\) \?\? \[\]/);
   const getBody = route.slice(route.indexOf("export async function GET"), route.indexOf("export async function PATCH"));
   assert.doesNotMatch(getBody, /MatchingExecutionService|aIEvent|rankMatches|semanticMatchV2/);
-  const serialization = route.slice(route.indexOf("function publicRun"), route.indexOf("function legacyMatch"));
+  const serialization = route.slice(route.indexOf("function publicRun"), route.indexOf("function matchingHttpStatus"));
   assert.doesNotMatch(serialization, /ownerId/);
   assert.match(serialization, /selectedAt: result\.selectedAt\?\.toISOString\(\) \?\? null/);
   assert.match(serialization, /dismissedAt: result\.dismissedAt\?\.toISOString\(\) \?\? null/);
@@ -30,12 +30,12 @@ test("GET returns a serializable empty state and masks technical failures", () =
   assert.doesNotMatch(getBody, /error\.stack|PrismaClient|P20\d\d/);
 });
 
-test("POST serializes complete run dates and nullable human decision dates", () => {
+test("POST serializes complete run dates without the obsolete legacy matches payload", () => {
   const postBody = route.slice(route.indexOf("export async function POST"), route.indexOf("export async function GET"));
-  const serialization = route.slice(route.indexOf("function publicRun"), route.indexOf("function legacyMatch"));
+  const serialization = route.slice(route.indexOf("function publicRun"), route.indexOf("function matchingHttpStatus"));
   assert.match(postBody, /run: publicRun\(response\.run\)/);
   assert.match(postBody, /results: response\.results\.map\(publicResult\)/);
-  assert.match(postBody, /matches: response\.results\.map\(legacyMatch\)/);
+  assert.doesNotMatch(postBody, /matches:|legacyMatch/);
   assert.match(postBody, /warnings: \[\]/);
   assert.match(serialization, /startedAt: run\.startedAt\?\.toISOString\(\) \?\? null/);
   assert.match(serialization, /completedAt: run\.completedAt\?\.toISOString\(\) \?\? null/);
@@ -98,7 +98,7 @@ test("each human launch gets a bounded random idempotency key and prevents dupli
 
 test("PATCH persists an owner-scoped decision through the lifecycle service", () => {
   const patch = route.slice(route.indexOf("export async function PATCH"), route.indexOf("async function readIdempotencyKey"));
-  assert.match(patch, /linkSource\(params\.linkId, owner\.id\)/);
+  assert.match(patch, /linkSource\(linkId, owner\.id\)/);
   assert.match(patch, /body\?\.decision === "SELECTED" \|\| body\?\.decision === "DISMISSED"/);
   assert.match(patch, /getMatchingRunForOwner\(\{ ownerId: owner\.id, runId \}\)/);
   assert.match(patch, /decisionRun\.gLinkId !== source\.id/);

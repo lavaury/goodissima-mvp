@@ -45,6 +45,7 @@ test("repository classifies only the MatchingRun idempotency P2002 violation", a
     code: "P2002",
     meta: { target: ["id"] },
   }), false);
+  assert.equal(isPrismaMatchingRunIdempotencyViolation({ code: "P2002" }), false);
   assert.equal(isPrismaMatchingRunIdempotencyViolation(new Error("DATABASE_UNAVAILABLE")), false);
   assert.equal(isMatchingRunIdempotencyUniqueError(new MatchingRunIdempotencyUniqueError()), true);
   assert.equal(isMatchingRunIdempotencyUniqueError(new Error("UNIQUE")), false);

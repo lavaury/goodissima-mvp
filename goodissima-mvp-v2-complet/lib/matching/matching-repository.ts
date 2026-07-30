@@ -93,7 +93,7 @@ export function isPrismaMatchingRunIdempotencyViolation(error: unknown): boolean
     ? error.meta as Record<string, unknown>
     : null;
   const target = meta?.target ?? meta?.constraint;
-  if (target === undefined) return true;
+  if (target === undefined) return false;
   const values = Array.isArray(target) ? target.map(String) : [String(target)];
   const normalized = values.join(",").toLowerCase();
   return normalized.includes("matchingrun_ownerid_idempotencykey_key")

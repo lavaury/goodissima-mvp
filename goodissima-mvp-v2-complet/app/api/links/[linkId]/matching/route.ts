@@ -8,7 +8,6 @@ import {
   GLINK_MATCHING_ENGINE_VERSION,
   MatchingExecutionService,
   parseMatchingIdempotencyKey,
-  type PersistableMatchingExplanation,
 } from "@/lib/matching/matching-execution-service";
 import { createPrismaMatchingRepository } from "@/lib/matching/matching-repository";
 import { PrismaGLinkMatchingSourceStore } from "@/lib/matching/glink-matching-source-store";
@@ -25,6 +24,8 @@ async function linkSource(linkId: string, ownerId: string) {
 export async function POST(request: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
   try {
+    const linkId = parseMatchingIdentifier(params.linkId);
+    if (!linkId) return NextResponse.json({ error: "MATCHING_REQUEST_INVALID" }, { status: 400 });
     const idempotencyKey = await readIdempotencyKey(request);
     const lifecycle = new MatchingLifecycleService(createPrismaMatchingRepository(prisma));
     const execution = new MatchingExecutionService({
@@ -55,13 +56,12 @@ export async function POST(request: Request, { params }: { params: { linkId: str
     });
     const response = await execution.execute({
       ownerId: owner.id,
-      gLinkId: params.linkId,
+      gLinkId: linkId,
       idempotencyKey,
     });
     return NextResponse.json({
       run: publicRun(response.run),
       results: response.results.map(publicResult),
-      matches: response.results.map(legacyMatch),
       warnings: [],
     });
   } catch (error) {
@@ -69,8 +69,8 @@ export async function POST(request: Request, { params }: { params: { linkId: str
       return NextResponse.json({ error: error.code }, { status: matchingHttpStatus(error.code) });
     }
     console.error("[matching] Unexpected route failure", {
-      gLinkId: params.linkId,
-      error: error instanceof Error ? error.message : "UNKNOWN",
+      gLinkId: parseMatchingIdentifier(params.linkId) ?? "INVALID",
+      errorType: error instanceof Error ? error.name : "UNKNOWN",
     });
     return NextResponse.json({ error: "MATCHING_EXECUTION_FAILED" }, { status: 500 });
   }
@@ -79,12 +79,14 @@ export async function POST(request: Request, { params }: { params: { linkId: str
 export async function GET(_request: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
   try {
-    const source = await new PrismaGLinkMatchingSourceStore(prisma).findSourceForOwner(owner.id, params.linkId);
+    const linkId = parseMatchingIdentifier(params.linkId);
+    if (!linkId) return NextResponse.json({ error: "MATCHING_REQUEST_INVALID" }, { status: 400 });
+    const source = await new PrismaGLinkMatchingSourceStore(prisma).findSourceForOwner(owner.id, linkId);
     if (!source) return NextResponse.json({ error: "MATCHING_SOURCE_NOT_FOUND" }, { status: 404 });
     const lifecycle = new MatchingLifecycleService(createPrismaMatchingRepository(prisma));
     const persisted = await lifecycle.getLatestMatchingRunWithResultsForGLink({
       ownerId: owner.id,
-      gLinkId: params.linkId,
+      gLinkId: linkId,
     });
     return NextResponse.json({
       enabled: parseGLinkMatchingState(source.rules).enabled,
@@ -93,8 +95,8 @@ export async function GET(_request: Request, { params }: { params: { linkId: str
     });
   } catch (error) {
     console.error("[matching-read] Unexpected route failure", {
-      gLinkId: params.linkId,
-      error: error instanceof Error ? error.message : "UNKNOWN",
+      gLinkId: parseMatchingIdentifier(params.linkId) ?? "INVALID",
+      errorType: error instanceof Error ? error.name : "UNKNOWN",
     });
     return NextResponse.json({ error: "MATCHING_READ_FAILED" }, { status: 500 });
   }
@@ -104,16 +106,18 @@ export async function PATCH(request: Request, { params }: { params: { linkId: st
   const owner = await getCurrentPrismaUser();
   let lifecycleRequest = false;
   try {
-    const source = await linkSource(params.linkId, owner.id);
+    const linkId = parseMatchingIdentifier(params.linkId);
+    if (!linkId) return NextResponse.json({ error: "MATCHING_REQUEST_INVALID" }, { status: 400 });
+    const source = await linkSource(linkId, owner.id);
     if (!source) return NextResponse.json({ error: "MATCHING_SOURCE_NOT_FOUND" }, { status: 404 });
     if (!parseGLinkMatchingState(source.rules).enabled) {
       return NextResponse.json({ error: "MATCHING_DISABLED" }, { status: 409 });
     }
 
     const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-    const runId = typeof body?.runId === "string" ? body.runId.trim() : "";
+    const runId = parseMatchingIdentifier(body?.runId) ?? "";
     const action = body?.action === "SUSPEND" || body?.action === "RESUME" || body?.action === "CLOSE" ? body.action : null;
-    const resultId = typeof body?.resultId === "string" ? body.resultId.trim() : "";
+    const resultId = parseMatchingIdentifier(body?.resultId) ?? "";
     const decision = body?.decision === "SELECTED" || body?.decision === "DISMISSED" ? body.decision : null;
     const isLifecyclePayload = Boolean(runId && action && !resultId && !decision);
     const isDecisionPayload = Boolean(runId && resultId && decision && !action);
@@ -151,8 +155,8 @@ export async function PATCH(request: Request, { params }: { params: { linkId: st
       return NextResponse.json({ error: error.code }, { status: matchingDecisionHttpStatus(error.code) });
     }
     console.error(lifecycleRequest ? "[matching-lifecycle] Unexpected route failure" : "[matching-decision] Unexpected route failure", {
-      gLinkId: params.linkId,
-      error: error instanceof Error ? error.message : "UNKNOWN",
+      gLinkId: parseMatchingIdentifier(params.linkId) ?? "INVALID",
+      errorType: error instanceof Error ? error.name : "UNKNOWN",
     });
     return NextResponse.json({ error: lifecycleRequest ? "MATCHING_LIFECYCLE_FAILED" : "MATCHING_DECISION_FAILED" }, { status: 500 });
   }
@@ -162,12 +166,29 @@ async function readIdempotencyKey(request: Request) {
   const header = request.headers.get("Idempotency-Key");
   if (header !== null) return parseMatchingIdempotencyKey(header);
   if (!request.headers.get("content-type")?.includes("application/json")) return undefined;
-  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const rawBody = await request.text();
+  if (!rawBody.trim()) return undefined;
+  let body: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(rawBody) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("INVALID");
+    body = parsed as Record<string, unknown>;
+  } catch {
+    throw new MatchingDomainError("MATCHING_IDEMPOTENCY_KEY_INVALID");
+  }
   if (body.idempotencyKey === undefined) return undefined;
   if (typeof body.idempotencyKey !== "string") {
     throw new MatchingDomainError("MATCHING_IDEMPOTENCY_KEY_INVALID");
   }
   return parseMatchingIdempotencyKey(body.idempotencyKey);
+}
+
+const MATCHING_IDENTIFIER_MAX_LENGTH = 191;
+
+function parseMatchingIdentifier(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized && normalized.length <= MATCHING_IDENTIFIER_MAX_LENGTH ? normalized : null;
 }
 
 function publicRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatchingRun"]>>) {
@@ -209,23 +230,8 @@ function matchingDecisionHttpStatus(code: MatchingDomainError["code"]) {
   return 409;
 }
 
-function legacyMatch(result: MatchingResultRecord, index: number) {
-  const explanation = result.explanation as Partial<PersistableMatchingExplanation>;
-  return {
-    relationId: result.targetGLinkId,
-    pseudonym: `Opportunité compatible ${index + 1}`,
-    explanation: {
-      compatibleElements: Array.isArray(explanation.signals) ? explanation.signals : [],
-      semanticSignals: [],
-      clarificationsNeeded: Array.isArray(explanation.cautions) ? explanation.cautions : [],
-      warnings: [],
-    },
-  };
-}
-
 function matchingHttpStatus(code: MatchingDomainError["code"]) {
   if (code === "MATCHING_SOURCE_NOT_FOUND" || code === "MATCHING_RUN_NOT_FOUND") return 404;
-  if (code === "MATCHING_CRITERIA_INSUFFICIENT") return 422;
   if (code === "MATCHING_IDEMPOTENCY_KEY_INVALID") return 400;
   if (code === "MATCHING_EXECUTION_FAILED") return 500;
   return 409;
