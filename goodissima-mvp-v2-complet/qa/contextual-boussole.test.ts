@@ -189,6 +189,17 @@ test("declares every important Boussole target on a real UI element", () => {
   }
 });
 
+test("keeps Annuaire Boussole targets on real EMPTY and POPULATED surfaces", () => {
+  const source = [
+    read("app/annuaire/page.tsx"),
+    read("components/directory/MyDirectoryOverview.tsx"),
+  ].join("\n");
+  assert.match(source, /data-boussole-id="directory-identity"/);
+  assert.match(source, /data-boussole-id="open-governance"/);
+  assert.match(source, /data-boussole-state=\{representations\.length \? "POPULATED" : "EMPTY"\}/);
+  assert.doesNotMatch(source, /mock|fixture|fakeProfile/i);
+});
+
 test("limits AI assistance to filtered explanatory input without business execution", () => {
   const source = read("app/api/boussole/ask/route.ts");
   assert.match(source, /question\.trim|question\.replace/);
