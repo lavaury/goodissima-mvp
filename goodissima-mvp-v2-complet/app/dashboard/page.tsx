@@ -16,6 +16,8 @@ import { prisma } from "@/lib/prisma";
 import { DashboardRealtimeRefresh } from "./DashboardRealtimeRefresh";
 import { deriveGLinkMatchingDisplayState, wasGLinkMatchingEnabledAtCreation } from "@/lib/glink-matching";
 import { getGLinkMatchingSummariesForOwner } from "@/lib/matching/glink-matching-summary-repository";
+import { getArchivedOpportunitySummaryForOwner } from "@/lib/archived-opportunity-repository";
+import { getDashboardLinkCounts } from "@/lib/dashboard-link-counts";
 const legacyJourneyMetricLabel = "Templates/parcours actifs";
 void legacyJourneyMetricLabel;
 
@@ -64,7 +66,7 @@ export default async function DashboardPage({
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
-  const [links, cases, recentCases, recentDocuments, activeJourneyCount, publishedAnnouncementCount, ongoingRelationCount, draftOpportunityCount, pendingRelationCount, openActionCount, monthlyAIEvents, generatedTemplateCount, validatedTemplateCount, optimizedVersionCount] = await Promise.all([
+  const [links, cases, recentCases, recentDocuments, activeJourneyCount, publishedAnnouncementCount, ongoingRelationCount, draftOpportunityCount, pendingRelationCount, openActionCount, monthlyAIEvents, generatedTemplateCount, validatedTemplateCount, optimizedVersionCount, archivedOpportunitySummary] = await Promise.all([
     prisma.gLink.findMany({
       where: { ownerId: owner.id },
       include: {
@@ -149,6 +151,7 @@ export default async function DashboardPage({
     prisma.templateGeneration.count({ where: { createdById: owner.id, createdAt: { gte: monthStart } } }),
     prisma.templateGeneration.count({ where: { createdById: owner.id, status: "VALIDATED", validatedAt: { gte: monthStart } } }),
     prisma.templateOptimization.count({ where: { approvedAt: { gte: monthStart } } }),
+    getArchivedOpportunitySummaryForOwner(owner.id),
   ]);
   const matchingSummaries = await getGLinkMatchingSummariesForOwner(owner.id, links.map((link) => link.id));
   const monthlyAICost = monthlyAIEvents.reduce((sum, event) => sum + Number(event.estimatedCostEur ?? 0), 0);
@@ -179,7 +182,7 @@ export default async function DashboardPage({
     },
     { label: t("dashboard.kpi.urgent"), value: cases.filter((item) => item.priority === "URGENT").length, href: "/relations" },
     { label: t("dashboard.kpi.closed"), value: cases.filter((item) => item.status === "CLOSED").length, href: "/relations" },
-    { label: t("dashboard.kpi.archives"), value: links.filter((item) => item.status === "ARCHIVED").length, href: "/opportunities?view=archived" },
+    { label: t("dashboard.kpi.archives"), value: archivedOpportunitySummary.count, href: "/opportunities?view=archived" },
     {
       label: t("dashboard.kpi.openRequests"),
       value: cases.reduce(
@@ -190,6 +193,7 @@ export default async function DashboardPage({
     },
   ];
   const dashboardLinks = links.map((item) => {
+    const linkCounts = getDashboardLinkCounts(item.cases);
     const matching = item.status === "ARCHIVED"
       ? { status: "DISABLED" as const, count: 0 }
       : deriveGLinkMatchingDisplayState({
@@ -209,11 +213,8 @@ export default async function DashboardPage({
     matchingStatus: matching.status,
     matchingCount: matching.count,
     matchingLastRunAt: matchingSummaries.get(item.id)?.lastRunAt?.toISOString() ?? null,
-    openActionCount: item.cases.reduce(
-      (count, relationCase) =>
-        count + relationCase.relationActions.filter((action) => action.status !== "COMPLETED").length,
-      0,
-    ),
+    receivedRequestCount: linkCounts.receivedRequestCount,
+    openActionCount: linkCounts.pendingActionCount,
     cases: item.cases
       .map((relationCase) => ({
         id: relationCase.id,

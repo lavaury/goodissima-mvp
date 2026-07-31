@@ -12,6 +12,7 @@ import { getPublicAppUrl } from "@/lib/public-app-url";
 import { isDemoSurfaceEnabled } from "@/lib/debug";
 import { deriveGLinkMatchingDisplayState } from "@/lib/glink-matching";
 import { getGLinkMatchingSummariesForOwner } from "@/lib/matching/glink-matching-summary-repository";
+import { getArchivedOpportunitySummaryForOwner } from "@/lib/archived-opportunity-repository";
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -37,28 +38,9 @@ export default async function OpportunitiesPage({
     },
   });
   const matchingSummaries = await getGLinkMatchingSummariesForOwner(owner.id, announcements.map((item) => item.id));
-  const archivedCount = await prisma.gLink.count({
-    where: { ownerId: owner.id, status: "ARCHIVED", ...templateFilter },
-  });
-  const archivedJourneys = await prisma.relationTemplate.findMany({
-    where: {
-      status: "ARCHIVED",
-      OR: [
-        { generations: { some: { createdById: owner.id } } },
-        { links: { some: { ownerId: owner.id } } },
-      ],
-      ...(searchParams?.templateId ? { id: searchParams.templateId } : {}),
-    },
-    orderBy: { updatedAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      formTemplates: { select: { id: true }, take: 1 },
-      _count: { select: { links: true } },
-    },
-  });
-  const totalArchivedCount = archivedCount + archivedJourneys.length;
+  const archivedOpportunitySummary = await getArchivedOpportunitySummaryForOwner(owner.id, searchParams?.templateId);
+  const archivedJourneys = archivedOpportunitySummary.journeys;
+  const totalArchivedCount = archivedOpportunitySummary.count;
   const statusCards = [
     { label: "Brouillons", value: await prisma.relationTemplate.count({ where: { status: "DRAFT" } }), href: "/parcours" },
     { label: "Publiées", value: announcements.filter((item) => item.status === "ACTIVE").length, href: "/opportunities" },

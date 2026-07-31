@@ -27,7 +27,7 @@ test("separates announcement, journey and relation actions", () => {
   const announcement = source("components/AnnouncementActions.tsx");
   assert.match(announcement, /Modifier l'annonce/);
   assert.match(announcement, /Publier l'annonce/);
-  assert.match(announcement, /Créer un lien sécurisé/);
+  assert.match(announcement, /Voir l'annonce publique/);
   assert.match(announcement, /Archiver l'annonce/);
   const journey = source("app/templates/[templateId]/page.tsx");
   assert.match(journey, /Modifier le parcours/);

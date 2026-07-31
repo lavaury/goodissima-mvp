@@ -66,13 +66,17 @@ test("active and archived announcement views are mutually exclusive", () => {
   const opportunities = source("app/opportunities/page.tsx");
   const dashboard = source("app/dashboard/page.tsx");
   const dashboardFilters = source("components/DashboardLinkFilters.tsx");
+  const archiveDefinition = source("lib/archived-opportunity.ts");
   assert.match(opportunities, /view === "archived" \? "ARCHIVED" : \{ not: "ARCHIVED" \}/);
   assert.match(opportunities, /\/opportunities\?view=archived/);
   assert.match(opportunities, /Les annonces archivées resteront disponibles ici/);
-  assert.match(opportunities, /status:\s*"ARCHIVED"/);
+  assert.match(archiveDefinition, /status:\s*"ARCHIVED"/);
   assert.match(opportunities, /archivedJourneys/);
   assert.match(opportunities, /Parcours d'annonce archivé/);
   assert.match(opportunities, /totalArchivedCount/);
+  assert.match(opportunities, /getArchivedOpportunitySummaryForOwner\(owner\.id, searchParams\?\.templateId\)/);
+  assert.match(dashboard, /getArchivedOpportunitySummaryForOwner\(owner\.id\)/);
+  assert.match(dashboard, /value: archivedOpportunitySummary\.count/);
   assert.match(dashboard, /where:\s*\{ ownerId: owner\.id \}/);
   assert.match(dashboardFilters, /item\.status === "ARCHIVED"/);
   assert.match(dashboardFilters, /item\.status !== "ARCHIVED"/);

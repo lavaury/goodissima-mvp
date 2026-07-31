@@ -16,6 +16,7 @@ type DashboardLink = {
   templateVersion?: number | null;
   admissionMode?: LinkAdmissionMode;
   openActionCount?: number;
+  receivedRequestCount?: number;
   matchingStatus?: "DISABLED" | "TO_ANALYZE" | "MATCHES_TO_REVIEW" | "FOLLOW_UP_TO_DECIDE" | "NO_RESULTS";
   matchingCount?: number;
   cases?: Array<{

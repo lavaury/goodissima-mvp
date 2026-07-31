@@ -29,6 +29,7 @@ export function LinkCard({
     templateVersion?: number | null;
     admissionMode?: LinkAdmissionMode;
     openActionCount?: number;
+    receivedRequestCount?: number;
     matchingStatus?: "DISABLED" | "TO_ANALYZE" | "MATCHES_TO_REVIEW" | "FOLLOW_UP_TO_DECIDE" | "NO_RESULTS";
     matchingCount?: number;
     matchingLastRunAt?: string | null;
@@ -44,7 +45,7 @@ export function LinkCard({
   const latestCase = item.cases?.[0];
   const latestCasePath = latestCase ? `/cases/${latestCase.id}?refresh=1` : null;
   const linkCasesPath = `/links/${item.id}`;
-  const caseCount = item.cases?.length ?? 0;
+  const caseCount = item.receivedRequestCount ?? item.cases?.length ?? 0;
   const [shared, setShared] = useState(false);
   const [status, setStatus] = useState<AnnouncementStatus>(item.status ?? "ACTIVE");
   const [archiving, setArchiving] = useState(false);
@@ -101,9 +102,14 @@ export function LinkCard({
           <h3 className="text-lg font-semibold">{item.title}</h3>
           {item.city && <p className="text-sm text-slate-500">{item.city}</p>}
         </div>
+        {caseCount > 0 ? (
+          <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-800 ring-1 ring-cyan-200">
+            {caseCount} demande{caseCount > 1 ? "s" : ""} reçue{caseCount > 1 ? "s" : ""}
+          </span>
+        ) : null}
         {item.openActionCount ? (
           <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
-            {item.openActionCount} demande{item.openActionCount > 1 ? "s" : ""}
+            {item.openActionCount} action{item.openActionCount > 1 ? "s" : ""} en attente
           </span>
         ) : null}
         {item.status ? (

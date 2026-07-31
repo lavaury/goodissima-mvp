@@ -57,11 +57,6 @@ export function AnnouncementActions({
     router.refresh();
   }
 
-  async function copySecureLink() {
-    await navigator.clipboard.writeText(publicUrl);
-    toast.success("Lien sécurisé copié.");
-  }
-
   return (
     <section className="mt-6 rounded-2xl border bg-white p-5">
       <div className="flex items-center justify-between gap-3">
@@ -77,9 +72,9 @@ export function AnnouncementActions({
         <button type="button" onClick={() => void patch("publish")} disabled={loading !== null || status === "ACTIVE"} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
           Publier l'annonce
         </button>
-        <button type="button" onClick={() => void copySecureLink()} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-900">
-          Créer un lien sécurisé
-        </button>
+        <a href={publicUrl} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-900">
+          Voir l'annonce publique
+        </a>
         <button type="button" data-boussole-id="archive-announcement" onClick={() => void patch("archive")} disabled={loading !== null || status === "ARCHIVED"} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 disabled:opacity-40">
           {loading === "archive" ? "Archivage..." : "Archiver l'annonce"}
         </button>
