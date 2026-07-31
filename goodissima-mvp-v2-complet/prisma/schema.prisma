@@ -132,6 +132,20 @@ enum IdentityStatus {
   REVOKED
 }
 
+enum RepresentationType {
+  PROFESSIONAL
+  ORGANIZATION_REPRESENTATIVE
+  ASSOCIATION
+  PRIVATE
+  OTHER
+}
+
+enum RepresentationStatus {
+  ACTIVE
+  HIDDEN
+  ARCHIVED
+}
+
 enum TrustCredentialStatus {
   ACTIVE
   EXPIRED
@@ -272,6 +286,9 @@ model User {
   aiEvents                AIEvent[]
   manualTemplateEditAudits ManualTemplateEditAudit[]
   productFeedback         ProductFeedback[]
+  representations         Representation[]             @relation("OwnerRepresentations")
+
+  @@unique([id, goodissimaIdentityId])
 }
 
 model Portfolio {
@@ -812,6 +829,31 @@ model GoodissimaIdentity {
   credentials            TrustCredential[]
   trustAdmissionTokens   TrustAdmissionToken[]
   candidateRelationCases RelationCase[]
+  representations        Representation[]
+}
+
+model Representation {
+  id               String               @id @default(cuid())
+  ownerId          String
+  identityId       String
+  type             RepresentationType
+  displayName      String
+  title            String?
+  organizationName String?
+  description      String?
+  territory        String?
+  status           RepresentationStatus @default(ACTIVE)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  archivedAt       DateTime?
+
+  owner    User               @relation("OwnerRepresentations", fields: [ownerId, identityId], references: [id, goodissimaIdentityId], onDelete: Cascade, onUpdate: Restrict)
+  identity GoodissimaIdentity @relation(fields: [identityId], references: [id], onDelete: Restrict)
+
+  @@index([ownerId, status])
+  @@index([identityId])
+  @@index([ownerId, identityId])
+  @@index([ownerId, updatedAt])
 }
 
 model TrustAdmissionToken {
