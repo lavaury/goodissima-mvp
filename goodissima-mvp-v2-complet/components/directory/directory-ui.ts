@@ -1,4 +1,4 @@
-import type { RepresentationStatus, RepresentationType } from "@/lib/directory/contracts";
+import type { RepresentationRelationshipPolicy, RepresentationStatus, RepresentationType } from "@/lib/directory/contracts";
 
 export type DirectoryRepresentation = {
   id: string;
@@ -9,6 +9,7 @@ export type DirectoryRepresentation = {
   description: string | null;
   territory: string | null;
   status: RepresentationStatus;
+  relationshipPolicy: RepresentationRelationshipPolicy;
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;

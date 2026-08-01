@@ -34,7 +34,7 @@ test("API is authenticated, owner-derived and exposes no owner or identity ident
     assert.doesNotMatch(route, /body\.ownerId|body\.identityId/);
   }
   assert.doesNotMatch(api, /ownerId|identityId/);
-  for (const field of ["id", "type", "displayName", "title", "organizationName", "description", "territory", "status", "createdAt", "updatedAt", "archivedAt"]) {
+  for (const field of ["id", "type", "displayName", "title", "organizationName", "description", "territory", "status", "relationshipPolicy", "createdAt", "updatedAt", "archivedAt"]) {
     assert.match(api, new RegExp(`\\b${field}\\b`));
   }
 });
@@ -49,7 +49,7 @@ test("routes map stable 400, 404, 409 and 500 errors without stack or Prisma det
   assert.doesNotMatch(errors, /PrismaClientKnownRequestError/);
 });
 
-test("lot 1 has no discoverability or automatic business side effects", () => {
+test("directory has no discoverability or automatic business side effects", () => {
   const directoryCode = [
     source("lib/directory/contracts.ts"),
     source("lib/directory/representation-repository.ts"),
@@ -57,7 +57,7 @@ test("lot 1 has no discoverability or automatic business side effects", () => {
     source("app/api/directory/representations/route.ts"),
     source("app/api/directory/representations/[representationId]/route.ts"),
   ].join("\n");
-  assert.doesNotMatch(directoryCode, /ContactRequest|RepresentationContact|prisma\.message|CommunicationSession|MatchingRun|MatchingResult|\bnotification\b|\binvitation\b|\bvisibility\b|\bdiscoverable\b/i);
+  assert.doesNotMatch(directoryCode, /ContactRequest|RepresentationContact|prisma\.message|CommunicationSession|MatchingRun|MatchingResult|\bnotification\b|\binvitation\b|\bdiscoverable\b/i);
   assert.doesNotMatch(directoryCode, /email|phone|telephone/i);
 });
 

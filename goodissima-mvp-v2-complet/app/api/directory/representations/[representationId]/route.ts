@@ -6,6 +6,7 @@ import {
   getRepresentation,
   hideRepresentation,
   restoreRepresentation,
+  setRelationshipPolicy,
   updateRepresentation,
 } from "@/lib/directory/representation-service";
 
@@ -33,6 +34,8 @@ export async function PATCH(request: Request, { params }: { params: { representa
         ? await restoreRepresentation(owner.id, params.representationId, expectedUpdatedAt)
         : action === "archive"
           ? await archiveRepresentation(owner.id, params.representationId, expectedUpdatedAt)
+          : body && typeof body === "object" && !Array.isArray(body) && "relationshipPolicy" in body
+            ? await setRelationshipPolicy(owner.id, params.representationId, body)
           : await updateRepresentation(owner.id, params.representationId, body);
     return NextResponse.json({ representation: representationJson(representation) });
   } catch (error) {

@@ -6,6 +6,7 @@ import {
   canTransitionRepresentation,
   parseCreateRepresentationInput,
   parseUpdateRepresentationInput,
+  parseSetRelationshipPolicyInput,
   representationTransitionPatch,
 } from "../lib/directory/contracts.ts";
 
@@ -23,6 +24,26 @@ test("schema supports multiple private representations per linked identity", () 
   assert.match(schema, /@@index\(\[ownerId, identityId\]\)/);
   assert.doesNotMatch(schema, /model Representation \{[\s\S]*?@@unique\(\[identityId\]\)/);
   assert.doesNotMatch(schema, /enum RepresentationStatus \{[\s\S]*DISCOVER/);
+  assert.match(schema, /enum RepresentationRelationshipPolicy \{[\s\S]*OPEN[\s\S]*MESSAGE_ONLY[\s\S]*CLOSED/);
+  assert.match(schema, /relationshipPolicy\s+RepresentationRelationshipPolicy\s+@default\(OPEN\)/);
+});
+
+test("relationship policy accepts only explicit values and keeps optimistic concurrency", () => {
+  for (const relationshipPolicy of ["OPEN", "MESSAGE_ONLY", "CLOSED"] as const) {
+    assert.deepEqual(parseSetRelationshipPolicyInput({ relationshipPolicy, expectedUpdatedAt: "2026-08-01T10:00:00.000Z" }), {
+      relationshipPolicy,
+      expectedUpdatedAt: "2026-08-01T10:00:00.000Z",
+    });
+  }
+  assert.throws(() => parseSetRelationshipPolicyInput({ relationshipPolicy: "VOICE_ONLY" }), DirectoryValidationError);
+  assert.throws(() => parseSetRelationshipPolicyInput({ relationshipPolicy: "OPEN", status: "ACTIVE" }), DirectoryValidationError);
+});
+
+test("relationship policy migration is minimal and preserves existing rows as OPEN", () => {
+  const migration = source("prisma/migrations/20260801120000_add_representation_relationship_policy/migration.sql");
+  assert.match(migration, /CREATE TYPE "RepresentationRelationshipPolicy" AS ENUM \('OPEN', 'MESSAGE_ONLY', 'CLOSED'\)/);
+  assert.match(migration, /ADD COLUMN "relationshipPolicy"[\s\S]*NOT NULL DEFAULT 'OPEN'/);
+  assert.doesNotMatch(migration, /UPDATE|DELETE|INSERT|DROP TABLE/i);
 });
 
 test("representation type describes context rather than duplicating identity type", () => {
@@ -75,4 +96,12 @@ test("transition contract is explicit", () => {
   assert.equal(canTransitionRepresentation("ACTIVE", "ARCHIVED"), true);
   assert.equal(canTransitionRepresentation("ARCHIVED", "ACTIVE"), true);
   assert.equal(canTransitionRepresentation("ARCHIVED", "HIDDEN"), false);
+});
+
+test("policy mutation is explicit, idempotent and does not patch status or archivedAt", () => {
+  const service = source("lib/directory/representation-service.ts");
+  assert.match(service, /export async function setRelationshipPolicy/);
+  assert.match(service, /current\.relationshipPolicy === input\.relationshipPolicy/);
+  const policyFunction = service.slice(service.indexOf("export async function setRelationshipPolicy"), service.indexOf("async function transitionRepresentation"));
+  assert.doesNotMatch(policyFunction, /status\s*:|archivedAt\s*:/);
 });

@@ -7,9 +7,23 @@ export const REPRESENTATION_TYPES = [
 ] as const;
 
 export const REPRESENTATION_STATUSES = ["ACTIVE", "HIDDEN", "ARCHIVED"] as const;
+export const REPRESENTATION_RELATIONSHIP_POLICIES = ["OPEN", "MESSAGE_ONLY", "CLOSED"] as const;
 
 export type RepresentationType = (typeof REPRESENTATION_TYPES)[number];
 export type RepresentationStatus = (typeof REPRESENTATION_STATUSES)[number];
+export type RepresentationRelationshipPolicy = (typeof REPRESENTATION_RELATIONSHIP_POLICIES)[number];
+
+export const representationRelationshipPolicyLabels: Record<RepresentationRelationshipPolicy, string> = {
+  OPEN: "Ouvert",
+  MESSAGE_ONLY: "Messagerie uniquement",
+  CLOSED: "Fermé",
+};
+
+export const representationRelationshipPolicyDescriptions: Record<RepresentationRelationshipPolicy, string> = {
+  OPEN: "Vous acceptez de nouvelles demandes sur les canaux qui seront activés ultérieurement.",
+  MESSAGE_ONLY: "Seules les demandes de message seront autorisées.",
+  CLOSED: "Aucune nouvelle demande relationnelle ne sera acceptée.",
+};
 
 export type CreateRepresentationInput = {
   type: RepresentationType;
@@ -21,6 +35,12 @@ export type CreateRepresentationInput = {
 };
 
 export type UpdateRepresentationInput = Partial<CreateRepresentationInput> & {
+  relationshipPolicy?: RepresentationRelationshipPolicy;
+  expectedUpdatedAt?: string;
+};
+
+export type SetRelationshipPolicyInput = {
+  relationshipPolicy: RepresentationRelationshipPolicy;
   expectedUpdatedAt?: string;
 };
 
@@ -33,6 +53,7 @@ export type RepresentationView = {
   description: string | null;
   territory: string | null;
   status: RepresentationStatus;
+  relationshipPolicy: RepresentationRelationshipPolicy;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
@@ -99,6 +120,14 @@ function representationType(value: unknown, issues: string[]) {
   return value as RepresentationType;
 }
 
+function relationshipPolicy(value: unknown, issues: string[]) {
+  if (typeof value !== "string" || !REPRESENTATION_RELATIONSHIP_POLICIES.includes(value as RepresentationRelationshipPolicy)) {
+    issues.push("relationshipPolicy is invalid");
+    return "OPEN" as const;
+  }
+  return value as RepresentationRelationshipPolicy;
+}
+
 function rejectUnknownKeys(input: Record<string, unknown>, allowed: readonly string[], issues: string[]) {
   for (const key of Object.keys(input)) {
     if (!allowed.includes(key)) issues.push(`${key} is not allowed`);
@@ -124,13 +153,14 @@ export function parseCreateRepresentationInput(value: unknown): CreateRepresenta
 export function parseUpdateRepresentationInput(value: unknown): UpdateRepresentationInput {
   const input = record(value);
   const issues: string[] = [];
-  rejectUnknownKeys(input, ["type", "displayName", "title", "organizationName", "description", "territory", "expectedUpdatedAt"], issues);
+  rejectUnknownKeys(input, ["type", "displayName", "title", "organizationName", "description", "territory", "relationshipPolicy", "expectedUpdatedAt"], issues);
   const result: UpdateRepresentationInput = {};
   if ("type" in input) result.type = representationType(input.type, issues);
   if ("displayName" in input) result.displayName = requiredText(input.displayName, "displayName", issues);
   for (const field of ["title", "organizationName", "description", "territory"] as const) {
     if (field in input) result[field] = optionalText(input[field], field, issues);
   }
+  if ("relationshipPolicy" in input) result.relationshipPolicy = relationshipPolicy(input.relationshipPolicy, issues);
   if ("expectedUpdatedAt" in input) {
     if (typeof input.expectedUpdatedAt !== "string" || Number.isNaN(Date.parse(input.expectedUpdatedAt))) {
       issues.push("expectedUpdatedAt is invalid");
@@ -139,6 +169,18 @@ export function parseUpdateRepresentationInput(value: unknown): UpdateRepresenta
     }
   }
   if (!Object.keys(result).some((key) => key !== "expectedUpdatedAt")) issues.push("at least one field is required");
+  if (issues.length) throw new DirectoryValidationError(issues);
+  return result;
+}
+export function parseSetRelationshipPolicyInput(value: unknown): SetRelationshipPolicyInput {
+  const input = record(value);
+  const issues: string[] = [];
+  rejectUnknownKeys(input, ["relationshipPolicy", "expectedUpdatedAt"], issues);
+  const result: SetRelationshipPolicyInput = { relationshipPolicy: relationshipPolicy(input.relationshipPolicy, issues) };
+  if ("expectedUpdatedAt" in input) {
+    if (typeof input.expectedUpdatedAt !== "string" || Number.isNaN(Date.parse(input.expectedUpdatedAt))) issues.push("expectedUpdatedAt is invalid");
+    else result.expectedUpdatedAt = input.expectedUpdatedAt;
+  }
   if (issues.length) throw new DirectoryValidationError(issues);
   return result;
 }

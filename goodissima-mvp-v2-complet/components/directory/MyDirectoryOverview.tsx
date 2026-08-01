@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { RepresentationEditor } from "@/components/directory/RepresentationEditor";
 import { RepresentationList } from "@/components/directory/RepresentationList";
 import { sortRepresentations, type DirectoryRepresentation } from "@/components/directory/directory-ui";
+import type { RepresentationRelationshipPolicy } from "@/lib/directory/contracts";
 
 export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
   hasIdentity: boolean;
@@ -56,6 +57,31 @@ export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
     }
   }
 
+  async function saveRelationshipPolicy(representation: DirectoryRepresentation, relationshipPolicy: RepresentationRelationshipPolicy) {
+    if (mutationId) return false;
+    setMutationId(representation.id);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/directory/representations/${encodeURIComponent(representation.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ relationshipPolicy, expectedUpdatedAt: representation.updatedAt }),
+      });
+      const payload = await response.json();
+      if (response.status === 409) throw new Error("Cette représentation a été modifiée dans un autre onglet. Actualisez la page avant de recommencer.");
+      if (!response.ok || !payload.representation) throw new Error("La politique relationnelle n’a pas pu être enregistrée. Réessayez.");
+      setRepresentations((current) => sortRepresentations(current.map((item) => item.id === representation.id ? payload.representation : item)));
+      setFeedback("La politique relationnelle a été enregistrée. Aucun canal ni aucune demande n’a été créé.");
+      router.refresh();
+      return true;
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Une erreur est survenue.");
+      return false;
+    } finally {
+      setMutationId(null);
+    }
+  }
+
   return (
     <div className="space-y-6" data-boussole-state={representations.length ? "POPULATED" : "EMPTY"}>
       <section aria-labelledby="my-representations-title" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
@@ -89,7 +115,7 @@ export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
             onSaved={(representation) => acceptRepresentation(representation, editing === "create" ? "La représentation a été créée." : "La représentation a été mise à jour.")}
           />
         ) : representations.length ? (
-          <RepresentationList representations={representations} mutationId={mutationId} onEdit={setEditing} onTransition={transition} />
+          <RepresentationList representations={representations} mutationId={mutationId} onEdit={setEditing} onTransition={transition} onPolicySave={saveRelationshipPolicy} />
         ) : (
           <div className="mt-5 rounded-xl border border-dashed p-6 text-center">
             <p className="font-semibold text-slate-950">Aucune représentation</p>

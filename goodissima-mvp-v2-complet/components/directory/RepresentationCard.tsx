@@ -1,12 +1,24 @@
+import { useEffect, useState } from "react";
 import { representationStatusLabels, representationTypeLabels, type DirectoryRepresentation } from "@/components/directory/directory-ui";
+import { REPRESENTATION_RELATIONSHIP_POLICIES, representationRelationshipPolicyDescriptions, representationRelationshipPolicyLabels, type RepresentationRelationshipPolicy } from "@/lib/directory/contracts";
 
-export function RepresentationCard({ representation, busy, actionsDisabled, onEdit, onTransition }: {
+export function RepresentationCard({ representation, busy, actionsDisabled, onEdit, onTransition, onPolicySave }: {
   representation: DirectoryRepresentation;
   busy: boolean;
   actionsDisabled: boolean;
   onEdit: () => void;
   onTransition: (action: "hide" | "restore" | "archive") => void;
+  onPolicySave: (policy: RepresentationRelationshipPolicy) => Promise<boolean>;
 }) {
+  const [selectedPolicy, setSelectedPolicy] = useState(representation.relationshipPolicy);
+  const [policyError, setPolicyError] = useState<string | null>(null);
+  useEffect(() => setSelectedPolicy(representation.relationshipPolicy), [representation.relationshipPolicy]);
+
+  async function savePolicy() {
+    setPolicyError(null);
+    if (!await onPolicySave(selectedPolicy)) setPolicyError("La politique n’a pas pu être enregistrée. Vérifiez le message ci-dessus.");
+  }
+
   return (
     <article className="flex flex-col rounded-xl border p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -24,6 +36,24 @@ export function RepresentationCard({ representation, busy, actionsDisabled, onEd
         {representation.territory ? <div><dt className="sr-only">Territoire</dt><dd>Territoire : {representation.territory}</dd></div> : null}
         {representation.description ? <div><dt className="sr-only">Description</dt><dd className="whitespace-pre-wrap leading-6">{representation.description}</dd></div> : null}
       </dl>
+      <fieldset className="mt-5 rounded-xl border bg-slate-50 p-4" disabled={actionsDisabled}>
+        <legend className="px-1 text-sm font-semibold text-slate-950">Politique relationnelle</legend>
+        <div className="mt-2 space-y-3">
+          {REPRESENTATION_RELATIONSHIP_POLICIES.map((policy) => (
+            <label key={policy} className="flex cursor-pointer items-start gap-3">
+              <input type="radio" name={`relationship-policy-${representation.id}`} value={policy} checked={selectedPolicy === policy} onChange={() => setSelectedPolicy(policy)} className="mt-1" />
+              <span>
+                <span className="block text-sm font-semibold text-slate-900">{representationRelationshipPolicyLabels[policy]}</span>
+                <span className="block text-sm leading-5 text-slate-600">{representationRelationshipPolicyDescriptions[policy]}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {policyError ? <p role="alert" className="mt-3 text-sm text-red-700">{policyError}</p> : null}
+        <button type="button" disabled={actionsDisabled || selectedPolicy === representation.relationshipPolicy} onClick={savePolicy} className="mt-4 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+          {busy ? "Enregistrement…" : "Enregistrer la politique"}
+        </button>
+      </fieldset>
       <p className="mt-4 text-xs text-slate-500">Mise à jour le {new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(representation.updatedAt))}</p>
       <div className="mt-auto flex flex-wrap gap-2 pt-4" aria-label={`Actions pour ${representation.displayName}`}>
         {representation.status !== "ARCHIVED" ? (

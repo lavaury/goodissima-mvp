@@ -33,6 +33,7 @@ export function representationJson(representation: {
   description: string | null;
   territory: string | null;
   status: string;
+  relationshipPolicy: string;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;

@@ -66,6 +66,26 @@ test("cards expose readable types and statuses without sensitive identifiers", (
   assert.doesNotMatch(`${ui}\n${card}`, /ownerId|identityId/);
 });
 
+test("cards expose accessible manual relationship policy selection without activating channels", () => {
+  const contracts = read("lib/directory/contracts.ts");
+  const card = read("components/directory/RepresentationCard.tsx");
+  const overview = read("components/directory/MyDirectoryOverview.tsx");
+  for (const label of ["Ouvert", "Messagerie uniquement", "Fermé"]) assert.ok(contracts.includes(label));
+  for (const description of [
+    "Vous acceptez de nouvelles demandes sur les canaux qui seront activés ultérieurement.",
+    "Seules les demandes de message seront autorisées.",
+    "Aucune nouvelle demande relationnelle ne sera acceptée.",
+  ]) assert.ok(contracts.includes(description));
+  assert.match(card, /<fieldset/);
+  assert.match(card, /type="radio"/);
+  assert.match(card, /Enregistrer la politique/);
+  assert.match(card, /role="alert"/);
+  assert.match(overview, /expectedUpdatedAt: representation\.updatedAt/);
+  assert.match(overview, /response\.status === 409/);
+  assert.match(overview, /router\.refresh\(\)/);
+  assert.doesNotMatch(`${card}\n${overview}`, /startMessage|startVoice|startVideo|openChannel/);
+});
+
 test("Lot 2 UI creates no global route or automatic business side effect", () => {
   const code = [
     "MyDirectoryOverview.tsx", "RepresentationEditor.tsx", "RepresentationCard.tsx", "RepresentationList.tsx",

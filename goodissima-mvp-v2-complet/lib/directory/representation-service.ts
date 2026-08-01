@@ -3,6 +3,7 @@ import {
   canTransitionRepresentation,
   parseCreateRepresentationInput,
   parseUpdateRepresentationInput,
+  parseSetRelationshipPolicyInput,
   type RepresentationView,
   representationTransitionPatch,
 } from "@/lib/directory/contracts";
@@ -52,6 +53,19 @@ export async function updateRepresentation(
 ) {
   const result = await repository.updateConditionallyForOwner(ownerId, id, parseUpdateRepresentationInput(value));
   return unwrapUpdate(result);
+}
+
+export async function setRelationshipPolicy(
+  ownerId: string,
+  id: string,
+  value: unknown,
+  repository: RepresentationRepository = representationRepository,
+) {
+  const input = parseSetRelationshipPolicyInput(value);
+  const current = await repository.findForOwner(ownerId, id);
+  if (!current) throw new DirectoryServiceError("NOT_FOUND", "Representation not found.");
+  if (current.relationshipPolicy === input.relationshipPolicy) return current;
+  return unwrapUpdate(await repository.updateConditionallyForOwner(ownerId, id, input));
 }
 
 async function transitionRepresentation(
