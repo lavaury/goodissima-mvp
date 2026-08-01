@@ -5,6 +5,7 @@ import {
   parseUpdateRepresentationInput,
   parseSetRelationshipPolicyInput,
   parseSetRepresentationVisibilityInput,
+  parsePublicDirectoryQuery,
   type RepresentationView,
   representationTransitionPatch,
   representationVisibilityPatch,
@@ -35,6 +36,13 @@ export async function createRepresentation(
 
 export function listRepresentations(ownerId: string, repository: RepresentationRepository = representationRepository) {
   return repository.listForOwner(ownerId);
+}
+
+export function listPublicRepresentations(
+  value: Record<string, string | string[] | undefined>,
+  repository: RepresentationRepository = representationRepository,
+) {
+  return repository.listDiscoverableRepresentations(parsePublicDirectoryQuery(value), 50);
 }
 
 export async function getRepresentation(

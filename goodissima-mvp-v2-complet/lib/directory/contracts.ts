@@ -90,6 +90,37 @@ export type PublicRepresentationSummary = {
   publishedAt: Date;
 };
 
+export type PublicDirectoryQuery = {
+  q?: string;
+  type?: RepresentationType;
+  relationshipPolicy?: RepresentationRelationshipPolicy;
+  territory?: string;
+};
+
+export type PublicDirectoryResult = {
+  items: PublicRepresentationSummary[];
+  limitReached: boolean;
+};
+
+function firstQueryValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export function parsePublicDirectoryQuery(value: Record<string, string | string[] | undefined>): PublicDirectoryQuery {
+  const query: PublicDirectoryQuery = {};
+  const q = firstQueryValue(value.q)?.trim().slice(0, 100);
+  const territory = firstQueryValue(value.territory)?.trim().slice(0, 120);
+  const type = firstQueryValue(value.type);
+  const relationshipPolicy = firstQueryValue(value.policy);
+  if (q) query.q = q;
+  if (territory) query.territory = territory;
+  if (type && REPRESENTATION_TYPES.includes(type as RepresentationType)) query.type = type as RepresentationType;
+  if (relationshipPolicy && REPRESENTATION_RELATIONSHIP_POLICIES.includes(relationshipPolicy as RepresentationRelationshipPolicy)) {
+    query.relationshipPolicy = relationshipPolicy as RepresentationRelationshipPolicy;
+  }
+  return query;
+}
+
 export class DirectoryValidationError extends Error {
   readonly code = "INVALID_REPRESENTATION_PAYLOAD";
   readonly issues: string[];

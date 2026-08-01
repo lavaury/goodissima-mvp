@@ -11,7 +11,7 @@ test("directory navigation exposes honest Global and functional Moi tabs", () =>
   assert.match(tabs, /Moi/);
   assert.match(tabs, /role="tablist"/);
   assert.match(tabs, /aria-selected/);
-  assert.match(page, /Lecture globale en préparation/);
+  assert.match(page, /GlobalDirectory/);
   assert.doesNotMatch(page, /mock|fixture|demoProfile|fakeProfile/i);
 });
 
@@ -120,4 +120,40 @@ test("directory controls have visible labels, accessible feedback and mobile-saf
   assert.match(overview, /sectionHeading\.current\?\.focus/);
   assert.match(card, /flex flex-wrap/);
   assert.doesNotMatch(card, /<table|overflow-x-auto/);
+});
+
+test("Global renders real searchable public cards and honest empty states", () => {
+  const global = read("components/directory/GlobalDirectory.tsx");
+  for (const text of [
+    "Annuaire global",
+    "Recherche",
+    "Type",
+    "Politique relationnelle",
+    "Territoire",
+    "Rechercher",
+    "Réinitialiser",
+    "Aucune représentation n’est actuellement visible dans l’Annuaire.",
+    "Aucune représentation ne correspond à votre recherche.",
+    "Ouvert aux demandes",
+    "Messagerie uniquement",
+    "Fermé aux nouvelles demandes",
+  ]) assert.ok(global.includes(text));
+  assert.match(global, /role="search"/);
+  assert.match(global, /role="status"/);
+  assert.match(global, /aria-live="polite"/);
+  assert.match(global, /autoFocus=\{filtered\}/);
+  assert.match(global, /items\.map/);
+  assert.match(global, /Seuls les 50 premiers résultats sont affichés/);
+  assert.doesNotMatch(global, /Contacter|Envoyer un message|Appeler|Visio|Ajouter aux contacts|Inviter|matching/i);
+  assert.doesNotMatch(global, /ownerId|identityId|email|phone|claims|archivedAt|updatedAt/);
+});
+
+test("Global uses URL parameters and contains no mock or client fetch", () => {
+  const page = read("app/annuaire/page.tsx");
+  const global = read("components/directory/GlobalDirectory.tsx");
+  for (const parameter of ["q", "type", "policy", "territory"]) assert.match(global, new RegExp(`name="${parameter}"`));
+  assert.match(global, /action="\/annuaire"/);
+  assert.match(global, /href="\/annuaire\?tab=global"/);
+  assert.doesNotMatch(`${page}\n${global}`, /mock|fixture|fakeProfile|demoProfile/i);
+  assert.doesNotMatch(global, /fetch\(|"use client"/);
 });

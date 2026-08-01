@@ -8,6 +8,7 @@ import {
   parseUpdateRepresentationInput,
   parseSetRelationshipPolicyInput,
   parseSetRepresentationVisibilityInput,
+  parsePublicDirectoryQuery,
   representationTransitionPatch,
   representationVisibilityPatch,
 } from "../lib/directory/contracts.ts";
@@ -42,6 +43,20 @@ test("visibility contract is strict and the migration is additive", () => {
   assert.match(migration, /ADD COLUMN "visibility"[\s\S]*DEFAULT 'PRIVATE'/);
   assert.match(migration, /ADD COLUMN "publishedAt" TIMESTAMP\(3\)/);
   assert.doesNotMatch(migration, /UPDATE|DELETE|INSERT|DROP TABLE/i);
+});
+
+test("public directory query trims, bounds and ignores invalid filters", () => {
+  assert.deepEqual(parsePublicDirectoryQuery({
+    q: "  comptable  ",
+    type: "PROFESSIONAL",
+    policy: "MESSAGE_ONLY",
+    territory: " Grand Est ",
+    unknown: "ignored",
+  }), { q: "comptable", type: "PROFESSIONAL", relationshipPolicy: "MESSAGE_ONLY", territory: "Grand Est" });
+  assert.deepEqual(parsePublicDirectoryQuery({ type: "INVALID", policy: "VOICE", q: " ", territory: " " }), {});
+  assert.equal(parsePublicDirectoryQuery({ q: "A".repeat(150) }).q?.length, 100);
+  assert.equal(parsePublicDirectoryQuery({ territory: "A".repeat(150) }).territory?.length, 120);
+  assert.equal(parsePublicDirectoryQuery({ q: ["first", "second"] }).q, "first");
 });
 
 test("visibility transitions are explicit, idempotent and restricted to ACTIVE", () => {

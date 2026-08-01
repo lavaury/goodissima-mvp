@@ -64,13 +64,29 @@ test("directory has no discoverability or automatic business side effects", () =
 test("global projection is minimal, bounded and limited to ACTIVE DISCOVERABLE rows", () => {
   const repository = source("lib/directory/representation-repository.ts");
   const contracts = source("lib/directory/contracts.ts");
-  assert.match(repository, /where: \{ status: "ACTIVE", visibility: "DISCOVERABLE", publishedAt: \{ not: null \} \}/);
+  assert.match(repository, /status: "ACTIVE"[\s\S]*visibility: "DISCOVERABLE"[\s\S]*publishedAt: \{ not: null \}/);
   assert.match(repository, /Math\.min\(limit, 50\)/);
+  assert.match(repository, /take: safeLimit \+ 1/);
+  for (const field of ["displayName", "title", "organizationName", "description", "territory"]) assert.match(repository, new RegExp(`"${field}"`));
+  assert.match(repository, /mode: "insensitive"/);
+  assert.match(repository, /query\.type/);
+  assert.match(repository, /query\.relationshipPolicy/);
   assert.match(repository, /orderBy: \[\{ publishedAt: "desc" \}, \{ id: "asc" \}\]/);
   const publicSelect = repository.slice(repository.indexOf("const publicRepresentationSelect"), repository.indexOf("export type ConditionalUpdateResult"));
   assert.doesNotMatch(publicSelect, /ownerId|identityId|email|phone|claims|archivedAt|updatedAt|createdAt/);
   const publicContract = contracts.slice(contracts.indexOf("export type PublicRepresentationSummary"), contracts.indexOf("export class DirectoryValidationError"));
   assert.doesNotMatch(publicContract, /ownerId|identityId|email|phone|claims|archivedAt|expectedUpdatedAt/);
+});
+
+test("global read is server-side, uncached and performs one public projection query", () => {
+  const page = source("app/annuaire/page.tsx");
+  const service = source("lib/directory/representation-service.ts");
+  assert.match(page, /unstable_noStore/);
+  assert.match(page, /dynamic = "force-dynamic"/);
+  assert.match(page, /listPublicRepresentations\(searchParams \?\? \{\}\)/);
+  assert.equal((page.match(/listPublicRepresentations\(/g) ?? []).length, 1);
+  assert.match(service, /listDiscoverableRepresentations\(parsePublicDirectoryQuery\(value\), 50\)/);
+  assert.doesNotMatch(page, /fetch\(/);
 });
 
 test("foreign ids resolve as not found through owner-scoped lookups", () => {

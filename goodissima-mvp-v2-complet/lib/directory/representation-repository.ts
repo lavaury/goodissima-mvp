@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient, RepresentationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { CreateRepresentationInput, PublicRepresentationSummary, RepresentationView, UpdateRepresentationInput, RepresentationVisibility } from "@/lib/directory/contracts";
+import type { CreateRepresentationInput, PublicDirectoryQuery, PublicDirectoryResult, RepresentationView, UpdateRepresentationInput, RepresentationVisibility } from "@/lib/directory/contracts";
 
 type DirectoryDatabase = PrismaClient | Prisma.TransactionClient;
 
@@ -42,7 +42,7 @@ export type RepresentationRepository = {
   createForOwner(ownerId: string, input: CreateRepresentationInput): Promise<RepresentationView | null>;
   listForOwner(ownerId: string): Promise<RepresentationView[]>;
   findForOwner(ownerId: string, id: string): Promise<RepresentationView | null>;
-  listDiscoverableRepresentations(limit: number): Promise<PublicRepresentationSummary[]>;
+  listDiscoverableRepresentations(query: PublicDirectoryQuery, limit: number): Promise<PublicDirectoryResult>;
   updateConditionallyForOwner(
     ownerId: string,
     id: string,
@@ -90,15 +90,30 @@ export function createRepresentationRepository(database: DirectoryDatabase = pri
       return database.representation.findFirst({ where: { id, ownerId }, select: representationSelect });
     },
 
-    async listDiscoverableRepresentations(limit) {
+    async listDiscoverableRepresentations(query, limit) {
       const safeLimit = Math.max(1, Math.min(limit, 50));
       const representations = await database.representation.findMany({
-        where: { status: "ACTIVE", visibility: "DISCOVERABLE", publishedAt: { not: null } },
+        where: {
+          status: "ACTIVE",
+          visibility: "DISCOVERABLE",
+          publishedAt: { not: null },
+          ...(query.type ? { type: query.type } : {}),
+          ...(query.relationshipPolicy ? { relationshipPolicy: query.relationshipPolicy } : {}),
+          ...(query.territory ? { territory: { contains: query.territory, mode: "insensitive" } } : {}),
+          ...(query.q ? {
+            OR: ["displayName", "title", "organizationName", "description", "territory"].map((field) => ({
+              [field]: { contains: query.q, mode: "insensitive" },
+            })),
+          } : {}),
+        },
         orderBy: [{ publishedAt: "desc" }, { id: "asc" }],
-        take: safeLimit,
+        take: safeLimit + 1,
         select: publicRepresentationSelect,
       });
-      return representations.map((representation) => ({ ...representation, publishedAt: representation.publishedAt! }));
+      return {
+        items: representations.slice(0, safeLimit).map((representation) => ({ ...representation, publishedAt: representation.publishedAt! })),
+        limitReached: representations.length > safeLimit,
+      };
     },
 
     async updateConditionallyForOwner(ownerId, id, input) {

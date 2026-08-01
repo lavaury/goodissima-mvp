@@ -32,4 +32,12 @@ La projection publique autorise seulement l’identifiant opaque propre à la re
 
 Masquer ou archiver une représentation la repasse à `PRIVATE` et efface `publishedAt` dans la même mutation que le changement de statut. Restaurer une représentation la rend active mais jamais découvrable. La politique relationnelle reste inchangée lors de toutes ces transitions.
 
-Ce lot prépare uniquement la projection globale : l’onglet Global reste informatif, sans liste ni recherche. La publication ne crée aucune demande, aucun contact, aucun message, aucun canal, aucune invitation, aucune notification et aucune opération de matching.
+La publication ne crée aucune demande, aucun contact, aucun message, aucun canal, aucune invitation, aucune notification et aucune opération de matching.
+
+## Lot 3B — lecture globale
+
+L’onglet Global lit réellement la projection publique côté serveur, sans requête par carte ni chargement initial client. Une représentation apparaît uniquement si elle est simultanément `ACTIVE`, `DISCOVERABLE` et assortie d’un `publishedAt` non nul. Une dépublication, un masquage ou un archivage la retire donc de la lecture suivante ; la page désactive explicitement le cache persistant.
+
+La recherche déterministe, insensible à la casse, porte sur le nom d’affichage, le titre, l’organisation, la description et le territoire. Les filtres exacts portent sur le type et la politique relationnelle ; le territoire utilise une recherche textuelle insensible à la casse. L’ordre reste `publishedAt DESC`, puis `id ASC`.
+
+La V1 affiche au maximum 50 résultats et invite à affiner la recherche lorsque davantage de résultats existent. Chaque représentation reste un objet autonome : aucun regroupement par identité, aucune autre représentation du même propriétaire et aucune coordonnée ne sont exposés. Les cartes sont informatives et ne permettent encore aucune prise de contact.

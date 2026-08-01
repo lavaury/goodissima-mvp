@@ -5,12 +5,14 @@ import { unstable_noStore as noStore } from "next/cache";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { DirectoryTabs } from "@/components/directory/DirectoryTabs";
 import { MyDirectoryOverview } from "@/components/directory/MyDirectoryOverview";
+import { GlobalDirectory } from "@/components/directory/GlobalDirectory";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { listRepresentations } from "@/lib/directory/representation-service";
+import { listPublicRepresentations, listRepresentations } from "@/lib/directory/representation-service";
+import { parsePublicDirectoryQuery } from "@/lib/directory/contracts";
 
-type DirectoryPageProps = { searchParams?: { tab?: string } };
+type DirectoryPageProps = { searchParams?: Record<string, string | string[] | undefined> };
 
 export default async function DirectoryPage({ searchParams }: DirectoryPageProps) {
   noStore();
@@ -19,9 +21,13 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
     ? currentUser.name
     : "Organisation Goodissima";
   const activeTab = searchParams?.tab === "moi" ? "moi" : "global";
-  const representations = currentUser.goodissimaIdentityId
+  const publicQuery = parsePublicDirectoryQuery(searchParams ?? {});
+  const representations = activeTab === "moi" && currentUser.goodissimaIdentityId
     ? await listRepresentations(currentUser.id)
     : [];
+  const publicResult = activeTab === "global"
+    ? await listPublicRepresentations(searchParams ?? {})
+    : { items: [], limitReached: false };
   const serializedRepresentations = representations.map((representation) => ({
     ...representation,
     createdAt: representation.createdAt.toISOString(),
@@ -53,30 +59,18 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
           initialRepresentations={serializedRepresentations}
         />
       ) : (
-        <section aria-labelledby="directory-global-title" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Global</p>
-          <h2 id="directory-global-title" className="mt-1 text-xl font-semibold text-slate-950">Lecture globale en préparation</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Les propriétaires peuvent préparer explicitement la visibilité de leurs représentations. La liste globale et
-            la recherche seront activées dans un prochain lot ; aucun profil privé, contact ou résultat fictif n’est affiché ici.
-          </p>
-          <div data-boussole-id="directory-identity" className="mt-5 rounded-xl border bg-slate-50 p-4">
-            <p className="font-semibold text-slate-950">Votre identité Goodissima</p>
+        <div className="space-y-6" data-boussole-state={publicResult.items.length ? "POPULATED" : "EMPTY"}>
+          <GlobalDirectory items={publicResult.items} query={publicQuery} limitReached={publicResult.limitReached} />
+          <section data-boussole-id="directory-identity" aria-labelledby="global-identity-title" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+            <h2 id="global-identity-title" className="font-semibold text-slate-950">Votre identité Goodissima</h2>
             <p className="mt-2 text-sm text-slate-600">
               {currentUser.goodissimaIdentityId
                 ? "Une identité est liée à votre compte. Chaque représentation reste privée jusqu’à une publication explicite."
                 : "Aucune identité Goodissima n’est liée à votre compte."}
             </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link href="/identity" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                Ouvrir l’espace identité
-              </Link>
-              <Link data-boussole-id="open-governance" href="/gouvernance" className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Ouvrir la gouvernance
-              </Link>
-            </div>
-          </div>
-        </section>
+            <Link href="/identity" className="mt-4 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Ouvrir l’espace identité</Link>
+          </section>
+        </div>
       )}
     </main>
   );
