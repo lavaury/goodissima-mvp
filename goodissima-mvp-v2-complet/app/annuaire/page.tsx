@@ -27,6 +27,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
     createdAt: representation.createdAt.toISOString(),
     updatedAt: representation.updatedAt.toISOString(),
     archivedAt: representation.archivedAt?.toISOString() ?? null,
+    publishedAt: representation.publishedAt?.toISOString() ?? null,
   }));
 
   return (
@@ -37,7 +38,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Espace privé</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Annuaire Goodissima</h1>
           <p className="mt-2 max-w-3xl text-slate-600">
-            Gérez vos représentations sans les rendre publiques et préparez les futurs usages de l’Annuaire.
+            Gérez vos représentations et choisissez explicitement celles qui pourront apparaître dans l’Annuaire global.
           </p>
         </div>
         <LogoutButton />
@@ -54,16 +55,16 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
       ) : (
         <section aria-labelledby="directory-global-title" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Global</p>
-          <h2 id="directory-global-title" className="mt-1 text-xl font-semibold text-slate-950">Annuaire global non activé</h2>
+          <h2 id="directory-global-title" className="mt-1 text-xl font-semibold text-slate-950">Lecture globale en préparation</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            La recherche de représentations tierces et la découvrabilité ne sont pas encore disponibles. Aucun profil,
-            contact ou résultat de démonstration n’est affiché ici.
+            Les propriétaires peuvent préparer explicitement la visibilité de leurs représentations. La liste globale et
+            la recherche seront activées dans un prochain lot ; aucun profil privé, contact ou résultat fictif n’est affiché ici.
           </p>
           <div data-boussole-id="directory-identity" className="mt-5 rounded-xl border bg-slate-50 p-4">
             <p className="font-semibold text-slate-950">Votre identité Goodissima</p>
             <p className="mt-2 text-sm text-slate-600">
               {currentUser.goodissimaIdentityId
-                ? "Une identité est liée à votre compte. Vos représentations restent privées."
+                ? "Une identité est liée à votre compte. Chaque représentation reste privée jusqu’à une publication explicite."
                 : "Aucune identité Goodissima n’est liée à votre compte."}
             </p>
             <div className="mt-4 flex flex-wrap gap-3">

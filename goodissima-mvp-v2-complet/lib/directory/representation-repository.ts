@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient, RepresentationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { CreateRepresentationInput, RepresentationView, UpdateRepresentationInput } from "@/lib/directory/contracts";
+import type { CreateRepresentationInput, PublicRepresentationSummary, RepresentationView, UpdateRepresentationInput, RepresentationVisibility } from "@/lib/directory/contracts";
 
 type DirectoryDatabase = PrismaClient | Prisma.TransactionClient;
 
@@ -14,9 +14,23 @@ const representationSelect = {
   territory: true,
   status: true,
   relationshipPolicy: true,
+  visibility: true,
+  publishedAt: true,
   createdAt: true,
   updatedAt: true,
   archivedAt: true,
+} satisfies Prisma.RepresentationSelect;
+
+const publicRepresentationSelect = {
+  id: true,
+  displayName: true,
+  type: true,
+  title: true,
+  organizationName: true,
+  description: true,
+  territory: true,
+  relationshipPolicy: true,
+  publishedAt: true,
 } satisfies Prisma.RepresentationSelect;
 
 export type ConditionalUpdateResult =
@@ -28,10 +42,11 @@ export type RepresentationRepository = {
   createForOwner(ownerId: string, input: CreateRepresentationInput): Promise<RepresentationView | null>;
   listForOwner(ownerId: string): Promise<RepresentationView[]>;
   findForOwner(ownerId: string, id: string): Promise<RepresentationView | null>;
+  listDiscoverableRepresentations(limit: number): Promise<PublicRepresentationSummary[]>;
   updateConditionallyForOwner(
     ownerId: string,
     id: string,
-    input: UpdateRepresentationInput & { status?: RepresentationStatus; archivedAt?: Date | null },
+    input: UpdateRepresentationInput & { status?: RepresentationStatus; archivedAt?: Date | null; visibility?: RepresentationVisibility; publishedAt?: Date | null },
   ): Promise<ConditionalUpdateResult>;
 };
 
@@ -55,6 +70,8 @@ export function createRepresentationRepository(database: DirectoryDatabase = pri
           territory: input.territory ?? null,
           status: "ACTIVE",
           relationshipPolicy: "OPEN",
+          visibility: "PRIVATE",
+          publishedAt: null,
           archivedAt: null,
         },
         select: representationSelect,
@@ -71,6 +88,17 @@ export function createRepresentationRepository(database: DirectoryDatabase = pri
 
     findForOwner(ownerId, id) {
       return database.representation.findFirst({ where: { id, ownerId }, select: representationSelect });
+    },
+
+    async listDiscoverableRepresentations(limit) {
+      const safeLimit = Math.max(1, Math.min(limit, 50));
+      const representations = await database.representation.findMany({
+        where: { status: "ACTIVE", visibility: "DISCOVERABLE", publishedAt: { not: null } },
+        orderBy: [{ publishedAt: "desc" }, { id: "asc" }],
+        take: safeLimit,
+        select: publicRepresentationSelect,
+      });
+      return representations.map((representation) => ({ ...representation, publishedAt: representation.publishedAt! }));
     },
 
     async updateConditionallyForOwner(ownerId, id, input) {

@@ -7,7 +7,9 @@ import {
   parseCreateRepresentationInput,
   parseUpdateRepresentationInput,
   parseSetRelationshipPolicyInput,
+  parseSetRepresentationVisibilityInput,
   representationTransitionPatch,
+  representationVisibilityPatch,
 } from "../lib/directory/contracts.ts";
 
 function source(path: string) {
@@ -23,9 +25,33 @@ test("schema supports multiple private representations per linked identity", () 
   assert.match(schema, /@@index\(\[identityId\]\)/);
   assert.match(schema, /@@index\(\[ownerId, identityId\]\)/);
   assert.doesNotMatch(schema, /model Representation \{[\s\S]*?@@unique\(\[identityId\]\)/);
-  assert.doesNotMatch(schema, /enum RepresentationStatus \{[\s\S]*DISCOVER/);
+  assert.doesNotMatch(schema, /enum RepresentationStatus \{[^}]*DISCOVER/);
   assert.match(schema, /enum RepresentationRelationshipPolicy \{[\s\S]*OPEN[\s\S]*MESSAGE_ONLY[\s\S]*CLOSED/);
   assert.match(schema, /relationshipPolicy\s+RepresentationRelationshipPolicy\s+@default\(OPEN\)/);
+  assert.match(schema, /enum RepresentationVisibility \{[\s\S]*PRIVATE[\s\S]*DISCOVERABLE/);
+  assert.match(schema, /visibility\s+RepresentationVisibility\s+@default\(PRIVATE\)/);
+  assert.match(schema, /publishedAt\s+DateTime\?/);
+});
+
+test("visibility contract is strict and the migration is additive", () => {
+  assert.deepEqual(parseSetRepresentationVisibilityInput({ visibility: "DISCOVERABLE", expectedUpdatedAt: "2026-08-02T10:00:00.000Z" }), { visibility: "DISCOVERABLE", expectedUpdatedAt: "2026-08-02T10:00:00.000Z" });
+  assert.throws(() => parseSetRepresentationVisibilityInput({ visibility: "PUBLIC" }), DirectoryValidationError);
+  assert.throws(() => parseSetRepresentationVisibilityInput({ visibility: "PRIVATE", status: "ACTIVE" }), DirectoryValidationError);
+  const migration = source("prisma/migrations/20260802120000_add_representation_visibility/migration.sql");
+  assert.match(migration, /CREATE TYPE "RepresentationVisibility" AS ENUM \('PRIVATE', 'DISCOVERABLE'\)/);
+  assert.match(migration, /ADD COLUMN "visibility"[\s\S]*DEFAULT 'PRIVATE'/);
+  assert.match(migration, /ADD COLUMN "publishedAt" TIMESTAMP\(3\)/);
+  assert.doesNotMatch(migration, /UPDATE|DELETE|INSERT|DROP TABLE/i);
+});
+
+test("visibility transitions are explicit, idempotent and restricted to ACTIVE", () => {
+  const now = new Date("2026-08-02T10:00:00.000Z");
+  assert.deepEqual(representationVisibilityPatch({ status: "ACTIVE", visibility: "PRIVATE", publishedAt: null }, "DISCOVERABLE", now), { visibility: "DISCOVERABLE", publishedAt: now });
+  assert.deepEqual(representationVisibilityPatch({ status: "ACTIVE", visibility: "DISCOVERABLE", publishedAt: now }, "DISCOVERABLE", now), {});
+  assert.deepEqual(representationVisibilityPatch({ status: "ACTIVE", visibility: "DISCOVERABLE", publishedAt: now }, "PRIVATE", now), { visibility: "PRIVATE", publishedAt: null });
+  assert.deepEqual(representationVisibilityPatch({ status: "ACTIVE", visibility: "PRIVATE", publishedAt: null }, "PRIVATE", now), {});
+  assert.equal(representationVisibilityPatch({ status: "HIDDEN", visibility: "PRIVATE", publishedAt: null }, "DISCOVERABLE", now), null);
+  assert.equal(representationVisibilityPatch({ status: "ARCHIVED", visibility: "PRIVATE", publishedAt: null }, "DISCOVERABLE", now), null);
 });
 
 test("relationship policy accepts only explicit values and keeps optimistic concurrency", () => {
@@ -83,11 +109,11 @@ test("service refuses creation without a linked GoodissimaIdentity", () => {
 
 test("hide, restore and reversible archive keep archivedAt coherent and are idempotent", () => {
   const now = new Date("2026-07-31T12:00:00.000Z");
-  assert.deepEqual(representationTransitionPatch({ status: "ACTIVE", archivedAt: null }, "HIDDEN", now), { status: "HIDDEN", archivedAt: null });
-  assert.deepEqual(representationTransitionPatch({ status: "HIDDEN", archivedAt: null }, "ACTIVE", now), { status: "ACTIVE", archivedAt: null });
-  assert.deepEqual(representationTransitionPatch({ status: "ACTIVE", archivedAt: null }, "ARCHIVED", now), { status: "ARCHIVED", archivedAt: now });
+  assert.deepEqual(representationTransitionPatch({ status: "ACTIVE", archivedAt: null }, "HIDDEN", now), { status: "HIDDEN", archivedAt: null, visibility: "PRIVATE", publishedAt: null });
+  assert.deepEqual(representationTransitionPatch({ status: "HIDDEN", archivedAt: null }, "ACTIVE", now), { status: "ACTIVE", archivedAt: null, visibility: "PRIVATE", publishedAt: null });
+  assert.deepEqual(representationTransitionPatch({ status: "ACTIVE", archivedAt: null }, "ARCHIVED", now), { status: "ARCHIVED", archivedAt: now, visibility: "PRIVATE", publishedAt: null });
   assert.deepEqual(representationTransitionPatch({ status: "ARCHIVED", archivedAt: now }, "ARCHIVED", now), {});
-  assert.deepEqual(representationTransitionPatch({ status: "ARCHIVED", archivedAt: now }, "ACTIVE", now), { status: "ACTIVE", archivedAt: null });
+  assert.deepEqual(representationTransitionPatch({ status: "ARCHIVED", archivedAt: now }, "ACTIVE", now), { status: "ACTIVE", archivedAt: null, visibility: "PRIVATE", publishedAt: null });
 });
 
 test("transition contract is explicit", () => {
@@ -104,4 +130,15 @@ test("policy mutation is explicit, idempotent and does not patch status or archi
   assert.match(service, /current\.relationshipPolicy === input\.relationshipPolicy/);
   const policyFunction = service.slice(service.indexOf("export async function setRelationshipPolicy"), service.indexOf("async function transitionRepresentation"));
   assert.doesNotMatch(policyFunction, /status\s*:|archivedAt\s*:/);
+});
+
+test("status transitions unpublish without changing relationship policy", () => {
+  const service = source("lib/directory/representation-service.ts");
+  const contracts = source("lib/directory/contracts.ts");
+  assert.match(service, /publishRepresentation/);
+  assert.match(service, /unpublishRepresentation/);
+  const transitionPatch = contracts.slice(contracts.indexOf("export function representationTransitionPatch"));
+  assert.match(transitionPatch, /visibility: "PRIVATE"/);
+  assert.match(transitionPatch, /publishedAt: null/);
+  assert.doesNotMatch(transitionPatch, /relationshipPolicy/);
 });

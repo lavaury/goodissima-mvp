@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { RepresentationEditor } from "@/components/directory/RepresentationEditor";
 import { RepresentationList } from "@/components/directory/RepresentationList";
-import { sortRepresentations, type DirectoryRepresentation } from "@/components/directory/directory-ui";
-import type { RepresentationRelationshipPolicy } from "@/lib/directory/contracts";
+import { representationTypeLabels, sortRepresentations, type DirectoryRepresentation } from "@/components/directory/directory-ui";
+import { representationRelationshipPolicyLabels, type RepresentationRelationshipPolicy, type RepresentationVisibility } from "@/lib/directory/contracts";
 
 export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
   hasIdentity: boolean;
@@ -82,6 +82,44 @@ export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
     }
   }
 
+  async function changeVisibility(representation: DirectoryRepresentation, visibility: RepresentationVisibility) {
+    if (mutationId) return;
+    if (visibility === "DISCOVERABLE") {
+      const preview = [
+        "Aperçu des informations visibles dans l’Annuaire global :",
+        `Nom d’affichage : ${representation.displayName}`,
+        `Type : ${representationTypeLabels[representation.type]}`,
+        `Titre : ${representation.title ?? "Non renseigné"}`,
+        `Organisation : ${representation.organizationName ?? "Non renseignée"}`,
+        `Description : ${representation.description ?? "Non renseignée"}`,
+        `Territoire : ${representation.territory ?? "Non renseigné"}`,
+        `Politique relationnelle : ${representationRelationshipPolicyLabels[representation.relationshipPolicy]}`,
+        "",
+        "Aucune coordonnée personnelle ne sera affichée. Confirmer la publication ?",
+      ].join("\n");
+      if (!window.confirm(preview)) return;
+    }
+    setMutationId(representation.id);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/directory/representations/${encodeURIComponent(representation.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility, expectedUpdatedAt: representation.updatedAt }),
+      });
+      const payload = await response.json();
+      if (response.status === 409) throw new Error("Cette représentation a été modifiée depuis son ouverture ou ne peut pas être publiée dans son état actuel. Actualisez la page.");
+      if (!response.ok || !payload.representation) throw new Error("La visibilité n’a pas pu être modifiée. Réessayez.");
+      setRepresentations((current) => sortRepresentations(current.map((item) => item.id === representation.id ? payload.representation : item)));
+      setFeedback(visibility === "DISCOVERABLE" ? "La représentation est maintenant visible dans l’Annuaire global." : "La représentation a été retirée de l’Annuaire global.");
+      router.refresh();
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Une erreur est survenue.");
+    } finally {
+      setMutationId(null);
+    }
+  }
+
   return (
     <div className="space-y-6" data-boussole-state={representations.length ? "POPULATED" : "EMPTY"}>
       <section aria-labelledby="my-representations-title" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
@@ -115,7 +153,7 @@ export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
             onSaved={(representation) => acceptRepresentation(representation, editing === "create" ? "La représentation a été créée." : "La représentation a été mise à jour.")}
           />
         ) : representations.length ? (
-          <RepresentationList representations={representations} mutationId={mutationId} onEdit={setEditing} onTransition={transition} onPolicySave={saveRelationshipPolicy} />
+          <RepresentationList representations={representations} mutationId={mutationId} onEdit={setEditing} onTransition={transition} onPolicySave={saveRelationshipPolicy} onVisibilityChange={changeVisibility} />
         ) : (
           <div className="mt-5 rounded-xl border border-dashed p-6 text-center">
             <p className="font-semibold text-slate-950">Aucune représentation</p>

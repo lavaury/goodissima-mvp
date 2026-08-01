@@ -4,8 +4,10 @@ import {
   parseCreateRepresentationInput,
   parseUpdateRepresentationInput,
   parseSetRelationshipPolicyInput,
+  parseSetRepresentationVisibilityInput,
   type RepresentationView,
   representationTransitionPatch,
+  representationVisibilityPatch,
 } from "@/lib/directory/contracts";
 import {
   representationRepository,
@@ -66,6 +68,29 @@ export async function setRelationshipPolicy(
   if (!current) throw new DirectoryServiceError("NOT_FOUND", "Representation not found.");
   if (current.relationshipPolicy === input.relationshipPolicy) return current;
   return unwrapUpdate(await repository.updateConditionallyForOwner(ownerId, id, input));
+}
+
+export async function setRepresentationVisibility(
+  ownerId: string,
+  id: string,
+  value: unknown,
+  repository: RepresentationRepository = representationRepository,
+) {
+  const input = parseSetRepresentationVisibilityInput(value);
+  const current = await repository.findForOwner(ownerId, id);
+  if (!current) throw new DirectoryServiceError("NOT_FOUND", "Representation not found.");
+  const patch = representationVisibilityPatch(current, input.visibility);
+  if (!patch) throw new DirectoryServiceError("INVALID_TRANSITION", "Representation must be active to be discoverable.");
+  if (Object.keys(patch).length === 0) return current;
+  return unwrapUpdate(await repository.updateConditionallyForOwner(ownerId, id, { ...patch, expectedUpdatedAt: input.expectedUpdatedAt }));
+}
+
+export function publishRepresentation(ownerId: string, id: string, expectedUpdatedAt?: string, repository: RepresentationRepository = representationRepository) {
+  return setRepresentationVisibility(ownerId, id, { visibility: "DISCOVERABLE", expectedUpdatedAt }, repository);
+}
+
+export function unpublishRepresentation(ownerId: string, id: string, expectedUpdatedAt?: string, repository: RepresentationRepository = representationRepository) {
+  return setRepresentationVisibility(ownerId, id, { visibility: "PRIVATE", expectedUpdatedAt }, repository);
 }
 
 async function transitionRepresentation(

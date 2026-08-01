@@ -23,3 +23,13 @@ La politique relationnelle est choisie explicitement par le propriétaire :
 - `CLOSED` (« Fermé ») interdira toute nouvelle demande relationnelle.
 
 Dans ce lot, cette politique est uniquement persistée et affichée. Elle ne crée ni demande, ni contact, ni message, ni canal, ni notification et n’a aucun effet rétroactif. `CLOSED` ne supprime pas les contacts existants, ne révoque aucun accès à un dossier ou parcours et ne ferme pas les conversations existantes. Les futurs canaux consulteront cette politique, avec leurs préférences détaillées, lorsqu’un moteur de demandes sera introduit.
+
+## Lot 3A — découvrabilité explicite
+
+Le statut technique, la visibilité et la politique relationnelle sont indépendants : `status ≠ visibility ≠ relationshipPolicy`. Une représentation est toujours créée avec la visibilité `PRIVATE`, même lorsqu’elle est `ACTIVE`. Seule une action humaine explicite peut la passer à `DISCOVERABLE`, et uniquement lorsqu’elle est active.
+
+La projection publique autorise seulement l’identifiant opaque propre à la représentation, le nom d’affichage, le type, le titre, l’organisation, la description, le territoire, la politique relationnelle et la date de publication. Elle exclut `ownerId`, `identityId`, les coordonnées, les claims, les notes privées et les dates internes. L’identifiant existant est un `cuid` opaque propre à chaque représentation ; aucun identifiant public supplémentaire n’est nécessaire à ce stade et aucune corrélation d’identité n’est exposée.
+
+Masquer ou archiver une représentation la repasse à `PRIVATE` et efface `publishedAt` dans la même mutation que le changement de statut. Restaurer une représentation la rend active mais jamais découvrable. La politique relationnelle reste inchangée lors de toutes ces transitions.
+
+Ce lot prépare uniquement la projection globale : l’onglet Global reste informatif, sans liste ni recherche. La publication ne crée aucune demande, aucun contact, aucun message, aucun canal, aucune invitation, aucune notification et aucune opération de matching.

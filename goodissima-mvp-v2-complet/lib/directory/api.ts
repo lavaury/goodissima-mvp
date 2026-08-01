@@ -34,6 +34,8 @@ export function representationJson(representation: {
   territory: string | null;
   status: string;
   relationshipPolicy: string;
+  visibility: string;
+  publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
@@ -43,5 +45,6 @@ export function representationJson(representation: {
     createdAt: representation.createdAt.toISOString(),
     updatedAt: representation.updatedAt.toISOString(),
     archivedAt: representation.archivedAt?.toISOString() ?? null,
+    publishedAt: representation.publishedAt?.toISOString() ?? null,
   };
 }

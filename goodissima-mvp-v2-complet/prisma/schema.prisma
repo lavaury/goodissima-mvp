@@ -152,6 +152,11 @@ enum RepresentationRelationshipPolicy {
   CLOSED
 }
 
+enum RepresentationVisibility {
+  PRIVATE
+  DISCOVERABLE
+}
+
 enum TrustCredentialStatus {
   ACTIVE
   EXPIRED
@@ -850,6 +855,8 @@ model Representation {
   territory        String?
   status           RepresentationStatus @default(ACTIVE)
   relationshipPolicy RepresentationRelationshipPolicy @default(OPEN)
+  visibility       RepresentationVisibility @default(PRIVATE)
+  publishedAt      DateTime?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   archivedAt       DateTime?

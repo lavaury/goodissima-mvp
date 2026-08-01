@@ -8,10 +8,12 @@ export const REPRESENTATION_TYPES = [
 
 export const REPRESENTATION_STATUSES = ["ACTIVE", "HIDDEN", "ARCHIVED"] as const;
 export const REPRESENTATION_RELATIONSHIP_POLICIES = ["OPEN", "MESSAGE_ONLY", "CLOSED"] as const;
+export const REPRESENTATION_VISIBILITIES = ["PRIVATE", "DISCOVERABLE"] as const;
 
 export type RepresentationType = (typeof REPRESENTATION_TYPES)[number];
 export type RepresentationStatus = (typeof REPRESENTATION_STATUSES)[number];
 export type RepresentationRelationshipPolicy = (typeof REPRESENTATION_RELATIONSHIP_POLICIES)[number];
+export type RepresentationVisibility = (typeof REPRESENTATION_VISIBILITIES)[number];
 
 export const representationRelationshipPolicyLabels: Record<RepresentationRelationshipPolicy, string> = {
   OPEN: "Ouvert",
@@ -23,6 +25,16 @@ export const representationRelationshipPolicyDescriptions: Record<Representation
   OPEN: "Vous acceptez de nouvelles demandes sur les canaux qui seront activés ultérieurement.",
   MESSAGE_ONLY: "Seules les demandes de message seront autorisées.",
   CLOSED: "Aucune nouvelle demande relationnelle ne sera acceptée.",
+};
+
+export const representationVisibilityLabels: Record<RepresentationVisibility, string> = {
+  PRIVATE: "Privée",
+  DISCOVERABLE: "Visible dans l’Annuaire",
+};
+
+export const representationVisibilityDescriptions: Record<RepresentationVisibility, string> = {
+  PRIVATE: "Cette représentation n’apparaît pas dans l’Annuaire global.",
+  DISCOVERABLE: "Les informations publiques de cette représentation peuvent apparaître dans l’Annuaire global. Aucune coordonnée personnelle n’est affichée.",
 };
 
 export type CreateRepresentationInput = {
@@ -44,6 +56,11 @@ export type SetRelationshipPolicyInput = {
   expectedUpdatedAt?: string;
 };
 
+export type SetRepresentationVisibilityInput = {
+  visibility: RepresentationVisibility;
+  expectedUpdatedAt?: string;
+};
+
 export type RepresentationView = {
   id: string;
   type: RepresentationType;
@@ -54,9 +71,23 @@ export type RepresentationView = {
   territory: string | null;
   status: RepresentationStatus;
   relationshipPolicy: RepresentationRelationshipPolicy;
+  visibility: RepresentationVisibility;
+  publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
+};
+
+export type PublicRepresentationSummary = {
+  id: string;
+  displayName: string;
+  type: RepresentationType;
+  title: string | null;
+  organizationName: string | null;
+  description: string | null;
+  territory: string | null;
+  relationshipPolicy: RepresentationRelationshipPolicy;
+  publishedAt: Date;
 };
 
 export class DirectoryValidationError extends Error {
@@ -128,6 +159,14 @@ function relationshipPolicy(value: unknown, issues: string[]) {
   return value as RepresentationRelationshipPolicy;
 }
 
+function visibility(value: unknown, issues: string[]) {
+  if (typeof value !== "string" || !REPRESENTATION_VISIBILITIES.includes(value as RepresentationVisibility)) {
+    issues.push("visibility is invalid");
+    return "PRIVATE" as const;
+  }
+  return value as RepresentationVisibility;
+}
+
 function rejectUnknownKeys(input: Record<string, unknown>, allowed: readonly string[], issues: string[]) {
   for (const key of Object.keys(input)) {
     if (!allowed.includes(key)) issues.push(`${key} is not allowed`);
@@ -185,6 +224,33 @@ export function parseSetRelationshipPolicyInput(value: unknown): SetRelationship
   return result;
 }
 
+export function parseSetRepresentationVisibilityInput(value: unknown): SetRepresentationVisibilityInput {
+  const input = record(value);
+  const issues: string[] = [];
+  rejectUnknownKeys(input, ["visibility", "expectedUpdatedAt"], issues);
+  const result: SetRepresentationVisibilityInput = { visibility: visibility(input.visibility, issues) };
+  if ("expectedUpdatedAt" in input) {
+    if (typeof input.expectedUpdatedAt !== "string" || Number.isNaN(Date.parse(input.expectedUpdatedAt))) issues.push("expectedUpdatedAt is invalid");
+    else result.expectedUpdatedAt = input.expectedUpdatedAt;
+  }
+  if (issues.length) throw new DirectoryValidationError(issues);
+  return result;
+}
+
+export function representationVisibilityPatch(
+  current: { status: RepresentationStatus; visibility: RepresentationVisibility; publishedAt: Date | null },
+  target: RepresentationVisibility,
+  now = new Date(),
+) {
+  if (target === "DISCOVERABLE") {
+    if (current.status !== "ACTIVE") return null;
+    if (current.visibility === "DISCOVERABLE" && current.publishedAt) return {};
+    return { visibility: "DISCOVERABLE" as const, publishedAt: now };
+  }
+  if (current.visibility === "PRIVATE" && current.publishedAt === null) return {};
+  return { visibility: "PRIVATE" as const, publishedAt: null };
+}
+
 export function canTransitionRepresentation(from: RepresentationStatus, to: RepresentationStatus) {
   if (from === to) return true;
   if (to === "ARCHIVED") return from === "ACTIVE" || from === "HIDDEN";
@@ -199,5 +265,10 @@ export function representationTransitionPatch(
 ) {
   if (!canTransitionRepresentation(current.status, target)) return null;
   if (current.status === target) return {};
-  return { status: target, archivedAt: target === "ARCHIVED" ? now : null };
+  return {
+    status: target,
+    archivedAt: target === "ARCHIVED" ? now : null,
+    visibility: "PRIVATE" as const,
+    publishedAt: null,
+  };
 }

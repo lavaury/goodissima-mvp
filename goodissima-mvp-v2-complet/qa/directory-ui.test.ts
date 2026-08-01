@@ -11,7 +11,7 @@ test("directory navigation exposes honest Global and functional Moi tabs", () =>
   assert.match(tabs, /Moi/);
   assert.match(tabs, /role="tablist"/);
   assert.match(tabs, /aria-selected/);
-  assert.match(page, /Annuaire global non activé/);
+  assert.match(page, /Lecture globale en préparation/);
   assert.doesNotMatch(page, /mock|fixture|demoProfile|fakeProfile/i);
 });
 
@@ -84,6 +84,21 @@ test("cards expose accessible manual relationship policy selection without activ
   assert.match(overview, /response\.status === 409/);
   assert.match(overview, /router\.refresh\(\)/);
   assert.doesNotMatch(`${card}\n${overview}`, /startMessage|startVoice|startVideo|openChannel/);
+});
+
+test("visibility requires an explicit preview and is unavailable for non-active representations", () => {
+  const contracts = read("lib/directory/contracts.ts");
+  const card = read("components/directory/RepresentationCard.tsx");
+  const overview = read("components/directory/MyDirectoryOverview.tsx");
+  for (const label of ["Privée", "Visible dans l’Annuaire"]) assert.ok(contracts.includes(label));
+  assert.match(card, /status !== "ACTIVE"/);
+  assert.match(card, /La représentation doit être active pour être publiée/);
+  assert.match(card, /Rendre visible dans l’Annuaire/);
+  assert.match(card, /Retirer de l’Annuaire/);
+  for (const field of ["Nom d’affichage", "Type", "Titre", "Organisation", "Description", "Territoire", "Politique relationnelle"]) assert.ok(overview.includes(field));
+  assert.match(overview, /window\.confirm\(preview\)/);
+  assert.match(overview, /JSON\.stringify\(\{ visibility, expectedUpdatedAt: representation\.updatedAt \}\)/);
+  assert.doesNotMatch(overview, /email|telephone|téléphone|identityId|ownerId|claims/i);
 });
 
 test("Lot 2 UI creates no global route or automatic business side effect", () => {

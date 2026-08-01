@@ -34,7 +34,7 @@ test("API is authenticated, owner-derived and exposes no owner or identity ident
     assert.doesNotMatch(route, /body\.ownerId|body\.identityId/);
   }
   assert.doesNotMatch(api, /ownerId|identityId/);
-  for (const field of ["id", "type", "displayName", "title", "organizationName", "description", "territory", "status", "relationshipPolicy", "createdAt", "updatedAt", "archivedAt"]) {
+  for (const field of ["id", "type", "displayName", "title", "organizationName", "description", "territory", "status", "relationshipPolicy", "visibility", "publishedAt", "createdAt", "updatedAt", "archivedAt"]) {
     assert.match(api, new RegExp(`\\b${field}\\b`));
   }
 });
@@ -57,8 +57,20 @@ test("directory has no discoverability or automatic business side effects", () =
     source("app/api/directory/representations/route.ts"),
     source("app/api/directory/representations/[representationId]/route.ts"),
   ].join("\n");
-  assert.doesNotMatch(directoryCode, /ContactRequest|RepresentationContact|prisma\.message|CommunicationSession|MatchingRun|MatchingResult|\bnotification\b|\binvitation\b|\bdiscoverable\b/i);
+  assert.doesNotMatch(directoryCode, /ContactRequest|RepresentationContact|prisma\.message|CommunicationSession|MatchingRun|MatchingResult|\bnotification\b|\binvitation\b/i);
   assert.doesNotMatch(directoryCode, /email|phone|telephone/i);
+});
+
+test("global projection is minimal, bounded and limited to ACTIVE DISCOVERABLE rows", () => {
+  const repository = source("lib/directory/representation-repository.ts");
+  const contracts = source("lib/directory/contracts.ts");
+  assert.match(repository, /where: \{ status: "ACTIVE", visibility: "DISCOVERABLE", publishedAt: \{ not: null \} \}/);
+  assert.match(repository, /Math\.min\(limit, 50\)/);
+  assert.match(repository, /orderBy: \[\{ publishedAt: "desc" \}, \{ id: "asc" \}\]/);
+  const publicSelect = repository.slice(repository.indexOf("const publicRepresentationSelect"), repository.indexOf("export type ConditionalUpdateResult"));
+  assert.doesNotMatch(publicSelect, /ownerId|identityId|email|phone|claims|archivedAt|updatedAt|createdAt/);
+  const publicContract = contracts.slice(contracts.indexOf("export type PublicRepresentationSummary"), contracts.indexOf("export class DirectoryValidationError"));
+  assert.doesNotMatch(publicContract, /ownerId|identityId|email|phone|claims|archivedAt|expectedUpdatedAt/);
 });
 
 test("foreign ids resolve as not found through owner-scoped lookups", () => {

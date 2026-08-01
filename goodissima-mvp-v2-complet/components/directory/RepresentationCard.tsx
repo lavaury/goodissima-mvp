@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { representationStatusLabels, representationTypeLabels, type DirectoryRepresentation } from "@/components/directory/directory-ui";
 import { REPRESENTATION_RELATIONSHIP_POLICIES, representationRelationshipPolicyDescriptions, representationRelationshipPolicyLabels, type RepresentationRelationshipPolicy } from "@/lib/directory/contracts";
+import { representationVisibilityDescriptions, representationVisibilityLabels, type RepresentationVisibility } from "@/lib/directory/contracts";
 
-export function RepresentationCard({ representation, busy, actionsDisabled, onEdit, onTransition, onPolicySave }: {
+export function RepresentationCard({ representation, busy, actionsDisabled, onEdit, onTransition, onPolicySave, onVisibilityChange }: {
   representation: DirectoryRepresentation;
   busy: boolean;
   actionsDisabled: boolean;
   onEdit: () => void;
   onTransition: (action: "hide" | "restore" | "archive") => void;
   onPolicySave: (policy: RepresentationRelationshipPolicy) => Promise<boolean>;
+  onVisibilityChange: (visibility: RepresentationVisibility) => void;
 }) {
   const [selectedPolicy, setSelectedPolicy] = useState(representation.relationshipPolicy);
   const [policyError, setPolicyError] = useState<string | null>(null);
@@ -36,6 +38,18 @@ export function RepresentationCard({ representation, busy, actionsDisabled, onEd
         {representation.territory ? <div><dt className="sr-only">Territoire</dt><dd>Territoire : {representation.territory}</dd></div> : null}
         {representation.description ? <div><dt className="sr-only">Description</dt><dd className="whitespace-pre-wrap leading-6">{representation.description}</dd></div> : null}
       </dl>
+      <section aria-labelledby={`visibility-${representation.id}`} className="mt-5 rounded-xl border p-4">
+        <h4 id={`visibility-${representation.id}`} className="text-sm font-semibold text-slate-950">Visibilité</h4>
+        <p className="mt-2 text-sm font-semibold text-slate-800">{representationVisibilityLabels[representation.visibility]}</p>
+        <p className="mt-1 text-sm leading-5 text-slate-600">{representationVisibilityDescriptions[representation.visibility]}</p>
+        {representation.status !== "ACTIVE" ? (
+          <p className="mt-3 text-sm text-slate-600">La représentation doit être active pour être publiée.</p>
+        ) : (
+          <button type="button" disabled={actionsDisabled} onClick={() => onVisibilityChange(representation.visibility === "PRIVATE" ? "DISCOVERABLE" : "PRIVATE")} className="mt-4 rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50">
+            {representation.visibility === "PRIVATE" ? "Rendre visible dans l’Annuaire" : "Retirer de l’Annuaire"}
+          </button>
+        )}
+      </section>
       <fieldset className="mt-5 rounded-xl border bg-slate-50 p-4" disabled={actionsDisabled}>
         <legend className="px-1 text-sm font-semibold text-slate-950">Politique relationnelle</legend>
         <div className="mt-2 space-y-3">
