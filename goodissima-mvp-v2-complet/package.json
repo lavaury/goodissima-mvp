@@ -69,7 +69,9 @@
     "qa:new-governed-journey-boussole": "node --experimental-strip-types --test qa/new-governed-journey-boussole.test.ts",
     "qa:governed-journey-cockpit-boussole": "node --experimental-strip-types --test qa/governed-journey-cockpit-boussole.test.ts",
     "qa:dossier-conversation-boussole": "node --experimental-strip-types --test qa/dossier-conversation-boussole.test.ts",
-    "admin:promote": "node --experimental-strip-types scripts/promote-admin.ts"
+    "admin:promote": "node --experimental-strip-types scripts/promote-admin.ts",
+    "prisma:staging:status": "dotenv -e .env.staging -- prisma migrate status",
+    "prisma:staging:deploy": "dotenv -e .env.staging -- prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
