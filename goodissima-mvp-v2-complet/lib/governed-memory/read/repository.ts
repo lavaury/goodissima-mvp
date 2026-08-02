@@ -1,8 +1,8 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ROLE_PERMISSIONS } from "@/lib/governed-memory/permissions";
 import type { ResolvedMemoryPermissions } from "@/lib/governed-memory/persistence/permission-resolver";
-import type { ReadCursor } from "./types";
+import type { ReadCursor, TimelineCursor } from "./types";
 
 type Db = PrismaClient;
 type Tx = Prisma.TransactionClient;
@@ -59,6 +59,33 @@ function createTransactionalReader(tx: Tx) {
         tx.governedMemoryFact.findMany({ where: { relationCaseId, id: { in: factIds }, recordedAt: { lte: knowledgeCutoff } }, select: factSelect, orderBy: { id: "asc" }, take: 100 }), tx.governedMemorySource.findMany({ where: { relationCaseId, id: { in: sourceIds }, recordedAt: { lte: knowledgeCutoff } }, select: sourceSelect, orderBy: { id: "asc" }, take: 100 }), tx.governedMemoryDecision.findMany({ where: { relationCaseId, id: { in: priorIds }, recordedAt: { lte: knowledgeCutoff } }, select: decisionSelect, orderBy: { id: "asc" }, take: 100 }), tx.governedMemoryValidation.findMany({ where: { relationCaseId, targetType: "DECISION", targetId: decisionId, createdAt: { lte: knowledgeCutoff } }, select: validationSelect, orderBy: [{ validatedAt: "asc" }, { id: "asc" }], take: 100 }), tx.governedMemoryDispute.findMany({ where: { relationCaseId, targetType: "DECISION", targetId: decisionId, raisedAt: { lte: knowledgeCutoff } }, select: disputeSelect, orderBy: [{ raisedAt: "asc" }, { id: "asc" }], take: 100 }), tx.governedMemoryEvent.findMany({ where: { relationCaseId, objectType: "DECISION", objectId: decisionId, recordedAt: { lte: knowledgeCutoff } }, select: eventSelect, orderBy: [{ recordedAt: "asc" }, { id: "asc" }], take: 200 }),
       ]);
       return { decision, relations, facts, sources, priorDecisions, validations, disputes, events };
+    },
+    async readTimeline(input: { relationCaseId: string; from: Date; to: Date; knowledgeCutoff: Date; limit: number; cursor: TimelineCursor | null; access: ResolvedMemoryPermissions }) {
+      const targetedSources = [...input.access.sourceResourceIds];
+      const sourceVisibility = input.access.permissions.has("VIEW_SOURCES")
+        ? Prisma.sql`EXISTS (
+            SELECT 1 FROM "GovernedMemorySource" source
+            WHERE source."relationCaseId" = event."relationCaseId"
+              AND source."id" = event."objectId"
+              AND ((source."status" <> 'RESTRICTED' AND source."visibilityPolicyRef" IS NULL)
+                OR source."id" IN (${targetedSources.length ? Prisma.join(targetedSources) : Prisma.sql`NULL`}))
+          )`
+        : Prisma.sql`FALSE`;
+      const afterCursor = input.cursor
+        ? Prisma.sql`AND (event."occurredAt" > ${new Date(input.cursor.occurredAt)} OR (event."occurredAt" = ${new Date(input.cursor.occurredAt)} AND event."id" > ${input.cursor.id}))`
+        : Prisma.empty;
+      return tx.$queryRaw<Array<Prisma.GovernedMemoryEventGetPayload<{ select: typeof eventSelect }>>>(Prisma.sql`
+        SELECT event."id", event."type", event."actorType", event."actorUserId", event."objectType", event."objectId", event."occurredAt", event."recordedAt", event."summary"
+        FROM "GovernedMemoryEvent" event
+        WHERE event."relationCaseId" = ${input.relationCaseId}
+          AND event."occurredAt" >= ${input.from}
+          AND event."occurredAt" < ${input.to}
+          AND event."recordedAt" <= ${input.knowledgeCutoff}
+          ${afterCursor}
+          AND (event."objectType" <> 'SOURCE' OR ${sourceVisibility})
+        ORDER BY event."occurredAt" ASC, event."id" ASC
+        LIMIT ${input.limit + 1}
+      `);
     },
     async getObjectTrace(relationCaseId: string, objectType: "FACT" | "DECISION" | "SOURCE", objectId: string, cutoff: Date) {
       const relations = await tx.governedMemoryRelation.findMany({ where: { relationCaseId, createdAt: { lte: cutoff }, OR: [{ sourceType: objectType, sourceId: objectId }, { targetType: objectType, targetId: objectId }] }, select: relationSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 200 });

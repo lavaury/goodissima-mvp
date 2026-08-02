@@ -3,7 +3,7 @@ import { compareMemoryStates } from "./comparison";
 import { dedupeLimitations, limitation } from "./limitations";
 import { governedMemoryReadRepository, type GovernedMemoryReadRepository, type GovernedMemoryTransactionalReader } from "./repository";
 import { accessView, buildMemoryState } from "./state-builder";
-import type { CompareMemoryPeriodsInput, ExplainDecisionInput, GetMemoryStateAtInput, GovernedMemoryAccessReconstruction, GovernedMemoryDecisionExplanation, GovernedMemoryDecisionView, GovernedMemoryDisputeView, GovernedMemoryFactView, GovernedMemoryReadInclude, GovernedMemoryReadResult, GovernedMemoryRoleView, ReconstructAccessAtInput, ReadCursor } from "./types";
+import type { CompareMemoryPeriodsInput, ExplainDecisionInput, GetMemoryStateAtInput, GetMemoryTimelineInput, GovernedMemoryAccessReconstruction, GovernedMemoryDecisionExplanation, GovernedMemoryDecisionView, GovernedMemoryDisputeView, GovernedMemoryFactView, GovernedMemoryReadInclude, GovernedMemoryReadResult, GovernedMemoryRoleView, GovernedMemoryTimelineItem, ReconstructAccessAtInput, ReadCursor, TimelineCursor } from "./types";
 
 export type GovernedMemoryReadErrorCode = "INVALID_INPUT" | "NOT_FOUND" | "FORBIDDEN" | "INVALID_DATE_RANGE" | "UNSUPPORTED_KNOWLEDGE_MODE" | "PAGE_LIMIT_EXCEEDED" | "INCONSISTENT_MEMORY_GRAPH" | "INCOMPLETE_HISTORY";
 export class GovernedMemoryReadError extends Error { constructor(readonly code: GovernedMemoryReadErrorCode, message: string) { super(message); this.name = "GovernedMemoryReadError"; } }
@@ -13,6 +13,8 @@ function date(value: string, name: string) { const parsed = new Date(value); if 
 function limit(value?: number) { const resolved = value ?? 50; if (!Number.isInteger(resolved) || resolved < 1) throw new GovernedMemoryReadError("INVALID_INPUT", "limit is invalid."); if (resolved > 200) throw new GovernedMemoryReadError("PAGE_LIMIT_EXCEEDED", "Requested page exceeds the maximum."); return resolved; }
 function decodeCursor(value?: string): ReadCursor | null { if (!value) return null; try { const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as ReadCursor; if (!parsed.id || !Number.isFinite(Date.parse(parsed.recordedAt))) throw new Error(); return parsed; } catch { throw new GovernedMemoryReadError("INVALID_INPUT", "cursor is invalid."); } }
 function encodeCursor(value: ReadCursor) { return Buffer.from(JSON.stringify(value), "utf8").toString("base64url"); }
+function decodeTimelineCursor(value?: string): TimelineCursor | null { if (!value) return null; try { const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as TimelineCursor; if (!parsed.id || !Number.isFinite(Date.parse(parsed.occurredAt))) throw new Error(); return parsed; } catch { throw new GovernedMemoryReadError("INVALID_INPUT", "cursor is invalid."); } }
+function encodeTimelineCursor(value: TimelineCursor) { return Buffer.from(JSON.stringify(value), "utf8").toString("base64url"); }
 async function currentAccess(relationCaseId: string, requesterUserId: string, now: Date, reader: GovernedMemoryTransactionalReader) { const resolved = await reader.resolveCurrentAccess(relationCaseId, requesterUserId, now); if (!resolved?.permissions.has("VIEW_MEMORY")) throw new GovernedMemoryReadError("NOT_FOUND", "Memory not found."); return resolved; }
 
 async function stateInSnapshot(input: GetMemoryStateAtInput, reader: GovernedMemoryTransactionalReader, now: Date): Promise<GovernedMemoryReadResult> {
@@ -77,7 +79,16 @@ export async function reconstructAccessAt(input: ReconstructAccessAtInput, repos
   });
 }
 
-export async function getMemoryTimeline(input: Omit<GetMemoryStateAtInput, "include">, repository: GovernedMemoryReadRepository = governedMemoryReadRepository, now = new Date()) { const result = await getMemoryStateAt({ ...input, include: ["TIMELINE"] }, repository, now); return { timeline: result.timeline, limitations: result.limitations, redactions: result.redactions, pagination: result.pagination }; }
+export async function getMemoryTimeline(input: GetMemoryTimelineInput, repository: GovernedMemoryReadRepository = governedMemoryReadRepository, now = new Date()) {
+  const operationNow = new Date(now); const from = date(input.from, "from"); const to = date(input.to, "to"); if (from > to) throw new GovernedMemoryReadError("INVALID_DATE_RANGE", "Date range is invalid."); const pageLimit = limit(input.limit); const cursor = decodeTimelineCursor(input.cursor);
+  return repository.runInSnapshot(async (reader) => {
+    const access = await currentAccess(input.relationCaseId, input.requesterUserId, operationNow, reader);
+    const rows = await reader.readTimeline({ relationCaseId: input.relationCaseId, from, to, knowledgeCutoff: operationNow, limit: pageLimit, cursor, access });
+    const page = rows.slice(0, pageLimit); const last = rows.length > pageLimit ? page[page.length - 1] : null;
+    const timeline: GovernedMemoryTimelineItem[] = page.map((row) => ({ id: row.id, type: row.type, actorType: row.actorType, actorUserId: row.actorUserId, objectType: row.objectType, objectId: row.objectId, occurredAt: row.occurredAt.toISOString(), recordedAt: row.recordedAt.toISOString(), summary: row.summary }));
+    return { timeline, limitations: [], redactions: [], pagination: { limit: pageLimit, nextCursor: last ? encodeTimelineCursor({ occurredAt: last.occurredAt.toISOString(), id: last.id }) : null, hasMore: rows.length > pageLimit } };
+  });
+}
 export async function getMemoryObjectTrace(input: { relationCaseId: string; requesterUserId: string; objectType: "FACT" | "DECISION" | "SOURCE"; objectId: string; referenceDate?: string }, repository: GovernedMemoryReadRepository = governedMemoryReadRepository, now = new Date()) {
   const operationNow = new Date(now);
   return repository.runInSnapshot(async (reader) => { const cutoff = input.referenceDate ? date(input.referenceDate, "referenceDate") : operationNow; const access = await currentAccess(input.relationCaseId, input.requesterUserId, operationNow, reader); if (input.objectType === "SOURCE" && !access.permissions.has("VIEW_SOURCES") && !access.sourceResourceIds.has(input.objectId)) throw new GovernedMemoryReadError("NOT_FOUND", "Memory object not found."); const trace = await reader.getObjectTrace(input.relationCaseId, input.objectType, input.objectId, cutoff); const relations = trace.relations.filter((row) => row.sourceType !== "SOURCE" && row.targetType !== "SOURCE" || access.permissions.has("VIEW_SOURCES")); return { relations, validations: trace.validations, disputes: trace.disputes, events: trace.events, limitations: [limitation("POLYMORPHIC_REFERENCE_UNVERIFIED", "RESULT", null, "INFO")] }; });

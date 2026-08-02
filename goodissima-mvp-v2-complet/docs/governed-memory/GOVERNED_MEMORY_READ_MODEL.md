@@ -106,6 +106,12 @@ Une révocation commise avant le début du snapshot est visible et retire le dro
 
 `compareMemoryPeriods` résout les droits actuels une seule fois et reconstruit les deux états dans la même transaction `RepeatableRead`. La comparaison est ainsi atomique par rapport au même snapshot d'autorisations et de données.
 
+## Pagination de la timeline
+
+`getMemoryTimeline` accepte explicitement `from`, `to`, `limit` et `cursor`. La timeline est fondée sur `occurredAt` : `from` est inclusif et `to` exclusif, soit l'intervalle `[from, to)`. `recordedAt` reste exposé séparément et sert seulement à empêcher la lecture d'un événement non encore connu à l'horloge de l'opération.
+
+Dans le même snapshot `RepeatableRead`, la requête applique successivement le scope `RelationCase`, la plage `occurredAt`, le cutoff de connaissance, l'occultation des événements de sources invisibles, la position du curseur, l'ordre `occurredAt ASC, id ASC`, puis `limit + 1`. Le curseur encode uniquement `occurredAt` et l'identifiant du dernier événement visible retourné. Il n'est émis que lorsqu'un événement visible supplémentaire existe dans la plage.
+
 ## Sécurité
 
 Chaque requête contient `relationCaseId`. Cross-case et accès absent retournent `NOT_FOUND`. Aucun modèle Prisma brut n’est exposé par les services. Les erreurs ne contiennent ni stack, secret, titre privé ni identifiant issu d’un objet masqué.

@@ -9,6 +9,7 @@ export type GetMemoryStateAtInput = { relationCaseId: string; requesterUserId: s
 export type CompareMemoryPeriodsInput = { relationCaseId: string; requesterUserId: string; from: string; to: string; knowledgeMode: "KNOWN_AT_EACH_DATE" | "CURRENT_KNOWLEDGE_ABOUT_PERIOD"; include?: GovernedMemoryReadInclude[] };
 export type ExplainDecisionInput = { relationCaseId: string; requesterUserId: string; decisionId: string; referenceDate?: string };
 export type ReconstructAccessAtInput = { relationCaseId: string; requesterUserId: string; subjectUserId?: string; subjectRepresentationId?: string; referenceDate: string };
+export type GetMemoryTimelineInput = { relationCaseId: string; requesterUserId: string; from: string; to: string; limit?: number; cursor?: string };
 
 export type GovernedMemoryVisibleReference = { type: GovernedMemoryTargetType; id: string };
 export type GovernedMemorySupersessionView = { relationType: "REPLACES" | "CORRECTS" | "CANCELS" | "COMPLEMENTS"; relatedId: string; recordedAt: string };
@@ -34,3 +35,4 @@ export type GovernedMemoryDecisionExplanation = { decision: GovernedMemoryDecisi
 export type GovernedMemoryAccessReconstruction = { subject: { type: "USER" | "REPRESENTATION"; id: string }; referenceDate: string; activeRoles: GovernedMemoryRoleView[]; activeGrants: GovernedMemoryAccessView[]; residualGrants: GovernedMemoryAccessView[]; revokedGrants: GovernedMemoryAccessView[]; effectivePermissions: GovernedMemoryPermission[]; restrictedResources: { type: GovernedMemoryTargetType; id: string | null }[]; limitations: GovernedMemoryReadLimitation[]; redactions: GovernedMemoryRedaction[] };
 
 export type ReadCursor = { recordedAt: string; id: string };
+export type TimelineCursor = { occurredAt: string; id: string };
