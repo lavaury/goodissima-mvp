@@ -312,6 +312,128 @@ enum GovernedMeetingParticipantStatus {
   REMOVED
 }
 
+enum GovernedMemoryFactStatus {
+  PROPOSED
+  ESTABLISHED
+  DISPUTED
+  SUPERSEDED
+}
+
+enum GovernedMemoryEvidenceLevel {
+  DECLARED
+  SUPPORTED
+  CORROBORATED
+  CONTESTED
+}
+
+enum GovernedMemoryDecisionStatus {
+  DRAFT
+  VALIDATED
+  SUPERSEDED
+  CANCELLED
+}
+
+enum GovernedMemorySourceKind {
+  DOCUMENT
+  DOCUMENT_VERSION
+  FORM_SUBMISSION
+  MESSAGE_EXCERPT
+  SYSTEM_EVENT
+  HUMAN_DECLARATION
+  VALIDATED_SYNTHESIS
+  EXTERNAL_IMPORT
+}
+
+enum GovernedMemorySourceStatus {
+  ACTIVE
+  ARCHIVED
+  RESTRICTED
+  EXPIRED
+  ANONYMIZED
+  DELETED
+  LEGAL_HOLD
+}
+
+enum GovernedMemoryValidationDecision {
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  WITH_RESERVATIONS
+}
+
+enum GovernedMemoryDisputeStatus {
+  OPEN
+  RESOLVED
+  MAINTAINED
+  WITHDRAWN
+}
+
+enum GovernedMemoryRelationType {
+  SUPPORTED_BY
+  DERIVED_FROM
+  REPLACES
+  CORRECTS
+  CANCELS
+  COMPLEMENTS
+  CONTESTS
+  VALIDATES
+  SUMMARIZES
+}
+
+enum GovernedMemoryPermission {
+  VIEW_MEMORY
+  VIEW_SOURCES
+  PROPOSE_FACT
+  ESTABLISH_FACT
+  DISPUTE_FACT
+  RECORD_DECISION
+  VALIDATE_DECISION
+  VALIDATE_SYNTHESIS
+  MANAGE_MEMORY_ACCESS
+  PROMOTE_PRIVATE_SOURCE
+}
+
+enum GovernedMemorySubjectType {
+  USER
+  REPRESENTATION
+}
+
+enum GovernedMemoryTargetType {
+  FACT
+  DECISION
+  SOURCE
+}
+
+enum GovernedMemoryEventType {
+  FACT_PROPOSED
+  FACT_ESTABLISHED
+  FACT_DISPUTED
+  FACT_SUPERSEDED
+  DECISION_RECORDED
+  DECISION_VALIDATED
+  DECISION_SUPERSEDED
+  DECISION_CANCELLED
+  SOURCE_REGISTERED
+  SOURCE_PROMOTED
+  SOURCE_RESTRICTED
+  SOURCE_DELETED
+  ACCESS_GRANTED
+  ACCESS_REVOKED
+  VALIDATION_RECORDED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+}
+
+enum GovernedMemoryActorType {
+  HUMAN
+  SYSTEM
+}
+
+enum GovernedMemoryRole {
+  MEMORY_STEWARD
+  MEMORY_DELEGATE
+}
+
 model User {
   id                   String   @id @default(cuid())
   email                String   @unique
@@ -342,6 +464,22 @@ model User {
   contactRequestEvents     ContactRequestEvent[]
   representationContacts   RepresentationContact[]      @relation("RepresentationContactOwner")
   representationContactEvents RepresentationContactEvent[]
+  authoredMemoryFacts GovernedMemoryFact[] @relation("MemoryFactAuthor")
+  establishedMemoryFacts GovernedMemoryFact[] @relation("MemoryFactEstablisher")
+  decidedMemoryDecisions GovernedMemoryDecision[] @relation("MemoryDecisionDecider")
+  validatedMemoryDecisions GovernedMemoryDecision[] @relation("MemoryDecisionValidator")
+  promotedMemorySources GovernedMemorySource[] @relation("MemorySourcePromoter")
+  createdMemoryRelations GovernedMemoryRelation[]
+  memoryValidations GovernedMemoryValidation[]
+  raisedMemoryDisputes GovernedMemoryDispute[] @relation("MemoryDisputeRaiser")
+  resolvedMemoryDisputes GovernedMemoryDispute[] @relation("MemoryDisputeResolver")
+  subjectMemoryGrants GovernedMemoryAccessGrant[] @relation("MemoryGrantUserSubject")
+  grantedMemoryGrants GovernedMemoryAccessGrant[] @relation("MemoryGrantGranter")
+  revokedMemoryGrants GovernedMemoryAccessGrant[] @relation("MemoryGrantRevoker")
+  memoryEvents GovernedMemoryEvent[]
+  memoryRoleAssignments GovernedMemoryRoleAssignment[] @relation("MemoryRoleSubject")
+  assignedMemoryRoles GovernedMemoryRoleAssignment[] @relation("MemoryRoleAssigner")
+  revokedMemoryRoles GovernedMemoryRoleAssignment[] @relation("MemoryRoleRevoker")
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -588,6 +726,15 @@ model RelationCase {
   productFeedback   ProductFeedback[]
   communicationSessions CommunicationSession[]
   matchingResults   MatchingResult[]
+  memoryFacts GovernedMemoryFact[]
+  memoryDecisions GovernedMemoryDecision[]
+  memorySources GovernedMemorySource[]
+  memoryRelations GovernedMemoryRelation[]
+  memoryValidations GovernedMemoryValidation[]
+  memoryDisputes GovernedMemoryDispute[]
+  memoryAccessGrants GovernedMemoryAccessGrant[]
+  memoryEvents GovernedMemoryEvent[]
+  memoryRoleAssignments GovernedMemoryRoleAssignment[]
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
@@ -911,6 +1058,9 @@ model Representation {
   incomingContactRequests ContactRequest[] @relation("ContactRequestTargetRepresentation")
   ownedContacts           RepresentationContact[] @relation("RepresentationContactOwnerRepresentation")
   remoteContacts          RepresentationContact[] @relation("RepresentationContactRemoteRepresentation")
+  authoredMemoryFacts     GovernedMemoryFact[] @relation("MemoryFactAuthorRepresentation")
+  subjectMemoryGrants     GovernedMemoryAccessGrant[] @relation("MemoryGrantRepresentationSubject")
+  actorMemoryEvents       GovernedMemoryEvent[] @relation("MemoryEventActorRepresentation")
 
   @@unique([id, ownerId])
   @@index([ownerId, status])
@@ -1019,6 +1169,238 @@ model RepresentationContactEvent {
   actor   User?                 @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([contactId, createdAt])
+}
+
+model GovernedMemoryFact {
+  id String @id @default(cuid())
+  relationCaseId String
+  statement String
+  status GovernedMemoryFactStatus @default(PROPOSED)
+  evidenceLevel GovernedMemoryEvidenceLevel @default(DECLARED)
+  authorUserId String
+  authorRepresentationId String?
+  recordedAt DateTime
+  effectiveFrom DateTime
+  effectiveUntil DateTime?
+  establishedByUserId String?
+  establishedAt DateTime?
+  supersedesFactId String?
+  supersededByFactId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  author User @relation("MemoryFactAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  authorRepresentation Representation? @relation("MemoryFactAuthorRepresentation", fields: [authorRepresentationId, authorUserId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  establishedBy User? @relation("MemoryFactEstablisher", fields: [establishedByUserId], references: [id], onDelete: Restrict)
+  supersedesFact GovernedMemoryFact? @relation("MemoryFactSupersedes", fields: [supersedesFactId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  supersededFacts GovernedMemoryFact[] @relation("MemoryFactSupersedes")
+  supersededByFact GovernedMemoryFact? @relation("MemoryFactSupersededBy", fields: [supersededByFactId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  priorFacts GovernedMemoryFact[] @relation("MemoryFactSupersededBy")
+
+  @@unique([id, relationCaseId])
+  @@index([relationCaseId, recordedAt, id])
+  @@index([relationCaseId, effectiveFrom, effectiveUntil])
+  @@index([relationCaseId, status])
+}
+
+model GovernedMemoryDecision {
+  id String @id @default(cuid())
+  relationCaseId String
+  title String
+  rationale String
+  status GovernedMemoryDecisionStatus @default(DRAFT)
+  decidedByUserId String
+  validatedByUserId String?
+  decidedAt DateTime
+  validatedAt DateTime?
+  recordedAt DateTime
+  effectiveFrom DateTime
+  effectiveUntil DateTime?
+  consequences String?
+  reservations String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  decidedBy User @relation("MemoryDecisionDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  validatedBy User? @relation("MemoryDecisionValidator", fields: [validatedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, relationCaseId])
+  @@index([relationCaseId, recordedAt, id])
+  @@index([relationCaseId, effectiveFrom, effectiveUntil])
+  @@index([relationCaseId, status])
+}
+
+model GovernedMemorySource {
+  id String @id @default(cuid())
+  relationCaseId String
+  kind GovernedMemorySourceKind
+  status GovernedMemorySourceStatus @default(ACTIVE)
+  sourceObjectType String
+  sourceObjectId String
+  title String
+  authoredAt DateTime?
+  receivedAt DateTime?
+  recordedAt DateTime
+  promotedByUserId String?
+  promotedAt DateTime?
+  visibilityPolicyRef String?
+  retentionPolicyRef String?
+  integrityRef String?
+  unavailableReason String?
+  excerpt String?
+  promotionPurpose String?
+  consentBasis String?
+  externalOrigin String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  promotedBy User? @relation("MemorySourcePromoter", fields: [promotedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, relationCaseId])
+  @@index([relationCaseId, status, recordedAt])
+  @@index([relationCaseId, kind])
+  @@index([sourceObjectType, sourceObjectId])
+}
+
+model GovernedMemoryRelation {
+  id String @id @default(cuid())
+  relationCaseId String
+  type GovernedMemoryRelationType
+  sourceType GovernedMemoryTargetType
+  sourceId String
+  targetType GovernedMemoryTargetType
+  targetId String
+  createdByUserId String
+  createdAt DateTime @default(now())
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy User @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([relationCaseId, type, sourceType, sourceId, targetType, targetId])
+  @@index([relationCaseId, sourceType, sourceId])
+  @@index([relationCaseId, targetType, targetId])
+}
+
+model GovernedMemoryValidation {
+  id String @id @default(cuid())
+  relationCaseId String
+  targetType GovernedMemoryTargetType
+  targetId String
+  validatorUserId String
+  validatorRole GovernedMemoryRole
+  decision GovernedMemoryValidationDecision
+  rationale String?
+  reservations String?
+  validatedAt DateTime
+  createdAt DateTime @default(now())
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  validator User @relation(fields: [validatorUserId], references: [id], onDelete: Restrict)
+
+  @@index([relationCaseId, targetType, targetId, validatedAt])
+}
+
+model GovernedMemoryDispute {
+  id String @id @default(cuid())
+  relationCaseId String
+  targetType GovernedMemoryTargetType
+  targetId String
+  raisedByUserId String
+  reason String
+  status GovernedMemoryDisputeStatus @default(OPEN)
+  raisedAt DateTime
+  resolvedAt DateTime?
+  resolvedByUserId String?
+  resolution String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  raisedBy User @relation("MemoryDisputeRaiser", fields: [raisedByUserId], references: [id], onDelete: Restrict)
+  resolvedBy User? @relation("MemoryDisputeResolver", fields: [resolvedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, relationCaseId])
+  @@index([relationCaseId, targetType, targetId, status])
+  @@index([relationCaseId, raisedAt])
+}
+
+model GovernedMemoryAccessGrant {
+  id String @id @default(cuid())
+  relationCaseId String
+  subjectType GovernedMemorySubjectType
+  subjectUserId String?
+  subjectRepresentationId String?
+  permission GovernedMemoryPermission
+  resourceType GovernedMemoryTargetType?
+  resourceId String?
+  grantedByUserId String
+  basis String
+  grantedAt DateTime
+  effectiveFrom DateTime
+  effectiveUntil DateTime?
+  revokedAt DateTime?
+  revokedByUserId String?
+  residualPermission GovernedMemoryPermission?
+  residualEffectiveUntil DateTime?
+  residualBasis String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  subjectUser User? @relation("MemoryGrantUserSubject", fields: [subjectUserId], references: [id], onDelete: Restrict)
+  subjectRepresentation Representation? @relation("MemoryGrantRepresentationSubject", fields: [subjectRepresentationId], references: [id], onDelete: Restrict)
+  grantedBy User @relation("MemoryGrantGranter", fields: [grantedByUserId], references: [id], onDelete: Restrict)
+  revokedBy User? @relation("MemoryGrantRevoker", fields: [revokedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, relationCaseId])
+  @@index([relationCaseId, subjectUserId, permission, effectiveFrom])
+  @@index([relationCaseId, subjectRepresentationId, permission, effectiveFrom])
+  @@index([relationCaseId, resourceType, resourceId])
+}
+
+model GovernedMemoryEvent {
+  id String @id @default(cuid())
+  relationCaseId String
+  type GovernedMemoryEventType
+  actorType GovernedMemoryActorType
+  actorUserId String?
+  actorRepresentationId String?
+  objectType GovernedMemoryTargetType
+  objectId String
+  occurredAt DateTime
+  recordedAt DateTime
+  summary String
+  createdAt DateTime @default(now())
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  actorRepresentation Representation? @relation("MemoryEventActorRepresentation", fields: [actorRepresentationId, actorUserId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([relationCaseId, recordedAt, id])
+  @@index([relationCaseId, objectType, objectId])
+}
+
+model GovernedMemoryRoleAssignment {
+  id String @id @default(cuid())
+  relationCaseId String
+  userId String
+  role GovernedMemoryRole
+  assignedByUserId String
+  assignedAt DateTime
+  revokedAt DateTime?
+  revokedByUserId String?
+  createdAt DateTime @default(now())
+
+  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user User @relation("MemoryRoleSubject", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy User @relation("MemoryRoleAssigner", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+  revokedBy User? @relation("MemoryRoleRevoker", fields: [revokedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([relationCaseId, userId, role, assignedAt])
+  @@index([relationCaseId, role, revokedAt])
 }
 
 model TrustAdmissionToken {
