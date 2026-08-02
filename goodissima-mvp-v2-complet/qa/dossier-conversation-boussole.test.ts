@@ -15,6 +15,10 @@ test("provides five micro-journeys for the real secured dossier", () => {
   assert.deepEqual(dossierSequences.map((item) => item.title), ["Comprendre ce dossier sécurisé", "Utiliser la conversation sécurisée", "Partager des documents", "Appels et communications sécurisés", "Accès et matching du dossier"]);
 });
 
+test("keeps governed memory as a secondary view without stale dossier targets", () => {
+  assert.equal(getCompassContext("/cases/real-case/memory"), null);
+});
+
 test("targets every real conversation, document and media zone", () => {
   for (const target of new Set(dossierSteps.map((step) => step.targetId))) assert.ok(target && rendered.includes(target), `missing dossier target ${target}`);
 });

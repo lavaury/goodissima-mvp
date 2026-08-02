@@ -76,7 +76,7 @@ GET .../decisions/decision_demo/explanation?referenceDate=2026-08-01T00:00:00Z
 
 `GET /api/internal/relation-cases/{relationCaseId}/governed-memory/access`
 
-`referenceDate` et exactement l'un de `subjectUserId` ou `subjectRepresentationId` sont obligatoires. MG-3 limite l'exploration d'un autre sujet aux requesters disposant de `MANAGE_MEMORY_ACCESS`.
+`referenceDate` est obligatoire. Sans sujet explicite, le serveur reconstruit les droits du requester authentifié sans que son identifiant soit transmis par le navigateur. Un seul `subjectUserId` ou `subjectRepresentationId` peut être fourni par un client autorisé ; MG-3 limite l'exploration d'un autre sujet aux requesters disposant de `MANAGE_MEMORY_ACCESS`.
 
 ```text
 GET .../access?referenceDate=2026-08-01T00:00:00Z&subjectUserId=user_demo

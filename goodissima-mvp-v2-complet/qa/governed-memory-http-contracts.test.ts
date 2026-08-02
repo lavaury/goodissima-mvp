@@ -16,10 +16,10 @@ test("unknown, duplicated, malformed and excessive parameters are rejected", () 
   assert.throws(() => parseTimelineQuery(new URLSearchParams("from=2026-08-01T00%3A00%3A00Z&to=2026-08-02T00%3A00%3A00Z&include=SOURCES")));
 });
 
-test("access reconstruction accepts exactly one bounded subject", () => {
+test("access reconstruction accepts the implicit requester or one bounded subject", () => {
   const referenceDate = "referenceDate=2026-08-01T00%3A00%3A00Z";
   assert.equal(parseAccessQuery(new URLSearchParams(`${referenceDate}&subjectUserId=user_1`)).subjectUserId, "user_1");
-  assert.throws(() => parseAccessQuery(new URLSearchParams(referenceDate)));
+  assert.equal(parseAccessQuery(new URLSearchParams(referenceDate)).subjectUserId, undefined);
   assert.throws(() => parseAccessQuery(new URLSearchParams(`${referenceDate}&subjectUserId=u&subjectRepresentationId=r`)));
 });
 

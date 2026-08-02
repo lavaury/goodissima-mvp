@@ -1,0 +1,19 @@
+export type MemoryTab = "state" | "compare" | "timeline" | "decisions" | "access";
+export type KnowledgeMode = "KNOWN_AT_DATE" | "CURRENT_KNOWLEDGE_ABOUT_DATE";
+export type ComparisonMode = "KNOWN_AT_EACH_DATE" | "CURRENT_KNOWLEDGE_ABOUT_PERIOD";
+export type MemoryReference = { type: "FACT" | "DECISION" | "SOURCE"; id: string };
+export type MemoryLimitation = { code: string; severity: "INFO" | "WARNING" | "MATERIAL"; objectId: string | null };
+export type MemoryRedaction = { level: "FULLY_HIDDEN" | "EXISTENCE_DISCLOSED"; disclosedId: string | null };
+export type MemoryFact = { id: string; statement: string; statusAtReference: string; evidenceLevel: string; effectiveFrom: string; effectiveUntil: string | null; recordedAt: string; knowledgeTiming: string; sourceRefs: MemoryReference[]; disputeState: string; supersession?: { relationType: string; relatedId: string; recordedAt: string } };
+export type MemoryDecision = { id: string; title: string; declaredRationale: string; statusAtReference: string; decidedAt: string; validatedAt: string | null; effectiveFrom: string; effectiveUntil: string | null; recordedAt: string; knowledgeTiming: string; sourceRefs: MemoryReference[]; factRefs: MemoryReference[]; disputeState: string; reservations: string | null; consequences: string | null };
+export type MemorySource = { id: string; kind: string; statusAtReference: string; title: string; authoredAt: string | null; receivedAt: string | null; recordedAt: string; available: boolean; restricted: boolean };
+export type MemoryTimelineEvent = { id: string; type: string; actorType: "HUMAN" | "SYSTEM"; objectType: "FACT" | "DECISION" | "SOURCE"; objectId: string; occurredAt: string; recordedAt: string; summary: string };
+export type MemoryChange = { id: string; type: string; changedAt: string; before: unknown; after: unknown; evidenceRefs: MemoryReference[]; certainty: string };
+export type MemoryState = { facts: MemoryFact[]; decisions: MemoryDecision[]; sources: MemorySource[]; disputes: Array<{ id: string; reason: string; statusAtReference: string; raisedAt: string }>; timeline: MemoryTimelineEvent[]; limitations: MemoryLimitation[]; redactions: MemoryRedaction[]; changes?: Record<string, MemoryChange[]>; pagination?: { nextCursor: string | null; hasMore: boolean } };
+export type MemoryExplanation = { decision: MemoryDecision; declaredRationale: string; explicitSupportingFacts: MemoryFact[]; explicitSupportingSources: MemorySource[]; relatedPriorDecisions: MemoryDecision[]; laterConsequences: string | null; openDisputes: Array<{ id: string; reason: string }>; limitations: MemoryLimitation[]; redactions: MemoryRedaction[] };
+export type MemoryAccess = { activeRoles: Array<{ id: string; role: string; assignedAt: string }>; activeGrants: Array<{ id: string; permission: string; stateAtReference: string }>; residualGrants: Array<{ id: string; permission: string; stateAtReference: string }>; revokedGrants: Array<{ id: string; permission: string; stateAtReference: string }>; effectivePermissions: string[]; restrictedResources: Array<{ type: string; id: string | null }>; limitations: MemoryLimitation[]; redactions: MemoryRedaction[] };
+export type MemoryTrace = { relations: Array<{ id: string; type: string; sourceType: string; sourceId: string; targetType: string; targetId: string }>; validations: Array<{ id: string; decision: string; validatedAt: string }>; disputes: Array<{ id: string; reason: string; raisedAt: string }>; events: MemoryTimelineEvent[]; limitations: MemoryLimitation[] };
+export type HttpEnvelope<T> = { ok: true; data: T; meta: { requestId: string; generatedAt: string } } | { ok: false; error: { code: string; message: string }; meta: { requestId: string } };
+
+export class MemoryClientError extends Error { constructor(readonly status: number, readonly code: string, readonly requestId: string | null) { super(code); this.name = "MemoryClientError"; } }
+

@@ -70,6 +70,7 @@ export function getCompassContext(pathname: string, search = "") {
   if (pathname.startsWith("/dashboard")) return contexts.find((item) => item.id === "dashboard")!;
   if (pathname.startsWith("/opportunities") && search.includes("view=archived")) return contexts.find((item) => item.id === "archives")!;
   if (pathname.startsWith("/opportunities") || pathname.startsWith("/links")) return contexts.find((item) => item.id === "opportunities")!;
+  if (/^\/cases\/[^/]+\/memory$/.test(pathname)) return null;
   if (pathname.startsWith("/cases")) return contexts.find((item) => item.id === "dossiers")!;
   if (pathname.startsWith("/annuaire")) return contexts.find((item) => item.id === "directory")!;
   if (pathname.startsWith("/settings") || pathname.startsWith("/ia-valeur")) return contexts.find((item) => item.id === "settings")!;
