@@ -38,6 +38,15 @@ export class ContactRequestValidationError extends Error {
   constructor(issues: string[]) { super("Contact request payload is invalid."); this.issues = issues; }
 }
 
+export function isConfirmedContactRequestCreation(status: number, payload: unknown): payload is { request: { id: string; status: "PENDING" } } {
+  if (status !== 201 || !payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+  const request = (payload as Record<string, unknown>).request;
+  return Boolean(request && typeof request === "object" && !Array.isArray(request)
+    && typeof (request as Record<string, unknown>).id === "string"
+    && (request as Record<string, unknown>).id
+    && (request as Record<string, unknown>).status === "PENDING");
+}
+
 function object(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new ContactRequestValidationError(["payload must be an object"]);
   return value as Record<string, unknown>;

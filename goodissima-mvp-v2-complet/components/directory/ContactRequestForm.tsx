@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isConfirmedContactRequestCreation } from "@/lib/directory/contact-request-contracts";
 
 type Source = { id: string; displayName: string };
 type Feedback = { kind: "success" | "error"; title: string; detail?: string };
@@ -40,9 +41,10 @@ export function ContactRequestForm({ targetId, policy, sources }: { targetId: st
         body: JSON.stringify({ requesterRepresentationId: form.get("source"), targetRepresentationId: targetId, reason: form.get("reason"), channels }),
       });
       const payload = await response.json();
-      if (!response.ok || !payload.request) {
+      if (!response.ok) {
         throw new Error(creationErrors[payload.error] ?? (response.status >= 500 ? "Une erreur technique empêche l’envoi. Réessayez plus tard." : "La demande n’a pas pu être envoyée. Vérifiez les informations saisies."));
       }
+      if (!isConfirmedContactRequestCreation(response.status, payload)) throw new Error("La demande n’a pas été enregistrée.");
       formRef.current?.reset(); setOpen(false); setSent(true);
       setFeedback({ kind: "success", title: "Votre demande de contact a bien été envoyée.", detail: "Vous pouvez suivre son état dans Moi > Demandes > Envoyées." });
       router.refresh(); focusFeedback();

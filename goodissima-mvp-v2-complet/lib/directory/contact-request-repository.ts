@@ -8,6 +8,10 @@ const requestInclude = {
   requesterRepresentation: { select: representation }, targetRepresentation: { select: representation },
   requestedChannels: { select: { channel: true }, orderBy: { channel: "asc" as const } },
 } satisfies Prisma.ContactRequestInclude;
+const persistedRequestInclude = {
+  ...requestInclude,
+  events: { where: { type: "CREATED" as const }, select: { id: true, type: true } },
+} satisfies Prisma.ContactRequestInclude;
 const statusOrder: Record<string, number> = { PENDING: 0, DEFERRED: 1, ACCEPTED: 2, REFUSED: 2, CANCELLED: 2, EXPIRED: 2 };
 
 function summary(row: Prisma.ContactRequestGetPayload<{ include: typeof requestInclude }>, direction: "incoming" | "outgoing"): ContactRequestSummary {
@@ -46,7 +50,11 @@ export function createContactRequestRepository(database: Db = prisma) {
         const created = await tx.contactRequest.create({ data: { requesterOwnerId: ownerId, requesterRepresentationId: source.id, targetOwnerId: target.ownerId, targetRepresentationId: target.id,
           reason: input.reason, contextType: input.contextType ?? null, contextId: input.contextId ?? null, status: "PENDING", expiresAt,
           requestedChannels: { create: input.channels.map((channel) => ({ channel })) }, events: { create: { type: "CREATED", actorUserId: ownerId } } }, include: requestInclude });
-        return { outcome: "CREATED" as const, request: summary(created, "outgoing") };
+        const persisted = await tx.contactRequest.findUnique({ where: { id: created.id }, include: persistedRequestInclude });
+        if (!persisted || persisted.status !== "PENDING" || persisted.requestedChannels.length !== input.channels.length || persisted.events.length !== 1) {
+          throw new Error("CONTACT_REQUEST_PERSISTENCE_CONFIRMATION_FAILED");
+        }
+        return { outcome: "CREATED" as const, request: summary(persisted, "outgoing") };
       });
     },
     async findIncomingForOwner(ownerId: string, limit = 50) {

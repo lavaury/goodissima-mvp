@@ -5,7 +5,7 @@ import {
 import { contactRequestRepository, type ContactRequestRepository } from "@/lib/directory/contact-request-repository";
 
 export class ContactRequestServiceError extends Error {
-  constructor(readonly code: "NOT_FOUND" | "CONFLICT" | "EXPIRED" | "SELF_REPRESENTATION" | "SAME_OWNER" | "POLICY_CLOSED" | "POLICY_MESSAGE_ONLY", message: string) { super(message); }
+  constructor(readonly code: "NOT_FOUND" | "CONFLICT" | "EXPIRED" | "SELF_REPRESENTATION" | "SAME_OWNER" | "POLICY_CLOSED" | "POLICY_MESSAGE_ONLY" | "PERSISTENCE_FAILED", message: string) { super(message); }
 }
 const terminal = ["ACCEPTED", "REFUSED", "CANCELLED", "EXPIRED"];
 function expired(request: { expiresAt: Date | null }, now: Date) { return Boolean(request.expiresAt && request.expiresAt <= now); }
@@ -18,6 +18,9 @@ export async function createContactRequest(ownerId: string, value: unknown, repo
   if (result.outcome === "DUPLICATE") throw new ContactRequestServiceError("CONFLICT", "An identical pending request already exists.");
   if (result.outcome === "POLICY_CLOSED") throw new ContactRequestServiceError("POLICY_CLOSED", "Target is closed to new requests.");
   if (result.outcome === "POLICY_MESSAGE_ONLY") throw new ContactRequestServiceError("POLICY_MESSAGE_ONLY", "Target accepts message-only requests.");
+  if (!result.request?.id || result.request.status !== "PENDING" || !result.request.source?.id || !result.request.target?.id || !result.request.channels?.length) {
+    throw new ContactRequestServiceError("PERSISTENCE_FAILED", "Persisted contact request confirmation is incomplete.");
+  }
   return result.request;
 }
 export const listIncomingContactRequests = (ownerId: string, repository: ContactRequestRepository = contactRequestRepository) => repository.findIncomingForOwner(ownerId, 50);

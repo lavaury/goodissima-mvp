@@ -7,8 +7,8 @@ import { ContactRequestServiceError } from "@/lib/directory/contact-request-serv
 export function directoryApiError(error: unknown) {
   if (error instanceof ContactRequestValidationError) return NextResponse.json({ error: error.code, issues: error.issues }, { status: 400 });
   if (error instanceof ContactRequestServiceError) {
-    const status = error.code === "NOT_FOUND" ? 404 : error.code === "EXPIRED" ? 410 : 409;
-    return NextResponse.json({ error: error.code }, { status });
+    const status = error.code === "NOT_FOUND" ? 404 : error.code === "EXPIRED" ? 410 : error.code === "PERSISTENCE_FAILED" ? 500 : 409;
+    return NextResponse.json({ error: error.code === "PERSISTENCE_FAILED" ? "CONTACT_REQUEST_OPERATION_FAILED" : error.code }, { status });
   }
   if (error instanceof DirectoryValidationError) {
     return NextResponse.json({ error: "INVALID_REPRESENTATION_PAYLOAD", issues: error.issues }, { status: 400 });
@@ -24,7 +24,9 @@ export function directoryApiError(error: unknown) {
 }
 
 export function contactRequestJson(request: any) {
-  return { ...request, expiresAt: request.expiresAt?.toISOString() ?? null, deferredUntil: request.deferredUntil?.toISOString() ?? null,
+  return { ...request, requesterRepresentation: request.source, targetRepresentation: request.target,
+    requestedChannels: Array.isArray(request.channels) ? request.channels.map((channel: string) => ({ channel })) : [],
+    expiresAt: request.expiresAt?.toISOString() ?? null, deferredUntil: request.deferredUntil?.toISOString() ?? null,
     decidedAt: request.decidedAt?.toISOString() ?? null, cancelledAt: request.cancelledAt?.toISOString() ?? null,
     createdAt: request.createdAt.toISOString(), updatedAt: request.updatedAt.toISOString() };
 }
