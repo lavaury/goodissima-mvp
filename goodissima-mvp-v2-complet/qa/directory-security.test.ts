@@ -57,7 +57,7 @@ test("directory has no discoverability or automatic business side effects", () =
     source("app/api/directory/representations/route.ts"),
     source("app/api/directory/representations/[representationId]/route.ts"),
   ].join("\n");
-  assert.doesNotMatch(directoryCode, /ContactRequest|RepresentationContact|prisma\.message|CommunicationSession|MatchingRun|MatchingResult|\bnotification\b|\binvitation\b/i);
+  assert.doesNotMatch(directoryCode, /prisma\.message|CommunicationSession|MatchingRun|MatchingResult|\bnotification\b|\binvitation\b/i);
   assert.doesNotMatch(directoryCode, /email|phone|telephone/i);
 });
 

@@ -54,4 +54,12 @@ Chaque mutation exige une action humaine et une version `updatedAt` attendue. Le
 
 Les canaux d’une demande sont dédupliqués par le contrat puis comparés sous forme d’un ensemble canonique trié pour détecter un doublon `PENDING`, indépendamment de l’ordre reçu. Cette prévention reste applicative : sans empreinte canonique ni contrainte SQL couvrant l’ensemble de canaux, deux créations strictement concurrentes pourraient encore produire deux demandes identiques. Ce risque résiduel est accepté pour ce lot afin de ne pas introduire de hash ou de modèle plus complexe.
 
-`ACCEPTED` signifie uniquement qu’un accord humain a été persisté. Ce statut ne crée ni `RepresentationContact`, ni message, ni `CommunicationSession`, ni invitation, notification, accès ou résultat de matching. Les contacts contextualisés seront introduits au Lot 5.
+`ACCEPTED` signifie uniquement qu’un accord humain a été persisté. Il autorise la création réciproque d’un contact, mais ne la déclenche jamais automatiquement. Une action humaine supplémentaire « Créer le contact » crée dans une transaction deux fiches `RepresentationContact` directionnelles, une pour chaque owner. Cette confirmation ne crée ni message, ni `CommunicationSession`, ni invitation, notification, accès ou résultat de matching.
+
+## Lot 5 — contacts entre représentations
+
+Chaque fiche de contact appartient à un owner et à l’une de ses représentations. La fiche distante est conservée sous forme d’un snapshot historique minimal : nom d’affichage, type, titre, organisation, territoire, description et politique relationnelle au moment de la création. Le snapshot ne contient aucune coordonnée, `identityId`, claim, credential ou autre représentation de la même identité. Il n’est pas synchronisé automatiquement si la représentation distante devient privée, masquée ou archivée.
+
+La demande source reste `ACCEPTED`; `contactCreatedAt` indique qu’une paire a été créée ou qu’une paire existante cohérente a été retrouvée. Une contrainte composite relie la demande aux deux représentations et un contrôle d’orientation garantit que chaque fiche est bien l’un des deux sens autorisés. Une paire existante est retournée de manière idempotente.
+
+L’archivage et la restauration sont locaux, explicites et soumis à concurrence optimiste. Archiver une fiche ne modifie ni la fiche de l’autre partie, ni la demande, ni la représentation. Aucune suppression de contact n’est exposée. La révocation bilatérale est réservée à une évolution future qui devra définir la fin de relation, le retrait des deux côtés, la conservation historique et les conséquences sur d’éventuels canaux futurs.

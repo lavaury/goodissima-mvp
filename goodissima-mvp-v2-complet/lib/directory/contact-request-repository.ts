@@ -18,7 +18,7 @@ function summary(row: Prisma.ContactRequestGetPayload<{ include: typeof requestI
   return { id: row.id, direction, source: row.requesterRepresentation, target: row.targetRepresentation, reason: row.reason,
     channels: row.requestedChannels.map((item) => item.channel as ContactRequestChannel), contextType: row.contextType, contextId: row.contextId,
     status: row.status, expiresAt: row.expiresAt, deferredUntil: row.deferredUntil, decidedAt: row.decidedAt,
-    cancelledAt: row.cancelledAt, createdAt: row.createdAt, updatedAt: row.updatedAt };
+    cancelledAt: row.cancelledAt, contactCreatedAt: row.contactCreatedAt, createdAt: row.createdAt, updatedAt: row.updatedAt };
 }
 
 export type ContactRequestRepository = ReturnType<typeof createContactRequestRepository>;

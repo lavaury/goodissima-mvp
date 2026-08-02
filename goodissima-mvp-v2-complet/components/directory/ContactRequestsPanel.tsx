@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export type RequestRow = { id: string; direction: "incoming" | "outgoing"; source: { displayName: string }; target: { displayName: string }; reason: string; channels: string[]; contextType: string | null; contextId: string | null; status: string; expiresAt: string | null; deferredUntil: string | null; createdAt: string; updatedAt: string };
+export type RequestRow = { id: string; direction: "incoming" | "outgoing"; source: { displayName: string }; target: { displayName: string }; reason: string; channels: string[]; contextType: string | null; contextId: string | null; status: string; expiresAt: string | null; deferredUntil: string | null; contactCreatedAt: string | null; createdAt: string; updatedAt: string };
 const labels: Record<string, string> = { PENDING: "En attente", ACCEPTED: "Acceptée", REFUSED: "Refusée", DEFERRED: "Reportée", CANCELLED: "Annulée", EXPIRED: "Expirée" };
 const channelLabels: Record<string, string> = { MESSAGE: "Message", VOICE: "Voix", VIDEO: "Visio" };
 const successLabels: Record<string, string> = { accept: "La demande a été acceptée.", refuse: "La demande a été refusée.", defer: "La demande a été reportée.", resume: "La demande est de nouveau en attente de votre décision.", cancel: "La demande envoyée a été annulée." };
@@ -38,6 +38,20 @@ export function ContactRequestsPanel({ incoming: incomingProps, outgoing: outgoi
     finally { setBusy(null); }
   }
 
+  async function createContact(row: RequestRow) {
+    if (busy) return;
+    if (!window.confirm("Cette action ajoutera cette représentation à vos contacts et ajoutera réciproquement votre représentation aux contacts du destinataire. Aucun message, appel ou accès ne sera créé.")) return;
+    setBusy(row.id); setFeedback(null);
+    try {
+      const response = await fetch(`/api/directory/contact-requests/${encodeURIComponent(row.id)}/create-contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedUpdatedAt: row.updatedAt }) });
+      const payload = await response.json();
+      if (!response.ok || !payload.contact?.id || !payload.contact?.createdAt) throw new Error(response.status === 409 ? "Cette demande ne permet plus de créer le contact." : response.status === 404 ? "Cette demande n’est plus accessible." : "Le contact n’a pas pu être créé.");
+      const update = (items: RequestRow[]) => items.map((item) => item.id === row.id ? { ...item, contactCreatedAt: payload.contact.createdAt } : item);
+      setIncoming(update); setOutgoing(update); showFeedback("success", payload.created ? "Le contact réciproque a bien été créé pour les deux parties." : "Le contact avait déjà été créé."); router.refresh();
+    } catch (error) { showFeedback("error", error instanceof Error ? error.message : "Une erreur technique est survenue."); }
+    finally { setBusy(null); }
+  }
+
   return <section aria-labelledby="pending-requests-title" className="rounded-2xl border-2 border-emerald-200 bg-white p-5 shadow-sm md:col-span-2">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Actions relationnelles</p><h2 id="pending-requests-title" className="mt-1 text-xl font-semibold text-slate-950">Demandes <span className="sr-only">— {pendingCount} en attente</span></h2></div><span aria-label={`${pendingCount} demandes reçues nécessitent votre attention`} className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-900">{pendingCount} en attente</span></div>
     {pendingCount > 0 ? <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="font-semibold text-amber-950">Vous avez {pendingCount} {pendingCount > 1 ? "demandes de contact en attente" : "demande de contact en attente"}.</p><button type="button" onClick={() => setTab("incoming")} className="mt-3 rounded-lg bg-amber-900 px-3 py-2 text-sm font-semibold text-white">Voir les demandes reçues</button></div> : null}
@@ -47,6 +61,7 @@ export function ContactRequestsPanel({ incoming: incomingProps, outgoing: outgoi
       {tab === "outgoing" && row.status === "PENDING" ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">En attente de réponse du destinataire.</p> : null}
       {tab === "incoming" && requiresDecision(row) ? <p className="mt-3 font-semibold text-amber-900">Cette demande nécessite votre décision.</p> : null}
       <div className="mt-3 flex flex-wrap gap-2">{tab === "incoming" && row.status === "PENDING" ? <>{(["accept", "refuse", "defer"] as const).map((action) => { const actionLabel = { accept: "Accepter", refuse: "Refuser", defer: "Reporter" }[action]; return <button type="button" disabled={busy === row.id} onClick={() => mutate(row, action)} key={action} aria-label={`${actionLabel} la demande de ${row.source.displayName}`} className="rounded-lg border px-3 py-1 text-sm">{actionLabel}</button>; })}</> : null}{tab === "incoming" && row.status === "DEFERRED" && requiresDecision(row) ? <button type="button" disabled={busy === row.id} onClick={() => mutate(row, "resume")} className="rounded-lg border px-3 py-1 text-sm">Reprendre l’examen de la demande</button> : null}{tab === "outgoing" && ["PENDING", "DEFERRED"].includes(row.status) ? <button type="button" disabled={busy === row.id} onClick={() => mutate(row, "cancel")} className="rounded-lg border px-3 py-1 text-sm">Annuler la demande envoyée</button> : null}</div>
-      {row.status === "ACCEPTED" ? <p className="mt-3 text-xs font-semibold text-emerald-800">Accord enregistré : ceci n’est pas encore un contact.</p> : null}</li>)}</ul> : <p className="mt-4 rounded-xl border border-dashed p-5 text-sm text-slate-600">Aucune demande {tab === "incoming" ? "reçue" : "envoyée"}.</p>}
+      {row.status === "ACCEPTED" && !row.contactCreatedAt ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3"><p className="text-sm font-semibold text-emerald-950">Cette demande est acceptée. Le contact n’a pas encore été créé.</p><button type="button" disabled={busy === row.id} onClick={() => createContact(row)} className="mt-3 rounded-lg bg-emerald-800 px-3 py-2 text-sm font-semibold text-white">Créer le contact</button></div> : null}
+      {row.status === "ACCEPTED" && row.contactCreatedAt ? <div className="mt-4 rounded-lg bg-emerald-50 p-3"><p className="text-sm font-semibold text-emerald-950">Le contact a été créé.</p><a href="#my-contacts-title" className="mt-2 inline-flex text-sm font-semibold underline">Voir dans Mes contacts</a></div> : null}</li>)}</ul> : <p className="mt-4 rounded-xl border border-dashed p-5 text-sm text-slate-600">Aucune demande {tab === "incoming" ? "reçue" : "envoyée"}.</p>}
   </section>;
 }

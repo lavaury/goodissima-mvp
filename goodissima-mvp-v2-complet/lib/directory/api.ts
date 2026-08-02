@@ -3,8 +3,15 @@ import { DirectoryValidationError } from "@/lib/directory/contracts";
 import { DirectoryServiceError } from "@/lib/directory/representation-service";
 import { ContactRequestValidationError } from "@/lib/directory/contact-request-contracts";
 import { ContactRequestServiceError } from "@/lib/directory/contact-request-service";
+import { RepresentationContactValidationError } from "@/lib/directory/representation-contact-contracts";
+import { RepresentationContactServiceError } from "@/lib/directory/representation-contact-service";
 
 export function directoryApiError(error: unknown) {
+  if (error instanceof RepresentationContactValidationError) return NextResponse.json({ error: error.code, issues: error.issues }, { status: 400 });
+  if (error instanceof RepresentationContactServiceError) {
+    const status = error.code === "NOT_FOUND" ? 404 : error.code === "PERSISTENCE_FAILED" ? 500 : 409;
+    return NextResponse.json({ error: error.code === "PERSISTENCE_FAILED" ? "REPRESENTATION_CONTACT_OPERATION_FAILED" : error.code }, { status });
+  }
   if (error instanceof ContactRequestValidationError) return NextResponse.json({ error: error.code, issues: error.issues }, { status: 400 });
   if (error instanceof ContactRequestServiceError) {
     const status = error.code === "NOT_FOUND" ? 404 : error.code === "EXPIRED" ? 410 : error.code === "PERSISTENCE_FAILED" ? 500 : 409;
@@ -23,11 +30,15 @@ export function directoryApiError(error: unknown) {
   return NextResponse.json({ error: "DIRECTORY_OPERATION_FAILED" }, { status: 500 });
 }
 
+export function representationContactJson(contact: any) {
+  return { ...contact, createdAt: contact.createdAt.toISOString(), updatedAt: contact.updatedAt.toISOString(), archivedAt: contact.archivedAt?.toISOString() ?? null };
+}
+
 export function contactRequestJson(request: any) {
   return { ...request, requesterRepresentation: request.source, targetRepresentation: request.target,
     requestedChannels: Array.isArray(request.channels) ? request.channels.map((channel: string) => ({ channel })) : [],
     expiresAt: request.expiresAt?.toISOString() ?? null, deferredUntil: request.deferredUntil?.toISOString() ?? null,
-    decidedAt: request.decidedAt?.toISOString() ?? null, cancelledAt: request.cancelledAt?.toISOString() ?? null,
+    decidedAt: request.decidedAt?.toISOString() ?? null, cancelledAt: request.cancelledAt?.toISOString() ?? null, contactCreatedAt: request.contactCreatedAt?.toISOString() ?? null,
     createdAt: request.createdAt.toISOString(), updatedAt: request.updatedAt.toISOString() };
 }
 

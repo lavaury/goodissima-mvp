@@ -28,6 +28,7 @@ export type ContactRequestSummary = {
   deferredUntil: Date | null;
   decidedAt: Date | null;
   cancelledAt: Date | null;
+  contactCreatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };

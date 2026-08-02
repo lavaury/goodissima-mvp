@@ -8,13 +8,15 @@ import { RepresentationList } from "@/components/directory/RepresentationList";
 import { representationTypeLabels, sortRepresentations, type DirectoryRepresentation } from "@/components/directory/directory-ui";
 import { representationRelationshipPolicyLabels, type RepresentationRelationshipPolicy, type RepresentationVisibility } from "@/lib/directory/contracts";
 import { ContactRequestsPanel, type RequestRow } from "@/components/directory/ContactRequestsPanel";
+import { MyContactsPanel, type ContactRow } from "@/components/directory/MyContactsPanel";
 
-export function MyDirectoryOverview({ hasIdentity, initialRepresentations, initialIncomingRequests, initialOutgoingRequests, initialRequestView }: {
+export function MyDirectoryOverview({ hasIdentity, initialRepresentations, initialIncomingRequests, initialOutgoingRequests, initialRequestView, initialContacts }: {
   hasIdentity: boolean;
   initialRepresentations: DirectoryRepresentation[];
   initialIncomingRequests: RequestRow[];
   initialOutgoingRequests: RequestRow[];
   initialRequestView: "incoming" | "outgoing";
+  initialContacts: ContactRow[];
 }) {
   const router = useRouter();
   const [representations, setRepresentations] = useState(() => sortRepresentations(initialRepresentations));
@@ -169,10 +171,7 @@ export function MyDirectoryOverview({ hasIdentity, initialRepresentations, initi
 
       <div className="grid gap-6 md:grid-cols-2">
         <ContactRequestsPanel incoming={initialIncomingRequests} outgoing={initialOutgoingRequests} initialTab={initialRequestView} />
-        <section aria-labelledby="my-contacts-title" className="rounded-2xl border bg-white p-5 shadow-sm">
-          <h2 id="my-contacts-title" className="text-lg font-semibold text-slate-950">Mes contacts</h2>
-          <p className="mt-2 text-sm text-slate-600">Les contacts seront créés dans un prochain lot à partir des demandes acceptées.</p>
-        </section>
+        <MyContactsPanel contacts={initialContacts} />
       </div>
       <p className="text-center text-sm text-slate-600">
         Besoin de préparer un contexte relationnel ? <Link data-boussole-id="open-governance" href="/gouvernance" className="font-semibold underline">Ouvrir la gouvernance</Link>

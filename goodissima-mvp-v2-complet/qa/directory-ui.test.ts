@@ -27,7 +27,7 @@ test("Moi has truthful identity, representation, request and contact states", ()
   for (const text of [
     "Identité Goodissima requise",
     "Créer ma première représentation",
-    "Les contacts seront créés dans un prochain lot à partir des demandes acceptées.",
+    "MyContactsPanel",
   ]) assert.ok(overview.includes(text));
   assert.match(overview, /href="\/identity"/);
   assert.doesNotMatch(overview, /contactCount|requestCount|badgeCount/);
@@ -104,7 +104,7 @@ test("directory representation controls create no automatic business side effect
   const code = [
     "MyDirectoryOverview.tsx", "RepresentationEditor.tsx", "RepresentationCard.tsx", "RepresentationList.tsx",
   ].map((name) => read(`components/directory/${name}`)).join("\n");
-  assert.doesNotMatch(code, /prisma\.|RepresentationContact|CommunicationSession|MatchingRun|notification|invitation/i);
+  assert.doesNotMatch(code, /prisma\.|CommunicationSession|MatchingRun|notification|invitation/i);
 });
 
 test("directory controls have visible labels, accessible feedback and mobile-safe cards", () => {

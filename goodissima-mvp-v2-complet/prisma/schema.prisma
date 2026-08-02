@@ -183,6 +183,18 @@ enum ContactRequestEventType {
   EXPIRED
 }
 
+enum RepresentationContactStatus {
+  ACTIVE
+  ARCHIVED
+  REVOKED
+}
+
+enum RepresentationContactEventType {
+  CREATED
+  ARCHIVED
+  RESTORED
+}
+
 enum TrustCredentialStatus {
   ACTIVE
   EXPIRED
@@ -328,6 +340,8 @@ model User {
   targetedContactRequests  ContactRequest[]            @relation("ContactRequestTarget")
   decidedContactRequests   ContactRequest[]            @relation("ContactRequestDecider")
   contactRequestEvents     ContactRequestEvent[]
+  representationContacts   RepresentationContact[]      @relation("RepresentationContactOwner")
+  representationContactEvents RepresentationContactEvent[]
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -895,6 +909,8 @@ model Representation {
   identity GoodissimaIdentity @relation(fields: [identityId], references: [id], onDelete: Restrict)
   outgoingContactRequests ContactRequest[] @relation("ContactRequestSourceRepresentation")
   incomingContactRequests ContactRequest[] @relation("ContactRequestTargetRepresentation")
+  ownedContacts           RepresentationContact[] @relation("RepresentationContactOwnerRepresentation")
+  remoteContacts          RepresentationContact[] @relation("RepresentationContactRemoteRepresentation")
 
   @@unique([id, ownerId])
   @@index([ownerId, status])
@@ -918,6 +934,7 @@ model ContactRequest {
   decidedByUserId           String?
   deferredUntil             DateTime?
   cancelledAt               DateTime?
+  contactCreatedAt           DateTime?
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
 
@@ -928,11 +945,13 @@ model ContactRequest {
   decidedBy               User?                            @relation("ContactRequestDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
   requestedChannels       ContactRequestRequestedChannel[]
   events                  ContactRequestEvent[]
+  contacts                RepresentationContact[]
 
   @@index([targetOwnerId, status, createdAt])
   @@index([requesterOwnerId, status, createdAt])
   @@index([requesterRepresentationId, targetRepresentationId, status])
   @@index([expiresAt, status])
+  @@unique([id, requesterRepresentationId, targetRepresentationId])
 }
 
 model ContactRequestRequestedChannel {
@@ -955,6 +974,51 @@ model ContactRequestEvent {
   actor       User?                   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([requestId, createdAt])
+}
+
+model RepresentationContact {
+  id                              String                      @id @default(cuid())
+  ownerId                         String
+  ownerRepresentationId          String
+  contactRepresentationId        String
+  sourceContactRequestId          String
+  sourceRequesterRepresentationId String
+  sourceTargetRepresentationId    String
+  status                          RepresentationContactStatus @default(ACTIVE)
+  snapshotDisplayName             String
+  snapshotType                    RepresentationType
+  snapshotTitle                   String?
+  snapshotOrganizationName        String?
+  snapshotTerritory               String?
+  snapshotDescription             String?
+  snapshotRelationshipPolicy      RepresentationRelationshipPolicy
+  createdAt                       DateTime                    @default(now())
+  updatedAt                       DateTime                    @updatedAt
+  archivedAt                      DateTime?
+
+  owner               User              @relation("RepresentationContactOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  ownerRepresentation Representation    @relation("RepresentationContactOwnerRepresentation", fields: [ownerRepresentationId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  contactRepresentation Representation  @relation("RepresentationContactRemoteRepresentation", fields: [contactRepresentationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceContactRequest ContactRequest    @relation(fields: [sourceContactRequestId, sourceRequesterRepresentationId, sourceTargetRepresentationId], references: [id, requesterRepresentationId, targetRepresentationId], onDelete: Restrict, onUpdate: Restrict)
+  events               RepresentationContactEvent[]
+
+  @@unique([sourceContactRequestId, ownerId])
+  @@index([ownerId, status, updatedAt])
+  @@index([ownerRepresentationId])
+  @@index([contactRepresentationId])
+}
+
+model RepresentationContactEvent {
+  id          String                         @id @default(cuid())
+  contactId   String
+  actorUserId String?
+  type        RepresentationContactEventType
+  createdAt   DateTime                       @default(now())
+
+  contact RepresentationContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  actor   User?                 @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([contactId, createdAt])
 }
 
 model TrustAdmissionToken {

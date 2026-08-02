@@ -11,6 +11,7 @@ import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { listPublicRepresentations, listRepresentations } from "@/lib/directory/representation-service";
 import { listIncomingContactRequests, listOutgoingContactRequests } from "@/lib/directory/contact-request-service";
+import { listMyContacts } from "@/lib/directory/representation-contact-service";
 import { parsePublicDirectoryQuery } from "@/lib/directory/contracts";
 
 type DirectoryPageProps = { searchParams?: Record<string, string | string[] | undefined> };
@@ -26,7 +27,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
   const representations = currentUser.goodissimaIdentityId
     ? await listRepresentations(currentUser.id)
     : [];
-  const [incomingRequests, outgoingRequests] = activeTab === "moi" ? await Promise.all([listIncomingContactRequests(currentUser.id), listOutgoingContactRequests(currentUser.id)]) : [[], []];
+  const [incomingRequests, outgoingRequests, contacts] = activeTab === "moi" ? await Promise.all([listIncomingContactRequests(currentUser.id), listOutgoingContactRequests(currentUser.id), listMyContacts(currentUser.id)]) : [[], [], []];
   const publicResult = activeTab === "global"
     ? await listPublicRepresentations(searchParams ?? {})
     : { items: [], limitReached: false };
@@ -62,6 +63,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
           initialIncomingRequests={incomingRequests.map(serializeRequest)}
           initialOutgoingRequests={outgoingRequests.map(serializeRequest)}
           initialRequestView={searchParams?.requests === "outgoing" ? "outgoing" : "incoming"}
+          initialContacts={contacts.map(serializeContact)}
         />
       ) : (
         <div className="space-y-6" data-boussole-state={publicResult.items.length ? "POPULATED" : "EMPTY"}>
@@ -81,4 +83,5 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
   );
 }
 
-function serializeRequest(request: any) { return { ...request, expiresAt: request.expiresAt?.toISOString() ?? null, deferredUntil: request.deferredUntil?.toISOString() ?? null, decidedAt: request.decidedAt?.toISOString() ?? null, cancelledAt: request.cancelledAt?.toISOString() ?? null, createdAt: request.createdAt.toISOString(), updatedAt: request.updatedAt.toISOString() }; }
+function serializeRequest(request: any) { return { ...request, expiresAt: request.expiresAt?.toISOString() ?? null, deferredUntil: request.deferredUntil?.toISOString() ?? null, decidedAt: request.decidedAt?.toISOString() ?? null, cancelledAt: request.cancelledAt?.toISOString() ?? null, contactCreatedAt: request.contactCreatedAt?.toISOString() ?? null, createdAt: request.createdAt.toISOString(), updatedAt: request.updatedAt.toISOString() }; }
+function serializeContact(contact: any) { return { ...contact, createdAt: contact.createdAt.toISOString(), updatedAt: contact.updatedAt.toISOString(), archivedAt: contact.archivedAt?.toISOString() ?? null }; }
