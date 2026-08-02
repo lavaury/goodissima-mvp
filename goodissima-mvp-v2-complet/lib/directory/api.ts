@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { DirectoryValidationError } from "@/lib/directory/contracts";
 import { DirectoryServiceError } from "@/lib/directory/representation-service";
+import { ContactRequestValidationError } from "@/lib/directory/contact-request-contracts";
+import { ContactRequestServiceError } from "@/lib/directory/contact-request-service";
 
 export function directoryApiError(error: unknown) {
+  if (error instanceof ContactRequestValidationError) return NextResponse.json({ error: error.code, issues: error.issues }, { status: 400 });
+  if (error instanceof ContactRequestServiceError) {
+    const status = error.code === "NOT_FOUND" ? 404 : error.code === "EXPIRED" ? 410 : 409;
+    return NextResponse.json({ error: error.code }, { status });
+  }
   if (error instanceof DirectoryValidationError) {
     return NextResponse.json({ error: "INVALID_REPRESENTATION_PAYLOAD", issues: error.issues }, { status: 400 });
   }
@@ -14,6 +21,12 @@ export function directoryApiError(error: unknown) {
     error: error instanceof Error ? error.message : String(error),
   });
   return NextResponse.json({ error: "DIRECTORY_OPERATION_FAILED" }, { status: 500 });
+}
+
+export function contactRequestJson(request: any) {
+  return { ...request, expiresAt: request.expiresAt?.toISOString() ?? null, deferredUntil: request.deferredUntil?.toISOString() ?? null,
+    decidedAt: request.decidedAt?.toISOString() ?? null, cancelledAt: request.cancelledAt?.toISOString() ?? null,
+    createdAt: request.createdAt.toISOString(), updatedAt: request.updatedAt.toISOString() };
 }
 
 export async function readDirectoryJson(request: Request) {

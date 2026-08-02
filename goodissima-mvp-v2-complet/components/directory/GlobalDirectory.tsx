@@ -6,6 +6,7 @@ import {
   type PublicDirectoryQuery,
   type PublicRepresentationSummary,
 } from "@/lib/directory/contracts";
+import { ContactRequestForm } from "@/components/directory/ContactRequestForm";
 
 const publicPolicyLabels = {
   OPEN: "Ouvert aux demandes",
@@ -13,10 +14,11 @@ const publicPolicyLabels = {
   CLOSED: "Fermé aux nouvelles demandes",
 } as const;
 
-export function GlobalDirectory({ items, query, limitReached }: {
+export function GlobalDirectory({ items, query, limitReached, sources }: {
   items: PublicRepresentationSummary[];
   query: PublicDirectoryQuery;
   limitReached: boolean;
+  sources: { id: string; displayName: string }[];
 }) {
   const filtered = Boolean(query.q || query.type || query.relationshipPolicy || query.territory);
 
@@ -77,7 +79,7 @@ export function GlobalDirectory({ items, query, limitReached }: {
                   {representation.description ? <div><dt className="sr-only">Description</dt><dd className="whitespace-pre-wrap leading-6">{representation.description}</dd></div> : null}
                   <div><dt className="font-semibold text-slate-900">Politique relationnelle</dt><dd>{publicPolicyLabels[representation.relationshipPolicy]}</dd></div>
                 </dl>
-                <p className="mt-4 text-xs text-slate-500">Les demandes de contact seront activées dans un prochain lot.</p>
+                {representation.relationshipPolicy === "CLOSED" ? <p className="mt-4 text-sm font-semibold text-slate-600">Fermé aux nouvelles demandes</p> : <ContactRequestForm targetId={representation.id} policy={representation.relationshipPolicy} sources={sources.filter((source) => source.id !== representation.id)} />}
               </article>
             </li>
           ))}

@@ -41,3 +41,17 @@ L’onglet Global lit réellement la projection publique côté serveur, sans re
 La recherche déterministe, insensible à la casse, porte sur le nom d’affichage, le titre, l’organisation, la description et le territoire. Les filtres exacts portent sur le type et la politique relationnelle ; le territoire utilise une recherche textuelle insensible à la casse. L’ordre reste `publishedAt DESC`, puis `id ASC`.
 
 La V1 affiche au maximum 50 résultats et invite à affiner la recherche lorsque davantage de résultats existent. Chaque représentation reste un objet autonome : aucun regroupement par identité, aucune autre représentation du même propriétaire et aucune coordonnée ne sont exposés. Les cartes sont informatives et ne permettent encore aucune prise de contact.
+
+## Lot 4 — demandes de contact explicites
+
+Une demande relie une représentation source appartenant au demandeur à une représentation cible publiée. La création exige une source `ACTIVE` et une cible `ACTIVE`, `DISCOVERABLE`, avec `publishedAt` renseigné. Une cible dépubliée, masquée ou archivée après création ne provoque aucune décision automatique : la demande demeure un historique visible uniquement par ses deux parties.
+
+La politique de la cible est évaluée uniquement à la création. `OPEN` autorise `MESSAGE`, `VOICE` et `VIDEO`; `MESSAGE_ONLY` autorise exclusivement une demande ne contenant que `MESSAGE`; `CLOSED` interdit toute nouvelle demande. Une évolution ultérieure de cette politique ne réécrit pas les demandes existantes.
+
+Les statuts sont `PENDING`, `ACCEPTED`, `REFUSED`, `DEFERRED`, `CANCELLED` et `EXPIRED`. L’échéance vaut 30 jours par défaut et doit rester entre 1 et 90 jours. Sans cron, l’expiration est matérialisée de façon transactionnelle lors d’une lecture ou mutation pertinente. Un report, réservé au propriétaire cible, exige une date comprise entre 1 et 30 jours. Il reste `DEFERRED` jusqu’à une reprise humaine explicite vers `PENDING`; il n’autorise aucun canal.
+
+Chaque mutation exige une action humaine et une version `updatedAt` attendue. Le demandeur peut annuler une demande `PENDING` ou `DEFERRED`; le propriétaire cible peut accepter, refuser, reporter ou reprendre selon le statut. Une ressource hors scope retourne 404. Les événements de cycle de vie sont conservés dans un journal append-only dédié : le repository n’expose aucune mise à jour ou suppression d’événement, et aucune suppression de demande. `VIEWED_BY_TARGET` est ajouté uniquement à la première lecture cible connue; un index unique partiel et `skipDuplicates` couvrent aussi les lectures concurrentes. Les décisions et la matérialisation transactionnelle d’`EXPIRED` n’ajoutent un événement que lorsque la transition conditionnelle a réellement modifié la demande.
+
+Les canaux d’une demande sont dédupliqués par le contrat puis comparés sous forme d’un ensemble canonique trié pour détecter un doublon `PENDING`, indépendamment de l’ordre reçu. Cette prévention reste applicative : sans empreinte canonique ni contrainte SQL couvrant l’ensemble de canaux, deux créations strictement concurrentes pourraient encore produire deux demandes identiques. Ce risque résiduel est accepté pour ce lot afin de ne pas introduire de hash ou de modèle plus complexe.
+
+`ACCEPTED` signifie uniquement qu’un accord humain a été persisté. Ce statut ne crée ni `RepresentationContact`, ni message, ni `CommunicationSession`, ni invitation, notification, accès ou résultat de matching. Les contacts contextualisés seront introduits au Lot 5.

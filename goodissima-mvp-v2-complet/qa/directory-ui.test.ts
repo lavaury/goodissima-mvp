@@ -22,13 +22,12 @@ test("server performs one grouped owner-scoped representation read", () => {
   assert.equal((page.match(/listRepresentations\(/g) ?? []).length, 1);
 });
 
-test("Moi has truthful identity, representation, request and contact empty states", () => {
+test("Moi has truthful identity, representation, request and contact states", () => {
   const overview = read("components/directory/MyDirectoryOverview.tsx");
   for (const text of [
     "Identité Goodissima requise",
     "Créer ma première représentation",
-    "Les demandes de contact ne sont pas encore activées.",
-    "Les contacts de l’annuaire ne sont pas encore activés.",
+    "Les contacts seront créés dans un prochain lot à partir des demandes acceptées.",
   ]) assert.ok(overview.includes(text));
   assert.match(overview, /href="\/identity"/);
   assert.doesNotMatch(overview, /contactCount|requestCount|badgeCount/);
@@ -101,12 +100,11 @@ test("visibility requires an explicit preview and is unavailable for non-active 
   assert.doesNotMatch(overview, /email|telephone|téléphone|identityId|ownerId|claims/i);
 });
 
-test("Lot 2 UI creates no global route or automatic business side effect", () => {
+test("directory representation controls create no automatic business side effect", () => {
   const code = [
     "MyDirectoryOverview.tsx", "RepresentationEditor.tsx", "RepresentationCard.tsx", "RepresentationList.tsx",
   ].map((name) => read(`components/directory/${name}`)).join("\n");
-  assert.doesNotMatch(code, /\/api\/directory\/(search|global|contacts|requests)/);
-  assert.doesNotMatch(code, /prisma\.|ContactRequest|RepresentationContact|CommunicationSession|MatchingRun|notification|invitation/i);
+  assert.doesNotMatch(code, /prisma\.|RepresentationContact|CommunicationSession|MatchingRun|notification|invitation/i);
 });
 
 test("directory controls have visible labels, accessible feedback and mobile-safe cards", () => {

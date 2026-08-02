@@ -7,10 +7,13 @@ import { RepresentationEditor } from "@/components/directory/RepresentationEdito
 import { RepresentationList } from "@/components/directory/RepresentationList";
 import { representationTypeLabels, sortRepresentations, type DirectoryRepresentation } from "@/components/directory/directory-ui";
 import { representationRelationshipPolicyLabels, type RepresentationRelationshipPolicy, type RepresentationVisibility } from "@/lib/directory/contracts";
+import { ContactRequestsPanel } from "@/components/directory/ContactRequestsPanel";
 
-export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
+export function MyDirectoryOverview({ hasIdentity, initialRepresentations, initialIncomingRequests, initialOutgoingRequests }: {
   hasIdentity: boolean;
   initialRepresentations: DirectoryRepresentation[];
+  initialIncomingRequests: any[];
+  initialOutgoingRequests: any[];
 }) {
   const router = useRouter();
   const [representations, setRepresentations] = useState(() => sortRepresentations(initialRepresentations));
@@ -164,13 +167,10 @@ export function MyDirectoryOverview({ hasIdentity, initialRepresentations }: {
       </section>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <section aria-labelledby="pending-requests-title" className="rounded-2xl border bg-white p-5 shadow-sm">
-          <h2 id="pending-requests-title" className="text-lg font-semibold text-slate-950">Demandes en attente</h2>
-          <p className="mt-2 text-sm text-slate-600">Les demandes de contact ne sont pas encore activées.</p>
-        </section>
+        <ContactRequestsPanel incoming={initialIncomingRequests} outgoing={initialOutgoingRequests} />
         <section aria-labelledby="my-contacts-title" className="rounded-2xl border bg-white p-5 shadow-sm">
           <h2 id="my-contacts-title" className="text-lg font-semibold text-slate-950">Mes contacts</h2>
-          <p className="mt-2 text-sm text-slate-600">Les contacts de l’annuaire ne sont pas encore activés.</p>
+          <p className="mt-2 text-sm text-slate-600">Les contacts seront créés dans un prochain lot à partir des demandes acceptées.</p>
         </section>
       </div>
       <p className="text-center text-sm text-slate-600">

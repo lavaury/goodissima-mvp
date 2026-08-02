@@ -10,6 +10,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { listPublicRepresentations, listRepresentations } from "@/lib/directory/representation-service";
+import { listIncomingContactRequests, listOutgoingContactRequests } from "@/lib/directory/contact-request-service";
 import { parsePublicDirectoryQuery } from "@/lib/directory/contracts";
 
 type DirectoryPageProps = { searchParams?: Record<string, string | string[] | undefined> };
@@ -22,9 +23,10 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
     : "Organisation Goodissima";
   const activeTab = searchParams?.tab === "moi" ? "moi" : "global";
   const publicQuery = parsePublicDirectoryQuery(searchParams ?? {});
-  const representations = activeTab === "moi" && currentUser.goodissimaIdentityId
+  const representations = currentUser.goodissimaIdentityId
     ? await listRepresentations(currentUser.id)
     : [];
+  const [incomingRequests, outgoingRequests] = activeTab === "moi" ? await Promise.all([listIncomingContactRequests(currentUser.id), listOutgoingContactRequests(currentUser.id)]) : [[], []];
   const publicResult = activeTab === "global"
     ? await listPublicRepresentations(searchParams ?? {})
     : { items: [], limitReached: false };
@@ -57,10 +59,12 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
         <MyDirectoryOverview
           hasIdentity={Boolean(currentUser.goodissimaIdentityId)}
           initialRepresentations={serializedRepresentations}
+          initialIncomingRequests={incomingRequests.map(serializeRequest)}
+          initialOutgoingRequests={outgoingRequests.map(serializeRequest)}
         />
       ) : (
         <div className="space-y-6" data-boussole-state={publicResult.items.length ? "POPULATED" : "EMPTY"}>
-          <GlobalDirectory items={publicResult.items} query={publicQuery} limitReached={publicResult.limitReached} />
+          <GlobalDirectory items={publicResult.items} query={publicQuery} limitReached={publicResult.limitReached} sources={serializedRepresentations.filter((item) => item.status === "ACTIVE").map(({ id, displayName }) => ({ id, displayName }))} />
           <section data-boussole-id="directory-identity" aria-labelledby="global-identity-title" className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
             <h2 id="global-identity-title" className="font-semibold text-slate-950">Votre identité Goodissima</h2>
             <p className="mt-2 text-sm text-slate-600">
@@ -75,3 +79,5 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
     </main>
   );
 }
+
+function serializeRequest(request: any) { return { ...request, expiresAt: request.expiresAt?.toISOString() ?? null, deferredUntil: request.deferredUntil?.toISOString() ?? null, decidedAt: request.decidedAt?.toISOString() ?? null, cancelledAt: request.cancelledAt?.toISOString() ?? null, createdAt: request.createdAt.toISOString(), updatedAt: request.updatedAt.toISOString() }; }
