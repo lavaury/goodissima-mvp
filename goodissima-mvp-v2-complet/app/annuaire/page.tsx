@@ -61,6 +61,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
           initialRepresentations={serializedRepresentations}
           initialIncomingRequests={incomingRequests.map(serializeRequest)}
           initialOutgoingRequests={outgoingRequests.map(serializeRequest)}
+          initialRequestView={searchParams?.requests === "outgoing" ? "outgoing" : "incoming"}
         />
       ) : (
         <div className="space-y-6" data-boussole-state={publicResult.items.length ? "POPULATED" : "EMPTY"}>

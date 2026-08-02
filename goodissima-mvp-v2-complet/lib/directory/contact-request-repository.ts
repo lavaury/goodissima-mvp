@@ -36,7 +36,8 @@ export function createContactRequestRepository(database: Db = prisma) {
         const source = await tx.representation.findFirst({ where: { id: input.requesterRepresentationId, ownerId, status: "ACTIVE" }, select: { id: true, ownerId: true } });
         const target = await tx.representation.findFirst({ where: { id: input.targetRepresentationId, status: "ACTIVE", visibility: "DISCOVERABLE", publishedAt: { not: null } }, select: { id: true, ownerId: true, relationshipPolicy: true } });
         if (!source || !target) return { outcome: "NOT_FOUND" as const };
-        if (source.id === target.id || source.ownerId === target.ownerId) return { outcome: "SELF" as const };
+        if (source.id === target.id) return { outcome: "SELF_REPRESENTATION" as const };
+        if (source.ownerId === target.ownerId) return { outcome: "SAME_OWNER" as const };
         if (target.relationshipPolicy === "CLOSED") return { outcome: "POLICY_CLOSED" as const };
         if (target.relationshipPolicy === "MESSAGE_ONLY" && (input.channels.length !== 1 || input.channels[0] !== "MESSAGE")) return { outcome: "POLICY_MESSAGE_ONLY" as const };
         const candidates = await tx.contactRequest.findMany({ where: { requesterRepresentationId: source.id, targetRepresentationId: target.id, status: "PENDING" }, include: { requestedChannels: { select: { channel: true } } }, take: 10 });

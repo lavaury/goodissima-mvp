@@ -5,7 +5,7 @@ import {
 import { contactRequestRepository, type ContactRequestRepository } from "@/lib/directory/contact-request-repository";
 
 export class ContactRequestServiceError extends Error {
-  constructor(readonly code: "NOT_FOUND" | "CONFLICT" | "EXPIRED" | "SELF_REQUEST" | "POLICY_CLOSED" | "POLICY_MESSAGE_ONLY", message: string) { super(message); }
+  constructor(readonly code: "NOT_FOUND" | "CONFLICT" | "EXPIRED" | "SELF_REPRESENTATION" | "SAME_OWNER" | "POLICY_CLOSED" | "POLICY_MESSAGE_ONLY", message: string) { super(message); }
 }
 const terminal = ["ACCEPTED", "REFUSED", "CANCELLED", "EXPIRED"];
 function expired(request: { expiresAt: Date | null }, now: Date) { return Boolean(request.expiresAt && request.expiresAt <= now); }
@@ -13,7 +13,8 @@ function expired(request: { expiresAt: Date | null }, now: Date) { return Boolea
 export async function createContactRequest(ownerId: string, value: unknown, repository: ContactRequestRepository = contactRequestRepository, now = new Date()) {
   const input = parseCreateContactRequestInput(value); const result = await repository.createRequest(ownerId, input, contactRequestExpiry(now, input.expiresAt));
   if (result.outcome === "NOT_FOUND") throw new ContactRequestServiceError("NOT_FOUND", "Representation not found.");
-  if (result.outcome === "SELF") throw new ContactRequestServiceError("SELF_REQUEST", "A representation cannot request its own owner.");
+  if (result.outcome === "SELF_REPRESENTATION") throw new ContactRequestServiceError("SELF_REPRESENTATION", "A representation cannot request itself.");
+  if (result.outcome === "SAME_OWNER") throw new ContactRequestServiceError("SAME_OWNER", "Representations owned by the same user cannot request each other.");
   if (result.outcome === "DUPLICATE") throw new ContactRequestServiceError("CONFLICT", "An identical pending request already exists.");
   if (result.outcome === "POLICY_CLOSED") throw new ContactRequestServiceError("POLICY_CLOSED", "Target is closed to new requests.");
   if (result.outcome === "POLICY_MESSAGE_ONLY") throw new ContactRequestServiceError("POLICY_MESSAGE_ONLY", "Target accepts message-only requests.");
