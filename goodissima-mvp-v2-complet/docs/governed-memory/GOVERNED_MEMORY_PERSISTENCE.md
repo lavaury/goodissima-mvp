@@ -12,6 +12,14 @@ MG-2 persiste, gouverne et reconstruit temporellement la mémoire d’un unique 
 
 Le conflit avec d’éventuelles suppressions historiques de `RelationCase` est assumé : dès qu’une mémoire existe, PostgreSQL refuse la suppression physique. Un futur lot devra proposer une clôture/anonymisation gouvernée plutôt qu’une cascade.
 
+## Provenance GovernedJourney
+
+Une `GovernedMemorySource` peut porter, uniquement lors de sa création explicite, zéro ou un `GovernedJourney` et zéro ou un `GovernedJourneyEvent`. Un événement implique toujours son parcours. Des FK composites garantissent que la source, le parcours et l’événement appartiennent au même `RelationCase`, et que l’événement appartient au parcours indiqué. Les suppressions restent `RESTRICT`.
+
+Cette provenance est distincte de la nature de la source, ne confère aucun rôle, aucune permission et aucune autorité, et ne déclenche aucune transition. Un événement de parcours reste une preuve de changement d’état, jamais une mémoire automatique. Le service n’expose aucune mutation ultérieure de ces liens.
+
+Les sources antérieures restent sans provenance GJ. Aucun rattachement n’est déduit d’un dossier, template, formulaire, `RelationEvent`, invitation, session ou rapprochement temporel, et la migration n’effectue aucun backfill.
+
 ## Schéma
 
 - `GovernedMemoryFact` : version temporelle d’un énoncé, auteur et établissement humain.

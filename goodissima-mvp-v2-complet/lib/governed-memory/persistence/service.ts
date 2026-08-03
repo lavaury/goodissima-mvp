@@ -62,18 +62,31 @@ export async function createSuccessorDecision(actorUserId: string, input: { rela
 }
 
 const sourceTypes: Readonly<Record<GovernedMemorySourceKind, string | null>> = { DOCUMENT: "Document", DOCUMENT_VERSION: null, FORM_SUBMISSION: "FormSubmission", MESSAGE_EXCERPT: "Message", SYSTEM_EVENT: "RelationEvent", HUMAN_DECLARATION: null, VALIDATED_SYNTHESIS: null, EXTERNAL_IMPORT: null };
-export async function registerMemorySource(actorUserId: string, input: { relationCaseId: string; kind: Exclude<GovernedMemorySourceKind, "MESSAGE_EXCERPT" | "VALIDATED_SYNTHESIS">; sourceObjectId: string; title: string; authoredAt?: Date | null; receivedAt?: Date | null; visibilityPolicyRef?: string | null; retentionPolicyRef?: string | null; integrityRef?: string | null; externalOrigin?: string | null }, repository: GovernedMemoryRepository = governedMemoryRepository, now = new Date()) {
+export type GovernedJourneyMemoryProvenance = { governedJourneyId?: string | null; governedJourneyEventId?: string | null };
+const normalizeProvenance = (input: GovernedJourneyMemoryProvenance) => {
+  const governedJourneyId = input.governedJourneyId ?? null;
+  const governedJourneyEventId = input.governedJourneyEventId ?? null;
+  if (governedJourneyEventId && !governedJourneyId) throw new GovernedMemoryServiceError("INVALID_INPUT", "A governed journey event requires its journey.");
+  return { governedJourneyId, governedJourneyEventId };
+};
+async function registerSourceSafely(repository: GovernedMemoryRepository, input: Parameters<GovernedMemoryRepository["registerSource"]>[0], actorUserId: string, now: Date) {
+  try { return await repository.registerSource(input, actorUserId, now); }
+  catch { throw new GovernedMemoryServiceError("NOT_FOUND", "Memory provenance not found."); }
+}
+export async function registerMemorySource(actorUserId: string, input: { relationCaseId: string; kind: Exclude<GovernedMemorySourceKind, "MESSAGE_EXCERPT" | "VALIDATED_SYNTHESIS">; sourceObjectId: string; title: string; authoredAt?: Date | null; receivedAt?: Date | null; visibilityPolicyRef?: string | null; retentionPolicyRef?: string | null; integrityRef?: string | null; externalOrigin?: string | null } & GovernedJourneyMemoryProvenance, repository: GovernedMemoryRepository = governedMemoryRepository, now = new Date()) {
+  const provenance = normalizeProvenance(input);
   await permission(input.relationCaseId, actorUserId, now, (resolved) => resolved?.permissions.has("VIEW_SOURCES") === true, repository);
   const sourceObjectType = sourceTypes[input.kind]; if (sourceObjectType && !await repository.findSourceObjectInCase(input.relationCaseId, sourceObjectType, input.sourceObjectId)) throw new GovernedMemoryServiceError("NOT_FOUND", "Source object not found.");
   if (input.kind === "EXTERNAL_IMPORT" && !input.externalOrigin?.trim()) throw new GovernedMemoryServiceError("INVALID_INPUT", "External origin is required.");
-  return repository.registerSource({ ...input, title: required(input.title, "title", 300), sourceObjectType: sourceObjectType ?? input.kind, status: "ACTIVE", recordedAt: now }, actorUserId, now);
+  return registerSourceSafely(repository, { ...input, ...provenance, title: required(input.title, "title", 300), sourceObjectType: sourceObjectType ?? input.kind, status: "ACTIVE", recordedAt: now }, actorUserId, now);
 }
 
-export async function promotePrivateMessageExcerpt(actorUserId: string, input: { relationCaseId: string; messageId: string; excerpt: string; purpose: string; consentBasis: "AUTHOR_PROMOTED_OWN_MESSAGE" | `EXPLICIT_AUTHOR_CONSENT:${string}` | `DOCUMENTED_GOVERNANCE_AUTHORITY:${string}` | `DOCUMENTED_LEGAL_OBLIGATION:${string}`; visibilityPolicyRef: "PRIVATE_TO_AUTHOR" | `RESTRICTED:${string}`; title: string }, repository: GovernedMemoryRepository = governedMemoryRepository, now = new Date()) {
+export async function promotePrivateMessageExcerpt(actorUserId: string, input: { relationCaseId: string; messageId: string; excerpt: string; purpose: string; consentBasis: "AUTHOR_PROMOTED_OWN_MESSAGE" | `EXPLICIT_AUTHOR_CONSENT:${string}` | `DOCUMENTED_GOVERNANCE_AUTHORITY:${string}` | `DOCUMENTED_LEGAL_OBLIGATION:${string}`; visibilityPolicyRef: "PRIVATE_TO_AUTHOR" | `RESTRICTED:${string}`; title: string } & GovernedJourneyMemoryProvenance, repository: GovernedMemoryRepository = governedMemoryRepository, now = new Date()) {
+  const provenance = normalizeProvenance(input);
   await permission(input.relationCaseId, actorUserId, now, canPromotePrivateSource, repository);
   if (!await repository.findSourceObjectInCase(input.relationCaseId, "Message", input.messageId)) throw new GovernedMemoryServiceError("NOT_FOUND", "Private message not found.");
   required(input.consentBasis, "consentBasis", 1_000); required(input.visibilityPolicyRef, "visibilityPolicyRef", 1_000);
-  return repository.registerSource({ relationCaseId: input.relationCaseId, kind: "MESSAGE_EXCERPT", status: "RESTRICTED", sourceObjectType: "Message", sourceObjectId: input.messageId, title: required(input.title, "title", 300), excerpt: required(input.excerpt, "excerpt", 2_000), promotionPurpose: required(input.purpose, "purpose", 500), consentBasis: input.consentBasis, visibilityPolicyRef: input.visibilityPolicyRef, promotedByUserId: actorUserId, promotedAt: now, recordedAt: now }, actorUserId, now);
+  return registerSourceSafely(repository, { relationCaseId: input.relationCaseId, ...provenance, kind: "MESSAGE_EXCERPT", status: "RESTRICTED", sourceObjectType: "Message", sourceObjectId: input.messageId, title: required(input.title, "title", 300), excerpt: required(input.excerpt, "excerpt", 2_000), promotionPurpose: required(input.purpose, "purpose", 500), consentBasis: input.consentBasis, visibilityPolicyRef: input.visibilityPolicyRef, promotedByUserId: actorUserId, promotedAt: now, recordedAt: now }, actorUserId, now);
 }
 
 export async function grantMemoryPermission(actorUserId: string, input: { relationCaseId: string; subjectType: "USER" | "REPRESENTATION"; subjectUserId?: string | null; subjectRepresentationId?: string | null; permission: GovernedMemoryPermission; resourceType?: GovernedMemoryTargetType | null; resourceId?: string | null; basis: string; effectiveFrom: Date; effectiveUntil?: Date | null; residualPermission?: GovernedMemoryPermission | null; residualEffectiveUntil?: Date | null; residualBasis?: string | null }, repository: GovernedMemoryRepository = governedMemoryRepository, now = new Date()) {

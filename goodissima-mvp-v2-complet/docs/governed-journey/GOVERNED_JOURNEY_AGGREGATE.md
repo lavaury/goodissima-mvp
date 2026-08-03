@@ -70,6 +70,12 @@ Le journal est append-only à deux niveaux : aucun repository applicatif d'updat
 
 Le cycle du parcours est distinct de `RelationCase.governanceStatus`, du statut d'un `Workspace`, d'une invitation et d'une `CommunicationSession`. Une transition GJ-1 ne modifie aucun de ces objets et ne produit ni mémoire, notification, accès, invitation, session ou effet IA.
 
+## Provenance mémoire facultative
+
+GJ-2 permet à une `GovernedMemorySource` créée explicitement de référencer zéro ou un parcours et, facultativement, zéro ou un événement précis de ce parcours. Un event implique son journey. Les FK composites imposent le même `RelationCase`, l’appartenance de l’événement au parcours et des suppressions `RESTRICT`.
+
+Le lien est fixé à la création de la source et ne confère aucune autorité, aucun rôle ni aucune permission. Il ne transforme jamais un `GovernedJourneyEvent` en mémoire, et aucune transition ne crée de source. Les sources historiques restent non rattachées : aucun dossier, template, formulaire, `RelationEvent`, invitation, session ou voisinage temporel ne constitue un backfill probant.
+
 ## Création transactionnelle
 
 `createGovernedJourney` vérifie successivement le dossier, son propriétaire, le formulaire éventuel, le template relationnel et l'appartenance de la version au template. Le parcours et son événement sont créés dans une transaction `Serializable`. Aucun template n'est modifié et aucun objet de mémoire gouvernée n'est créé.

@@ -1258,6 +1258,8 @@ model GovernedMemoryDecision {
 model GovernedMemorySource {
   id String @id @default(cuid())
   relationCaseId String
+  governedJourneyId String?
+  governedJourneyEventId String?
   kind GovernedMemorySourceKind
   status GovernedMemorySourceStatus @default(ACTIVE)
   sourceObjectType String
@@ -1281,11 +1283,15 @@ model GovernedMemorySource {
 
   relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   promotedBy User? @relation("MemorySourcePromoter", fields: [promotedByUserId], references: [id], onDelete: Restrict)
+  governedJourney GovernedJourney? @relation("MemorySourceGovernedJourney", fields: [governedJourneyId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  governedJourneyEvent GovernedJourneyEvent? @relation("MemorySourceGovernedJourneyEvent", fields: [governedJourneyEventId, governedJourneyId, relationCaseId], references: [id, governedJourneyId, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([id, relationCaseId])
   @@index([relationCaseId, status, recordedAt])
   @@index([relationCaseId, kind])
   @@index([sourceObjectType, sourceObjectId])
+  @@index([relationCaseId, governedJourneyId, recordedAt, id])
+  @@index([relationCaseId, governedJourneyEventId])
 }
 
 model GovernedMemoryRelation {
@@ -1687,6 +1693,7 @@ model GovernedJourney {
   relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   createdFromTemplateVersion TemplateVersion @relation(fields: [createdFromTemplateVersionId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   events GovernedJourneyEvent[]
+  memorySources GovernedMemorySource[] @relation("MemorySourceGovernedJourney")
 
   @@unique([id, relationCaseId])
   @@unique([id, relationCaseId, authorityUserId])
@@ -1713,7 +1720,9 @@ model GovernedJourneyEvent {
 
   governedJourney GovernedJourney @relation(fields: [governedJourneyId, relationCaseId, authorityUserId], references: [id, relationCaseId, authorityUserId], onDelete: Restrict, onUpdate: Restrict)
   actor User @relation("GovernedJourneyEventActor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  memorySources GovernedMemorySource[] @relation("MemorySourceGovernedJourneyEvent")
 
+  @@unique([id, governedJourneyId, relationCaseId])
   @@unique([governedJourneyId, sequence])
   @@index([governedJourneyId, occurredAt, id])
   @@index([relationCaseId, occurredAt, id])
