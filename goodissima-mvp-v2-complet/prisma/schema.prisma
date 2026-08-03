@@ -262,6 +262,11 @@ enum GovernedJourneyStatus {
 
 enum GovernedJourneyEventType {
   CREATED
+  ACTIVATED
+  SUSPENDED
+  RESUMED
+  CLOSED
+  CANCELLED
 }
 
 enum WorkspaceKind {
@@ -493,7 +498,7 @@ model User {
   assignedMemoryRoles GovernedMemoryRoleAssignment[] @relation("MemoryRoleAssigner")
   revokedMemoryRoles GovernedMemoryRoleAssignment[] @relation("MemoryRoleRevoker")
   governedJourneys GovernedJourney[]
-  governedJourneyEvents GovernedJourneyEvent[]
+  governedJourneyEvents GovernedJourneyEvent[] @relation("GovernedJourneyEventActor")
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -1666,6 +1671,7 @@ model GovernedJourney {
   createdFromTemplateVersionId String
   title String
   status GovernedJourneyStatus @default(DRAFT)
+  version Int @default(1)
   authorityUserId String
   currentStepKey String?
   startedAt DateTime?
@@ -1683,7 +1689,9 @@ model GovernedJourney {
   events GovernedJourneyEvent[]
 
   @@unique([id, relationCaseId])
+  @@unique([id, relationCaseId, authorityUserId])
   @@index([relationCaseId, status, createdAt])
+  @@index([relationCaseId, status, updatedAt])
   @@index([relationTemplateId])
   @@index([formTemplateId])
   @@index([authorityUserId, status])
@@ -1695,12 +1703,18 @@ model GovernedJourneyEvent {
   relationCaseId String
   type GovernedJourneyEventType
   actorUserId String
+  authorityUserId String
+  fromStatus GovernedJourneyStatus?
+  toStatus GovernedJourneyStatus
+  reason String?
+  sequence Int
   occurredAt DateTime
   createdAt DateTime @default(now())
 
-  governedJourney GovernedJourney @relation(fields: [governedJourneyId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
-  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney @relation(fields: [governedJourneyId, relationCaseId, authorityUserId], references: [id, relationCaseId, authorityUserId], onDelete: Restrict, onUpdate: Restrict)
+  actor User @relation("GovernedJourneyEventActor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
+  @@unique([governedJourneyId, sequence])
   @@index([governedJourneyId, occurredAt, id])
   @@index([relationCaseId, occurredAt, id])
 }

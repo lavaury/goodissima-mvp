@@ -33,6 +33,8 @@ test("creation validates authority and template version then writes instance and
   assert.match(service, /tx\.governedJourney\.create/);
   assert.match(service, /events:\s*\{\s*create:/);
   assert.match(service, /type: "CREATED"/);
+  assert.match(service, /toStatus: "DRAFT"/);
+  assert.match(service, /sequence: 1/);
   assert.doesNotMatch(service, /governedMemory|openai|mistral|embedding/i);
   assert.doesNotMatch(service, /\.delete\(|\.deleteMany\(/);
 });

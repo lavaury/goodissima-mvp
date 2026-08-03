@@ -44,7 +44,31 @@ Participants attendus, documents, actions initiales et confidentialité restent 
 
 Les statuts sont `DRAFT`, `ACTIVE`, `SUSPENDED`, `CLOSED` et `CANCELLED`. Une contrainte SQL vérifie les dates obligatoires ou interdites pour chaque état. `currentStepKey` est seulement un pointeur courant : il ne constitue ni un historique ni une preuve temporelle.
 
-La création produit atomiquement un `GovernedJourneyEvent` de type `CREATED`. Cette table est append-only au niveau applicatif : aucun service d'update ou de delete n'est exposé. RLS est activée sans policy navigateur permissive. L'immutabilité complète par trigger SQL reste hors périmètre de GJ-0.
+La matrice GJ-1 autorise uniquement :
+
+```text
+DRAFT     → ACTIVE       (ACTIVATED)
+DRAFT     → CANCELLED    (CANCELLED)
+ACTIVE    → SUSPENDED    (SUSPENDED)
+ACTIVE    → CLOSED       (CLOSED)
+ACTIVE    → CANCELLED    (CANCELLED)
+SUSPENDED → ACTIVE       (RESUMED)
+SUSPENDED → CANCELLED    (CANCELLED)
+```
+
+`CLOSED` et `CANCELLED` sont terminaux. Une clôture depuis `SUSPENDED` est interdite : le parcours doit être repris explicitement. La première activation fixe `startedAt`; une reprise ne la réécrit pas. Suspension, clôture et annulation utilisent la date explicite de leur commande.
+
+Un motif humain, normalisé et limité à 500 caractères, est obligatoire pour suspendre ou annuler. Il reste facultatif pour activer, reprendre ou clôturer. Aucun snapshot ou JSON libre n'est accepté comme motif.
+
+Chaque changement incrémente `GovernedJourney.version`. L'update SQL est conditionné par le parcours, le dossier, l'autorité, le statut source et la version attendue. La séquence de l'événement correspond à la nouvelle version. Deux commandes concurrentes ne peuvent donc pas gagner avec la même version.
+
+Une commande répétée alors que son statut cible est déjà atteint est idempotente : elle retourne le parcours sans modifier sa version, ses dates ou son journal. Une autre commande incompatible reste une erreur `INVALID_TRANSITION`.
+
+La création produit atomiquement un `GovernedJourneyEvent` de type `CREATED`, vers `DRAFT`, avec la séquence 1. Chaque transition produit exactement un événement dans la même transaction. La FK composite `(governedJourneyId, relationCaseId, authorityUserId)` empêche de journaliser une autre autorité ou un autre dossier. Un index unique garantit une seule occurrence par séquence.
+
+Le journal est append-only à deux niveaux : aucun repository applicatif d'update/delete n'est exposé et un trigger PostgreSQL rejette tout `UPDATE` ou `DELETE`, y compris pour une connexion contournant RLS. Les insertions restent réservées aux transactions métier. RLS demeure activée sans policy navigateur permissive.
+
+Le cycle du parcours est distinct de `RelationCase.governanceStatus`, du statut d'un `Workspace`, d'une invitation et d'une `CommunicationSession`. Une transition GJ-1 ne modifie aucun de ces objets et ne produit ni mémoire, notification, accès, invitation, session ou effet IA.
 
 ## Création transactionnelle
 
