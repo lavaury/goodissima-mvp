@@ -252,6 +252,18 @@ enum GovernedJourneyInvitationStatus {
   EXPIRED
 }
 
+enum GovernedJourneyStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  CLOSED
+  CANCELLED
+}
+
+enum GovernedJourneyEventType {
+  CREATED
+}
+
 enum WorkspaceKind {
   GOVERNANCE
   RELATION
@@ -480,6 +492,8 @@ model User {
   memoryRoleAssignments GovernedMemoryRoleAssignment[] @relation("MemoryRoleSubject")
   assignedMemoryRoles GovernedMemoryRoleAssignment[] @relation("MemoryRoleAssigner")
   revokedMemoryRoles GovernedMemoryRoleAssignment[] @relation("MemoryRoleRevoker")
+  governedJourneys GovernedJourney[]
+  governedJourneyEvents GovernedJourneyEvent[]
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -711,6 +725,7 @@ model RelationCase {
   owner             User                @relation("OwnerCases", fields: [ownerId], references: [id])
   workspace         Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   governedJourneyInvitations GovernedJourneyInvitation[]
+  governedJourneys GovernedJourney[]
   template          RelationTemplate?   @relation(fields: [templateId], references: [id])
   candidateIdentity GoodissimaIdentity? @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
   messages          Message[]
@@ -735,6 +750,8 @@ model RelationCase {
   memoryAccessGrants GovernedMemoryAccessGrant[]
   memoryEvents GovernedMemoryEvent[]
   memoryRoleAssignments GovernedMemoryRoleAssignment[]
+
+  @@unique([id, ownerId])
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
@@ -852,6 +869,7 @@ model RelationTemplate {
   productFeedback ProductFeedback[]
   communicationSessions CommunicationSession[]
   governedJourneyInvitations GovernedJourneyInvitation[]
+  governedJourneys GovernedJourney[]
 
   @@index([workspaceId])
 }
@@ -1545,8 +1563,10 @@ model TemplateVersion {
   optimizationDrafts  TemplateOptimization[] @relation("OptimizationDraftVersion")
   manualEditSources   ManualTemplateEditAudit[] @relation("ManualEditSourceVersion")
   manualEditResults   ManualTemplateEditAudit[] @relation("ManualEditNewVersion")
+  governedJourneys    GovernedJourney[]
 
   @@unique([templateId, version])
+  @@unique([id, templateId])
 }
 
 model ManualTemplateEditAudit {
@@ -1635,6 +1655,54 @@ model FormTemplate {
 
   fields      FormField[]
   submissions FormSubmission[]
+  governedJourneys GovernedJourney[]
+}
+
+model GovernedJourney {
+  id String @id @default(cuid())
+  relationCaseId String
+  formTemplateId String?
+  relationTemplateId String
+  createdFromTemplateVersionId String
+  title String
+  status GovernedJourneyStatus @default(DRAFT)
+  authorityUserId String
+  currentStepKey String?
+  startedAt DateTime?
+  suspendedAt DateTime?
+  closedAt DateTime?
+  cancelledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationCase RelationCase @relation(fields: [relationCaseId, authorityUserId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  authority User @relation(fields: [authorityUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  formTemplate FormTemplate? @relation(fields: [formTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdFromTemplateVersion TemplateVersion @relation(fields: [createdFromTemplateVersionId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
+  events GovernedJourneyEvent[]
+
+  @@unique([id, relationCaseId])
+  @@index([relationCaseId, status, createdAt])
+  @@index([relationTemplateId])
+  @@index([formTemplateId])
+  @@index([authorityUserId, status])
+}
+
+model GovernedJourneyEvent {
+  id String @id @default(cuid())
+  governedJourneyId String
+  relationCaseId String
+  type GovernedJourneyEventType
+  actorUserId String
+  occurredAt DateTime
+  createdAt DateTime @default(now())
+
+  governedJourney GovernedJourney @relation(fields: [governedJourneyId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([governedJourneyId, occurredAt, id])
+  @@index([relationCaseId, occurredAt, id])
 }
 
 model FormField {
