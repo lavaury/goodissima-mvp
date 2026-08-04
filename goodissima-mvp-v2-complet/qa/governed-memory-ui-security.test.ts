@@ -21,3 +21,9 @@ test("UI persists no memory, logs no payload and injects no HTML", () => {
   assert.doesNotMatch(files, /OpenAI|Mistral|embedding|vector|prompt|chatbot/i);
 });
 
+test("journey provenance exposes no identity, reason, link or action", () => {
+  const provenance = presenters.slice(presenters.indexOf("export function MemorySourceCard"), presenters.indexOf("export function MemoryFactCard"));
+  assert.match(provenance, /Provenance du parcours/);
+  assert.doesNotMatch(provenance, /reason|actorUserId|authorityUserId|governedJourneyId|governedJourneyEventId|<Link|href=|onClick=.*provenance/);
+  assert.doesNotMatch(readFileSync("components/governed-memory/GovernedMemoryPage.tsx", "utf8"), /Provenance du parcours/);
+});

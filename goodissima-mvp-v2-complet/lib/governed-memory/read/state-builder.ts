@@ -1,7 +1,7 @@
 import type { GovernedMemoryFactStatus, GovernedMemoryDecisionStatus } from "@prisma/client";
 import { filterMemoryReadByCurrentAccess, filterReferencesWithoutLeaks } from "./access-filter.ts";
 import { dedupeLimitations, limitation } from "./limitations.ts";
-import type { GovernedMemoryReadSnapshot } from "./repository.ts";
+import type { GovernedMemoryReadSnapshot, GovernedMemorySourceProvenanceContext } from "./repository.ts";
 import type { GovernedMemoryAccessView, GovernedMemoryDecisionView, GovernedMemoryDisputeView, GovernedMemoryFactView, GovernedMemoryKnowledgeMode, GovernedMemoryReadLimitation, GovernedMemoryReadResult, GovernedMemoryRoleView, GovernedMemoryTimelineItem, GovernedMemoryValidationView } from "./types.ts";
 import type { ResolvedMemoryPermissions } from "../persistence/permission-resolver.ts";
 
@@ -33,10 +33,10 @@ function decisionStatus(row: Snapshot["decisions"][number], snapshot: Snapshot, 
   return "DRAFT";
 }
 
-export function buildMemoryState(input: { snapshot: Snapshot; access: ResolvedMemoryPermissions; referenceDate: Date; knowledgeMode: GovernedMemoryKnowledgeMode; generatedAt: Date; limit: number; nextCursor: string | null; includes: ReadonlySet<string> }): GovernedMemoryReadResult {
+export function buildMemoryState(input: { snapshot: Snapshot; access: ResolvedMemoryPermissions; referenceDate: Date; knowledgeMode: GovernedMemoryKnowledgeMode; generatedAt: Date; limit: number; nextCursor: string | null; includes: ReadonlySet<string>; provenanceBySourceId?: ReadonlyMap<string, GovernedMemorySourceProvenanceContext>; unavailableProvenanceSourceIds?: ReadonlySet<string> }): GovernedMemoryReadResult {
   const { snapshot, referenceDate } = input;
   const limitations: GovernedMemoryReadLimitation[] = [limitation("POLYMORPHIC_REFERENCE_UNVERIFIED", "RESULT", null, "INFO")];
-  const sourceFilter = filterMemoryReadByCurrentAccess(snapshot.sources.slice(0, input.limit), input.access);
+  const sourceFilter = filterMemoryReadByCurrentAccess(snapshot.sources.slice(0, input.limit), input.access, input.provenanceBySourceId);
   for (const source of sourceFilter.visible) {
     const lifecycleEvents = snapshot.events.filter((event) => event.objectType === "SOURCE" && event.objectId === source.id && event.occurredAt <= referenceDate);
     if (lifecycleEvents.some((event) => event.type === "SOURCE_DELETED")) source.statusAtReference = "DELETED";
@@ -45,6 +45,7 @@ export function buildMemoryState(input: { snapshot: Snapshot; access: ResolvedMe
     source.knowledgeTiming = new Date(source.recordedAt) <= referenceDate ? "KNOWN_THEN" : "RECORDED_LATER";
     if (source.knowledgeTiming === "RECORDED_LATER") limitations.push(limitation("RETROACTIVE_INFORMATION", "SOURCE", source.id, "INFO"));
     if (!source.available) limitations.push(limitation("SOURCE_UNAVAILABLE", "SOURCE", source.id));
+    if (input.unavailableProvenanceSourceIds?.has(source.id)) limitations.push(limitation("PROVENANCE_UNAVAILABLE", "SOURCE", source.id));
     if (["ARCHIVED", "EXPIRED", "ANONYMIZED", "LEGAL_HOLD"].includes(source.statusAtReference)) limitations.push(limitation("STATUS_HISTORY_INCOMPLETE", "SOURCE", source.id));
   }
   if (sourceFilter.redactions.length) limitations.push(limitation("SOURCE_REDACTED", "SOURCE", null, "MATERIAL"));

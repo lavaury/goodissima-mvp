@@ -15,6 +15,10 @@ const disputeSelect = { id: true, targetType: true, targetId: true, raisedByUser
 const eventSelect = { id: true, type: true, actorType: true, actorUserId: true, objectType: true, objectId: true, occurredAt: true, recordedAt: true, summary: true } satisfies Prisma.GovernedMemoryEventSelect;
 const grantSelect = { id: true, subjectType: true, subjectUserId: true, subjectRepresentationId: true, permission: true, resourceType: true, resourceId: true, effectiveFrom: true, effectiveUntil: true, revokedAt: true, residualPermission: true, residualEffectiveUntil: true } satisfies Prisma.GovernedMemoryAccessGrantSelect;
 const roleSelect = { id: true, userId: true, role: true, assignedAt: true, revokedAt: true } satisfies Prisma.GovernedMemoryRoleAssignmentSelect;
+const journeyProvenanceSelect = { id: true, title: true, status: true } satisfies Prisma.GovernedJourneySelect;
+const journeyEventProvenanceSelect = { id: true, governedJourneyId: true, type: true, fromStatus: true, toStatus: true, sequence: true, occurredAt: true } satisfies Prisma.GovernedJourneyEventSelect;
+
+export type GovernedMemorySourceProvenanceContext = { governedJourney: Prisma.GovernedJourneyGetPayload<{ select: typeof journeyProvenanceSelect }>; governedJourneyEvent: Prisma.GovernedJourneyEventGetPayload<{ select: typeof journeyEventProvenanceSelect }> | null };
 
 function createTransactionalReader(tx: Tx) {
   return {
@@ -49,6 +53,27 @@ function createTransactionalReader(tx: Tx) {
         tx.governedMemoryRoleAssignment.findMany({ where: { relationCaseId: input.relationCaseId, assignedAt: { lte: input.referenceDate } }, select: roleSelect, orderBy: [{ assignedAt: "asc" }, { id: "asc" }], take: 500 }),
       ]);
       return { memoryCase, facts, decisions, sources, relations, validations, disputes, events, grants, roles, truncated: { facts: facts.length > input.limit, decisions: decisions.length > input.limit, sources: sources.length > input.limit, timeline: events.length > 500, relations: relations.length === 1000, validations: validations.length === 500, disputes: disputes.length === 500, grants: grants.length === 500, roles: roles.length === 500 } };
+    },
+    async readSourceProvenance(relationCaseId: string, sources: Array<{ id: string; governedJourneyId: string | null; governedJourneyEventId: string | null }>) {
+      const journeyIds = [...new Set(sources.flatMap((source) => source.governedJourneyId ? [source.governedJourneyId] : []))];
+      const eventIds = [...new Set(sources.flatMap((source) => source.governedJourneyEventId ? [source.governedJourneyEventId] : []))];
+      if (!journeyIds.length) return { bySourceId: new Map<string, GovernedMemorySourceProvenanceContext>(), unavailableSourceIds: new Set<string>() };
+      const [journeys, events] = await Promise.all([
+        tx.governedJourney.findMany({ where: { relationCaseId, id: { in: journeyIds } }, select: journeyProvenanceSelect, orderBy: { id: "asc" } }),
+        eventIds.length ? tx.governedJourneyEvent.findMany({ where: { relationCaseId, id: { in: eventIds } }, select: journeyEventProvenanceSelect, orderBy: { id: "asc" } }) : Promise.resolve([]),
+      ]);
+      const journeysById = new Map(journeys.map((journey) => [journey.id, journey]));
+      const eventsById = new Map(events.map((event) => [event.id, event]));
+      const bySourceId = new Map<string, GovernedMemorySourceProvenanceContext>();
+      const unavailableSourceIds = new Set<string>();
+      for (const source of sources) {
+        if (!source.governedJourneyId) continue;
+        const governedJourney = journeysById.get(source.governedJourneyId);
+        const governedJourneyEvent = source.governedJourneyEventId ? eventsById.get(source.governedJourneyEventId) ?? null : null;
+        if (!governedJourney || source.governedJourneyEventId && (!governedJourneyEvent || governedJourneyEvent.governedJourneyId !== governedJourney.id)) { unavailableSourceIds.add(source.id); continue; }
+        bySourceId.set(source.id, { governedJourney, governedJourneyEvent });
+      }
+      return { bySourceId, unavailableSourceIds };
     },
     async getDecisionTrace(relationCaseId: string, decisionId: string, knowledgeCutoff: Date) {
       const decision = await tx.governedMemoryDecision.findUnique({ where: { id_relationCaseId: { id: decisionId, relationCaseId } }, select: decisionSelect });

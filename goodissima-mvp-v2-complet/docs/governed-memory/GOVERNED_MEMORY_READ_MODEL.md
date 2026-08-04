@@ -26,6 +26,14 @@ Les limites persistantes sont importantes : certains changements de statut de so
 
 Le repository n’utilise jamais le requester comme substitut au contrôle d’accès : le service résout d’abord les droits actuels, puis le repository charge uniquement le dossier demandé.
 
+## Provenance facultative du parcours — GJ-3
+
+Une source visible peut exposer `provenance: null` ou un contexte minimal composé du titre et du statut actuel du parcours, puis éventuellement du type, de la transition, de la séquence et de la date ISO de l’événement référencé. `currentStatus` décrit l’état courant du parcours ; `toStatus` décrit l’état atteint par l’événement historique. Aucun identifiant GJ, motif humain, acteur, autorité, template ou version interne n’est exposé.
+
+La visibilité est strictement héritée de la source. Le filtre `VIEW_SOURCES` et les grants ciblés s’appliquent avant la collecte des références GJ. Les parcours et événements ne sont ensuite chargés que pour les sources visibles de la page, par deux requêtes groupées au maximum, toutes deux filtrées par `relationCaseId`. Zéro provenance visible produit zéro requête GJ ; plusieurs sources partageant un parcours ne le chargent qu’une fois.
+
+La provenance est un contexte de source : elle ne crée ni mémoire, preuve, droit, autorité, transition, notification, invitation ou session. Elle ne permet aucune navigation vers le parcours. Une référence exceptionnellement indisponible conserve la source, retourne `provenance: null` et produit la limitation bornée `PROVENANCE_UNAVAILABLE`.
+
 ## Modes de connaissance
 
 ### `KNOWN_AT_DATE`
@@ -95,6 +103,8 @@ Aucun message n’est composé à partir du titre ou du contenu d’une source p
 La limite par défaut est 50, le maximum 200 et la timeline 500. Le curseur base64url contient le couple stable `recordedAt/id`; les requêtes utilisent un keyset et l’ordre `recordedAt ASC, id ASC`. Les collections auxiliaires ont des plafonds explicites et déclenchent `PAGE_LIMIT_REACHED` si leur couverture est incomplète.
 
 Les collections sont chargées par lots, sans requête par objet. Une trace de décision exécute un nombre constant de requêtes, indépendamment du nombre de relations.
+
+La pagination d’état reste pilotée uniquement par les faits : son curseur n’est pas une pagination autonome des sources ou décisions. GJ-3 conserve volontairement cette limite préexistante et ne change ni curseur ni ordre.
 
 ## Cohérence de lecture
 

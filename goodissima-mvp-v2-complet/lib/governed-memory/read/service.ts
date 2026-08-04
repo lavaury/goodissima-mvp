@@ -16,6 +16,10 @@ function encodeCursor(value: ReadCursor) { return Buffer.from(JSON.stringify(val
 function decodeTimelineCursor(value?: string): TimelineCursor | null { if (!value) return null; try { const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as TimelineCursor; if (!parsed.id || !Number.isFinite(Date.parse(parsed.occurredAt))) throw new Error(); return parsed; } catch { throw new GovernedMemoryReadError("INVALID_INPUT", "cursor is invalid."); } }
 function encodeTimelineCursor(value: TimelineCursor) { return Buffer.from(JSON.stringify(value), "utf8").toString("base64url"); }
 async function currentAccess(relationCaseId: string, requesterUserId: string, now: Date, reader: GovernedMemoryTransactionalReader) { const resolved = await reader.resolveCurrentAccess(relationCaseId, requesterUserId, now); if (!resolved?.permissions.has("VIEW_MEMORY")) throw new GovernedMemoryReadError("NOT_FOUND", "Memory not found."); return resolved; }
+async function visibleSourceProvenance(relationCaseId: string, sources: Parameters<typeof filterMemoryReadByCurrentAccess>[0], access: Parameters<typeof filterMemoryReadByCurrentAccess>[1], reader: GovernedMemoryTransactionalReader) {
+  const visibleRows = filterMemoryReadByCurrentAccess(sources, access).visibleRows;
+  return reader.readSourceProvenance(relationCaseId, visibleRows);
+}
 
 async function stateInSnapshot(input: GetMemoryStateAtInput, reader: GovernedMemoryTransactionalReader, now: Date): Promise<GovernedMemoryReadResult> {
   if (!input.relationCaseId || !input.requesterUserId) throw new GovernedMemoryReadError("INVALID_INPUT", "Scope and requester are required.");
@@ -24,8 +28,10 @@ async function stateInSnapshot(input: GetMemoryStateAtInput, reader: GovernedMem
   const access = await currentAccess(input.relationCaseId, input.requesterUserId, now, reader);
   const snapshot = await reader.readSnapshot({ relationCaseId: input.relationCaseId, referenceDate, knowledgeCutoff: input.knowledgeMode === "KNOWN_AT_DATE" ? referenceDate : now, limit: pageLimit, cursor });
   if (!snapshot) throw new GovernedMemoryReadError("NOT_FOUND", "Memory not found.");
+  const includes = new Set(input.include ?? DEFAULT_INCLUDES);
+  const provenance = includes.has("SOURCES") ? await visibleSourceProvenance(input.relationCaseId, snapshot.sources.slice(0, pageLimit), access, reader) : { bySourceId: new Map(), unavailableSourceIds: new Set<string>() };
   const last = snapshot.truncated.facts ? snapshot.facts[pageLimit - 1] : null;
-  return buildMemoryState({ snapshot, access, referenceDate, knowledgeMode: input.knowledgeMode, generatedAt: now, limit: pageLimit, nextCursor: last ? encodeCursor({ recordedAt: last.recordedAt.toISOString(), id: last.id }) : null, includes: new Set(input.include ?? DEFAULT_INCLUDES) });
+  return buildMemoryState({ snapshot, access, referenceDate, knowledgeMode: input.knowledgeMode, generatedAt: now, limit: pageLimit, nextCursor: last ? encodeCursor({ recordedAt: last.recordedAt.toISOString(), id: last.id }) : null, includes, provenanceBySourceId: provenance.bySourceId, unavailableProvenanceSourceIds: provenance.unavailableSourceIds });
 }
 
 export async function getMemoryStateAt(input: GetMemoryStateAtInput, repository: GovernedMemoryReadRepository = governedMemoryReadRepository, now = new Date()): Promise<GovernedMemoryReadResult> {
@@ -44,7 +50,8 @@ export async function compareMemoryPeriods(input: CompareMemoryPeriodsInput, rep
     const build = async (referenceDate: Date) => {
       const snapshot = await reader.readSnapshot({ relationCaseId: input.relationCaseId, referenceDate, knowledgeCutoff: mode === "KNOWN_AT_DATE" ? referenceDate : operationNow, limit: 200, cursor: null });
       if (!snapshot) throw new GovernedMemoryReadError("NOT_FOUND", "Memory not found.");
-      return buildMemoryState({ snapshot, access, referenceDate, knowledgeMode: mode, generatedAt: operationNow, limit: 200, nextCursor: null, includes: new Set(include) });
+      const provenance = include.includes("SOURCES") ? await visibleSourceProvenance(input.relationCaseId, snapshot.sources.slice(0, 200), access, reader) : { bySourceId: new Map(), unavailableSourceIds: new Set<string>() };
+      return buildMemoryState({ snapshot, access, referenceDate, knowledgeMode: mode, generatedAt: operationNow, limit: 200, nextCursor: null, includes: new Set(include), provenanceBySourceId: provenance.bySourceId, unavailableProvenanceSourceIds: provenance.unavailableSourceIds });
     };
     const [fromState, toState] = await Promise.all([build(from), build(to)]);
     return { ...toState, referenceDate: undefined, period: { from: from.toISOString(), to: to.toISOString() }, knowledgeMode: input.knowledgeMode, changes: compareMemoryStates(fromState, toState), limitations: dedupeLimitations([...fromState.limitations, ...toState.limitations]) };
@@ -56,8 +63,10 @@ export async function explainDecision(input: ExplainDecisionInput, repository: G
   return repository.runInSnapshot(async (reader) => {
   const reference = input.referenceDate ? date(input.referenceDate, "referenceDate") : operationNow; const access = await currentAccess(input.relationCaseId, input.requesterUserId, operationNow, reader);
   const trace = await reader.getDecisionTrace(input.relationCaseId, input.decisionId, reference); if (!trace) throw new GovernedMemoryReadError("NOT_FOUND", "Decision not found.");
-  const filtered = filterMemoryReadByCurrentAccess(trace.sources as never[], access); const limitations = [limitation("CAUSALITY_NOT_ESTABLISHED", "DECISION", trace.decision.id, "INFO"), limitation("POLYMORPHIC_REFERENCE_UNVERIFIED", "DECISION", trace.decision.id, "INFO")];
+  const provenance = await visibleSourceProvenance(input.relationCaseId, trace.sources as never[], access, reader);
+  const filtered = filterMemoryReadByCurrentAccess(trace.sources as never[], access, provenance.bySourceId); const limitations = [limitation("CAUSALITY_NOT_ESTABLISHED", "DECISION", trace.decision.id, "INFO"), limitation("POLYMORPHIC_REFERENCE_UNVERIFIED", "DECISION", trace.decision.id, "INFO")];
   if (!trace.sources.length) limitations.push(limitation("SOURCE_NOT_LINKED", "DECISION", trace.decision.id, "INFO")); if (filtered.redactions.length) limitations.push(limitation("SOURCE_REDACTED", "DECISION", trace.decision.id, "MATERIAL"));
+  for (const sourceId of provenance.unavailableSourceIds) limitations.push(limitation("PROVENANCE_UNAVAILABLE", "SOURCE", sourceId));
   const decision: GovernedMemoryDecisionView = { id: trace.decision.id, title: trace.decision.title, declaredRationale: trace.decision.rationale, statusAtReference: trace.decision.validatedAt && trace.decision.validatedAt <= reference ? "VALIDATED" : "DRAFT", decidedByUserId: trace.decision.decidedByUserId, validatedByUserId: trace.decision.validatedByUserId, decidedAt: trace.decision.decidedAt.toISOString(), validatedAt: trace.decision.validatedAt?.toISOString() ?? null, effectiveFrom: trace.decision.effectiveFrom.toISOString(), effectiveUntil: trace.decision.effectiveUntil?.toISOString() ?? null, recordedAt: trace.decision.recordedAt.toISOString(), knowledgeTiming: trace.decision.recordedAt <= reference ? "KNOWN_THEN" : "RECORDED_LATER", sourceRefs: filtered.visible.map((source) => ({ type: "SOURCE", id: source.id })), factRefs: trace.facts.map((fact) => ({ type: "FACT", id: fact.id })), disputeState: trace.disputes.some((row) => !row.resolvedAt || row.resolvedAt > reference) ? "OPEN" : "NONE", reservations: trace.decision.reservations, consequences: trace.decision.consequences };
   const facts: GovernedMemoryFactView[] = trace.facts.map((row) => ({ id: row.id, statement: row.statement, statusAtReference: row.establishedAt && row.establishedAt <= reference ? "ESTABLISHED" : "PROPOSED", evidenceLevel: row.evidenceLevel, effectiveFrom: row.effectiveFrom.toISOString(), effectiveUntil: row.effectiveUntil?.toISOString() ?? null, recordedAt: row.recordedAt.toISOString(), knowledgeTiming: row.recordedAt <= reference ? "KNOWN_THEN" : "RECORDED_LATER", sourceRefs: [], disputeState: "NONE" }));
   const disputes: GovernedMemoryDisputeView[] = trace.disputes.filter((row) => !row.resolvedAt || row.resolvedAt > reference).map((row) => ({ id: row.id, targetType: row.targetType, targetId: row.targetId, statusAtReference: "OPEN", raisedAt: row.raisedAt.toISOString(), resolvedAt: row.resolvedAt?.toISOString() ?? null, reason: row.reason, resolution: null }));

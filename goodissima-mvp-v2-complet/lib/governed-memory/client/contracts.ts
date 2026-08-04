@@ -6,7 +6,8 @@ export type MemoryLimitation = { code: string; severity: "INFO" | "WARNING" | "M
 export type MemoryRedaction = { level: "FULLY_HIDDEN" | "EXISTENCE_DISCLOSED"; disclosedId: string | null };
 export type MemoryFact = { id: string; statement: string; statusAtReference: string; evidenceLevel: string; effectiveFrom: string; effectiveUntil: string | null; recordedAt: string; knowledgeTiming: string; sourceRefs: MemoryReference[]; disputeState: string; supersession?: { relationType: string; relatedId: string; recordedAt: string } };
 export type MemoryDecision = { id: string; title: string; declaredRationale: string; statusAtReference: string; decidedAt: string; validatedAt: string | null; effectiveFrom: string; effectiveUntil: string | null; recordedAt: string; knowledgeTiming: string; sourceRefs: MemoryReference[]; factRefs: MemoryReference[]; disputeState: string; reservations: string | null; consequences: string | null };
-export type MemorySource = { id: string; kind: string; statusAtReference: string; title: string; authoredAt: string | null; receivedAt: string | null; recordedAt: string; available: boolean; restricted: boolean };
+export type MemorySourceProvenance = null | { governedJourney: { title: string; currentStatus: string }; governedJourneyEvent: null | { type: string; fromStatus: string | null; toStatus: string; sequence: number; occurredAt: string } };
+export type MemorySource = { id: string; kind: string; statusAtReference: string; title: string; authoredAt: string | null; receivedAt: string | null; recordedAt: string; available: boolean; restricted: boolean; provenance: MemorySourceProvenance };
 export type MemoryTimelineEvent = { id: string; type: string; actorType: "HUMAN" | "SYSTEM"; objectType: "FACT" | "DECISION" | "SOURCE"; objectId: string; occurredAt: string; recordedAt: string; summary: string };
 export type MemoryChange = { id: string; type: string; changedAt: string; before: unknown; after: unknown; evidenceRefs: MemoryReference[]; certainty: string };
 export type MemoryState = { facts: MemoryFact[]; decisions: MemoryDecision[]; sources: MemorySource[]; disputes: Array<{ id: string; reason: string; statusAtReference: string; raisedAt: string }>; timeline: MemoryTimelineEvent[]; limitations: MemoryLimitation[]; redactions: MemoryRedaction[]; changes?: Record<string, MemoryChange[]>; pagination?: { nextCursor: string | null; hasMore: boolean } };
@@ -16,4 +17,3 @@ export type MemoryTrace = { relations: Array<{ id: string; type: string; sourceT
 export type HttpEnvelope<T> = { ok: true; data: T; meta: { requestId: string; generatedAt: string } } | { ok: false; error: { code: string; message: string }; meta: { requestId: string } };
 
 export class MemoryClientError extends Error { constructor(readonly status: number, readonly code: string, readonly requestId: string | null) { super(code); this.name = "MemoryClientError"; } }
-

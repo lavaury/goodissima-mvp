@@ -20,3 +20,11 @@ test("renders governed decision sections without generated causality", () => {
   assert.match(page, /ne déduit pas automatiquement les causes/);
   assert.doesNotMatch(page, /reasonGenerated|generatedSummary|dangerouslySetInnerHTML/);
 });
+
+test("renders discreet journey provenance only on a source card", () => {
+  assert.match(presenters, /Provenance du parcours/);
+  assert.match(presenters, /Statut actuel/);
+  assert.match(presenters, /Transition/);
+  assert.match(presenters, /Étape du journal/);
+  assert.match(presenters, /source\.provenance \?/);
+});

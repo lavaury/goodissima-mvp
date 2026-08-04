@@ -4,6 +4,7 @@ const MESSAGES: Record<GovernedMemoryReadLimitationCode, string> = {
   SOURCE_NOT_LINKED: "No explicit supporting source is linked.",
   SOURCE_REDACTED: "A linked source is hidden by current access rules.",
   SOURCE_UNAVAILABLE: "A source is retained historically but is not consultable.",
+  PROVENANCE_UNAVAILABLE: "The referenced journey provenance is unavailable.",
   RETROACTIVE_INFORMATION: "This element applies to the reference date but was recorded later.",
   STATUS_HISTORY_INCOMPLETE: "The persisted history does not date every status transition exactly.",
   CAUSALITY_NOT_ESTABLISHED: "Explicit links do not establish causality.",

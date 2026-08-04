@@ -28,3 +28,16 @@ test("HTTP contracts contain stable success and failure envelopes", () => {
   assert.match(code, /ok: true/); assert.match(code, /ok: false/); assert.match(code, /requestId: string/); assert.match(code, /generatedAt: string/);
   assert.doesNotMatch(code, /Prisma|stack|transactionId/);
 });
+
+test("source provenance is additive and contains no technical journey identity", () => {
+  const readContract = readFileSync("lib/governed-memory/read/types.ts", "utf8");
+  const clientContract = readFileSync("lib/governed-memory/client/contracts.ts", "utf8");
+  for (const contract of [readContract, clientContract]) {
+    assert.match(contract, /provenance:/);
+    assert.match(contract, /currentStatus/);
+    assert.match(contract, /occurredAt: string/);
+  }
+  const publicContract = `${readContract}\n${clientContract}`;
+  const provenance = publicContract.slice(publicContract.indexOf("SourceProvenance"), publicContract.indexOf("export type GovernedMemoryDisputeView"));
+  assert.doesNotMatch(provenance, /governedJourneyId|governedJourneyEventId|reason|actorUserId|authorityUserId/);
+});

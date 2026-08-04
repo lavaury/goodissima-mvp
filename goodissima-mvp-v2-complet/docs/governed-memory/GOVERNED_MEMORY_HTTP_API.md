@@ -8,6 +8,12 @@ MG-4 expose exclusivement les six lectures MG-3 par des Route Handlers Next.js i
 
 Le chemin d'une requête est : route GET → enveloppe no-store → session Supabase vérifiée → résolution read-only de l'utilisateur applicatif → parseur strict → service MG-3 → enveloppe JSON.
 
+## Provenance GJ additive
+
+Les objets source peuvent désormais contenir un champ additif `provenance`. Il vaut `null` pour les sources historiques sans rattachement. Sinon, il contient le titre et `currentStatus` du parcours, ainsi qu’un événement facultatif avec `type`, `fromStatus`, `toStatus`, `sequence` et `occurredAt` sérialisé en ISO. `currentStatus` est courant, tandis que `toStatus` appartient à l’événement historique.
+
+Le contrat n’expose ni identifiant de parcours/événement, ni `reason`, acteur, autorité, template ou version. La provenance hérite strictement de la visibilité de la source et n’accorde aucun accès au parcours. Aucune route, commande ou méthode d’écriture n’est ajoutée ; les enveloppes, erreurs publiques et règles `no-store` restent inchangées.
+
 `getCurrentUser()` utilise `supabase.auth.getUser()` côté serveur. La session doit porter une adresse confirmée. Le schéma applicatif ne conservant pas l'identifiant Supabase, MG-4 résout ensuite l'utilisateur existant par l'adresse normalisée issue de cette session signée. Aucune adresse fournie par la query, un header ou un body n'est acceptée. L'absence de session, d'adresse vérifiée ou d'utilisateur applicatif correspondant produit `401` sans création automatique de compte.
 
 Les routes n'importent ni Prisma, ni repository MG-2, ni résolveur de permissions. Elles transmettent l'identifiant interne dérivé au service MG-3, qui résout `VIEW_MEMORY`, `VIEW_SOURCES` et les grants ciblés dans son snapshot `RepeatableRead`.

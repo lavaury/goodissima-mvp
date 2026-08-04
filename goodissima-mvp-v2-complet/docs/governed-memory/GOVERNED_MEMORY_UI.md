@@ -52,6 +52,12 @@ Un objet `FULLY_HIDDEN` ne produit aucun rendu, compteur, clé ou libellé. Si M
 
 Une source indisponible ne reçoit aucun lien actif. MG-5 ne construit jamais d'URL depuis un identifiant source. Les codes de limitations connus sont traduits par une table contrôlée; un code inconnu reçoit un texte générique et son identifiant interne n'est pas affiché.
 
+### Provenance du parcours
+
+Lorsqu’une source visible porte une provenance GJ, sa carte affiche un bloc secondaire « Provenance du parcours » : titre, statut actuel, puis événement facultatif avec libellé français, transition, date et numéro de séquence. Le statut actuel du parcours reste explicitement distinct du statut cible historique de l’événement.
+
+Une source sans provenance ne rend aucun bloc. Une source cachée ou restreinte sans grant ne révèle aucun titre ou événement GJ. Aucun identifiant, motif, acteur ou autorité n’est affiché ; le bloc ne contient ni bouton, ni lien, ni navigation et n’est jamais injecté dans la timeline principale. Cette information ne constitue ni preuve supplémentaire, ni validation, ni droit sur le parcours et ne déclenche aucune action.
+
 ## Erreurs et états
 
 Les chargements utilisent un skeleton non révélateur et retirent les anciennes données avant une nouvelle période. Les états vides emploient une formulation prudente. Les erreurs 401, 400, 404, 409 et 500 ont des textes distincts mais non divulguants; seul le `requestId` technique peut être montré au support.
