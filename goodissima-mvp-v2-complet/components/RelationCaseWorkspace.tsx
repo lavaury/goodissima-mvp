@@ -12,6 +12,8 @@ import { RelationCaseFields } from "@/components/RelationCaseFields";
 import { RelationGovernanceBadge, RelationGovernanceControls } from "@/components/RelationGovernanceControls";
 import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
 import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
+import { GovernedJourneyCards } from "@/components/governed-journey/GovernedJourneyPresenters";
+import type { GovernedJourneySummary } from "@/lib/governed-journey/read/types";
 import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
@@ -562,6 +564,7 @@ export function RelationCaseWorkspace({
   organizationName,
   debugMode = false,
   workspaceOptions = [],
+  governedJourneys = [],
 }: {
   item: RelationCaseWorkspaceItem;
   senderType: "OWNER" | "CANDIDATE";
@@ -569,6 +572,7 @@ export function RelationCaseWorkspace({
   organizationName?: string | null;
   debugMode?: boolean;
   workspaceOptions?: GovernanceWorkspaceOption[];
+  governedJourneys?: GovernedJourneySummary[];
 }) {
   const liveKitConfigured = getLiveKitConfigStatus().configured;
   const activityEvents = getActivityEvents(item);
@@ -700,6 +704,7 @@ export function RelationCaseWorkspace({
         </section>
       ) : null}
       <nav data-boussole-id="case-relational-navigation" className="mt-4 flex flex-wrap gap-2 rounded-2xl border bg-white p-3" aria-label="Actions de la relation">{["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"].map((label) => <span key={label} className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{label}</span>)}{senderType === "OWNER" ? <Link href={`/cases/${encodeURIComponent(item.id)}/memory`} className="rounded-xl bg-[#e8f8f9] px-3 py-2 text-sm font-semibold text-[#247f88] focus:outline-none focus:ring-2 focus:ring-cyan-500">Mémoire</Link> : null}</nav>
+      {!isCandidateView ? <section className="mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-[#247f88]">Gouvernance</p><h2 className="mt-1 text-lg font-bold">Parcours gouvernés</h2><p className="mt-1 text-xs text-[#766f68]">Consultation des parcours rattachés à ce dossier.</p></div><Link href={`/cases/${encodeURIComponent(item.id)}/journeys`} className="text-sm font-semibold text-[#247f88] underline">Voir tous</Link></div><GovernedJourneyCards caseId={item.id} journeys={governedJourneys} /></section> : null}
       {debugMode && senderType === "OWNER" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
