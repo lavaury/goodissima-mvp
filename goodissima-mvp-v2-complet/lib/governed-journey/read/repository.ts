@@ -1,16 +1,13 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export const governedJourneyReadSelect = {
+export const internalGovernedJourneyLedgerSelect = {
   id: true,
-  title: true,
+  relationTemplateId: true,
+  relationCaseId: true,
   status: true,
   createdAt: true,
   updatedAt: true,
-  startedAt: true,
-  suspendedAt: true,
-  closedAt: true,
-  cancelledAt: true,
 } satisfies Prisma.GovernedJourneySelect;
 
 export const governedJourneyEventReadSelect = {
@@ -21,72 +18,103 @@ export const governedJourneyEventReadSelect = {
   occurredAt: true,
 } satisfies Prisma.GovernedJourneyEventSelect;
 
-export type GovernedJourneyReadRow = Prisma.GovernedJourneyGetPayload<{ select: typeof governedJourneyReadSelect }>;
-export type GovernedJourneyEventReadRow = Prisma.GovernedJourneyEventGetPayload<{ select: typeof governedJourneyEventReadSelect }>;
-export type GovernedJourneyReadCursor = { updatedAt: Date; id: string };
+export type InternalGovernedJourneyLedgerRow = Prisma.GovernedJourneyGetPayload<{
+  select: typeof internalGovernedJourneyLedgerSelect;
+}>;
+export type GovernedJourneyEventReadRow = Prisma.GovernedJourneyEventGetPayload<{
+  select: typeof governedJourneyEventReadSelect;
+}>;
+
+type ScopedLookupInput = {
+  workspaceId: string;
+  requesterUserId: string;
+};
 
 export type GovernedJourneyReadRepository = {
-  listOwned(input: {
+  findOptionalByRelationTemplateId(input: ScopedLookupInput & {
+    relationTemplateId: string;
+  }): Promise<{ ledger: InternalGovernedJourneyLedgerRow | null } | null>;
+  findOptionalByFormTemplateId(input: ScopedLookupInput & {
+    formTemplateId: string;
+  }): Promise<{
+    formTemplateId: string;
+    relationTemplateId: string;
+    title: string;
+    ledger: InternalGovernedJourneyLedgerRow | null;
+  } | null>;
+  listLegacyEvents(input: ScopedLookupInput & {
+    governedJourneyId: string;
     relationCaseId: string;
-    requesterUserId: string;
-    limit: number;
-    cursor: GovernedJourneyReadCursor | null;
-  }): Promise<{ rows: GovernedJourneyReadRow[]; authorized: boolean }>;
-  detailOwned(input: {
-    relationCaseId: string;
-    journeyId: string;
-    requesterUserId: string;
-  }): Promise<{ journey: GovernedJourneyReadRow; events: GovernedJourneyEventReadRow[] } | null>;
+  }): Promise<
+    | { kind: "NOT_FOUND" }
+    | { kind: "LEGACY_EVENT_LOG_UNAVAILABLE" }
+    | { kind: "FOUND"; events: GovernedJourneyEventReadRow[] }
+  >;
 };
+
+const activeOwnedWorkspace = (workspaceId: string, requesterUserId: string) => ({
+  workspaceId,
+  workspace: { ownerId: requesterUserId, status: "ACTIVE" as const },
+});
 
 export function createGovernedJourneyReadRepository(database: PrismaClient = prisma): GovernedJourneyReadRepository {
   return {
-    async listOwned(input) {
-      return database.$transaction(async (tx) => {
-        const ownedCase = await tx.relationCase.findFirst({
-          where: { id: input.relationCaseId, ownerId: input.requesterUserId },
-          select: { id: true },
-        });
-        if (!ownedCase) return { rows: [], authorized: false };
-
-        const cursorWhere: Prisma.GovernedJourneyWhereInput | undefined = input.cursor
-          ? {
-              OR: [
-                { updatedAt: { lt: input.cursor.updatedAt } },
-                { updatedAt: input.cursor.updatedAt, id: { lt: input.cursor.id } },
-              ],
-            }
-          : undefined;
-        const rows = await tx.governedJourney.findMany({
-          where: { relationCaseId: input.relationCaseId, ...cursorWhere },
-          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-          take: input.limit + 1,
-          select: governedJourneyReadSelect,
-        });
-        return { rows, authorized: true };
-      }, { isolationLevel: "RepeatableRead" });
+    async findOptionalByRelationTemplateId(input) {
+      return database.relationTemplate.findFirst({
+        where: {
+          id: input.relationTemplateId,
+          ...activeOwnedWorkspace(input.workspaceId, input.requesterUserId),
+        },
+        select: {
+          governedJourney: { select: internalGovernedJourneyLedgerSelect },
+        },
+      }).then((row) => row ? { ledger: row.governedJourney } : null);
     },
 
-    async detailOwned(input) {
-      return database.$transaction(async (tx) => {
-        const ownedCase = await tx.relationCase.findFirst({
-          where: { id: input.relationCaseId, ownerId: input.requesterUserId },
-          select: { id: true },
-        });
-        if (!ownedCase) return null;
+    async findOptionalByFormTemplateId(input) {
+      return database.formTemplate.findFirst({
+        where: {
+          id: input.formTemplateId,
+          relationTemplate: activeOwnedWorkspace(input.workspaceId, input.requesterUserId),
+        },
+        select: {
+          id: true,
+          name: true,
+          relationTemplateId: true,
+          relationTemplate: {
+            select: {
+              id: true,
+              governedJourney: { select: internalGovernedJourneyLedgerSelect },
+            },
+          },
+        },
+      }).then((row) => row?.relationTemplateId && row.relationTemplate ? {
+        formTemplateId: row.id,
+        relationTemplateId: row.relationTemplate.id,
+        title: row.name,
+        ledger: row.relationTemplate.governedJourney,
+      } : null);
+    },
 
-        const journey = await tx.governedJourney.findFirst({
-          where: { id: input.journeyId, relationCaseId: input.relationCaseId },
-          select: governedJourneyReadSelect,
-        });
-        if (!journey) return null;
-        const events = await tx.governedJourneyEvent.findMany({
-          where: { governedJourneyId: input.journeyId, relationCaseId: input.relationCaseId },
-          orderBy: { sequence: "asc" },
-          select: governedJourneyEventReadSelect,
-        });
-        return { journey, events };
-      }, { isolationLevel: "RepeatableRead" });
+    async listLegacyEvents(input) {
+      const journey = await database.governedJourney.findFirst({
+        where: {
+          id: input.governedJourneyId,
+          relationTemplate: activeOwnedWorkspace(input.workspaceId, input.requesterUserId),
+        },
+        select: {
+          relationCaseId: true,
+          events: {
+            where: { relationCaseId: input.relationCaseId },
+            orderBy: { sequence: "asc" },
+            select: governedJourneyEventReadSelect,
+          },
+        },
+      });
+      if (!journey) return { kind: "NOT_FOUND" };
+      if (journey.relationCaseId === null) return { kind: "LEGACY_EVENT_LOG_UNAVAILABLE" };
+      if (journey.relationCaseId !== input.relationCaseId) return { kind: "NOT_FOUND" };
+      return { kind: "FOUND", events: journey.events };
     },
   };
 }

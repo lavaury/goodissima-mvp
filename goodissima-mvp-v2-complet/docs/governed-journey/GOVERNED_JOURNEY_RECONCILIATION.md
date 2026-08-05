@@ -1,4 +1,4 @@
-# Réconciliation du parcours gouverné — R0 / R1-A
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B
 
 ## Statut
 
@@ -7,6 +7,8 @@ Ce document fixe la doctrine transitoire initiée en R0 et le lien structurel mi
 R1-A ancre au plus une extension `GovernedJourney` sur un `RelationTemplate` grâce à l'unicité de `relationTemplateId`. `FormTemplate.id` reste l'identité UI transitoire du cockpit. Le lien historique `relationCaseId` devient facultatif et ne participe plus à l'autorité : `authorityUserId` reste obligatoire, directement lié à `User.id`, sans être contraint au propriétaire d'un dossier.
 
 Ce lot ne crée aucune extension. Le lifecycle GJ reste inerte et non synchronisé, aucune table multi-dossier n'est ajoutée avant R1-C, et aucune mémoire propre au parcours n'est implémentée.
+
+R1-B réaligne la projection interne sur cette identité structurelle sans modifier Prisma. Le lookup principal part de `RelationTemplate.id`; une résolution secondaire part de `FormTemplate.id` et suit son `relationTemplateId`. Toutes deux exigent un Workspace `ACTIVE` dont le demandeur est le propriétaire. L'absence d'extension reste normale avant R2 et ne déclenche aucune création.
 
 ## Définition canonique
 
@@ -44,7 +46,7 @@ Avant R1/R2, le cockpit ne crée automatiquement aucun `GovernedJourney`. Avant 
 - **Opérationnel** : création, identité UI, définition, participants, invitations, documents attendus, communications et pilotage du vrai parcours dans le cockpit.
 - **Journal de gouvernance** : événements append-only `GovernedJourneyEvent`; ils ne pilotent pas encore le statut opérationnel.
 - **Mémoire gouvernée** : faits, décisions, sources, relations, validations, contestations et droits `GovernedMemory*`, produits uniquement par leurs commandes explicites.
-- **Projection de lecture** : DTO internes GJ et mémoire, sans autorité propre et sans écriture métier.
+- **Projection de lecture** : lookup interne unitaire de l'extension par `RelationTemplate`, résolution depuis `FormTemplate`, sans autorité propre et sans écriture métier. `ledgerStatus` décrit uniquement l'état technique transitoire du ledger.
 
 Un événement opérationnel ou un événement du journal gouverné ne devient jamais automatiquement une mémoire probante. Une promotion en mémoire doit rester explicite, autorisée et traçable.
 
@@ -71,6 +73,8 @@ Aucun domaine ne possède deux propriétaires concurrents : `GovernedJourney` et
 
 Depuis R1-A, `GovernedJourney.relationCaseId` est facultatif et hérité du modèle case-scoped initial. Il ne définit plus l'identité de l'extension ni son autorité. Les événements GJ restent toutefois temporairement case-scoped : un GJ sans dossier ne peut pas recevoir ces événements legacy avant la réconciliation dédiée de R1-C/R2. Le parcours opérationnel peut ainsi exister sans extension et l'extension globale peut exister sans dossier, sans qu'une représentation multi-dossier soit encore introduite.
 
+Depuis R1-B, aucune liste principale par dossier n'est exposée. La lecture legacy des événements est séparée, autorisée via `RelationTemplate.workspace`, et indisponible explicitement lorsque l'extension n'a pas de `relationCaseId`. Elle ne constitue pas un journal global.
+
 ## Gel architectural
 
 - aucune interface GJ parallèle n'est autorisée;
@@ -86,7 +90,7 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 ## Plan R0 à R6
 
 - **R0 — terminologie et gel** : fixer la doctrine, les sources de vérité et les garde-fous statiques.
-- **R1 — relation structurelle 1:1** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-C traitera les contextes dossier et la dette des événements case-scoped.
+- **R1 — relation structurelle 1:1** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-B aligne les lookups internes sur `RelationTemplate` et le Workspace; R1-C traitera les contextes dossier et la dette des événements case-scoped.
 - **R2 — création atomique** : créer le lien et les éventuelles briques GJ dans la transaction opérationnelle, sans double identité.
 - **R3 — intégration lecture/journal** : intégrer la lecture et le journal au vrai cockpit, sans interface parallèle.
 - **R4 — promotions mémoire explicites** : définir les promotions autorisées, humaines, probantes et auditables.
