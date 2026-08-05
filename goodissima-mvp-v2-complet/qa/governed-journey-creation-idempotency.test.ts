@@ -10,6 +10,7 @@ import {
 } from "../lib/governed-journey/creation-idempotency.ts";
 import {
   completeCreationRequest,
+  findCompletedCreationRequest,
   isCreationRequestUniqueConflict,
   isPrismaSerializationConflict,
   isPrismaUniqueConflict,
@@ -91,6 +92,30 @@ test("completed recovery validates owner, active Workspace, fingerprint and ever
   assert.deepEqual(evaluateCompletedCreationRequest({ ...request, workspace: { ...request.workspace, ownerId: "user-b" } }, expected), { kind: "NOT_FOUND" });
   assert.deepEqual(evaluateCompletedCreationRequest({ ...request, formTemplate: { ...request.formTemplate, relationTemplateId: "rt-b" } }, expected), { kind: "CORRUPT" });
   assert.deepEqual(evaluateCompletedCreationRequest({ ...request, completedAt: null }, expected), { kind: "CORRUPT" });
+});
+
+test("creation request lookup uses only the real owner and request key compound unique", async () => {
+  const calls: unknown[] = [];
+  const database = {
+    governedJourneyCreationRequest: {
+      findUnique: async (args: unknown) => { calls.push(args); return null; },
+    },
+  };
+  const result = await findCompletedCreationRequest(database as never, {
+    requesterUserId: "user-a",
+    requestKey: "550e8400-e29b-41d4-a716-446655440000",
+    requestFingerprint: "a".repeat(64),
+    workspaceScopeKey: "id:workspace-a",
+  } as never);
+  assert.equal(result, null);
+  assert.deepEqual((calls[0] as { where: unknown }).where, {
+    requesterUserId_requestKey: {
+      requesterUserId: "user-a",
+      requestKey: "550e8400-e29b-41d4-a716-446655440000",
+    },
+  });
+  assert.doesNotMatch(repository, /findFirst\s*\(/);
+  assert.match(action, /isCreationRequestUniqueConflict[\s\S]*recoverCompletedCreationRequestSafely/);
 });
 
 test("reservation and completion are each one all-or-nothing repository write", async () => {

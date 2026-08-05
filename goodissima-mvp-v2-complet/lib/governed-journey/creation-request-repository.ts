@@ -27,7 +27,12 @@ export function findCompletedCreationRequest(
   input: { requesterUserId: string; requestKey: string },
 ) {
   return database.governedJourneyCreationRequest.findUnique({
-    where: { requesterUserId_requestKey: input },
+    where: {
+      requesterUserId_requestKey: {
+        requesterUserId: input.requesterUserId,
+        requestKey: input.requestKey,
+      },
+    },
     select: completedCreationRequestSelect,
   });
 }
