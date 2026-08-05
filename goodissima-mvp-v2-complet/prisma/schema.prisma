@@ -500,6 +500,7 @@ model User {
   governedJourneys GovernedJourney[]
   governedJourneyEvents GovernedJourneyEvent[] @relation("GovernedJourneyEventActor")
   createdGovernedJourneyRelationCaseContexts GovernedJourneyRelationCase[] @relation("GovernedJourneyRelationCaseCreator")
+  governedJourneyCreationRequests GovernedJourneyCreationRequest[] @relation("GovernedJourneyCreationRequestRequester")
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -545,6 +546,7 @@ model Workspace {
   links             GLink[]
   communicationSessions CommunicationSession[]
   governedJourneyInvitations GovernedJourneyInvitation[]
+  governedJourneyCreationRequests GovernedJourneyCreationRequest[]
 
   @@unique([ownerId, slug])
   @@index([portfolioId])
@@ -878,6 +880,7 @@ model RelationTemplate {
   communicationSessions CommunicationSession[]
   governedJourneyInvitations GovernedJourneyInvitation[]
   governedJourney GovernedJourney?
+  governedJourneyCreationRequest GovernedJourneyCreationRequest?
 
   @@index([workspaceId])
 }
@@ -1670,6 +1673,7 @@ model FormTemplate {
   fields      FormField[]
   submissions FormSubmission[]
   governedJourneys GovernedJourney[]
+  governedJourneyCreationRequest GovernedJourneyCreationRequest?
 }
 
 model GovernedJourney {
@@ -1698,6 +1702,7 @@ model GovernedJourney {
   events GovernedJourneyEvent[]
   memorySources GovernedMemorySource[] @relation("MemorySourceGovernedJourney")
   relationCaseContexts GovernedJourneyRelationCase[]
+  creationRequest GovernedJourneyCreationRequest?
 
   @@unique([id, relationTemplateId])
   @@unique([id, relationCaseId])
@@ -1706,6 +1711,32 @@ model GovernedJourney {
   @@index([relationCaseId, status, updatedAt])
   @@index([formTemplateId])
   @@index([authorityUserId, status])
+}
+
+model GovernedJourneyCreationRequest {
+  id                 String   @id @default(cuid())
+  requesterUserId    String
+  requestKey         String
+  requestFingerprint String
+  workspaceScopeKey  String
+
+  workspaceId        String?
+  relationTemplateId String?  @unique
+  formTemplateId     String?  @unique
+  governedJourneyId  String?  @unique
+
+  createdAt          DateTime @default(now())
+  completedAt        DateTime?
+
+  requester User @relation("GovernedJourneyCreationRequestRequester", fields: [requesterUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate? @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  formTemplate FormTemplate? @relation(fields: [formTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney? @relation(fields: [governedJourneyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([requesterUserId, requestKey])
+  @@index([requesterUserId, createdAt])
+  @@index([workspaceId, createdAt])
 }
 
 model GovernedJourneyRelationCase {

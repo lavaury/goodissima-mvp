@@ -1,6 +1,14 @@
-# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C1
 
 ## Statut
+
+R2-C1 ajoute uniquement la structure persistante vide `GovernedJourneyCreationRequest`. Elle sépare le protocole technique d'idempotence des identités métier `RelationTemplate`, `FormTemplate` et `GovernedJourney`. Une future clé UUID représentera une intention humaine de création et un futur fingerprint SHA-256 sera calculé côté serveur; aucune de ces valeurs n'est encore produite ou consommée dans R2-C1.
+
+La structure autorise une réservation temporaire entièrement vide de références résultat, puis une complétion tout-ou-rien vers le Workspace, le RT, le FT et le GJ. R2-C2 devra effectuer réservation, création et complétion dans une transaction unique. R2-C1 ne modifie ni l'action de création ni l'UI et ne crée aucune ligne, y compris pour les parcours historiques.
+
+Les références complétées utilisent `RESTRICT` et sont conservées aussi longtemps que le parcours existe; aucun TTL, nettoyage ou purge automatique n'est introduit. La table est protégée par RLS sans policy publique et reste réservée aux services serveur. Cette protection ne remplacera pas la future autorisation applicative owner-scoped, notamment lorsque le rôle serveur dispose de `BYPASSRLS`.
+
+R2-C1 est couvert par des tests structurels locaux. En l'absence de base PostgreSQL jetable dédiée dans ce lot, les CHECK et les cinq FK devront être validés sur staging avant le commit de livraison, sans y créer de donnée métier.
 
 R2-B crée désormais l'extension technique uniquement lors de la validation humaine finale d'un nouveau parcours depuis `/gouvernance/nouveau`. Le `Workspace`, le `RelationTemplate`, le `FormTemplate`, ses champs, la version source exacte et le `GovernedJourney` sont écrits dans la même transaction; un échec de l'extension annule l'ensemble. Aucun parcours historique n'est repris.
 

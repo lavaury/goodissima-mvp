@@ -1,6 +1,14 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R2-B — création atomique des nouvelles extensions.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. Lors de la validation humaine finale d'un nouveau parcours, `GovernedJourney` est créé comme extension technique dans la transaction opérationnelle. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
+> **Statut R2-C1 — structure d'idempotence vide.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R2-B crée `GovernedJourney` atomiquement pour les nouveaux parcours; R2-C1 ajoute seulement la table technique vide qui permettra à R2-C2 de rendre cette création idempotente. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
+
+## Requêtes de création idempotentes
+
+`GovernedJourneyCreationRequest` est un protocole technique distinct des identités métier. Sa future clé UUID désignera une intention humaine de création et son fingerprint SHA-256 sera calculé uniquement par le serveur à partir du payload validé. R2-C1 n'en transporte, calcule, réserve ou complète encore aucune instance.
+
+La table accepte deux formes seulement : une réservation sans aucune référence résultat et une requête complétée portant simultanément le Workspace, le `RelationTemplate`, le `FormTemplate`, le `GovernedJourney` et `completedAt`. Le CHECK SQL exclut tout état partiel. R2-C2 devra garder la réservation et la complétion dans la transaction opérationnelle afin qu'une réservation inachevée ne soit jamais observable après commit.
+
+Les références sont nullable pour permettre cette réservation transactionnelle, mais toutes leurs FK utilisent `RESTRICT`. Une requête complétée est conservée aussi longtemps que le parcours existe; R2-C1 n'ajoute ni TTL, purge, statut, payload JSON, retry ou donnée historique. RLS est activée sans policy publique. La table est destinée aux services serveur et la future récupération restera obligatoirement limitée au propriétaire authentifié, indépendamment d'un éventuel `BYPASSRLS` du rôle serveur.
 
 ## Pourquoi un nouvel agrégat
 
