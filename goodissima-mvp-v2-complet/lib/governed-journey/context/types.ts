@@ -14,3 +14,11 @@ export type GovernedJourneyRelationCaseContextResolution = {
 export type GovernedJourneyRelationCaseContextFormResolution = GovernedJourneyRelationCaseContextResolution & {
   formTemplateId: string;
 };
+
+export type AttachGovernedJourneyRelationCaseContextResult = {
+  governedJourneyId: string;
+  relationTemplateId: string;
+  relationCaseId: string;
+  createdAt: string;
+  created: boolean;
+};

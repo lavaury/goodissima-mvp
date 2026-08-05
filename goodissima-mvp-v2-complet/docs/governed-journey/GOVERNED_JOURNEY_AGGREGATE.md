@@ -1,6 +1,6 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R1-C2 — lectures internes des contextes.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. `GovernedJourney` est une extension technique facultative, ancrée au plus une fois sur `RelationTemplate.id`; ce n'est ni un second parcours métier ni la racine opérationnelle. R1-C1 a ajouté la structure vide de contextes et R1-C2 permet seulement de la lire en interne. Aucune extension ni aucun contexte n'est créé avant une future commande humaine.
+> **Statut R1-C3 — attachement interne explicite.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. `GovernedJourney` est une extension technique facultative, ancrée au plus une fois sur `RelationTemplate.id`; ce n'est ni un second parcours métier ni la racine opérationnelle. R1-C1 a ajouté la structure, R1-C2 sa lecture interne et R1-C3 une unique commande d'attachement humain explicite. Aucune création automatique, interface ou route n'est ajoutée.
 
 ## Pourquoi un nouvel agrégat
 
@@ -41,6 +41,10 @@ La table de contextes R1-C1 reste vide jusqu'à R1-C3. Elle n'accorde aucune per
 R1-C2 expose deux lectures internes, l'une par `RelationTemplate.id`, l'autre par résolution de `FormTemplate.id`. Elles exigent le Workspace exact, actif et possédé par le demandeur. Pour un ancrage autorisé, l'absence de GJ ou de contexte est représentée par une liste vide; aucune création ou reprise legacy n'est tentée. La liste provient exclusivement de `GovernedJourneyRelationCase`, dans l'ordre `createdAt ASC, relationCaseId ASC`.
 
 La projection contient uniquement les identifiants structurels et la date de création du contexte. Elle n'expose pas l'auteur, les données du dossier, le statut ou le titre GJ. Elle n'accorde aucun accès à la mémoire, aux pièces, participants, invitations, communications, sessions ou contacts. Un changement historique de `RelationCase.workspaceId` ne masque pas un contexte déjà persisté : R1-C2 autorise par la racine `RelationTemplate → Workspace`; les futures commandes R1-C3 porteront la cohérence du dossier au moment de l'attachement.
+
+R1-C3 permet uniquement d'attacher un dossier existant à une extension existante. La commande exige le même `RelationTemplate`, le même Workspace explicite, le même propriétaire et un Workspace `ACTIVE`. Elle est `Serializable` et idempotente : une liaison exacte existante conserve son auteur et sa date et retourne `created = false`; une première création utilise toujours le demandeur comme `createdByUserId` et retourne `created = true`.
+
+La commande ne crée jamais de GJ, n'écrit aucun événement ou objet mémoire, ne synchronise aucun statut et ne modifie pas `GovernedJourney.relationCaseId`. Elle ne fournit ni retrait, remplacement, import ou attachement multiple. Aucun droit mémoire ou dossier ne résulte de la liaison et aucune UI ou route publique ne l'expose.
 
 ## Définition figée à l'instanciation
 
