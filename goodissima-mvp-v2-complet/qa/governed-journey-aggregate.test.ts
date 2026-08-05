@@ -6,6 +6,7 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 const schema = read("prisma/schema.prisma");
 const migration = read("prisma/migrations/20260805120000_add_governed_journey_aggregate/migration.sql");
 const service = read("lib/governed-journey/service.ts");
+const extensionCreation = read("lib/governed-journey/create-extension.ts");
 const cockpit = read("app/gouvernance/parcours/[id]/pilotage/page.tsx");
 
 test("the journey aggregate is a unique RelationTemplate extension with an optional legacy case", () => {
@@ -39,6 +40,14 @@ test("creation validates authority and template version then writes instance and
   assert.match(service, /sequence: 1/);
   assert.doesNotMatch(service, /governedMemory|openai|mistral|embedding/i);
   assert.doesNotMatch(service, /\.delete\(|\.deleteMany\(/);
+});
+
+test("R2 global creation is distinct from the legacy case-scoped service and emits no initial event", () => {
+  assert.match(extensionCreation, /tx\.governedJourney\.create/);
+  assert.match(extensionCreation, /relationCaseId: null/);
+  assert.match(extensionCreation, /status: "DRAFT"/);
+  assert.doesNotMatch(extensionCreation, /governedJourneyEvent|events:\s*\{\s*create/);
+  assert.doesNotMatch(extensionCreation, /prisma\.\$transaction|createGovernedJourney\s*\(/);
 });
 
 test("the legacy cockpit remains explicitly keyed by FormTemplate", () => {

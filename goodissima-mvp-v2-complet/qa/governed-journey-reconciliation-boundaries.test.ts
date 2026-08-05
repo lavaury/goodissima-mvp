@@ -27,7 +27,9 @@ test("R0 freezes GJ as an internal extension until an explicit R1/R2/R3 revision
   assert.match(creationAction, /tx\.relationTemplate\.create/);
   assert.match(creationAction, /tx\.formTemplate\.create/);
   assert.match(creationAction, /tx\.templateVersion\.create/);
-  assert.doesNotMatch(creationAction, /(?:tx|prisma)\.governedJourney\.create|createGovernedJourney\s*\(/);
+  assert.match(creationAction, /createGovernedJourneyExtensionInTransaction/);
+  assert.doesNotMatch(creationAction, /createGovernedJourney\s*\(/);
+  assert.doesNotMatch(creationAction, /governedJourneyEvent\.create|governedJourneyRelationCase\.create/);
 
   assert.match(cockpit, /prisma\.formTemplate\.findUnique\(\{\s+where: \{ id: params\.id \}/);
   assert.match(cockpit, /formTemplate\.relationTemplate/);

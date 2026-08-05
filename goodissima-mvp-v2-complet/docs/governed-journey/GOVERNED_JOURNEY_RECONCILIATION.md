@@ -1,6 +1,12 @@
-# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B
 
 ## Statut
+
+R2-B crée désormais l'extension technique uniquement lors de la validation humaine finale d'un nouveau parcours depuis `/gouvernance/nouveau`. Le `Workspace`, le `RelationTemplate`, le `FormTemplate`, ses champs, la version source exacte et le `GovernedJourney` sont écrits dans la même transaction; un échec de l'extension annule l'ensemble. Aucun parcours historique n'est repris.
+
+L'extension R2 porte `relationCaseId = null`, l'autorité issue du propriétaire du Workspace actif, et l'identifiant exact du `TemplateVersion` créé dans cette transaction. Son `title` est une copie non canonique de `FormTemplate.name` au moment de la création, sans synchronisation future. Son statut `DRAFT` est un état technique du ledger, jamais le statut métier du cockpit.
+
+R2-B ne crée aucun événement initial, contexte dossier, mémoire, invitation, session, notification ou communication. Il ne déclenche aucune transition et ne modifie aucune route produit. Le cockpit demeure identifié par `FormTemplate.id`; l'idempotence de double soumission et de retry post-commit reste explicitement différée à R2-C.
 
 Ce document fixe la doctrine transitoire initiée en R0 et le lien structurel minimal décidé en R1-A. Il prévaut sur toute formulation antérieure qui présenterait `GovernedJourney` comme une seconde instance métier ou comme la racine opérationnelle déjà utilisée par le produit. Aucun modèle Prisma n'est renommé dans R1-A.
 
@@ -103,7 +109,7 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 
 - **R0 — terminologie et gel** : fixer la doctrine, les sources de vérité et les garde-fous statiques.
 - **R1 — réconciliation structurelle** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-B aligne les lookups internes sur `RelationTemplate` et le Workspace; R1-C1 fournit la table vide de contextes same-template; R1-C2 ajoute ses lectures internes; R1-C3 ajoute l'attachement humain explicite et idempotent; R1-C5 traitera le champ legacy et la dette des événements case-scoped.
-- **R2 — création atomique** : créer le lien et les éventuelles briques GJ dans la transaction opérationnelle, sans double identité.
+- **R2 — création atomique** : R2-B crée l'extension des nouveaux parcours dans la transaction opérationnelle, sans double identité ni événement initial; R2-C traitera l'idempotence réseau et la concurrence de soumission.
 - **R3 — intégration lecture/journal** : intégrer la lecture et le journal au vrai cockpit, sans interface parallèle.
 - **R4 — promotions mémoire explicites** : définir les promotions autorisées, humaines, probantes et auditables.
 - **R5 — parcours historiques** : traiter humainement les rattachements historiques disposant de preuves suffisantes.

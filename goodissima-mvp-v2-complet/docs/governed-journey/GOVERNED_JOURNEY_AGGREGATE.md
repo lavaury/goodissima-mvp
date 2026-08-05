@@ -1,6 +1,6 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R1-C3 — attachement interne explicite.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. `GovernedJourney` est une extension technique facultative, ancrée au plus une fois sur `RelationTemplate.id`; ce n'est ni un second parcours métier ni la racine opérationnelle. R1-C1 a ajouté la structure, R1-C2 sa lecture interne et R1-C3 une unique commande d'attachement humain explicite. Aucune création automatique, interface ou route n'est ajoutée.
+> **Statut R2-B — création atomique des nouvelles extensions.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. Lors de la validation humaine finale d'un nouveau parcours, `GovernedJourney` est créé comme extension technique dans la transaction opérationnelle. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
 
 ## Pourquoi un nouvel agrégat
 
@@ -96,6 +96,12 @@ GJ-2 permet à une `GovernedMemorySource` créée explicitement de référencer 
 Le lien est fixé à la création de la source et ne confère aucune autorité, aucun rôle ni aucune permission. Il ne transforme jamais un `GovernedJourneyEvent` en mémoire, et aucune transition ne crée de source. Les sources historiques restent non rattachées : aucun dossier, template, formulaire, `RelationEvent`, invitation, session ou voisinage temporel ne constitue un backfill probant.
 
 ## Création transactionnelle
+
+Le flux R2-B de `/gouvernance/nouveau` crée successivement le Workspace autorisé, le `RelationTemplate`, le `FormTemplate`, ses `FormField`, le `TemplateVersion`, puis le `GovernedJourney` comme dernière écriture métier de la même transaction. L'extension référence directement l'identifiant de cette version, sans recherche de dernière version après coup. Un échec à n'importe quelle étape annule toute la transaction, y compris la création éventuelle du Workspace.
+
+L'autorité R2 est exclusivement `Workspace.ownerId`, après vérification que le Workspace est `ACTIVE` et possédé par le demandeur authentifié. Un Workspace inactif n'est jamais réactivé silencieusement. Le titre GJ copie `FormTemplate.name` comme snapshot non canonique de création; `FormTemplate.name` reste la source opérationnelle et aucune synchronisation n'est prévue.
+
+Le GJ global R2 est créé en `DRAFT`, version 1, sans étape courante ni date lifecycle. Ce `DRAFT` est un état technique du ledger, distinct de tout statut métier du cockpit. Contrairement au service legacy case-scoped décrit ci-dessous, R2-B ne crée aucun événement `CREATED`, aucun contexte `RelationCase` et aucune transition. Il ne crée non plus aucune mémoire, invitation, session, notification ou communication. L'idempotence des retries et doubles soumissions appartient à R2-C.
 
 `createGovernedJourney` vérifie successivement le dossier, son propriétaire, le formulaire éventuel, le template relationnel et l'appartenance de la version au template. Le parcours et son événement sont créés dans une transaction `Serializable`. Aucun template n'est modifié et aucun objet de mémoire gouvernée n'est créé.
 
