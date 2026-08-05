@@ -4,7 +4,6 @@ import { resolveCanonicalOwnerRelationCaseId } from "@/lib/canonical-relation-ca
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-repository";
 import { prisma } from "@/lib/prisma";
-import { governedJourneyReadService } from "@/lib/governed-journey/read/service";
 import { unstable_noStore as noStore } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 
@@ -21,7 +20,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
   }
   const debugMode = isGoodissimaDebugMode();
   const now = new Date();
-  const [item, workspaceOptions, governedJourneyPage] = await Promise.all([
+  const [item, workspaceOptions] = await Promise.all([
     prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
     include: {
@@ -82,7 +81,6 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
     },
     }),
     getGovernanceWorkspaceOptions(owner.id),
-    governedJourneyReadService.list({ relationCaseId: params.caseId, requesterUserId: owner.id, limit: 3 }),
   ]);
 
   if (!item) notFound();
@@ -96,7 +94,6 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
       organizationName={organizationName}
       debugMode={debugMode}
       workspaceOptions={workspaceOptions}
-      governedJourneys={governedJourneyPage.items}
     />
   );
 }
