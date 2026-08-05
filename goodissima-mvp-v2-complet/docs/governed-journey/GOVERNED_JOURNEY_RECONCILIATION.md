@@ -1,4 +1,4 @@
-# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2
 
 ## Statut
 
@@ -11,6 +11,8 @@ Ce lot ne crée aucune extension. Le lifecycle GJ reste inerte et non synchronis
 R1-B réaligne la projection interne sur cette identité structurelle sans modifier Prisma. Le lookup principal part de `RelationTemplate.id`; une résolution secondaire part de `FormTemplate.id` et suit son `relationTemplateId`. Toutes deux exigent un Workspace `ACTIVE` dont le demandeur est le propriétaire. L'absence d'extension reste normale avant R2 et ne déclenche aucune création.
 
 R1-C1 ajoute la structure persistante vide `GovernedJourneyRelationCase`. Un contexte signifie seulement qu'un dossier participe explicitement au périmètre d'une extension. Les FK composites garantissent que le dossier et le GJ partagent le même `RelationTemplate`. La table ne reçoit aucun backfill et restera vide jusqu'aux futures commandes humaines de R1-C3. `createdByUserId` est une trace d'auteur, jamais une autorité ou une permission.
+
+R1-C2 fournit uniquement des lectures internes par `RelationTemplate.id` et par résolution de `FormTemplate.id`. Elles autorisent via le Workspace exact, `ACTIVE` et possédé par le demandeur. Pour un ancrage autorisé, un GJ absent ou sans contexte produit une liste vide. Elles ignorent entièrement `GovernedJourney.relationCaseId`, ne créent aucun contexte et n'exposent aucune donnée métier du dossier.
 
 ## Définition canonique
 
@@ -79,6 +81,8 @@ Depuis R1-B, aucune liste principale par dossier n'est exposée. La lecture lega
 
 R1-C1 ne modifie ni ces événements, ni les tables mémoire, ni leurs FK historiques. Un contexte n'est pas une preuve mémoire et n'autorise aucune promotion. `GovernedJourney.relationCaseId` reste inchangé jusqu'à la réconciliation du journal et de la provenance prévue en R1-C5. Aucune ligne legacy n'est transformée en contexte.
 
+R1-C2 n'élargit aucune lecture d'événement ou de mémoire. La présence d'un contexte n'accorde aucun droit sur le dossier, ses sources, pièces, participants, invitations, communications, sessions ou contacts. L'autorisation de lecture porte sur la racine `RelationTemplate → Workspace`; un contexte persisté n'est pas masqué si le Workspace explicite du dossier change ultérieurement. Cette cohérence sera vérifiée uniquement par les commandes humaines de R1-C3.
+
 ## Gel architectural
 
 - aucune interface GJ parallèle n'est autorisée;
@@ -94,7 +98,7 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 ## Plan R0 à R6
 
 - **R0 — terminologie et gel** : fixer la doctrine, les sources de vérité et les garde-fous statiques.
-- **R1 — réconciliation structurelle** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-B aligne les lookups internes sur `RelationTemplate` et le Workspace; R1-C1 fournit la table vide de contextes same-template; R1-C3 ajoutera les commandes humaines; R1-C5 traitera le champ legacy et la dette des événements case-scoped.
+- **R1 — réconciliation structurelle** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-B aligne les lookups internes sur `RelationTemplate` et le Workspace; R1-C1 fournit la table vide de contextes same-template; R1-C2 ajoute ses lectures internes; R1-C3 ajoutera les commandes humaines; R1-C5 traitera le champ legacy et la dette des événements case-scoped.
 - **R2 — création atomique** : créer le lien et les éventuelles briques GJ dans la transaction opérationnelle, sans double identité.
 - **R3 — intégration lecture/journal** : intégrer la lecture et le journal au vrai cockpit, sans interface parallèle.
 - **R4 — promotions mémoire explicites** : définir les promotions autorisées, humaines, probantes et auditables.
