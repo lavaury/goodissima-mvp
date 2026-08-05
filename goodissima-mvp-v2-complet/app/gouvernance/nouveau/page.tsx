@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { randomUUID } from "node:crypto";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { GovernanceJourneyAssistant } from "@/app/gouvernance/nouveau/GovernanceJourneyAssistant";
 import { createGovernedJourneyAction } from "@/lib/governance-journey-actions";
@@ -71,6 +72,8 @@ function WorkspaceFields({ workspaces }: { workspaces: GovernanceWorkspaceOption
 }
 
 export default async function NewGovernedJourneyPage() {
+  const manualRequestKey = randomUUID();
+  const assistantRequestKey = randomUUID();
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const workspaces = await getGovernanceWorkspaceOptions(owner.id);
@@ -98,9 +101,10 @@ export default async function NewGovernedJourneyPage() {
 
       <GovernedJourneyEducationalPreview />
 
-      <GovernanceJourneyAssistant workspaces={workspaces} />
+      <GovernanceJourneyAssistant workspaces={workspaces} initialRequestKey={assistantRequestKey} />
 
       <form action={createGovernedJourneyAction} data-boussole-id="manual-governed-journey-form" className="mt-6 space-y-5 rounded-lg border bg-white p-6 shadow-sm">
+        <input type="hidden" name="requestKey" value={manualRequestKey} />
         <div>
           <p className="text-sm font-semibold text-slate-500">Mode manuel</p>
           <h2 className="mt-1 text-xl font-bold text-slate-950">Creer sans assistance</h2>

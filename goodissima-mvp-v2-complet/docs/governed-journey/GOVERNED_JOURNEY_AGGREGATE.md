@@ -1,6 +1,6 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R2-C2 — protocole serveur d'idempotence.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R2-B crée `GovernedJourney` atomiquement pour les nouveaux parcours; R2-C1 fournit la table technique et R2-C2 réserve, complète ou récupère une création de façon owner-scoped. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
+> **Statut R2-C3 — transport UI de l'idempotence.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R2-B crée `GovernedJourney` atomiquement pour les nouveaux parcours; R2-C1 fournit la table technique, R2-C2 applique le protocole serveur et R2-C3 transporte deux clés indépendantes depuis les interfaces existantes. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
 
 ## Requêtes de création idempotentes
 
@@ -12,7 +12,7 @@ Une requête complétée n'est récupérée qu'avec le même propriétaire, la m
 
 La réservation, le parcours opérationnel, le GJ et la complétion sont atomiques dans une transaction `Serializable`. `P2002` n'est traité comme collision idempotente que lorsqu'il vise l'unique demandeur/clé; `P2034` autorise une seule nouvelle tentative après un jitter de 20 à 50 ms. Deux exécutions transactionnelles au maximum sont possibles. Une erreur ou un rollback ne laisse aucune réservation persistée.
 
-R2-C2 n'ajoute aucune UI : R2-C3 devra transporter une clé stable dans les deux formulaires et être déployé avec ce prérequis avant utilisation. Les doubles de transaction couvrent le protocole localement; les scénarios réellement concurrents sur PostgreSQL restent à valider en R2-C4.
+Depuis R2-C3, le rendu serveur génère une clé indépendante pour le formulaire manuel et pour l'assistant. L'assistant conserve sa clé pendant toute l'intention, y compris après « Reprendre le besoin ». Les clés ne sont ni visibles, ni dérivées du contenu ou de l'utilisateur, ni régénérées par l'action finale. R2-C2 et R2-C3 doivent être déployés ensemble. Le contrat Boussole reste inchangé et nécessite une validation humaine Preview. Les doubles de transaction couvrent le protocole localement; les scénarios réellement concurrents sur PostgreSQL restent à valider en R2-C4.
 
 La table accepte deux formes seulement : une réservation sans aucune référence résultat et une requête complétée portant simultanément le Workspace, le `RelationTemplate`, le `FormTemplate`, le `GovernedJourney` et `completedAt`. Le CHECK SQL exclut tout état partiel. R2-C2 devra garder la réservation et la complétion dans la transaction opérationnelle afin qu'une réservation inachevée ne soit jamais observable après commit.
 

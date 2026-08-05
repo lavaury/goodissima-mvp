@@ -152,7 +152,8 @@ test("the action reserves, creates, completes and retries at most twice in Seria
 });
 
 test("R2-C2 keeps UI, cockpit-facing redirect and prohibited side effects unchanged", () => {
-  assert.doesNotMatch(`${manualUi}\n${assistantUi}`, /requestKey|requestFingerprint|GovernedJourneyCreationRequest/);
+  assert.match(`${manualUi}\n${assistantUi}`, /requestKey/);
+  assert.doesNotMatch(`${manualUi}\n${assistantUi}`, /requestFingerprint|GovernedJourneyCreationRequest/);
   assert.match(action, /redirect\(`\/gouvernance\/parcours\/\$\{formTemplateId\}\/pilotage`\)/);
   assert.equal((repository.match(/governedJourneyCreationRequest\.create/g) ?? []).length, 1);
   assert.equal((repository.match(/governedJourneyCreationRequest\.updateMany/g) ?? []).length, 1);

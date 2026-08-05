@@ -65,7 +65,14 @@ function TextAreaField({
   );
 }
 
-export function GovernanceJourneyAssistant({ workspaces }: { workspaces: WorkspaceOption[] }) {
+export function GovernanceJourneyAssistant({
+  workspaces,
+  initialRequestKey,
+}: {
+  workspaces: WorkspaceOption[];
+  initialRequestKey: string;
+}) {
+  const [requestKey] = useState(initialRequestKey);
   const [need, setNeed] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
@@ -129,6 +136,7 @@ export function GovernanceJourneyAssistant({ workspaces }: { workspaces: Workspa
     if (!proposal) return;
     setError("");
     const formData = new FormData();
+    formData.set("requestKey", requestKey);
     formData.set("name", name);
     formData.set("initialNeed", need);
     formData.set("objective", objective);
