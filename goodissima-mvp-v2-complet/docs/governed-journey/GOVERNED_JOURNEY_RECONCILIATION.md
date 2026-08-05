@@ -1,6 +1,8 @@
-# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C1 / R2-C2 / R2-C3
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C / R3
 
 ## Statut
+
+R3 raccorde l'extension technique au cockpit canonique `/gouvernance/parcours/[FormTemplate.id]/pilotage` par un bloc purement read-only. Il expose seulement la date de création, la version source exacte, le nombre de contextes dossier explicites et la disponibilité structurelle du journal legacy. Les parcours historiques sans extension restent lisibles sans création automatique. Les routes GJ-4 restent 404; aucune mémoire, événement, mutation ou nouvelle identité produit n'est introduite. La mémoire gouvernée visible est reportée à R4.
 
 R2-C3 transporte deux `requestKey` distinctes générées pendant le rendu serveur : une pour le formulaire manuel et une pour l'assistant. Chaque clé reste stable pendant les retries et révisions de la même intention, notamment après « Reprendre le besoin », sans être affichée ni persistée hors de la page. Une nouvelle navigation ou un refresh produit une nouvelle paire. Aucun contrat Boussole ou `journeyVersion` ne change; une validation humaine Preview reste requise.
 

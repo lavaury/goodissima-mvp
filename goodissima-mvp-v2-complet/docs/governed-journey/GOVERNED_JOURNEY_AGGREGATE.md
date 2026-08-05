@@ -1,6 +1,12 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R2-C3 — transport UI de l'idempotence.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R2-B crée `GovernedJourney` atomiquement pour les nouveaux parcours; R2-C1 fournit la table technique, R2-C2 applique le protocole serveur et R2-C3 transporte deux clés indépendantes depuis les interfaces existantes. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
+> **Statut R3 — lecture dans le cockpit canonique.** Le cockpit fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R3 y rend visible une synthèse read-only de l'extension technique, sans réactiver GJ-4, sans reprendre l'historique et sans ajouter de mutation.
+
+## Présentation cockpit R3
+
+Le read model cockpit résout le `FormTemplate`, son `RelationTemplate` et l'extension facultative à travers un `Workspace` `ACTIVE` possédé par le demandeur. Il projette la date de création, la version exacte liée par `createdFromTemplateVersion`, le nombre de `GovernedJourneyRelationCase` explicites et la présence d'un journal legacy compatible. Il ne charge aucun événement et ne lit aucune mémoire. Le composant ne reçoit ni statut ledger, ni autorité, ni identifiant dossier ou technique.
+
+L'absence d'extension sur un ancien parcours est un état normal et n'entraîne ni création, ni backfill. L'absence de contexte legacy indique seulement que le journal global n'est pas encore activé. La mémoire gouvernée visible est prévue pour R4. Le bloc étant informatif et hors séquence Boussole, les `journeyVersion` restent inchangés sous réserve de validation humaine Preview.
 
 ## Requêtes de création idempotentes
 

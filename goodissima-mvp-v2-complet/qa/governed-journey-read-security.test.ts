@@ -14,7 +14,8 @@ test("R1-B projections exclude authority, memory and lifecycle internals", async
   const repository = await readFile(new URL("../lib/governed-journey/read/repository.ts", import.meta.url), "utf8");
   const select = repository.match(/export const internalGovernedJourneyLedgerSelect = \{[\s\S]*?\n\}/)?.[0] ?? "";
   for (const field of ["id", "relationTemplateId", "relationCaseId", "status", "createdAt", "updatedAt"]) assert.match(select, new RegExp(`\\b${field}\\b`));
-  for (const forbidden of ["title", "authorityUserId", "currentStepKey", "version", "startedAt", "suspendedAt", "closedAt", "cancelledAt", "memorySources"]) {
+  assert.match(select, /createdFromTemplateVersion: \{ select: \{ version: true \} \}/);
+  for (const forbidden of ["title", "authorityUserId", "currentStepKey", "startedAt", "suspendedAt", "closedAt", "cancelledAt", "memorySources"]) {
     assert.doesNotMatch(select, new RegExp(`\\b${forbidden}\\b`));
   }
   assert.doesNotMatch(repository, /GovernedMemory|memorySource/i);

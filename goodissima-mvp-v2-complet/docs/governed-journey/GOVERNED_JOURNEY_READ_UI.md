@@ -1,8 +1,14 @@
-# Gel de l'interface de lecture GJ-4
+# Lecture R3 dans le cockpit canonique
 
-> **Statut R1-B.** `GovernedJourney` n'est pas la racine opérationnelle. Les lectures décrites ici sont des briques internes non exposées, désormais ancrées sur `RelationTemplate` et autorisées par son `Workspace`. Aucune réactivation n'est autorisée avant R3. La doctrine canonique est définie dans `GOVERNED_JOURNEY_RECONCILIATION.md`.
+> **Statut R3.** `GovernedJourney` n'est pas la racine opérationnelle. R3 raccorde une synthèse strictement read-only au cockpit fondé sur `FormTemplate.id`; les routes GJ-4 restent neutralisées. La doctrine canonique est définie dans `GOVERNED_JOURNEY_RECONCILIATION.md`.
 
 L'interface GJ-4 est temporairement neutralisée. Le cockpit historique fondé sur `FormTemplate` et `RelationTemplate`, accessible sous `/gouvernance/parcours/[FormTemplate.id]/pilotage`, reste l'unique interface produit des parcours gouvernés.
+
+## Bloc cockpit R3
+
+Le bloc « Gouvernance du parcours » présente l'extension technique dans le vrai cockpit, sans navigation ni action supplémentaire. Une extension présente affiche sa date de création, la version exacte de `createdFromTemplateVersion`, le seul nombre de contextes explicites et la disponibilité structurelle du journal legacy. Les événements ne sont pas chargés et l'absence de `relationCaseId` legacy est décrite comme un journal global non encore activé.
+
+Un parcours historique sans extension reste supporté avec un état neutre. R3 ne crée aucune extension, aucun contexte, aucun événement et aucun backfill. Le DTO du composant exclut le statut ledger, l'autorité, les identifiants dossier, le fingerprint et la clé d'idempotence. Les lectures restent limitées au `Workspace` actif possédé par le demandeur. La mémoire gouvernée visible est prévue pour R4; R3 ne lit aucune mémoire.
 
 Les routes case-scoped `/cases/[caseId]/journeys` et `/cases/[caseId]/journeys/[journeyId]` retournent immédiatement une réponse 404. Elles n'authentifient aucun utilisateur, n'effectuent aucune lecture et ne rendent aucun composant. La page dossier ne présente plus de section ni de lien vers ces routes.
 
@@ -26,4 +32,4 @@ R1-A a établi l'unicité de l'extension par `RelationTemplate`; R1-B aligne uni
 
 ## Boussole
 
-Le retrait de la zone GJ-4 ne modifie aucune cible Boussole existante, notamment `case-relational-navigation`. Il ne change ni les états `EMPTY`, `POPULATED`, `FOCUSED`, ni l'ordre ou la signification d'une étape existante; aucune évolution de `journeyVersion` n'est requise.
+Le bloc R3 est informatif et reste hors séquence guidée. Il ne supprime, renomme ou déplace aucune cible existante et ne change ni les états `EMPTY`, `POPULATED`, `FOCUSED`, ni la signification d'une étape; aucune évolution de `journeyVersion` n'est requise. Une validation humaine Preview reste obligatoire.

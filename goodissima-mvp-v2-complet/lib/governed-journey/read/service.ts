@@ -36,6 +36,7 @@ function ledger(row: InternalGovernedJourneyLedgerRow): InternalGovernedJourneyL
     ledgerStatus: row.status,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    createdFromTemplateVersionNumber: row.createdFromTemplateVersion?.version ?? null,
   };
 }
 

@@ -8,6 +8,7 @@ export type InternalGovernedJourneyLedgerView = {
   ledgerStatus: GovernedJourneyStatus;
   createdAt: string;
   updatedAt: string;
+  createdFromTemplateVersionNumber: number | null;
 };
 
 export type InternalGovernedJourneyResolution = {

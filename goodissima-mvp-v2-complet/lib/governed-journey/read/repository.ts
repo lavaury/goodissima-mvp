@@ -8,6 +8,7 @@ export const internalGovernedJourneyLedgerSelect = {
   status: true,
   createdAt: true,
   updatedAt: true,
+  createdFromTemplateVersion: { select: { version: true } },
 } satisfies Prisma.GovernedJourneySelect;
 
 export const governedJourneyEventReadSelect = {

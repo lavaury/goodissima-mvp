@@ -38,11 +38,11 @@ test("FormTemplate resolution follows its RelationTemplate and derives title fro
 test("the DTO names technical status and keeps legacy nullable context explicit", async () => {
   const types = await readFile(typesPath, "utf8");
   const ledger = types.match(/export type InternalGovernedJourneyLedgerView = \{[\s\S]*?\n\};/)?.[0] ?? "";
-  for (const field of ["id", "relationTemplateId", "relationCaseId", "ledgerStatus", "createdAt", "updatedAt"]) {
+  for (const field of ["id", "relationTemplateId", "relationCaseId", "ledgerStatus", "createdAt", "updatedAt", "createdFromTemplateVersionNumber"]) {
     assert.match(ledger, new RegExp(`\\b${field}\\b`));
   }
   assert.match(ledger, /relationCaseId: string \| null/);
-  for (const forbidden of ["title", "status:", "authorityUserId", "actorUserId", "currentStepKey", "version", "startedAt", "suspendedAt", "closedAt", "cancelledAt", "visibleMemorySourceCount"]) {
+  for (const forbidden of ["title", "status:", "authorityUserId", "actorUserId", "currentStepKey", "startedAt", "suspendedAt", "closedAt", "cancelledAt", "visibleMemorySourceCount"]) {
     assert.doesNotMatch(ledger, new RegExp(forbidden));
   }
   assert.match(types, /ledgerStatus[^\n]*not the operational journey's business status/);
