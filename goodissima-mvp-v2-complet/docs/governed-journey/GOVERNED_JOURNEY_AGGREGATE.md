@@ -1,10 +1,18 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R2-C1 — structure d'idempotence vide.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R2-B crée `GovernedJourney` atomiquement pour les nouveaux parcours; R2-C1 ajoute seulement la table technique vide qui permettra à R2-C2 de rendre cette création idempotente. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
+> **Statut R2-C2 — protocole serveur d'idempotence.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R2-B crée `GovernedJourney` atomiquement pour les nouveaux parcours; R2-C1 fournit la table technique et R2-C2 réserve, complète ou récupère une création de façon owner-scoped. Aucun historique n'est repris et aucune interface ou route parallèle n'est ajoutée.
 
 ## Requêtes de création idempotentes
 
 `GovernedJourneyCreationRequest` est un protocole technique distinct des identités métier. Sa future clé UUID désignera une intention humaine de création et son fingerprint SHA-256 sera calculé uniquement par le serveur à partir du payload validé. R2-C1 n'en transporte, calcule, réserve ou complète encore aucune instance.
+
+Depuis R2-C2, la clé UUID v4 est une précondition serveur et le fingerprint SHA-256 est construit sur un objet canonique incluant le demandeur, le scope Workspace, les valeurs validées et la provenance IA normalisée. Les tableaux conservent leur ordre. Les dates, IDs générés, clés métier aléatoires et valeurs structurelles clientes sont exclus. Les fingerprints sont comparés en longueur constante avec `timingSafeEqual`.
+
+Une requête complétée n'est récupérée qu'avec le même propriétaire, la même clé, le même fingerprint et le même scope. Le Workspace et les relations RT/FT/GJ sont revalidés; un Workspace archivé produit `NOT_FOUND`, tandis qu'une clé réutilisée avec un contenu différent produit `CREATION_CONFLICT`. La récupération retourne le même `FormTemplate.id` sans nouvelle écriture.
+
+La réservation, le parcours opérationnel, le GJ et la complétion sont atomiques dans une transaction `Serializable`. `P2002` n'est traité comme collision idempotente que lorsqu'il vise l'unique demandeur/clé; `P2034` autorise une seule nouvelle tentative après un jitter de 20 à 50 ms. Deux exécutions transactionnelles au maximum sont possibles. Une erreur ou un rollback ne laisse aucune réservation persistée.
+
+R2-C2 n'ajoute aucune UI : R2-C3 devra transporter une clé stable dans les deux formulaires et être déployé avec ce prérequis avant utilisation. Les doubles de transaction couvrent le protocole localement; les scénarios réellement concurrents sur PostgreSQL restent à valider en R2-C4.
 
 La table accepte deux formes seulement : une réservation sans aucune référence résultat et une requête complétée portant simultanément le Workspace, le `RelationTemplate`, le `FormTemplate`, le `GovernedJourney` et `completedAt`. Le CHECK SQL exclut tout état partiel. R2-C2 devra garder la réservation et la complétion dans la transaction opérationnelle afin qu'une réservation inachevée ne soit jamais observable après commit.
 

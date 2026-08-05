@@ -64,11 +64,10 @@ test("the migration enables server-only RLS and contains no history or executabl
   assert.doesNotMatch(migration, /backfill|CASCADE|CREATE TRIGGER|CREATE FUNCTION|GovernedMemory|GovernedJourneyEvent|GovernedJourneyRelationCase/i);
 });
 
-test("R2-C1 leaves creation, UI, cockpit and GJ-4 behavior frozen", () => {
-  assert.doesNotMatch(action, /GovernedJourneyCreationRequest|requestFingerprint|requestKey|P2034/);
+test("R2-C2 activates only the server protocol while UI, cockpit and GJ-4 remain frozen", () => {
+  assert.match(action, /requestFingerprint|requestKey|isPrismaSerializationConflict/);
   assert.doesNotMatch(`${manualUi}\n${assistantUi}`, /requestKey|requestFingerprint|GovernedJourneyCreationRequest/);
   assert.match(action, /createGovernedJourneyExtensionInTransaction/);
-  assert.doesNotMatch(action, /governedJourneyCreationRequest\.(?:create|update|upsert)/);
   assert.match(cockpit, /prisma\.formTemplate\.findUnique/);
   assert.match(listRoute, /notFound\(\)/);
   assert.match(detailRoute, /notFound\(\)/);

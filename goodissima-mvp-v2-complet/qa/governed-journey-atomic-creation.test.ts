@@ -4,6 +4,7 @@ import test from "node:test";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const action = read("lib/governance-journey-actions.ts");
+const creationRequestRepository = read("lib/governed-journey/creation-request-repository.ts");
 const extension = read("lib/governed-journey/create-extension.ts");
 const cockpit = read("app/gouvernance/parcours/[id]/pilotage/page.tsx");
 const listRoute = read("app/cases/[caseId]/journeys/page.tsx");
@@ -61,7 +62,7 @@ test("the R2 extension contains only the technical creation snapshot and no side
 
 test("errors are stable and the cockpit contract remains FormTemplate-based", () => {
   for (const code of ["INVALID_INPUT", "NOT_FOUND", "CREATION_CONFLICT", "GOVERNED_JOURNEY_CREATION_FAILED"]) assert.ok(action.includes(`"${code}"`));
-  assert.match(action, /error\.code === "P2002"/);
+  assert.match(creationRequestRepository, /error\.code === "P2002"/);
   assert.match(action, /redirect\(`\/gouvernance\/parcours\/\$\{formTemplateId\}\/pilotage`\)/);
   assert.match(cockpit, /prisma\.formTemplate\.findUnique/);
   assert.doesNotMatch(cockpit, /prisma\.governedJourney\.(?:find|create|update|delete)/);

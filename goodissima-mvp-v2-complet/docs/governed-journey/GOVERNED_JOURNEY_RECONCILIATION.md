@@ -1,6 +1,14 @@
-# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C1
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C1 / R2-C2
 
 ## Statut
+
+R2-C2 active le protocole serveur d'idempotence. Une `requestKey` UUID v4 normalisée est obligatoire; le serveur construit un scope Workspace canonique puis un fingerprint SHA-256 du payload validé, incluant le demandeur et conservant l'ordre des listes. Aucun fingerprint client n'est accepté.
+
+Le serveur recherche d'abord une requête complétée strictement limitée au demandeur. Une récupération exige le même fingerprint et le même scope, ainsi qu'un Workspace toujours `ACTIVE`, possédé par le demandeur, et une chaîne Workspace/RT/FT/GJ cohérente. Une même clé avec un autre payload ou Workspace produit un conflit sans révéler la création antérieure.
+
+À la première création, la réservation vide, toutes les écritures R2-B et la complétion tout-ou-rien partagent une transaction `Serializable`. Le GJ reste la dernière création métier et la complétion est l'écriture technique finale. Un rollback retire donc aussi la réservation. Les conflits `P2002` ciblant la clé d'idempotence et les conflits `P2034` sont résolus avec au plus deux exécutions transactionnelles et un jitter borné; aucun état « en cours » ni boucle de retry n'est ajouté.
+
+R2-C2 ne modifie encore aucune interface. R2-C3 doit transporter la clé dans les formulaires manuel et assisté; R2-C2 et R2-C3 doivent être déployés ensemble fonctionnellement avant toute validation utilisateur. Les tests concurrents PostgreSQL réels restent réservés à R2-C4.
 
 R2-C1 ajoute uniquement la structure persistante vide `GovernedJourneyCreationRequest`. Elle sépare le protocole technique d'idempotence des identités métier `RelationTemplate`, `FormTemplate` et `GovernedJourney`. Une future clé UUID représentera une intention humaine de création et un futur fingerprint SHA-256 sera calculé côté serveur; aucune de ces valeurs n'est encore produite ou consommée dans R2-C1.
 

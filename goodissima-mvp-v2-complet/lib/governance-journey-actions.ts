@@ -4,6 +4,21 @@ import type { Prisma, WorkspaceCategory } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { createGovernedJourneyExtensionInTransaction } from "@/lib/governed-journey/create-extension";
+import {
+  buildGovernedJourneyCreationFingerprint,
+  buildWorkspaceScopeKey,
+  evaluateCompletedCreationRequest,
+  normalizeCreationRequestKey,
+} from "@/lib/governed-journey/creation-idempotency";
+import {
+  completeCreationRequest,
+  findCompletedCreationRequest,
+  isCreationRequestUniqueConflict,
+  isPrismaSerializationConflict,
+  isPrismaUniqueConflict,
+  reserveCreationRequest,
+  type CompletedCreationRequest,
+} from "@/lib/governed-journey/creation-request-repository";
 import { prisma } from "@/lib/prisma";
 
 type GovernanceJourneyActor = {
@@ -46,7 +61,7 @@ class GovernanceJourneyCreationError extends Error {
 
 const forbiddenStructuralFields = [
   "governedJourneyId", "relationTemplateId", "formTemplateId", "createdFromTemplateVersionId",
-  "authorityUserId", "relationCaseId", "status", "currentStepKey", "createdByUserId",
+  "authorityUserId", "relationCaseId", "status", "currentStepKey", "createdByUserId", "requestFingerprint",
 ] as const;
 
 function invalidInput(): never {
@@ -69,12 +84,15 @@ function boundedLines(formData: FormData, key: string, maximumLength: number, ma
 
 function validateCreationPayload(formData: FormData) {
   if (forbiddenStructuralFields.some((field) => formData.has(field))) invalidInput();
+  const requestKey = normalizeCreationRequestKey(formData.get("requestKey"));
+  if (!requestKey) invalidInput();
   const category = boundedText(formData, "workspaceCategory", 0, 32, true) as WorkspaceCategory;
   if (category && !workspaceCategories.has(category)) invalidInput();
   const workspaceId = boundedText(formData, "workspaceId", 0, 191, true);
   if (workspaceId && !/^[A-Za-z0-9_-]+$/.test(workspaceId)) invalidInput();
 
   return {
+    requestKey,
     name: boundedText(formData, "name", 2, 120),
     initialNeed: boundedText(formData, "initialNeed", 10, 2_000),
     objective: boundedText(formData, "objective", 0, 2_000, true),
@@ -91,8 +109,44 @@ function validateCreationPayload(formData: FormData) {
   };
 }
 
-function isUniqueConflict(error: unknown) {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+function validateCompletedCreationRequest(
+  request: CompletedCreationRequest,
+  expected: { requesterUserId: string; requestKey: string; requestFingerprint: string; workspaceScopeKey: string },
+) {
+  const result = evaluateCompletedCreationRequest(request, expected);
+  if (result.kind === "SUCCESS") return result.formTemplateId;
+  if (result.kind === "CONFLICT") throw new GovernanceJourneyCreationError("CREATION_CONFLICT");
+  if (result.kind === "NOT_FOUND") throw new GovernanceJourneyCreationError("NOT_FOUND");
+  throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+}
+
+async function recoverCompletedCreationRequest(expected: {
+  requesterUserId: string;
+  requestKey: string;
+  requestFingerprint: string;
+  workspaceScopeKey: string;
+}) {
+  const request = await findCompletedCreationRequest(prisma, expected);
+  return request ? validateCompletedCreationRequest(request, expected) : null;
+}
+
+async function recoverCompletedCreationRequestSafely(expected: {
+  requesterUserId: string;
+  requestKey: string;
+  requestFingerprint: string;
+  workspaceScopeKey: string;
+}) {
+  try {
+    return await recoverCompletedCreationRequest(expected);
+  } catch (error) {
+    if (error instanceof GovernanceJourneyCreationError) throw error;
+    throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+  }
+}
+
+function waitForSerializationRetry() {
+  const delay = 20 + Math.floor(Math.random() * 31);
+  return new Promise<void>((resolve) => setTimeout(resolve, delay));
 }
 
 function csvWords(value: string) {
@@ -262,15 +316,45 @@ export async function createGovernedJourneyAction(formData: FormData) {
   const owner = await getCurrentPrismaUser();
   const payload = validateCreationPayload(formData);
   const {
-    name, initialNeed, workspaceId, workspaceName, workspaceCategory, participants, documents,
+    requestKey, name, initialNeed, workspaceId, workspaceName, workspaceCategory, participants, documents,
     confidentialityRules, firstActions, aiProvider, aiModel, aiPromptVersion,
   } = payload;
   const objective = payload.objective || initialNeed;
   const requestedWorkspace = workspaceName || `workspace-${owner.id}`;
   const workspaceSlug = workspaceSlugFrom(requestedWorkspace) || `workspace-${owner.id.toLowerCase()}`;
   const resolvedWorkspaceName = workspaceName || workspaceNameFromSlug(workspaceSlug) || "Workspace Goodissima";
+  const workspaceScopeKey = buildWorkspaceScopeKey({ workspaceId, workspaceSlug });
+  const aiProvenance = aiProvider || aiModel || aiPromptVersion
+    ? {
+        provider: aiProvider || "unknown",
+        model: aiModel || "unknown",
+        promptVersion: aiPromptVersion || "unknown",
+      }
+    : null;
+  const requestFingerprint = buildGovernedJourneyCreationFingerprint({
+    requesterUserId: owner.id,
+    workspaceScopeKey,
+    name,
+    initialNeed,
+    objective,
+    workspaceCategory,
+    participants,
+    documents,
+    confidentialityRules,
+    firstActions,
+    aiProvenance,
+  });
+  const idempotencyExpectation = { requesterUserId: owner.id, requestKey, requestFingerprint, workspaceScopeKey };
 
-  const key = await uniqueRelationTemplateKey(normalizeKey(name));
+  const existingFormTemplateId = await recoverCompletedCreationRequestSafely(idempotencyExpectation);
+  if (existingFormTemplateId) redirect(`/gouvernance/parcours/${existingFormTemplateId}/pilotage`);
+
+  let key: string;
+  try {
+    key = await uniqueRelationTemplateKey(normalizeKey(name));
+  } catch {
+    throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+  }
   const formKey = `${key}_FORM`.slice(0, 80);
   const now = new Date().toISOString();
   const intent = {
@@ -422,9 +506,18 @@ export async function createGovernedJourneyAction(formData: FormData) {
     kpis: [],
   };
 
-  let formTemplateId: string;
-  try {
-    formTemplateId = await prisma.$transaction(async (tx) => {
+  let formTemplateId: string | null = null;
+  for (let attempt = 0; attempt < 2 && !formTemplateId; attempt += 1) {
+    try {
+      formTemplateId = await prisma.$transaction(async (tx) => {
+      await reserveCreationRequest({
+        tx,
+        requesterUserId: owner.id,
+        requestKey,
+        requestFingerprint,
+        workspaceScopeKey,
+      });
+
       const selectedWorkspace = workspaceId
       ? await tx.workspace.findFirst({
           where: {
@@ -547,14 +640,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
         humanValidation: validation,
         creationPlan: plan,
         confidentialityRules,
-        aiProvenance:
-          aiProvider || aiModel || aiPromptVersion
-            ? {
-                provider: aiProvider || "unknown",
-                model: aiModel || "unknown",
-                promptVersion: aiPromptVersion || "unknown",
-              }
-            : null,
+        aiProvenance,
         requiresHumanValidation: true,
         createdById: owner.id,
         createdAt: now,
@@ -580,7 +666,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
       },
     });
 
-      await createGovernedJourneyExtensionInTransaction({
+      const governedJourney = await createGovernedJourneyExtensionInTransaction({
         tx,
         relationTemplateId: relationTemplate.id,
         formTemplateId: createdFormTemplate.id,
@@ -589,13 +675,50 @@ export async function createGovernedJourneyAction(formData: FormData) {
         title: createdFormTemplate.name,
       });
 
+      const completion = await completeCreationRequest({
+        tx,
+        requesterUserId: owner.id,
+        requestKey,
+        workspaceId: workspace.id,
+        relationTemplateId: relationTemplate.id,
+        formTemplateId: createdFormTemplate.id,
+        governedJourneyId: governedJourney.id,
+        completedAt: new Date(),
+      });
+      if (completion.count !== 1) {
+        throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+      }
+
       return createdFormTemplate.id;
-    });
-  } catch (error) {
-    if (error instanceof GovernanceJourneyCreationError) throw error;
-    if (isUniqueConflict(error)) throw new GovernanceJourneyCreationError("CREATION_CONFLICT");
-    throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+      }, { isolationLevel: "Serializable" });
+    } catch (error) {
+      if (error instanceof GovernanceJourneyCreationError) throw error;
+      if (isCreationRequestUniqueConflict(error)) {
+        const recovered = await recoverCompletedCreationRequestSafely(idempotencyExpectation);
+        if (recovered) {
+          formTemplateId = recovered;
+          break;
+        }
+        if (attempt === 0) continue;
+        throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+      }
+      if (isPrismaSerializationConflict(error)) {
+        const recovered = await recoverCompletedCreationRequestSafely(idempotencyExpectation);
+        if (recovered) {
+          formTemplateId = recovered;
+          break;
+        }
+        if (attempt === 0) {
+          await waitForSerializationRetry();
+          continue;
+        }
+        throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+      }
+      if (isPrismaUniqueConflict(error)) throw new GovernanceJourneyCreationError("CREATION_CONFLICT");
+      throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
+    }
   }
 
+  if (!formTemplateId) throw new GovernanceJourneyCreationError("GOVERNED_JOURNEY_CREATION_FAILED");
   redirect(`/gouvernance/parcours/${formTemplateId}/pilotage`);
 }
