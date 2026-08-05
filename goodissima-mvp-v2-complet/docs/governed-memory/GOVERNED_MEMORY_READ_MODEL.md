@@ -1,5 +1,7 @@
 # Lecture et reconstruction de la mémoire gouvernée — MG-3
 
+> **Statut R0 — réconciliation des parcours.** Le cockpit historique fondé sur `FormTemplate.id` reste l'unique interface produit du parcours gouverné; `GovernedJourney` n'est pas encore sa racine opérationnelle. La provenance GJ projetée par ce read model est un contexte interne et ne prouve pas le rattachement au vrai parcours. GJ-4 reste neutralisé et aucune réactivation n'est autorisée avant R1/R3. Voir `../governed-journey/GOVERNED_JOURNEY_RECONCILIATION.md`.
+
 ## Objectif et périmètre
 
 MG-3 reconstruit, sans IA, l’état gouverné d’un unique `RelationCase`. Il répond à six requêtes structurées : état à une date, comparaison de périodes, explication d’une décision, reconstruction des accès, chronologie et trace d’un objet.

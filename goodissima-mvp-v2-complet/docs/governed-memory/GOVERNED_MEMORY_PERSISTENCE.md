@@ -1,5 +1,7 @@
 # Persistance de la mémoire gouvernée — MG-2
 
+> **Statut R0 — réconciliation des parcours.** Le cockpit historique fondé sur `FormTemplate.id` reste l'unique interface produit du parcours gouverné; `GovernedJourney` n'est pas encore sa racine opérationnelle. Une provenance GJ existante est un contexte technique et ne prouve pas le rattachement au vrai parcours. GJ-4 reste neutralisé et aucune réactivation n'est autorisée avant R1/R3. Voir `../governed-journey/GOVERNED_JOURNEY_RECONCILIATION.md`.
+
 ## Périmètre
 
 MG-2 persiste, gouverne et reconstruit temporellement la mémoire d’un unique `RelationCase`, sans moteur IA ni interface. Sont persistés : faits, décisions, sources, relations typées, validations, contestations, droits, événements et affectations d’autorité. Les synthèses, inférences générées, embeddings, prompts et conversations mémoire restent absents.

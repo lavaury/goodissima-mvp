@@ -1,5 +1,7 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
+> **Statut R0 — doctrine de réconciliation.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. Malgré la terminologie historique de ce document, `GovernedJourney` est actuellement une extension technique potentielle de journal et de mémoire, pas un second parcours métier ni la racine opérationnelle. Il n'est pas créé depuis le cockpit, aucun statut n'est synchronisé et aucune réactivation produit n'est autorisée avant R1/R3. Voir `GOVERNED_JOURNEY_RECONCILIATION.md`.
+
 ## Pourquoi un nouvel agrégat
 
 `RelationTemplate`, `FormTemplate` et `TemplateVersion` décrivent une définition réutilisable. Jusqu'à GJ-0, le cockpit appelait « parcours » un `FormTemplate` et lisait son plan dans `TemplateVersion.snapshot.metadata.creationPlan`. Un `RelationTemplate` pouvant alimenter plusieurs `RelationCase`, aucun de ces objets ne représente une instance appartenant à un dossier précis.

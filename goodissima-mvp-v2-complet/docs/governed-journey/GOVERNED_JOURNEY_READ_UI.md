@@ -1,5 +1,7 @@
 # Gel de l'interface de lecture GJ-4
 
+> **Statut R0.** `GovernedJourney` n'est pas encore la racine opérationnelle. Les lectures décrites ici sont des briques internes non exposées; leur provenance éventuelle ne démontre aucun rattachement au vrai parcours opérationnel. Aucune réactivation n'est autorisée avant R1/R3. La doctrine canonique est définie dans `GOVERNED_JOURNEY_RECONCILIATION.md`.
+
 L'interface GJ-4 est temporairement neutralisée. Le cockpit historique fondé sur `FormTemplate` et `RelationTemplate`, accessible sous `/gouvernance/parcours/[FormTemplate.id]/pilotage`, reste l'unique interface produit des parcours gouvernés.
 
 Les routes case-scoped `/cases/[caseId]/journeys` et `/cases/[caseId]/journeys/[journeyId]` retournent immédiatement une réponse 404. Elles n'authentifient aucun utilisateur, n'effectuent aucune lecture et ne rendent aucun composant. La page dossier ne présente plus de section ni de lien vers ces routes.
