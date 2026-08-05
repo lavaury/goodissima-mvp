@@ -499,6 +499,7 @@ model User {
   revokedMemoryRoles GovernedMemoryRoleAssignment[] @relation("MemoryRoleRevoker")
   governedJourneys GovernedJourney[]
   governedJourneyEvents GovernedJourneyEvent[] @relation("GovernedJourneyEventActor")
+  createdGovernedJourneyRelationCaseContexts GovernedJourneyRelationCase[] @relation("GovernedJourneyRelationCaseCreator")
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -731,6 +732,7 @@ model RelationCase {
   workspace         Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   governedJourneyInvitations GovernedJourneyInvitation[]
   governedJourneys GovernedJourney[]
+  governedJourneyContexts GovernedJourneyRelationCase[]
   template          RelationTemplate?   @relation(fields: [templateId], references: [id])
   candidateIdentity GoodissimaIdentity? @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
   messages          Message[]
@@ -757,6 +759,7 @@ model RelationCase {
   memoryRoleAssignments GovernedMemoryRoleAssignment[]
 
   @@unique([id, ownerId])
+  @@unique([id, templateId])
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
@@ -1694,13 +1697,32 @@ model GovernedJourney {
   createdFromTemplateVersion TemplateVersion @relation(fields: [createdFromTemplateVersionId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   events GovernedJourneyEvent[]
   memorySources GovernedMemorySource[] @relation("MemorySourceGovernedJourney")
+  relationCaseContexts GovernedJourneyRelationCase[]
 
+  @@unique([id, relationTemplateId])
   @@unique([id, relationCaseId])
   @@unique([id, relationCaseId, authorityUserId])
   @@index([relationCaseId, status, createdAt])
   @@index([relationCaseId, status, updatedAt])
   @@index([formTemplateId])
   @@index([authorityUserId, status])
+}
+
+model GovernedJourneyRelationCase {
+  governedJourneyId  String
+  relationCaseId     String
+  relationTemplateId String
+  createdByUserId    String
+  createdAt          DateTime @default(now())
+
+  governedJourney GovernedJourney @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
+  createdBy User @relation("GovernedJourneyRelationCaseCreator", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([governedJourneyId, relationCaseId])
+  @@unique([relationCaseId, relationTemplateId])
+  @@index([relationTemplateId])
+  @@index([createdByUserId, createdAt])
 }
 
 model GovernedJourneyEvent {

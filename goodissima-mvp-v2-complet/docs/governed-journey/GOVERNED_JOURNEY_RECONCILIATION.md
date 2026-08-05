@@ -1,4 +1,4 @@
-# Réconciliation du parcours gouverné — R0 / R1-A / R1-B
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1
 
 ## Statut
 
@@ -9,6 +9,8 @@ R1-A ancre au plus une extension `GovernedJourney` sur un `RelationTemplate` gr�
 Ce lot ne crée aucune extension. Le lifecycle GJ reste inerte et non synchronisé, aucune table multi-dossier n'est ajoutée avant R1-C, et aucune mémoire propre au parcours n'est implémentée.
 
 R1-B réaligne la projection interne sur cette identité structurelle sans modifier Prisma. Le lookup principal part de `RelationTemplate.id`; une résolution secondaire part de `FormTemplate.id` et suit son `relationTemplateId`. Toutes deux exigent un Workspace `ACTIVE` dont le demandeur est le propriétaire. L'absence d'extension reste normale avant R2 et ne déclenche aucune création.
+
+R1-C1 ajoute la structure persistante vide `GovernedJourneyRelationCase`. Un contexte signifie seulement qu'un dossier participe explicitement au périmètre d'une extension. Les FK composites garantissent que le dossier et le GJ partagent le même `RelationTemplate`. La table ne reçoit aucun backfill et restera vide jusqu'aux futures commandes humaines de R1-C3. `createdByUserId` est une trace d'auteur, jamais une autorité ou une permission.
 
 ## Définition canonique
 
@@ -75,6 +77,8 @@ Depuis R1-A, `GovernedJourney.relationCaseId` est facultatif et hérité du mod�
 
 Depuis R1-B, aucune liste principale par dossier n'est exposée. La lecture legacy des événements est séparée, autorisée via `RelationTemplate.workspace`, et indisponible explicitement lorsque l'extension n'a pas de `relationCaseId`. Elle ne constitue pas un journal global.
 
+R1-C1 ne modifie ni ces événements, ni les tables mémoire, ni leurs FK historiques. Un contexte n'est pas une preuve mémoire et n'autorise aucune promotion. `GovernedJourney.relationCaseId` reste inchangé jusqu'à la réconciliation du journal et de la provenance prévue en R1-C5. Aucune ligne legacy n'est transformée en contexte.
+
 ## Gel architectural
 
 - aucune interface GJ parallèle n'est autorisée;
@@ -90,7 +94,7 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 ## Plan R0 à R6
 
 - **R0 — terminologie et gel** : fixer la doctrine, les sources de vérité et les garde-fous statiques.
-- **R1 — relation structurelle 1:1** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-B aligne les lookups internes sur `RelationTemplate` et le Workspace; R1-C traitera les contextes dossier et la dette des événements case-scoped.
+- **R1 — réconciliation structurelle** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-B aligne les lookups internes sur `RelationTemplate` et le Workspace; R1-C1 fournit la table vide de contextes same-template; R1-C3 ajoutera les commandes humaines; R1-C5 traitera le champ legacy et la dette des événements case-scoped.
 - **R2 — création atomique** : créer le lien et les éventuelles briques GJ dans la transaction opérationnelle, sans double identité.
 - **R3 — intégration lecture/journal** : intégrer la lecture et le journal au vrai cockpit, sans interface parallèle.
 - **R4 — promotions mémoire explicites** : définir les promotions autorisées, humaines, probantes et auditables.

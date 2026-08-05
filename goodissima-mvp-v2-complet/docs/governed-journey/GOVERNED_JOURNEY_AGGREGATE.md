@@ -1,18 +1,20 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R1-A — identité réconciliée.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. `GovernedJourney` est une extension technique facultative, ancrée au plus une fois sur `RelationTemplate.id`; ce n'est ni un second parcours métier ni la racine opérationnelle. Son `relationCaseId` est désormais facultatif et hérité, son autorité est directement liée à `User` plutôt qu'au propriétaire du dossier, son lifecycle reste inerte, et aucune extension n'est créée avant R2. Aucune table multi-dossier ou mémoire de parcours n'est ajoutée dans R1-A. Voir `GOVERNED_JOURNEY_RECONCILIATION.md`.
+> **Statut R1-C1 — contextes persistants sans données.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. `GovernedJourney` est une extension technique facultative, ancrée au plus une fois sur `RelationTemplate.id`; ce n'est ni un second parcours métier ni la racine opérationnelle. R1-C1 ajoute uniquement la structure vide permettant de référencer explicitement plusieurs dossiers partageant ce même template. Aucune extension ni aucun contexte n'est créé avant une future commande humaine.
 
 ## Pourquoi un nouvel agrégat
 
 `RelationTemplate`, `FormTemplate` et `TemplateVersion` décrivent une définition réutilisable. Jusqu'à GJ-0, le cockpit appelait « parcours » un `FormTemplate` et lisait son plan dans `TemplateVersion.snapshot.metadata.creationPlan`. Un `RelationTemplate` pouvant alimenter plusieurs `RelationCase`, aucun de ces objets ne représente une instance appartenant à un dossier précis.
 
-`GovernedJourney` prolonge techniquement la racine opérationnelle sans créer une seconde identité. Sa hiérarchie R1-A est :
+`GovernedJourney` prolonge techniquement la racine opérationnelle sans créer une seconde identité. Sa hiérarchie R1-C1 est :
 
 ```text
 FormTemplate (identité UI) ─── RelationTemplate (racine structurelle)
                                       │ 0..1
                                       └── GovernedJourney (extension technique)
-RelationCase (contexte historique facultatif, non identitaire)
+                                      │ 0..n
+                                      └── GovernedJourneyRelationCase
+                                             └── RelationCase (contexte explicite, non identitaire)
 ```
 
 Un template partagé ne confère aucun accès aux dossiers qui l'utilisent.
@@ -20,7 +22,10 @@ Un template partagé ne confère aucun accès aux dossiers qui l'utilisent.
 ## Cardinalités, propriétaire et autorité
 
 - une extension appartient à exactement un `RelationTemplate`, qui ne peut porter qu'une extension ;
-- `relationCaseId` est un contexte historique facultatif et ne représente pas encore le multi-dossier ;
+- `relationCaseId` reste un contexte historique facultatif conservé jusqu'à R1-C5 pour le journal et la provenance legacy ;
+- `GovernedJourneyRelationCase` représente uniquement la participation explicite d'un dossier au périmètre de l'extension ;
+- les deux FK composites garantissent en SQL que le GJ et le dossier partagent le même `RelationTemplate` ;
+- `createdByUserId` trace l'auteur d'une future liaison explicite mais ne lui confère aucune autorité ;
 - le vrai parcours et ses dossiers peuvent exister sans extension ;
 - la version source reste une provenance figée de l'extension lorsqu'elle sera créée ;
 - `ownerId` désigne le propriétaire institutionnel ou technique du dossier ;
@@ -30,6 +35,8 @@ Un template partagé ne confère aucun accès aux dossiers qui l'utilisent.
 - toutes les relations structurantes utilisent `ON DELETE RESTRICT`.
 
 Le service de création GJ reste inchangé et case-scoped jusqu'à R2; il ne doit pas être appelé par le cockpit dans R1-A. La future autorité ne sera déduite ni de `metadata.createdById`, ni d'une invitation, ni d'une `CommunicationSession`. Un mécanisme d'affectation explicite devra historiser la nomination, la révocation et leur auteur. Un simple accès au dossier ne devra jamais suffire.
+
+La table de contextes R1-C1 reste vide jusqu'à R1-C3. Elle n'accorde aucune permission, ne prouve aucune provenance mémoire et ne déclenche ni événement, transition, création d'extension ou synchronisation. Aucun `relationCaseId` legacy n'y est recopié.
 
 ## Définition figée à l'instanciation
 
