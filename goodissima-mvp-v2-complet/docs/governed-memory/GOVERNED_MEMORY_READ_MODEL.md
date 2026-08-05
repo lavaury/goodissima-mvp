@@ -157,3 +157,10 @@ Une validation PostgreSQL réelle reste requise pour mesurer l’isolation, la p
 ## Boussole
 
 MG-3 ne crée aucune page, étape, cible ou donnée produit. `journeyVersion` reste inchangée.
+## Projection cockpit R4
+
+R4 réutilise les règles d'accès mémoire courantes dans le cockpit canonique. L'accès au `FormTemplate` et au `Workspace ACTIVE` ne remplace jamais `VIEW_MEMORY`, `VIEW_SOURCES` ou un grant ressource plus strict. Les sources directement liées au `GovernedJourney` définissent le périmètre explicite; les faits et décisions doivent posséder une `GovernedMemoryRelation` vers l'une de ces sources.
+
+La projection ne filtre aucun état de fait, décision ou source. Les lignes supprimées logiquement ou anonymisées restent comptées lorsqu'elles sont autorisées, avec contenu neutralisé. Les sources non autorisées sont entièrement exclues et ne fuient pas dans le compteur. Les références polymorphiques invalides sont exclues et tracées côté serveur par raison et nombre, sans identifiant. L'ordre est `recordedAt DESC`, puis identifiant interne décroissant uniquement avant production d'une clé opaque SHA-256 non affichée.
+
+La provenance ne charge jamais le journal complet : une source reliée à un événement expose uniquement une formulation humaine et son horodatage. La dernière validation persistée peut être affichée comme preuve explicite, y compris lorsqu'elle est un rejet; elle ne transforme pas l'état persistant de l'unité. R4 est sans mutation, IA, backfill ou création automatique.

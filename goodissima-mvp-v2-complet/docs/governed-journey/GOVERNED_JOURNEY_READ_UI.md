@@ -10,6 +10,12 @@ Le bloc « Gouvernance du parcours » présente l'extension technique dans le vr
 
 Un parcours historique sans extension reste supporté avec un état neutre. R3 ne crée aucune extension, aucun contexte, aucun événement et aucun backfill. Le DTO du composant exclut le statut ledger, l'autorité, les identifiants dossier, le fingerprint et la clé d'idempotence. Les lectures restent limitées au `Workspace` actif possédé par le demandeur. La mémoire gouvernée visible est prévue pour R4; R3 ne lit aucune mémoire.
 
+## Mémoire cockpit R4
+
+R4 ajoute sous ce bloc une section « Mémoire gouvernée », toujours dans le cockpit canonique. Elle projette exhaustivement les sources directement rattachées à l'extension et les faits ou décisions explicitement reliés à ces sources. Aucun état persistant n'est filtré arbitrairement : l'état réel reçoit un libellé humain et une indication d'activité distincte. Les restrictions `VIEW_MEMORY`, `VIEW_SOURCES` et les grants ressource restent prioritaires et les éléments invisibles ne participent pas au compteur.
+
+Le journal et la mémoire restent séparés. R4 ne charge pas le journal complet; seul l'horodatage d'un événement source explicitement lié peut décrire la provenance. Une validation n'est affichée que lorsqu'une ligne `GovernedMemoryValidation` la prouve. Aucune mémoire, validation, relation ou provenance n'est créée ou reconstruite. Les parcours sans extension et les extensions sans mémoire possèdent des états neutres dédiés.
+
 Les routes case-scoped `/cases/[caseId]/journeys` et `/cases/[caseId]/journeys/[journeyId]` retournent immédiatement une réponse 404. Elles n'authentifient aucun utilisateur, n'effectuent aucune lecture et ne rendent aucun composant. La page dossier ne présente plus de section ni de lien vers ces routes.
 
 ## Brique de lecture interne R1-B

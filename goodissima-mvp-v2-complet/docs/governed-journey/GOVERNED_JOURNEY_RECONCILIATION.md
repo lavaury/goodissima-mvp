@@ -1,6 +1,8 @@
-# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C / R3
+# Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C / R3 / R4
 
 ## Statut
+
+R4 rend les mémoires gouvernées autorisées dans le cockpit canonique, immédiatement sous le bloc R3. La lecture reste exhaustive sur les `SOURCE` directement rattachées au GJ et les `FACT`/`DECISION` explicitement reliés à ces sources, sans filtre de statut. Les restrictions mémoire gagnent sur l'accès owner au cockpit. Les états, provenances et validations sont projetés sans identifiants techniques, sans confusion avec le journal et sans aucune mutation ou IA.
 
 R3 raccorde l'extension technique au cockpit canonique `/gouvernance/parcours/[FormTemplate.id]/pilotage` par un bloc purement read-only. Il expose seulement la date de création, la version source exacte, le nombre de contextes dossier explicites et la disponibilité structurelle du journal legacy. Les parcours historiques sans extension restent lisibles sans création automatique. Les routes GJ-4 restent 404; aucune mémoire, événement, mutation ou nouvelle identité produit n'est introduite. La mémoire gouvernée visible est reportée à R4.
 

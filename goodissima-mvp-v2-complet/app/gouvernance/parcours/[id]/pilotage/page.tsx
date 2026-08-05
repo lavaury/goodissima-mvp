@@ -7,6 +7,7 @@ import { GovernedMeetingSubmitButton } from "@/components/GovernedMeetingSubmitB
 import { ConfirmMeetingCancellationButton } from "@/components/ConfirmMeetingCancellationButton";
 import { GovernanceReviewAIAssistant } from "@/components/GovernanceReviewAIAssistant";
 import { GovernedJourneyCockpitCard } from "@/components/governed-journey/GovernedJourneyCockpitCard";
+import { GovernedMemoryCockpitSection } from "@/components/governed-journey/GovernedMemoryCockpitSection";
 import { ConfirmGovernanceReviewTransitionButton } from "@/components/ConfirmGovernanceReviewTransitionButton";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
@@ -24,6 +25,7 @@ import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-reposi
 import { changeGovernedJourneyWorkspaceAction } from "@/lib/governance-workspace-actions";
 import { prisma } from "@/lib/prisma";
 import { governedJourneyCockpitReadService } from "@/lib/governed-journey/cockpit/read-service";
+import { governedMemoryCockpitReadService } from "@/lib/governed-journey/cockpit/memory-read-service";
 
 export const dynamic = "force-dynamic";
 
@@ -438,16 +440,26 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     text(metadata.workspaceId) ??
     "Workspace non rattaché en V1";
   const attachedWorkspaceId = formTemplate.relationTemplate?.workspaceId ?? null;
-  const governedJourneyCockpitView = attachedWorkspaceId
-    ? await governedJourneyCockpitReadService.read({
-        formTemplateId: formTemplate.id,
-        workspaceId: attachedWorkspaceId,
-        requesterUserId: owner.id,
-      }).catch((error: unknown) => {
+  const [governedJourneyCockpitView, governedMemoryCockpitView] = attachedWorkspaceId
+    ? await Promise.all([
+        governedJourneyCockpitReadService.read({
+          formTemplateId: formTemplate.id,
+          workspaceId: attachedWorkspaceId,
+          requesterUserId: owner.id,
+        }),
+        governedMemoryCockpitReadService.read({
+          formTemplateId: formTemplate.id,
+          workspaceId: attachedWorkspaceId,
+          requesterUserId: owner.id,
+        }),
+      ]).catch((error: unknown) => {
         if (error && typeof error === "object" && "code" in error && error.code === "NOT_FOUND") notFound();
         throw error;
       })
-    : { relationTemplateId: formTemplate.relationTemplate.id, extension: null };
+    : [
+        { relationTemplateId: formTemplate.relationTemplate.id, extension: null },
+        { availability: "NO_EXTENSION" as const, visibleCount: 0, items: [] },
+      ];
   const workspaceCategory = text(metadata.workspaceCategory);
   const workspacePersistence = text(metadata.workspacePersistence);
   const source = text(creationPlan.source) ?? text(metadata.source) ?? "Création V1";
@@ -557,6 +569,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       </section>
 
       <GovernedJourneyCockpitCard view={governedJourneyCockpitView} />
+
+      <GovernedMemoryCockpitSection view={governedMemoryCockpitView} />
 
       <section data-boussole-id="governed-journey-workspace" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Workspace du parcours</h2>

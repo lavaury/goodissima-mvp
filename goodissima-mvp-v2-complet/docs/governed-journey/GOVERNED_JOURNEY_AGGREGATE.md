@@ -1,12 +1,14 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R3 — lecture dans le cockpit canonique.** Le cockpit fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R3 y rend visible une synthèse read-only de l'extension technique, sans réactiver GJ-4, sans reprendre l'historique et sans ajouter de mutation.
+> **Statut R4 — mémoire dans le cockpit canonique.** Le cockpit fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R3 y rend visible l'extension technique et R4 ses mémoires persistées autorisées, sans réactiver GJ-4 et sans ajouter de mutation.
 
 ## Présentation cockpit R3
 
 Le read model cockpit résout le `FormTemplate`, son `RelationTemplate` et l'extension facultative à travers un `Workspace` `ACTIVE` possédé par le demandeur. Il projette la date de création, la version exacte liée par `createdFromTemplateVersion`, le nombre de `GovernedJourneyRelationCase` explicites et la présence d'un journal legacy compatible. Il ne charge aucun événement et ne lit aucune mémoire. Le composant ne reçoit ni statut ledger, ni autorité, ni identifiant dossier ou technique.
 
 L'absence d'extension sur un ancien parcours est un état normal et n'entraîne ni création, ni backfill. L'absence de contexte legacy indique seulement que le journal global n'est pas encore activé. La mémoire gouvernée visible est prévue pour R4. Le bloc étant informatif et hors séquence Boussole, les `journeyVersion` restent inchangés sous réserve de validation humaine Preview.
+
+R4 distingue les registres : `GovernedJourneyEvent` décrit le journal, tandis que `GovernedMemorySource`, `GovernedMemoryFact` et `GovernedMemoryDecision` constituent les unités mémorisées. Une source appartient explicitement au GJ; un fait ou une décision n'entre dans sa projection que par une relation mémoire explicite avec une telle source. Les validations enrichissent ces unités sans devenir des mémoires ni réécrire leur statut. Toutes les valeurs d'enum persistées sont projetées avec un libellé humain; seules les autorisations ou incohérences structurelles peuvent exclure une ligne.
 
 ## Requêtes de création idempotentes
 
