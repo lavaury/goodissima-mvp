@@ -1,8 +1,12 @@
-# Réconciliation du parcours gouverné — R0
+# Réconciliation du parcours gouverné — R0 / R1-A
 
 ## Statut
 
-Ce document fixe la doctrine transitoire R0. Il prévaut sur toute formulation antérieure qui présenterait `GovernedJourney` comme une seconde instance métier ou comme la racine opérationnelle déjà utilisée par le produit. Aucun modèle Prisma n'est renommé dans R0.
+Ce document fixe la doctrine transitoire initiée en R0 et le lien structurel minimal décidé en R1-A. Il prévaut sur toute formulation antérieure qui présenterait `GovernedJourney` comme une seconde instance métier ou comme la racine opérationnelle déjà utilisée par le produit. Aucun modèle Prisma n'est renommé dans R1-A.
+
+R1-A ancre au plus une extension `GovernedJourney` sur un `RelationTemplate` grâce à l'unicité de `relationTemplateId`. `FormTemplate.id` reste l'identité UI transitoire du cockpit. Le lien historique `relationCaseId` devient facultatif et ne participe plus à l'autorité : `authorityUserId` reste obligatoire, directement lié à `User.id`, sans être contraint au propriétaire d'un dossier.
+
+Ce lot ne crée aucune extension. Le lifecycle GJ reste inerte et non synchronisé, aucune table multi-dossier n'est ajoutée avant R1-C, et aucune mémoire propre au parcours n'est implémentée.
 
 ## Définition canonique
 
@@ -31,7 +35,7 @@ Les formulations « parcours `GovernedJourney` », « second parcours » et « p
 
 ## Rôle transitoire de GovernedJourney
 
-`GovernedJourney` est une extension technique non encore rattachée structurellement au parcours opérationnel. Il peut constituer à terme un journal et un contexte de provenance pour la mémoire gouvernée. Il ne doit jamais être présenté comme un second parcours métier.
+`GovernedJourney` est une extension technique facultative rattachable structurellement à un unique `RelationTemplate`. Il peut constituer à terme un journal et un contexte de provenance pour la mémoire gouvernée. Il ne doit jamais être présenté comme un second parcours métier.
 
 Avant R1/R2, le cockpit ne crée automatiquement aucun `GovernedJourney`. Avant décision produit, aucun statut opérationnel n'est synchronisé avec son lifecycle. Avant R1/R3, aucune lecture GJ n'est réactivée dans l'interface produit.
 
@@ -65,7 +69,7 @@ Aucun domaine ne possède deux propriétaires concurrents : `GovernedJourney` et
 
 ## Incompatibilité actuelle
 
-`GovernedJourney` impose encore un `relationCaseId` obligatoire. Le parcours opérationnel peut pourtant exister sans `RelationCase`, avant tout dossier, ou couvrir plusieurs dossiers par son `Workspace`. Cette différence empêche tout mapping 1:1 fiable dans R0.
+Depuis R1-A, `GovernedJourney.relationCaseId` est facultatif et hérité du modèle case-scoped initial. Il ne définit plus l'identité de l'extension ni son autorité. Les événements GJ restent toutefois temporairement case-scoped : un GJ sans dossier ne peut pas recevoir ces événements legacy avant la réconciliation dédiée de R1-C/R2. Le parcours opérationnel peut ainsi exister sans extension et l'extension globale peut exister sans dossier, sans qu'une représentation multi-dossier soit encore introduite.
 
 ## Gel architectural
 
@@ -82,7 +86,7 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 ## Plan R0 à R6
 
 - **R0 — terminologie et gel** : fixer la doctrine, les sources de vérité et les garde-fous statiques.
-- **R1 — relation structurelle 1:1** : choisir et garantir le lien entre l'instance opérationnelle et l'extension technique.
+- **R1 — relation structurelle 1:1** : R1-A garantit l'unicité `RelationTemplate` → extension; R1-C traitera les contextes dossier et la dette des événements case-scoped.
 - **R2 — création atomique** : créer le lien et les éventuelles briques GJ dans la transaction opérationnelle, sans double identité.
 - **R3 — intégration lecture/journal** : intégrer la lecture et le journal au vrai cockpit, sans interface parallèle.
 - **R4 — promotions mémoire explicites** : définir les promotions autorisées, humaines, probantes et auditables.
@@ -102,11 +106,9 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 - aucun statut concurrent;
 - aucune UI GJ parallèle.
 
-### Décisions ouvertes pour R1
+### Décisions ouvertes après R1-A
 
 - `GovernedJourney` conserve-t-il un lifecycle ou devient-il un ledger pur ?
-- quelle table porte la FK 1:1 ?
-- `relationCaseId` devient-il facultatif ou est-il remplacé ?
 - quelle autorité remplace le propriétaire du `RelationCase` ?
 - comment représenter une mémoire de parcours sans dossier obligatoire ?
 - comment gérer un parcours couvrant plusieurs `RelationCase` ?

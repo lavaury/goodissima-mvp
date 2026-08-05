@@ -8,9 +8,11 @@ const migration = read("prisma/migrations/20260805120000_add_governed_journey_ag
 const service = read("lib/governed-journey/service.ts");
 const cockpit = read("app/gouvernance/parcours/[id]/pilotage/page.tsx");
 
-test("the journey aggregate is an instance with a required case and restricted history", () => {
-  assert.match(schema, /model GovernedJourney \{[\s\S]*relationCaseId String[\s\S]*createdFromTemplateVersionId String[\s\S]*authorityUserId String/);
-  assert.match(schema, /fields: \[relationCaseId, authorityUserId\], references: \[id, ownerId\], onDelete: Restrict/);
+test("the journey aggregate is a unique RelationTemplate extension with an optional legacy case", () => {
+  assert.match(schema, /model RelationTemplate \{[\s\S]*governedJourney GovernedJourney\?/);
+  assert.match(schema, /model GovernedJourney \{[\s\S]*relationCaseId String\?[\s\S]*relationTemplateId String @unique[\s\S]*createdFromTemplateVersionId String[\s\S]*authorityUserId String/);
+  assert.match(schema, /relationCase RelationCase\? @relation\(fields: \[relationCaseId\], references: \[id\], onDelete: Restrict, onUpdate: Restrict\)/);
+  assert.match(schema, /authority User @relation\(fields: \[authorityUserId\], references: \[id\], onDelete: Restrict, onUpdate: Restrict\)/);
   assert.match(schema, /fields: \[createdFromTemplateVersionId, relationTemplateId\], references: \[id, templateId\], onDelete: Restrict/);
   assert.match(schema, /model GovernedJourneyEvent \{[\s\S]*type GovernedJourneyEventType/);
   assert.doesNotMatch(schema, /GovernedMemoryScope[^\n]*GovernedJourney/);

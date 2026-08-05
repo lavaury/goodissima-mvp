@@ -129,6 +129,7 @@ async function transitionGovernedJourney(command: GovernedJourneyCommand, input:
         },
       });
       if (!journey) throw new GovernedJourneyInvariantError("NOT_FOUND");
+      if (journey.relationCaseId === null) throw new GovernedJourneyInvariantError("NOT_FOUND");
       if (journey.authorityUserId !== input.actorUserId) throw new GovernedJourneyInvariantError("INVALID_AUTHORITY");
 
       if (isGovernedJourneyCommandIdempotent(journey.status, command)) {

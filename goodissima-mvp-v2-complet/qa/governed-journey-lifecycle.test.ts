@@ -86,6 +86,7 @@ test("transition and event are atomic, idempotence emits nothing, and failures a
 test("owner scope masks cross-owner and cross-case before authority checks", () => {
   assert.match(service, /id: input\.governedJourneyId,[\s\S]*relationCaseId: input\.relationCaseId,[\s\S]*relationCase: \{ ownerId: input\.actorUserId \}/);
   assert.match(service, /if \(!journey\) throw new GovernedJourneyInvariantError\("NOT_FOUND"\)/);
+  assert.match(service, /if \(journey\.relationCaseId === null\) throw new GovernedJourneyInvariantError\("NOT_FOUND"\)/);
   assert.match(service, /journey\.authorityUserId !== input\.actorUserId/);
   assert.doesNotMatch(service, /governedJourneyInvitation|communicationSession|contactRequest/i);
 });

@@ -874,7 +874,7 @@ model RelationTemplate {
   productFeedback ProductFeedback[]
   communicationSessions CommunicationSession[]
   governedJourneyInvitations GovernedJourneyInvitation[]
-  governedJourneys GovernedJourney[]
+  governedJourney GovernedJourney?
 
   @@index([workspaceId])
 }
@@ -1671,9 +1671,9 @@ model FormTemplate {
 
 model GovernedJourney {
   id String @id @default(cuid())
-  relationCaseId String
+  relationCaseId String?
   formTemplateId String?
-  relationTemplateId String
+  relationTemplateId String @unique
   createdFromTemplateVersionId String
   title String
   status GovernedJourneyStatus @default(DRAFT)
@@ -1687,7 +1687,7 @@ model GovernedJourney {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  relationCase RelationCase @relation(fields: [relationCaseId, authorityUserId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   authority User @relation(fields: [authorityUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   formTemplate FormTemplate? @relation(fields: [formTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
@@ -1699,7 +1699,6 @@ model GovernedJourney {
   @@unique([id, relationCaseId, authorityUserId])
   @@index([relationCaseId, status, createdAt])
   @@index([relationCaseId, status, updatedAt])
-  @@index([relationTemplateId])
   @@index([formTemplateId])
   @@index([authorityUserId, status])
 }

@@ -1,33 +1,35 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
-> **Statut R0 — doctrine de réconciliation.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. Malgré la terminologie historique de ce document, `GovernedJourney` est actuellement une extension technique potentielle de journal et de mémoire, pas un second parcours métier ni la racine opérationnelle. Il n'est pas créé depuis le cockpit, aucun statut n'est synchronisé et aucune réactivation produit n'est autorisée avant R1/R3. Voir `GOVERNED_JOURNEY_RECONCILIATION.md`.
+> **Statut R1-A — identité réconciliée.** Le cockpit historique fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. `GovernedJourney` est une extension technique facultative, ancrée au plus une fois sur `RelationTemplate.id`; ce n'est ni un second parcours métier ni la racine opérationnelle. Son `relationCaseId` est désormais facultatif et hérité, son autorité est directement liée à `User` plutôt qu'au propriétaire du dossier, son lifecycle reste inerte, et aucune extension n'est créée avant R2. Aucune table multi-dossier ou mémoire de parcours n'est ajoutée dans R1-A. Voir `GOVERNED_JOURNEY_RECONCILIATION.md`.
 
 ## Pourquoi un nouvel agrégat
 
 `RelationTemplate`, `FormTemplate` et `TemplateVersion` décrivent une définition réutilisable. Jusqu'à GJ-0, le cockpit appelait « parcours » un `FormTemplate` et lisait son plan dans `TemplateVersion.snapshot.metadata.creationPlan`. Un `RelationTemplate` pouvant alimenter plusieurs `RelationCase`, aucun de ces objets ne représente une instance appartenant à un dossier précis.
 
-`GovernedJourney` matérialise cette instance. Sa hiérarchie est :
+`GovernedJourney` prolonge techniquement la racine opérationnelle sans créer une seconde identité. Sa hiérarchie R1-A est :
 
 ```text
-RelationTemplate / FormTemplate / TemplateVersion (définition réutilisable)
-                         ↓ instanciation explicite
-RelationCase 1 ─── n GovernedJourney (instance gouvernée)
+FormTemplate (identité UI) ─── RelationTemplate (racine structurelle)
+                                      │ 0..1
+                                      └── GovernedJourney (extension technique)
+RelationCase (contexte historique facultatif, non identitaire)
 ```
 
 Un template partagé ne confère aucun accès aux dossiers qui l'utilisent.
 
 ## Cardinalités, propriétaire et autorité
 
-- un parcours appartient à exactement un `RelationCase` ;
-- un dossier peut porter plusieurs parcours ;
-- un template et une version peuvent être utilisés par plusieurs parcours ;
+- une extension appartient à exactement un `RelationTemplate`, qui ne peut porter qu'une extension ;
+- `relationCaseId` est un contexte historique facultatif et ne représente pas encore le multi-dossier ;
+- le vrai parcours et ses dossiers peuvent exister sans extension ;
+- la version source reste une provenance figée de l'extension lorsqu'elle sera créée ;
 - `ownerId` désigne le propriétaire institutionnel ou technique du dossier ;
 - `authorityUserId` désigne conceptuellement l'autorité humaine gouvernant le parcours ;
-- dans le socle provisoire GJ-0, cette autorité est obligatoirement le propriétaire réel du dossier ;
-- la FK composite `(relationCaseId, authorityUserId) → RelationCase(id, ownerId)` empêche une autorité arbitraire ;
+- depuis R1-A, l'autorité n'est plus contrainte à être le propriétaire du dossier ;
+- `authorityUserId` conserve une FK simple obligatoire vers `User.id` ;
 - toutes les relations structurantes utilisent `ON DELETE RESTRICT`.
 
-Le service ne déduit jamais l'autorité de `metadata.createdById`, d'une invitation ou du propriétaire d'un template. La restriction au propriétaire est volontairement provisoire : GJ-0 ne sait pas encore représenter un magistrat délégué, un responsable métier ou une autre autorité non propriétaire. Un futur mécanisme d'affectation append-only devra rendre explicites la nomination, la révocation et leur auteur avant d'assouplir la FK actuelle. Un simple accès au dossier ne devra jamais suffire.
+Le service de création GJ reste inchangé et case-scoped jusqu'à R2; il ne doit pas être appelé par le cockpit dans R1-A. La future autorité ne sera déduite ni de `metadata.createdById`, ni d'une invitation, ni d'une `CommunicationSession`. Un mécanisme d'affectation explicite devra historiser la nomination, la révocation et leur auteur. Un simple accès au dossier ne devra jamais suffire.
 
 ## Définition figée à l'instanciation
 
