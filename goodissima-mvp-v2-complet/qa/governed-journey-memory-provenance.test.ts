@@ -5,6 +5,7 @@ import test from "node:test";
 const read = (path: string) => readFileSync(path, "utf8");
 const schema = read("prisma/schema.prisma");
 const migration = read("prisma/migrations/20260807120000_add_governed_journey_memory_provenance/migration.sql");
+const scopeMigration = read("prisma/migrations/20260811120000_add_governed_memory_journey_scope/migration.sql");
 const memoryRepository = read("lib/governed-memory/persistence/repository.ts");
 const memoryReadRepository = read("lib/governed-memory/read/repository.ts");
 const memoryService = read("lib/governed-memory/persistence/service.ts");
@@ -27,11 +28,14 @@ test("an event requires a journey before SQL and through a database check", () =
 });
 
 test("composite foreign keys bind source, journey, event and case", () => {
-  assert.match(schema, /fields: \[governedJourneyId, relationCaseId\], references: \[id, relationCaseId\], onDelete: Restrict, onUpdate: Restrict/);
+  assert.match(schema, /fields: \[governedJourneyId, relationTemplateId\], references: \[id, relationTemplateId\], onDelete: Restrict, onUpdate: Restrict/);
+  assert.match(schema, /fields: \[relationCaseId, relationTemplateId\], references: \[id, templateId\], onDelete: Restrict, onUpdate: Restrict/);
   assert.match(schema, /fields: \[governedJourneyEventId, governedJourneyId, relationCaseId\], references: \[id, governedJourneyId, relationCaseId\], onDelete: Restrict, onUpdate: Restrict/);
   assert.match(schema, /@@unique\(\[id, governedJourneyId, relationCaseId\]\)/);
   assert.match(schema, /@@unique\(\[governedJourneyId, sequence\]\)/);
   assert.match(migration, /FOREIGN KEY \("governedJourneyId", "relationCaseId"\)[\s\S]*REFERENCES "GovernedJourney"\("id", "relationCaseId"\)[\s\S]*ON DELETE RESTRICT ON UPDATE RESTRICT/);
+  assert.match(scopeMigration, /DROP CONSTRAINT "GovernedMemorySource_governedJourneyId_relationCaseId_fkey"/);
+  assert.match(scopeMigration, /FOREIGN KEY \("governedJourneyId", "relationTemplateId"\) REFERENCES "GovernedJourney"\(id, "relationTemplateId"\) ON DELETE RESTRICT ON UPDATE RESTRICT/);
   assert.match(migration, /FOREIGN KEY \("governedJourneyEventId", "governedJourneyId", "relationCaseId"\)[\s\S]*REFERENCES "GovernedJourneyEvent"\("id", "governedJourneyId", "relationCaseId"\)[\s\S]*ON DELETE RESTRICT ON UPDATE RESTRICT/);
 });
 
@@ -49,7 +53,8 @@ test("source creation receives only explicit normalized provenance", () => {
 });
 
 test("compatible provenance is delegated to SQL and technical errors are masked", () => {
-  assert.match(memoryRepository, /governedMemorySource\.create\(\{ data: input, select: sourceSelect \}\)/);
+  assert.match(memoryRepository, /governedMemorySource\.create\(\{ data: \{ \.\.\.input, \.\.\.scope \}, select: sourceSelect \}\)/);
+  assert.match(memoryRepository, /governedJourney\.findFirst\(\{ where: \{ id: governedJourneyId, relationTemplateId: relationCase\.templateId \}/);
   assert.match(memoryService, /catch \{ throw new GovernedMemoryServiceError\("NOT_FOUND", "Memory provenance not found\."\); \}/);
   assert.doesNotMatch(memoryService, /PrismaClientKnownRequestError|DATABASE_URL|\.stack/);
 });

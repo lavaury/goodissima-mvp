@@ -157,6 +157,10 @@ La migration ne crée pas de table temporaire de rapport. Une reprise future dev
 
 Le cockpit existant continue d'utiliser son identifiant `FormTemplate`. Il n'est pas modifié et ne prétend pas recevoir un `GovernedJourneyId`. Une future transition devra introduire une route explicite d'instance ; aucune conversion silencieuse n'est faite dans GJ-0.
 
+## Fondation mémoire R5-I1
+
+Les objets mémoire portent une racine `RelationTemplate` obligatoire. Les faits et décisions peuvent référencer directement le `GovernedJourney`; le `RelationCase` devient un contexte facultatif. Les commandes historiques restent case-scoped et enrichissent leur scope côté serveur. Aucun backfill de parcours, aucune UI et aucune commande R5 ne sont activés avant R5-I2.
+
 ## Limites et suite
 
 GJ-0 n'introduit ni interface, ni API, ni mémoire de parcours, ni orientation, ni IA, ni ingestion. Le service n'est pas encore appelé par le formulaire historique, car celui-ci ne choisit aucun `RelationCase`.

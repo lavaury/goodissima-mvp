@@ -150,6 +150,10 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 - aucun statut concurrent;
 - aucune UI GJ parallèle.
 
+## R5-I1 — fondation de création mémoire
+
+R5-I1 ajoute uniquement les contrats Prisma/PostgreSQL de portée et d'idempotence. `REGISTER_SOURCE` existe sans grant et sans utilisation; `GovernedMemoryCreationRequest` reste vide et non branché. Les commandes historiques résolvent `relationTemplateId` depuis leur `RelationCase`, tandis que les futures commandes cockpit seront directement journey-scoped. Aucun écran parallèle, automatisme ou changement R4 n'est introduit.
+
 ### Décisions ouvertes après R1-A
 
 - `GovernedJourney` conserve-t-il un lifecycle ou devient-il un ledger pur ?

@@ -400,6 +400,7 @@ enum GovernedMemoryRelationType {
 enum GovernedMemoryPermission {
   VIEW_MEMORY
   VIEW_SOURCES
+  REGISTER_SOURCE
   PROPOSE_FACT
   ESTABLISH_FACT
   DISPUTE_FACT
@@ -408,6 +409,12 @@ enum GovernedMemoryPermission {
   VALIDATE_SYNTHESIS
   MANAGE_MEMORY_ACCESS
   PROMOTE_PRIVATE_SOURCE
+}
+
+enum GovernedMemoryCreationCategory {
+  FACT
+  DECISION
+  SOURCE
 }
 
 enum GovernedMemorySubjectType {
@@ -501,6 +508,7 @@ model User {
   governedJourneyEvents GovernedJourneyEvent[] @relation("GovernedJourneyEventActor")
   createdGovernedJourneyRelationCaseContexts GovernedJourneyRelationCase[] @relation("GovernedJourneyRelationCaseCreator")
   governedJourneyCreationRequests GovernedJourneyCreationRequest[] @relation("GovernedJourneyCreationRequestRequester")
+  governedMemoryCreationRequests GovernedMemoryCreationRequest[] @relation("GovernedMemoryCreationRequestRequester")
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -759,6 +767,7 @@ model RelationCase {
   memoryAccessGrants GovernedMemoryAccessGrant[]
   memoryEvents GovernedMemoryEvent[]
   memoryRoleAssignments GovernedMemoryRoleAssignment[]
+  governedMemoryCreationRequests GovernedMemoryCreationRequest[]
 
   @@unique([id, ownerId])
   @@unique([id, templateId])
@@ -881,6 +890,10 @@ model RelationTemplate {
   governedJourneyInvitations GovernedJourneyInvitation[]
   governedJourney GovernedJourney?
   governedJourneyCreationRequest GovernedJourneyCreationRequest?
+  memoryFacts GovernedMemoryFact[]
+  memoryDecisions GovernedMemoryDecision[]
+  memorySources GovernedMemorySource[]
+  governedMemoryCreationRequests GovernedMemoryCreationRequest[]
 
   @@index([workspaceId])
 }
@@ -1202,7 +1215,9 @@ model RepresentationContactEvent {
 
 model GovernedMemoryFact {
   id String @id @default(cuid())
-  relationCaseId String
+  relationTemplateId String
+  governedJourneyId String?
+  relationCaseId String?
   statement String
   status GovernedMemoryFactStatus @default(PROPOSED)
   evidenceLevel GovernedMemoryEvidenceLevel @default(DECLARED)
@@ -1218,7 +1233,9 @@ model GovernedMemoryFact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney? @relation("MemoryFactGovernedJourney", fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   author User @relation("MemoryFactAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
   authorRepresentation Representation? @relation("MemoryFactAuthorRepresentation", fields: [authorRepresentationId, authorUserId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
   establishedBy User? @relation("MemoryFactEstablisher", fields: [establishedByUserId], references: [id], onDelete: Restrict)
@@ -1226,16 +1243,21 @@ model GovernedMemoryFact {
   supersededFacts GovernedMemoryFact[] @relation("MemoryFactSupersedes")
   supersededByFact GovernedMemoryFact? @relation("MemoryFactSupersededBy", fields: [supersededByFactId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
   priorFacts GovernedMemoryFact[] @relation("MemoryFactSupersededBy")
+  creationRequest GovernedMemoryCreationRequest?
 
   @@unique([id, relationCaseId])
   @@index([relationCaseId, recordedAt, id])
   @@index([relationCaseId, effectiveFrom, effectiveUntil])
   @@index([relationCaseId, status])
+  @@index([governedJourneyId, recordedAt, id])
+  @@index([relationTemplateId, recordedAt, id])
 }
 
 model GovernedMemoryDecision {
   id String @id @default(cuid())
-  relationCaseId String
+  relationTemplateId String
+  governedJourneyId String?
+  relationCaseId String?
   title String
   rationale String
   status GovernedMemoryDecisionStatus @default(DRAFT)
@@ -1251,19 +1273,25 @@ model GovernedMemoryDecision {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney? @relation("MemoryDecisionGovernedJourney", fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   decidedBy User @relation("MemoryDecisionDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
   validatedBy User? @relation("MemoryDecisionValidator", fields: [validatedByUserId], references: [id], onDelete: Restrict)
+  creationRequest GovernedMemoryCreationRequest?
 
   @@unique([id, relationCaseId])
   @@index([relationCaseId, recordedAt, id])
   @@index([relationCaseId, effectiveFrom, effectiveUntil])
   @@index([relationCaseId, status])
+  @@index([governedJourneyId, recordedAt, id])
+  @@index([relationTemplateId, recordedAt, id])
 }
 
 model GovernedMemorySource {
   id String @id @default(cuid())
-  relationCaseId String
+  relationTemplateId String
+  relationCaseId String?
   governedJourneyId String?
   governedJourneyEventId String?
   kind GovernedMemorySourceKind
@@ -1287,10 +1315,12 @@ model GovernedMemorySource {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   promotedBy User? @relation("MemorySourcePromoter", fields: [promotedByUserId], references: [id], onDelete: Restrict)
-  governedJourney GovernedJourney? @relation("MemorySourceGovernedJourney", fields: [governedJourneyId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney? @relation("MemorySourceGovernedJourney", fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
   governedJourneyEvent GovernedJourneyEvent? @relation("MemorySourceGovernedJourneyEvent", fields: [governedJourneyEventId, governedJourneyId, relationCaseId], references: [id, governedJourneyId, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  creationRequest GovernedMemoryCreationRequest?
 
   @@unique([id, relationCaseId])
   @@index([relationCaseId, status, recordedAt])
@@ -1298,6 +1328,8 @@ model GovernedMemorySource {
   @@index([sourceObjectType, sourceObjectId])
   @@index([relationCaseId, governedJourneyId, recordedAt, id])
   @@index([relationCaseId, governedJourneyEventId])
+  @@index([governedJourneyId, recordedAt, id])
+  @@index([relationTemplateId, recordedAt, id])
 }
 
 model GovernedMemoryRelation {
@@ -1700,7 +1732,10 @@ model GovernedJourney {
   relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   createdFromTemplateVersion TemplateVersion @relation(fields: [createdFromTemplateVersionId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   events GovernedJourneyEvent[]
+  memoryFacts GovernedMemoryFact[] @relation("MemoryFactGovernedJourney")
+  memoryDecisions GovernedMemoryDecision[] @relation("MemoryDecisionGovernedJourney")
   memorySources GovernedMemorySource[] @relation("MemorySourceGovernedJourney")
+  governedMemoryCreationRequests GovernedMemoryCreationRequest[]
   relationCaseContexts GovernedJourneyRelationCase[]
   creationRequest GovernedJourneyCreationRequest?
 
@@ -1737,6 +1772,35 @@ model GovernedJourneyCreationRequest {
   @@unique([requesterUserId, requestKey])
   @@index([requesterUserId, createdAt])
   @@index([workspaceId, createdAt])
+}
+
+model GovernedMemoryCreationRequest {
+  id String @id @default(cuid())
+  requesterUserId String
+  requestKey String
+  requestFingerprint String
+  category GovernedMemoryCreationCategory
+  relationTemplateId String
+  governedJourneyId String
+  relationCaseId String?
+  factId String? @unique
+  decisionId String? @unique
+  sourceId String? @unique
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+
+  requester User @relation("GovernedMemoryCreationRequestRequester", fields: [requesterUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
+  fact GovernedMemoryFact? @relation(fields: [factId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  decision GovernedMemoryDecision? @relation(fields: [decisionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  source GovernedMemorySource? @relation(fields: [sourceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([requesterUserId, requestKey])
+  @@index([governedJourneyId, createdAt])
+  @@index([relationTemplateId, createdAt])
+  @@index([relationCaseId, createdAt])
 }
 
 model GovernedJourneyRelationCase {

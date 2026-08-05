@@ -112,6 +112,12 @@ Toutes les recherches d’objet mémoire utilisent `relationCaseId`; les identif
 
 MG-2 n’ajoute aucune API, page, composant, assistant, synthèse, génération, embedding, recherche vectorielle ou mutation automatique d’objet métier. Boussole ne reçoit ni cible ni étape ; `journeyVersion` reste inchangée.
 
+## Fondation R5-I1
+
+`relationTemplateId` devient la racine obligatoire des faits, décisions et sources. `RelationCase` devient facultatif dans le schéma, mais les commandes historiques restent case-scoped et résolvent exclusivement côté serveur `RelationCase.templateId`. Les futures commandes cockpit pourront être journey-scoped. Aucun rattachement `GovernedJourney` historique n'est déduit.
+
+`REGISTER_SOURCE` est réservé à R5-I2 : il n'est ni accordé ni utilisé ici. `GovernedMemoryCreationRequest` fournit une structure d'idempotence serveur vide, sans branchement aux commandes. R5-I1 n'ajoute aucune UI, commande produit ou création automatique.
+
 ## Risques et lots futurs
 
 - renforcer les extrémités polymorphes avec des tables ciblées si leur vocabulaire devient stable ;

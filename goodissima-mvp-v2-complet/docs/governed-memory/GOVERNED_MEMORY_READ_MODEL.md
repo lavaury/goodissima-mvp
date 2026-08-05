@@ -157,6 +157,10 @@ Une validation PostgreSQL réelle reste requise pour mesurer l’isolation, la p
 ## Boussole
 
 MG-3 ne crée aucune page, étape, cible ou donnée produit. `journeyVersion` reste inchangée.
+## Portée structurelle R5-I1
+
+Une mémoire peut être globale au parcours : `relationTemplateId` est obligatoire, `RelationCase` est un contexte facultatif et `GovernedJourney` un rattachement direct facultatif, avec au moins l'un de ces deux scopes. Les objets historiques case-only restent valides et ne reçoivent aucun parcours artificiel. La projection visible R4 ne change pas dans R5-I1.
+
 ## Projection cockpit R4
 
 R4 réutilise les règles d'accès mémoire courantes dans le cockpit canonique. L'accès au `FormTemplate` et au `Workspace ACTIVE` ne remplace jamais `VIEW_MEMORY`, `VIEW_SOURCES` ou un grant ressource plus strict. Les sources directement liées au `GovernedJourney` définissent le périmètre explicite; les faits et décisions doivent posséder une `GovernedMemoryRelation` vers l'une de ces sources.
