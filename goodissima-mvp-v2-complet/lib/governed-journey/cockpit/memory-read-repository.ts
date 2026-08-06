@@ -2,12 +2,12 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const sourceSelect = {
-  id: true, kind: true, status: true, title: true, excerpt: true, recordedAt: true,
+  id: true, kind: true, status: true, title: true, excerpt: true, recordedAt: true, relationCaseId: true,
   visibilityPolicyRef: true, governedJourneyEvent: { select: { occurredAt: true } },
 } satisfies Prisma.GovernedMemorySourceSelect;
 const relationSelect = { sourceType: true, sourceId: true, targetType: true, targetId: true } satisfies Prisma.GovernedMemoryRelationSelect;
-const factSelect = { id: true, statement: true, status: true, recordedAt: true } satisfies Prisma.GovernedMemoryFactSelect;
-const decisionSelect = { id: true, title: true, rationale: true, status: true, recordedAt: true, validatedAt: true } satisfies Prisma.GovernedMemoryDecisionSelect;
+const factSelect = { id: true, statement: true, status: true, recordedAt: true, governedJourneyId: true, relationCaseId: true } satisfies Prisma.GovernedMemoryFactSelect;
+const decisionSelect = { id: true, title: true, rationale: true, status: true, recordedAt: true, validatedAt: true, governedJourneyId: true, relationCaseId: true } satisfies Prisma.GovernedMemoryDecisionSelect;
 const validationSelect = { targetType: true, targetId: true, decision: true, validatedAt: true } satisfies Prisma.GovernedMemoryValidationSelect;
 const disputeSelect = { targetType: true, targetId: true, status: true, raisedAt: true } satisfies Prisma.GovernedMemoryDisputeSelect;
 
@@ -34,14 +34,14 @@ export function createGovernedMemoryCockpitRepository(database: PrismaClient = p
       });
     },
 
-    async listLinkedMemory(input: { governedJourneyId: string; relationCaseId: string }): Promise<GovernedMemoryCockpitRows> {
+    async listLinkedMemory(input: { governedJourneyId: string; relationCaseId: string | null }): Promise<GovernedMemoryCockpitRows> {
       const sources = await database.governedMemorySource.findMany({
-        where: { governedJourneyId: input.governedJourneyId, relationCaseId: input.relationCaseId },
+        where: { governedJourneyId: input.governedJourneyId },
         select: sourceSelect,
         orderBy: [{ recordedAt: "desc" }, { id: "desc" }],
       });
       const sourceIds = sources.map(({ id }) => id);
-      const relations = sourceIds.length ? await database.governedMemoryRelation.findMany({
+      const relations = sourceIds.length && input.relationCaseId ? await database.governedMemoryRelation.findMany({
         where: {
           relationCaseId: input.relationCaseId,
           OR: [
@@ -61,13 +61,13 @@ export function createGovernedMemoryCockpitRepository(database: PrismaClient = p
         ...factIds.map((id) => ({ targetType: "FACT" as const, targetId: id })),
         ...decisionIds.map((id) => ({ targetType: "DECISION" as const, targetId: id }))];
       const [facts, decisions, validations, disputes] = await Promise.all([
-        factIds.length ? database.governedMemoryFact.findMany({ where: { relationCaseId: input.relationCaseId, id: { in: factIds } }, select: factSelect }) : [],
-        decisionIds.length ? database.governedMemoryDecision.findMany({ where: { relationCaseId: input.relationCaseId, id: { in: decisionIds } }, select: decisionSelect }) : [],
-        targets.length ? database.governedMemoryValidation.findMany({
+        database.governedMemoryFact.findMany({ where: { OR: [{ governedJourneyId: input.governedJourneyId }, ...(input.relationCaseId && factIds.length ? [{ relationCaseId: input.relationCaseId, id: { in: factIds } }] : [])] }, select: factSelect }),
+        database.governedMemoryDecision.findMany({ where: { OR: [{ governedJourneyId: input.governedJourneyId }, ...(input.relationCaseId && decisionIds.length ? [{ relationCaseId: input.relationCaseId, id: { in: decisionIds } }] : [])] }, select: decisionSelect }),
+        targets.length && input.relationCaseId ? database.governedMemoryValidation.findMany({
           where: { relationCaseId: input.relationCaseId, OR: targets }, select: validationSelect,
           orderBy: [{ validatedAt: "desc" }, { id: "desc" }],
         }) : [],
-        targets.length ? database.governedMemoryDispute.findMany({
+        targets.length && input.relationCaseId ? database.governedMemoryDispute.findMany({
           where: { relationCaseId: input.relationCaseId, OR: targets }, select: disputeSelect,
           orderBy: [{ raisedAt: "desc" }, { id: "desc" }],
         }) : [],

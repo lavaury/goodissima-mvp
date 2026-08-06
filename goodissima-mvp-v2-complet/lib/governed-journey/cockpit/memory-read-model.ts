@@ -38,6 +38,7 @@ export type GovernedMemoryCockpitRawItem = {
   validation: { decision: GovernedMemoryValidationDecision; validatedAt: Date } | null;
   dispute: { status: "OPEN" | "RESOLVED" | "MAINTAINED" | "WITHDRAWN" } | null;
   hasExplicitContext: boolean;
+  directJourneyScope?: boolean;
 };
 
 const factStates: Record<GovernedMemoryFactStatus, { label: string; isActive: boolean }> = {
@@ -103,7 +104,7 @@ export function buildGovernedMemoryCockpitView(input: {
       recordedAt: item.recordedAt.toISOString(),
       provenance: {
         label: item.sourceEventOccurredAt ? "Issue d’un événement gouverné" : item.type === "SOURCE"
-          ? "Enregistrée explicitement dans le parcours" : "Rattachée à une source du parcours",
+          ? "Enregistrée explicitement dans le parcours" : item.directJourneyScope ? "Enregistré explicitement dans le parcours" : "Rattachée à une source du parcours",
         recordedAt: item.sourceEventOccurredAt?.toISOString() ?? null,
       },
       humanValidation: item.validation ? {

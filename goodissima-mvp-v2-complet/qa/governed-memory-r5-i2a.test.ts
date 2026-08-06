@@ -41,7 +41,7 @@ test("REGISTER_SOURCE belongs only to the three authorized writing roles", () =>
     const line = permissions.split("\n").find((candidate) => candidate.includes(`${role}:`)) ?? "";
     assert.doesNotMatch(line, /REGISTER_SOURCE/);
   }
-  assert.match(service, /permissions\.has\("VIEW_SOURCES"\)/);
+  assert.match(service, /permissions\.has\("REGISTER_SOURCE"\)/);
   assert.doesNotMatch(repository, /permission:\s*"REGISTER_SOURCE"/);
 });
 

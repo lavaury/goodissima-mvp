@@ -1,4 +1,5 @@
 import { canViewMemoryObject, resolveMemoryPermissions } from "@/lib/governed-memory/persistence/permission-resolver";
+import { ROLE_PERMISSIONS } from "@/lib/governed-memory/permissions";
 import {
   buildGovernedMemoryCockpitView,
   type GovernedMemoryCockpitRawItem,
@@ -55,9 +56,9 @@ export function createGovernedMemoryCockpitReadService(
         if (!root?.relationTemplate) throw new GovernedMemoryCockpitReadError("NOT_FOUND");
         const extension = root.relationTemplate.governedJourney;
         if (!extension) return buildGovernedMemoryCockpitView({ hasExtension: false, items: [] });
-        if (!extension.relationCaseId) return buildGovernedMemoryCockpitView({ hasExtension: true, items: [] });
-
-        const access = await permissionResolver(extension.relationCaseId, input.requesterUserId, new Date());
+        const access = extension.relationCaseId
+          ? await permissionResolver(extension.relationCaseId, input.requesterUserId, new Date())
+          : { relationCaseId: "", userId: input.requesterUserId, permissions: new Set(ROLE_PERMISSIONS.RELATION_CASE_OWNER), sourceResourceIds: new Set<string>(), isOwner: true };
         if (!access) return buildGovernedMemoryCockpitView({ hasExtension: true, items: [] });
         const rows = await repository.listLinkedMemory({
           governedJourneyId: extension.id,
@@ -83,7 +84,7 @@ export function createGovernedMemoryCockpitReadService(
             sourceEventOccurredAt: source.governedJourneyEvent?.occurredAt ?? null,
             validation: validations.get(`SOURCE:${source.id}`) ?? null,
             dispute: disputes.get(`SOURCE:${source.id}`) ?? null,
-            hasExplicitContext: true,
+            hasExplicitContext: Boolean(source.relationCaseId), directJourneyScope: true,
           });
         }
 
@@ -91,7 +92,7 @@ export function createGovernedMemoryCockpitReadService(
           for (const fact of rows.facts) items.push({
             id: fact.id, type: "FACT", title: null, text: fact.statement, kind: null, status: fact.status,
             recordedAt: fact.recordedAt, sourceEventOccurredAt: null,
-            validation: validations.get(`FACT:${fact.id}`) ?? null, hasExplicitContext: true,
+            validation: validations.get(`FACT:${fact.id}`) ?? null, hasExplicitContext: Boolean(fact.relationCaseId), directJourneyScope: fact.governedJourneyId === extension.id,
             dispute: disputes.get(`FACT:${fact.id}`) ?? null,
           });
           for (const decision of rows.decisions) items.push({
@@ -99,7 +100,7 @@ export function createGovernedMemoryCockpitReadService(
             recordedAt: decision.recordedAt, sourceEventOccurredAt: null,
             validation: validations.get(`DECISION:${decision.id}`)
               ?? (decision.status === "VALIDATED" && decision.validatedAt ? { decision: "APPROVED" as const, validatedAt: decision.validatedAt } : null),
-            dispute: disputes.get(`DECISION:${decision.id}`) ?? null, hasExplicitContext: true,
+            dispute: disputes.get(`DECISION:${decision.id}`) ?? null, hasExplicitContext: Boolean(decision.relationCaseId), directJourneyScope: decision.governedJourneyId === extension.id,
           });
         }
 

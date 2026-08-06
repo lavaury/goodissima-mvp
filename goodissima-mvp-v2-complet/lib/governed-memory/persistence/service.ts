@@ -11,7 +11,8 @@ const required = (value: string, name: string, max: number) => { if (!value?.tri
 const interval = (from: Date, until?: Date | null) => { if (!Number.isFinite(from.getTime()) || (until && (!Number.isFinite(until.getTime()) || until <= from))) throw new GovernedMemoryServiceError("INVALID_INPUT", "Temporal interval is invalid."); };
 async function permission(relationCaseId: string, actorUserId: string, now: Date, predicate: (value: Awaited<ReturnType<typeof resolveMemoryPermissions>>) => boolean, repository: GovernedMemoryRepository) {
   const resolved = await resolveMemoryPermissions(relationCaseId, actorUserId, now, repository);
-  if (!resolved || !predicate(resolved)) throw new GovernedMemoryServiceError("NOT_FOUND", "Memory scope not found.");
+  if (!resolved) throw new GovernedMemoryServiceError("NOT_FOUND", "Memory scope not found.");
+  if (!predicate(resolved)) throw new GovernedMemoryServiceError("FORBIDDEN", "Memory permission is required.");
   return resolved;
 }
 async function authorityRole(relationCaseId: string, userId: string, now: Date, repository: GovernedMemoryRepository): Promise<GovernedMemoryRole> {
@@ -75,7 +76,7 @@ async function registerSourceSafely(repository: GovernedMemoryRepository, input:
 }
 export async function registerMemorySource(actorUserId: string, input: { relationCaseId: string; kind: Exclude<GovernedMemorySourceKind, "MESSAGE_EXCERPT" | "VALIDATED_SYNTHESIS">; sourceObjectId: string; title: string; authoredAt?: Date | null; receivedAt?: Date | null; visibilityPolicyRef?: string | null; retentionPolicyRef?: string | null; integrityRef?: string | null; externalOrigin?: string | null } & GovernedJourneyMemoryProvenance, repository: GovernedMemoryRepository = governedMemoryRepository, now = new Date()) {
   const provenance = normalizeProvenance(input);
-  await permission(input.relationCaseId, actorUserId, now, (resolved) => resolved?.permissions.has("VIEW_SOURCES") === true, repository);
+  await permission(input.relationCaseId, actorUserId, now, (resolved) => resolved?.permissions.has("REGISTER_SOURCE") === true, repository);
   const sourceObjectType = sourceTypes[input.kind]; if (sourceObjectType && !await repository.findSourceObjectInCase(input.relationCaseId, sourceObjectType, input.sourceObjectId)) throw new GovernedMemoryServiceError("NOT_FOUND", "Source object not found.");
   if (input.kind === "EXTERNAL_IMPORT" && !input.externalOrigin?.trim()) throw new GovernedMemoryServiceError("INVALID_INPUT", "External origin is required.");
   return registerSourceSafely(repository, { ...input, ...provenance, title: required(input.title, "title", 300), sourceObjectType: sourceObjectType ?? input.kind, status: "ACTIVE", recordedAt: now }, actorUserId, now);

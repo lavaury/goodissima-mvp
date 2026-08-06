@@ -131,6 +131,8 @@ Le GJ global R2 est créé en `DRAFT`, version 1, sans étape courante ni date l
 
 R5-I2a aligne la racine de `GovernedMemoryEvent` sur celle des objets mémoire : `relationTemplateId` est obligatoire, tandis que `governedJourneyId` et `relationCaseId` sont facultatifs avec au moins un scope requis. Les contraintes composites garantissent la cohérence du template. Aucun événement historique n'est rattaché artificiellement à un parcours et aucun événement de parcours n'est créé.
 
+R5-I2b utilise `FormTemplate.id` comme seule identité d'entrée du cockpit et résout l'extension technique sans accepter d'autorité structurelle du client. Le contexte dossier reste facultatif et doit être une liaison préexistante. Les trois créations mémoire sont humaines, explicites, idempotentes et atomiques avec leur événement mémoire; elles ne créent aucun `GovernedJourneyEvent` et n'altèrent pas le lifecycle du parcours.
+
 La cohérence `formTemplateId/relationTemplateId` reste un contrôle transactionnel. Les cohérences dossier/autorité et template/version sont également garanties par SQL, en défense en profondeur.
 
 ## Reprise des parcours historiques

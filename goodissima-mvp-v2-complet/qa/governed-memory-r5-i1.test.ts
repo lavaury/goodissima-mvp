@@ -19,10 +19,9 @@ test("memory objects have mandatory structural roots and optional case and journ
   assert.match(migration, /No GovernedJourney is inferred/);
 });
 
-test("REGISTER_SOURCE exists while historical source authorization remains unchanged", () => {
+test("REGISTER_SOURCE remains in the schema and is activated by R5-I2b", () => {
   assert.match(schema, /VIEW_SOURCES\s+REGISTER_SOURCE\s+PROPOSE_FACT/);
-  assert.match(service, /permissions\.has\("VIEW_SOURCES"\)/);
-  assert.doesNotMatch(service, /permissions\.has\("REGISTER_SOURCE"\)/);
+  assert.match(service, /permissions\.has\("REGISTER_SOURCE"\)/);
   assert.doesNotMatch(repository, /permission:\s*"REGISTER_SOURCE"/);
 });
 

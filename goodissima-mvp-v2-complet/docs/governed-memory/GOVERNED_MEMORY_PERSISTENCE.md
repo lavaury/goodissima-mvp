@@ -122,7 +122,13 @@ En R5-I1, `REGISTER_SOURCE` n'était encore ni accordé ni utilisé. `GovernedMe
 
 `GovernedMemoryEvent` possède désormais une racine `RelationTemplate` obligatoire. `RelationCase` et `GovernedJourney` sont facultatifs, mais au moins l'un des deux scopes est obligatoire; les clés étrangères composites garantissent leur appartenance au même template. Le backfill conserve les événements historiques case-scoped et dérive uniquement `relationTemplateId` depuis `RelationCase.templateId`, sans déduire de `GovernedJourney`. Les écritures historiques résolvent la racine côté serveur dans leur transaction existante.
 
-La matrice canonique attribue désormais `REGISTER_SOURCE` à `RELATION_CASE_OWNER`, `MEMORY_STEWARD` et `MEMORY_DELEGATE` seulement. Le service historique `registerMemorySource` conserve provisoirement son contrôle `VIEW_SOURCES`; R5-I2b devra effectuer le basculement et livrer les commandes journey-scoped. Aucune UI ni création automatique n'est ajoutée.
+La matrice canonique attribue `REGISTER_SOURCE` à `RELATION_CASE_OWNER`, `MEMORY_STEWARD` et `MEMORY_DELEGATE` seulement. En R5-I2a, le service historique conservait encore provisoirement son contrôle `VIEW_SOURCES`; R5-I2b effectue ce basculement et livre les commandes journey-scoped. Aucune UI ni création automatique n'est ajoutée.
+
+## R5-I2b — commandes journey-scoped
+
+`REGISTER_SOURCE` est désormais le seul droit d'écriture d'une source ordinaire; `VIEW_SOURCES` reste strictement un droit de lecture et `PROMOTE_PRIVATE_SOURCE` conserve la promotion privée. Les commandes internes `proposeJourneyFact`, `createJourneyDecisionDraft` et `registerJourneySource` partent exclusivement de `requesterUserId`, `FormTemplate.id` et d'une clé UUID v4. Elles résolvent côté serveur le `RelationTemplate`, le Workspace propriétaire `ACTIVE`, le `GovernedJourney` et, sur demande seulement, une liaison réelle `GovernedJourneyRelationCase`.
+
+Chaque commande réserve une `GovernedMemoryCreationRequest`, revalide scope et permission, écrit l'objet dans son état initial (`PROPOSED`, `DRAFT` ou `ACTIVE`), ajoute l'événement humain correspondant, puis complète la requête dans une transaction `Serializable`. Le fingerprint SHA-256 est canonique et le lookup reste limité à `requesterUserId + requestKey`. `P2002` et `P2034` sont traités avec au plus deux tentatives et un jitter borné. Le résultat public ne contient qu'une catégorie, `created` et une clé opaque stable. Aucune UI n'est encore disponible; R5-II reste nécessaire.
 
 ## Risques et lots futurs
 
