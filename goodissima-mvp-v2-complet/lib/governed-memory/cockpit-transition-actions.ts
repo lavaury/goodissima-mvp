@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { disputeJourneyFact, establishJourneyFact, GovernedMemoryTransitionError, revokeJourneyMemoryRole, validateJourneyDecision } from "./persistence/journey-transition-service";
+import { disputeJourneyFact, establishJourneyFact, grantJourneyMemoryRole, GovernedMemoryTransitionError, revokeJourneyMemoryRole, validateJourneyDecision } from "./persistence/journey-transition-service";
 import { resolveActiveJourneyMemoryRolePublicKey } from "./cockpit-role-service";
 
 export type GovernedMemoryTransitionActionState =
   | { status: "IDLE" }
-  | { status: "SUCCESS"; transition: "ESTABLISH_FACT" | "DISPUTE_FACT" | "VALIDATE_DECISION" | "REVOKE_JOURNEY_MEMORY_ROLE"; message: string }
+  | { status: "SUCCESS"; transition: "ESTABLISH_FACT" | "DISPUTE_FACT" | "VALIDATE_DECISION" | "GRANT_JOURNEY_MEMORY_ROLE" | "REVOKE_JOURNEY_MEMORY_ROLE"; message: string }
   | { status: "ERROR"; code: "INVALID_INPUT" | "NOT_FOUND" | "FORBIDDEN" | "STATE_CONFLICT" | "TRANSITION_CONFLICT" | "ALREADY_APPLIED" | "GOVERNED_MEMORY_TRANSITION_FAILED"; message: string; fieldErrors?: Record<string, string> };
 
 export const initialGovernedMemoryTransitionActionState: GovernedMemoryTransitionActionState = { status: "IDLE" };
@@ -16,6 +16,7 @@ const messages = {
   ESTABLISH_FACT: "Le fait est maintenant établi dans la mémoire du parcours.",
   DISPUTE_FACT: "La contestation a été ouverte.",
   VALIDATE_DECISION: "La décision a été validée.",
+  GRANT_JOURNEY_MEMORY_ROLE: "Vous êtes maintenant responsable de la mémoire de ce parcours.",
   REVOKE_JOURNEY_MEMORY_ROLE: "La fonction mémoire a été révoquée. Les actions historiques restent conservées.",
 } as const;
 
@@ -35,7 +36,11 @@ async function run(formData: FormData, transition: keyof typeof messages) {
   const user = await getCurrentPrismaUser(); const formTemplateId = value(formData, "formTemplateId"); const requestKey = value(formData, "requestKey");
   try {
     if (!formTemplateId || !requestKey) throw new GovernedMemoryTransitionError("INVALID_INPUT");
-    if (transition === "REVOKE_JOURNEY_MEMORY_ROLE") {
+    if (transition === "GRANT_JOURNEY_MEMORY_ROLE") {
+      await grantJourneyMemoryRole({ requesterUserId: user.id, targetUserId: user.id, formTemplateId, requestKey, role: "MEMORY_STEWARD" });
+    } else if (transition === "REVOKE_JOURNEY_MEMORY_ROLE" && value(formData, "renounceOwnRole") === "true") {
+      await revokeJourneyMemoryRole({ requesterUserId: user.id, targetUserId: user.id, formTemplateId, requestKey, role: "MEMORY_STEWARD" });
+    } else if (transition === "REVOKE_JOURNEY_MEMORY_ROLE") {
       const resolved = await resolveActiveJourneyMemoryRolePublicKey({ requesterUserId: user.id, formTemplateId, beneficiaryKey: value(formData, "beneficiaryKey") });
       if (!resolved) throw new GovernedMemoryTransitionError("NOT_FOUND");
       await revokeJourneyMemoryRole({ requesterUserId: user.id, formTemplateId, requestKey, ...resolved });
@@ -61,3 +66,8 @@ export const establishJourneyFactAction = (_: GovernedMemoryTransitionActionStat
 export const disputeJourneyFactAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "DISPUTE_FACT");
 export const validateJourneyDecisionAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "VALIDATE_DECISION");
 export const revokeJourneyMemoryRoleAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "REVOKE_JOURNEY_MEMORY_ROLE");
+export const takeJourneyMemoryStewardRoleAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "GRANT_JOURNEY_MEMORY_ROLE");
+export const renounceJourneyMemoryStewardRoleAction = async (_: GovernedMemoryTransitionActionState, formData: FormData) => {
+  const result = await run(formData, "REVOKE_JOURNEY_MEMORY_ROLE");
+  return result.status === "SUCCESS" ? { ...result, message: "Vous n’êtes plus responsable de la mémoire. Les actions historiques restent conservées." } : result;
+};

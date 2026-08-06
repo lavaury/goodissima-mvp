@@ -184,3 +184,5 @@ Avant MG-6A, les nouvelles instances devront être créées explicitement, les �
 Le propriétaire du Workspace actif administre explicitement les fonctions mémoire du parcours sans devenir titulaire implicitement. Les transitions mémoire restent un sous-système serveur atomique et idempotent; elles n’altèrent ni l’identité canonique `FormTemplate`, ni le cycle de vie du `GovernedJourney`.
 
 Dans R5-IIIb, les confirmations sont visibles uniquement sur la route canonique fondée sur `FormTemplate.id`. Aucune route `GovernedJourney`, transition au chargement, autosave, notification ou automatisation IA n’est ajoutée.
+
+R5-IIIc permet temporairement au propriétaire du Workspace actif de devenir explicitement `MEMORY_STEWARD` de ce seul parcours, puis d’y renoncer. Cette fonction reste une affectation mémoire révocable et ne modifie ni l’autorité du parcours, ni son ownership, ni son journal faute de type d’événement métier adapté.

@@ -14,7 +14,7 @@ export async function listActiveJourneyMemoryRolesForCockpit(input: { requesterU
   const resolved = await root(database, input); const journey = resolved?.relationTemplate?.governedJourney;
   if (!journey) return null;
   const rows = await database.governedJourneyMemoryRoleAssignment.findMany({ where: { governedJourneyId: journey.id, relationTemplateId: resolved.relationTemplate!.id, revokedAt: null, role: { in: ["MEMORY_STEWARD", "MEMORY_DELEGATE"] } }, select: { userId: true, role: true, user: { select: { name: true } } }, orderBy: [{ createdAt: "asc" }] });
-  return rows.map((row) => ({ beneficiaryKey: buildPublicJourneyMemoryRoleKey({ governedJourneyId: journey.id, userId: row.userId, role: row.role }), displayName: row.user.name?.trim() || "Utilisateur Goodissima", roleLabel: labels[row.role] }));
+  return rows.map((row) => ({ beneficiaryKey: buildPublicJourneyMemoryRoleKey({ governedJourneyId: journey.id, userId: row.userId, role: row.role }), displayName: row.user.name?.trim() || "Utilisateur Goodissima", roleLabel: labels[row.role], isOrganizerSteward: row.userId === input.requesterUserId && row.role === "MEMORY_STEWARD" }));
 }
 
 export async function resolveActiveJourneyMemoryRolePublicKey(input: { requesterUserId: string; formTemplateId: string; beneficiaryKey: string }, database: PrismaClient = prisma) {

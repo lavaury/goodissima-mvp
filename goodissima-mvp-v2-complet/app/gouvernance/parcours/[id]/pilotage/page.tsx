@@ -582,7 +582,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
       <GovernedJourneyCockpitCard view={governedJourneyCockpitView} />
 
-      {governedMemoryRoles ? <GovernedMemoryRolesPanel formTemplateId={formTemplate.id} roles={governedMemoryRoles.map((role) => ({ ...role, requestKey: randomUUID() }))} /> : null}
+      {governedMemoryRoles ? <GovernedMemoryRolesPanel formTemplateId={formTemplate.id} roles={governedMemoryRoles.map((role) => ({ ...role, requestKey: randomUUID() }))} takeRequestKey={randomUUID()} renounceRequestKey={randomUUID()} /> : null}
 
       <GovernedMemoryCockpitSection
         view={governedMemoryCockpitView}

@@ -51,3 +51,5 @@ Le bloc R3 est informatif et reste hors séquence guidée. Il ne supprime, renom
 Les cartes mémoire réelles présentent des confirmations responsive et accessibles à partir des seules capabilities serveur. Le contenu reste en lecture seule; les champs portent sur la justification ou le motif. Le pending bloque le double clic, tandis que l’idempotence serveur reste la protection durable. Après succès, R4 est relu : aucune carte, validation ou contestation n’est fabriquée localement.
 
 La section `Fonctions mémoire` distingue le propriétaire du Workspace des responsables et délégués mémoire. Elle liste uniquement les affectations actives et permet leur révocation. L’attribution attend un futur sélecteur d’identité utilisateur sûr; l’Annuaire n’est pas détourné à cette fin.
+
+R5-IIIc ajoute une exception transitoire sans sélection d’un tiers : l’organisateur peut confirmer `Prendre la fonction`, puis `Renoncer à la fonction` lorsqu’il est responsable actif. Les UUID sont initialisées côté serveur, les commandes restent idempotentes et le cockpit est relu après succès. L’interface n’affiche ni enum, ni identifiant utilisateur ou d’affectation.

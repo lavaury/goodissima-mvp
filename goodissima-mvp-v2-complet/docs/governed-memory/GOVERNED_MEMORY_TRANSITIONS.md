@@ -21,3 +21,9 @@ Les capabilities booléennes sont préparées dans le read model R4, sans bouton
 Les cartes réelles affichent désormais `Établir ce fait`, `Contester ce fait` ou `Valider la décision` uniquement lorsque la capability serveur correspondante est vraie. Chaque confirmation conserve une UUID v4 initialisée côté serveur; l’établissement et la validation transmettent aussi le jeton HMAC opaque. Les Server Actions authentifient, délèguent aux commandes R5-IIIa2 et revalident le cockpit sans état optimiste fictif.
 
 Le propriétaire voit les fonctions mémoire actives et peut les révoquer avec confirmation. L’attribution visible reste arrêtée : aucun sélecteur d’utilisateur applicatif owner-scoped sûr n’existe, et les contacts de l’Annuaire ne constituent pas une identité utilisateur. Aucun champ d’ID libre, invitation ou recherche globale n’a été introduit.
+
+## R5-IIIc — règle transitoire de prise de fonction
+
+Dans l’attente d’une désignation collective, l’organisateur — le propriétaire du Workspace `ACTIVE` — peut prendre explicitement la fonction de Responsable de la mémoire pour lui-même. La Server Action fixe côté serveur la cible à l’utilisateur authentifié et le rôle canonique à `MEMORY_STEWARD`; aucune cible ni enum ne vient du client. Cette possibilité n’est ni automatique ni une propriété supplémentaire du parcours.
+
+L’organisateur responsable peut renoncer explicitement à la fonction. La ligne d’affectation est révoquée par `revokedAt`, les qualifications historiques restent conservées et les capabilities sont recalculées après revalidation. Le futur contrat collectif devra traiter vote, acceptation, remplacement et journalisation métier complète.
