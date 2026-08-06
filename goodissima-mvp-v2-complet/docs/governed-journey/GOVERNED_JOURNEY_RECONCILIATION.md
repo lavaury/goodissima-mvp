@@ -1,5 +1,7 @@
 # Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C / R3 / R4
 
+R5-IIIa1 réconcilie les validations et contestations avec les mémoires globales sans backfill de parcours. La migration ajoute une affectation mémoire journey-scoped vide et deny-by-default. R5-IIIa2 reste bloqué jusqu'à la livraison d'une attribution humaine, de l'idempotence des transitions et de la décision finale sur la contestation globale.
+
 ## État après R5-II
 
 Le cockpit `FormTemplate.id` raccorde les trois commandes R5-I2b à une action humaine explicite. Les clés de requête distinctes sont initialisées côté serveur et la lecture R4 est revalidée après succès. La capability view filtre le bouton et les catégories sans exposer permissions ou identifiants structurels.

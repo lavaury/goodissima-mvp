@@ -509,6 +509,8 @@ model User {
   createdGovernedJourneyRelationCaseContexts GovernedJourneyRelationCase[] @relation("GovernedJourneyRelationCaseCreator")
   governedJourneyCreationRequests GovernedJourneyCreationRequest[] @relation("GovernedJourneyCreationRequestRequester")
   governedMemoryCreationRequests GovernedMemoryCreationRequest[] @relation("GovernedMemoryCreationRequestRequester")
+  journeyMemoryRoles GovernedJourneyMemoryRoleAssignment[] @relation("JourneyMemoryRoleSubject")
+  grantedJourneyMemoryRoles GovernedJourneyMemoryRoleAssignment[] @relation("JourneyMemoryRoleGrantor")
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -895,6 +897,9 @@ model RelationTemplate {
   memorySources GovernedMemorySource[]
   memoryEvents GovernedMemoryEvent[]
   governedMemoryCreationRequests GovernedMemoryCreationRequest[]
+  memoryValidations GovernedMemoryValidation[]
+  memoryDisputes GovernedMemoryDispute[]
+  journeyMemoryRoleAssignments GovernedJourneyMemoryRoleAssignment[]
 
   @@index([workspaceId])
 }
@@ -1354,7 +1359,9 @@ model GovernedMemoryRelation {
 
 model GovernedMemoryValidation {
   id String @id @default(cuid())
-  relationCaseId String
+  relationTemplateId String
+  governedJourneyId String?
+  relationCaseId String?
   targetType GovernedMemoryTargetType
   targetId String
   validatorUserId String
@@ -1365,15 +1372,21 @@ model GovernedMemoryValidation {
   validatedAt DateTime
   createdAt DateTime @default(now())
 
-  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney? @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   validator User @relation(fields: [validatorUserId], references: [id], onDelete: Restrict)
 
   @@index([relationCaseId, targetType, targetId, validatedAt])
+  @@index([governedJourneyId, targetType, targetId, validatedAt])
+  @@index([relationTemplateId, validatedAt])
 }
 
 model GovernedMemoryDispute {
   id String @id @default(cuid())
-  relationCaseId String
+  relationTemplateId String
+  governedJourneyId String?
+  relationCaseId String?
   targetType GovernedMemoryTargetType
   targetId String
   raisedByUserId String
@@ -1386,13 +1399,38 @@ model GovernedMemoryDispute {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney? @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   raisedBy User @relation("MemoryDisputeRaiser", fields: [raisedByUserId], references: [id], onDelete: Restrict)
   resolvedBy User? @relation("MemoryDisputeResolver", fields: [resolvedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([id, relationCaseId])
   @@index([relationCaseId, targetType, targetId, status])
+  @@index([governedJourneyId, targetType, targetId, status])
+  @@index([relationTemplateId, raisedAt])
   @@index([relationCaseId, raisedAt])
+}
+
+model GovernedJourneyMemoryRoleAssignment {
+  id String @id @default(cuid())
+  userId String
+  governedJourneyId String
+  relationTemplateId String
+  role GovernedMemoryRole
+  grantedByUserId String
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+
+  user User @relation("JourneyMemoryRoleSubject", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  grantedBy User @relation("JourneyMemoryRoleGrantor", fields: [grantedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([userId, governedJourneyId, role])
+  @@index([userId, governedJourneyId, revokedAt])
+  @@index([governedJourneyId, revokedAt])
+  @@index([relationTemplateId])
 }
 
 model GovernedMemoryAccessGrant {
@@ -1744,6 +1782,9 @@ model GovernedJourney {
   memorySources GovernedMemorySource[] @relation("MemorySourceGovernedJourney")
   memoryEvents GovernedMemoryEvent[] @relation("MemoryEventGovernedJourney")
   governedMemoryCreationRequests GovernedMemoryCreationRequest[]
+  memoryValidations GovernedMemoryValidation[]
+  memoryDisputes GovernedMemoryDispute[]
+  memoryRoleAssignments GovernedJourneyMemoryRoleAssignment[]
   relationCaseContexts GovernedJourneyRelationCase[]
   creationRequest GovernedJourneyCreationRequest?
 

@@ -1,5 +1,7 @@
 # Lecture et reconstruction de la mémoire gouvernée — MG-3
 
+R5-IIIa1 ne modifie aucune projection visible R4. Il ajoute uniquement une lecture interne serveur des affectations journey-scoped actives, strictement cohérentes avec la même racine `RelationTemplate`; une affectation révoquée ou case-scoped n'est jamais substituée.
+
 ## Revalidation R5-II
 
 Après chaque création humaine confirmée, le cockpit canonique est revalidé et R4 relit la base. Le compteur et les cartes ne reposent sur aucun objet optimiste ou temporaire. Les états affichés sont les états initiaux réels (`PROPOSED`, `DRAFT`, `ACTIVE`) et ne constituent jamais une validation humaine.

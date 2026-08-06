@@ -1,5 +1,11 @@
 # Persistance de la mémoire gouvernée — MG-2
 
+## R5-IIIa1 — qualifications et rôles journey-scoped
+
+`GovernedMemoryValidation` et `GovernedMemoryDispute` portent une racine `relationTemplateId` obligatoire et au moins un scope parmi `relationCaseId` et `governedJourneyId`. Le backfill historique provient uniquement du dossier existant; aucun `GovernedJourney` n'est déduit. Les écritures case-scoped résolvent toujours la racine côté serveur.
+
+`GovernedJourneyMemoryRoleAssignment` conserve une affectation explicite et révocable de `MEMORY_STEWARD` ou `MEMORY_DELEGATE`. La table est protégée par RLS sans policy client et reste vide après migration. Aucun steward implicite, grant, transition ou commande d'attribution n'est créé.
+
 ## R5-II — création humaine depuis le cockpit
 
 Le cockpit canonique expose « Retenir dans la mémoire » pour les catégories permises : fait (`PROPOSE_FACT`, état `PROPOSED`), décision (`RECORD_DECISION`, état `DRAFT`) et source déterminante (`REGISTER_SOURCE`, état `ACTIVE`). `VIEW_MEMORY` et `VIEW_SOURCES` restent des droits de lecture. Chaque formulaire reçoit une clé UUID v4 distincte générée côté serveur, stable pendant la tentative et renouvelée après succès par le nouveau rendu serveur; l'idempotence, le fingerprint, la transaction et l'événement restent dans les commandes R5-I2b.

@@ -1,5 +1,7 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
+R5-IIIa1 rattache explicitement les qualifications mémoire et les affectations de steward/délégué à la racine du parcours. `authorityUserId`, la propriété du Workspace et la création du parcours ne confèrent aucun rôle mémoire. L'autorité humaine capable d'accorder ces rôles reste à définir.
+
 ## R5-II — geste mémoire explicite
 
 L'identité UI demeure `FormTemplate.id` sur `/gouvernance/parcours/[FormTemplate.id]/pilotage`. L'extension `GovernedJourney` fournit la capacité technique, sans nouvelle route ni seconde identité produit. Un humain autorisé peut proposer un fait, consigner un brouillon de décision ou référencer une source déterminante. Seule la confirmation appelle la commande journey-scoped.
