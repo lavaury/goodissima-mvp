@@ -11,9 +11,9 @@ test("memory objects have mandatory structural roots and optional case and journ
   for (const model of ["GovernedMemoryFact", "GovernedMemoryDecision", "GovernedMemorySource"]) {
     const start = schema.indexOf(`model ${model} {`);
     const block = schema.slice(start, schema.indexOf("\n}", start));
-    assert.match(block, /relationTemplateId String/);
-    assert.match(block, /relationCaseId String\?/);
-    assert.match(block, /governedJourneyId String\?/);
+    assert.match(block, /relationTemplateId\s+String/);
+    assert.match(block, /relationCaseId\s+String\?/);
+    assert.match(block, /governedJourneyId\s+String\?/);
   }
   assert.equal((migration.match(/_scope_check/g) ?? []).length, 3);
   assert.match(migration, /No GovernedJourney is inferred/);
@@ -28,7 +28,7 @@ test("REGISTER_SOURCE remains in the schema and is activated by R5-I2b", () => {
 test("creation request is unique, formatted, scoped, complete and server-only", () => {
   assert.match(schema, /model GovernedMemoryCreationRequest/);
   assert.match(schema, /@@unique\(\[requesterUserId, requestKey\]\)/);
-  for (const result of ["factId", "decisionId", "sourceId"]) assert.match(schema, new RegExp(`${result} String\\? @unique`));
+  for (const result of ["factId", "decisionId", "sourceId"]) assert.match(schema, new RegExp(`${result}\\s+String\\?\\s+@unique`));
   for (const check of ["requestKey_format_check", "requestFingerprint_format_check", "completion_check"]) assert.match(migration, new RegExp(check));
   assert.match(migration, /GovernedMemoryCreationRequest" ENABLE ROW LEVEL SECURITY/);
   assert.doesNotMatch(migration, /CREATE POLICY/);
@@ -42,7 +42,7 @@ test("all existing Prisma creations resolve relationTemplateId inside transactio
   assert.equal((repository.match(/governedMemoryFact\.create/g) ?? []).length, 2);
   assert.equal((repository.match(/governedMemoryDecision\.create/g) ?? []).length, 2);
   assert.equal((repository.match(/governedMemorySource\.create/g) ?? []).length, 1);
-  assert.equal((repository.match(/\.\.\.scope/g) ?? []).length, 5);
+  assert.equal((repository.match(/\.\.\.scope/g) ?? []).length, 9);
 });
 
 test("public creation contracts do not accept structural authority from clients", () => {
