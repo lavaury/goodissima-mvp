@@ -9,6 +9,7 @@ import { ConfirmMeetingCancellationButton } from "@/components/ConfirmMeetingCan
 import { GovernanceReviewAIAssistant } from "@/components/GovernanceReviewAIAssistant";
 import { GovernedJourneyCockpitCard } from "@/components/governed-journey/GovernedJourneyCockpitCard";
 import { GovernedMemoryCockpitSection } from "@/components/governed-journey/GovernedMemoryCockpitSection";
+import { GovernedMemoryRolesPanel } from "@/components/governed-journey/GovernedMemoryRolesPanel";
 import { ConfirmGovernanceReviewTransitionButton } from "@/components/ConfirmGovernanceReviewTransitionButton";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
@@ -28,6 +29,7 @@ import { prisma } from "@/lib/prisma";
 import { governedJourneyCockpitReadService } from "@/lib/governed-journey/cockpit/read-service";
 import { governedMemoryCockpitReadService } from "@/lib/governed-journey/cockpit/memory-read-service";
 import { getGovernedMemoryCreationCapabilities } from "@/lib/governed-journey/cockpit/memory-creation-capabilities";
+import { listActiveJourneyMemoryRolesForCockpit } from "@/lib/governed-memory/cockpit-role-service";
 
 export const dynamic = "force-dynamic";
 
@@ -442,7 +444,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     text(metadata.workspaceId) ??
     "Workspace non rattaché en V1";
   const attachedWorkspaceId = formTemplate.relationTemplate?.workspaceId ?? null;
-  const [governedJourneyCockpitView, governedMemoryCockpitView, governedMemoryCreationCapabilities] = attachedWorkspaceId
+  const [governedJourneyCockpitView, governedMemoryCockpitView, governedMemoryCreationCapabilities, governedMemoryRoles] = attachedWorkspaceId
     ? await Promise.all([
         governedJourneyCockpitReadService.read({
           formTemplateId: formTemplate.id,
@@ -459,6 +461,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           workspaceId: attachedWorkspaceId,
           requesterUserId: owner.id,
         }),
+        listActiveJourneyMemoryRolesForCockpit({ requesterUserId: owner.id, formTemplateId: formTemplate.id }),
       ]).catch((error: unknown) => {
         if (error && typeof error === "object" && "code" in error && error.code === "NOT_FOUND") notFound();
         throw error;
@@ -467,6 +470,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         { relationTemplateId: formTemplate.relationTemplate.id, extension: null },
         { availability: "NO_EXTENSION" as const, visibleCount: 0, items: [] },
         { canCreateAny: false, categories: { fact: false, decision: false, source: false }, availableContexts: [] as const },
+        null,
       ];
   const workspaceCategory = text(metadata.workspaceCategory);
   const workspacePersistence = text(metadata.workspacePersistence);
@@ -578,8 +582,12 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
       <GovernedJourneyCockpitCard view={governedJourneyCockpitView} />
 
+      {governedMemoryRoles ? <GovernedMemoryRolesPanel formTemplateId={formTemplate.id} roles={governedMemoryRoles.map((role) => ({ ...role, requestKey: randomUUID() }))} /> : null}
+
       <GovernedMemoryCockpitSection
         view={governedMemoryCockpitView}
+        formTemplateId={formTemplate.id}
+        transitionRequestKeys={Object.fromEntries(governedMemoryCockpitView.items.map((item) => [item.publicKey, { ESTABLISH_FACT: randomUUID(), DISPUTE_FACT: randomUUID(), VALIDATE_DECISION: randomUUID() }]))}
         creation={governedMemoryCreationCapabilities.canCreateAny ? {
           formTemplateId: formTemplate.id,
           capabilities: governedMemoryCreationCapabilities,

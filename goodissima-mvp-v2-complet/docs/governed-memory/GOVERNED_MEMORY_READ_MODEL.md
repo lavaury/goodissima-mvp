@@ -182,3 +182,5 @@ La provenance ne charge jamais le journal complet : une source reliée à un év
 ## Capabilities R5-IIIa2
 
 Le read model projette seulement `canEstablish`, `canDispute` et `canValidate`, calculés à partir du type, de l’état, du Workspace actif, du parcours et d’une affectation journey-scoped active dont la matrice contient la permission attendue. Il fournit un jeton de concurrence opaque aux faits et décisions. Aucun rôle, enum de permission, identifiant interne ou motif de refus n’est exposé, et aucune action n’est rendue dans l’interface.
+
+R5-IIIb consomme ces booléens sans recalcul client. Les validations et contestations de portée parcours sont relues même en l’absence de `RelationCase`, afin que l’état confirmé apparaisse immédiatement après `revalidatePath`. Les sources ne reçoivent aucune capability de transition.

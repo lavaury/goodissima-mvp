@@ -67,12 +67,12 @@ export function createGovernedMemoryCockpitRepository(database: PrismaClient = p
       const [facts, decisions, validations, disputes] = await Promise.all([
         database.governedMemoryFact.findMany({ where: { OR: [{ governedJourneyId: input.governedJourneyId }, ...(input.relationCaseId && factIds.length ? [{ relationCaseId: input.relationCaseId, id: { in: factIds } }] : [])] }, select: factSelect }),
         database.governedMemoryDecision.findMany({ where: { OR: [{ governedJourneyId: input.governedJourneyId }, ...(input.relationCaseId && decisionIds.length ? [{ relationCaseId: input.relationCaseId, id: { in: decisionIds } }] : [])] }, select: decisionSelect }),
-        targets.length && input.relationCaseId ? database.governedMemoryValidation.findMany({
-          where: { relationCaseId: input.relationCaseId, OR: targets }, select: validationSelect,
+        targets.length ? database.governedMemoryValidation.findMany({
+          where: { AND: [{ OR: [{ governedJourneyId: input.governedJourneyId }, ...(input.relationCaseId ? [{ relationCaseId: input.relationCaseId }] : [])] }, { OR: targets }] }, select: validationSelect,
           orderBy: [{ validatedAt: "desc" }, { id: "desc" }],
         }) : [],
-        targets.length && input.relationCaseId ? database.governedMemoryDispute.findMany({
-          where: { relationCaseId: input.relationCaseId, OR: targets }, select: disputeSelect,
+        targets.length ? database.governedMemoryDispute.findMany({
+          where: { AND: [{ OR: [{ governedJourneyId: input.governedJourneyId }, ...(input.relationCaseId ? [{ relationCaseId: input.relationCaseId }] : [])] }, { OR: targets }] }, select: disputeSelect,
           orderBy: [{ raisedAt: "desc" }, { id: "desc" }],
         }) : [],
       ]);

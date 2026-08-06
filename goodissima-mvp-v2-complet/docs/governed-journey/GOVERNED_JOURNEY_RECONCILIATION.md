@@ -178,3 +178,5 @@ R5-I2b active `REGISTER_SOURCE` pour l'écriture ordinaire et branche `GovernedM
 ## R5-IIIa2
 
 Les commandes mémoire résolvent toujours `FormTemplate → RelationTemplate → Workspace ACTIVE → GovernedJourney`. Les clés publiques et jetons opaques sont résolus côté serveur; aucun ID Prisma fourni par un client ne devient une autorité. R5-IIIb pourra consommer les capabilities déjà projetées, sans modifier cette réconciliation.
+
+R5-IIIb applique cette réconciliation dans les Server Actions et renouvelle les données R4 après résultat confirmé. La révocation utilise une clé publique HMAC résolue dans les seules affectations actives du parcours owner-scoped.

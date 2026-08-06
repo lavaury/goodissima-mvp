@@ -45,3 +45,9 @@ R1-A a établi l'unicité de l'extension par `RelationTemplate`; R1-B aligne uni
 ## Boussole
 
 Le bloc R3 est informatif et reste hors séquence guidée. Il ne supprime, renomme ou déplace aucune cible existante et ne change ni les états `EMPTY`, `POPULATED`, `FOCUSED`, ni la signification d'une étape; aucune évolution de `journeyVersion` n'est requise. Une validation humaine Preview reste obligatoire.
+
+## Qualification mémoire R5-IIIb
+
+Les cartes mémoire réelles présentent des confirmations responsive et accessibles à partir des seules capabilities serveur. Le contenu reste en lecture seule; les champs portent sur la justification ou le motif. Le pending bloque le double clic, tandis que l’idempotence serveur reste la protection durable. Après succès, R4 est relu : aucune carte, validation ou contestation n’est fabriquée localement.
+
+La section `Fonctions mémoire` distingue le propriétaire du Workspace des responsables et délégués mémoire. Elle liste uniquement les affectations actives et permet leur révocation. L’attribution attend un futur sélecteur d’identité utilisateur sûr; l’Annuaire n’est pas détourné à cette fin.

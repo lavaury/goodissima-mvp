@@ -15,3 +15,9 @@ Les cinq commandes réservent une `GovernedMemoryTransitionRequest` dans une tra
 L’établissement produit une validation `APPROVED`, passe conditionnellement le fait de `PROPOSED` à `ESTABLISHED` et ajoute `FACT_ESTABLISHED`. La contestation crée une ligne `OPEN` et `DISPUTE_OPENED` sans changer le statut du fait. La validation d’une décision accepte seulement `APPROVED`, passe `DRAFT` à `VALIDATED` et ajoute `DECISION_VALIDATED`.
 
 Les capabilities booléennes sont préparées dans le read model R4, sans bouton ni Server Action. L’archivage des sources, les validations partielles, le rejet, les notifications, l’IA et les routes GJ restent exclus.
+
+## R5-IIIb — cockpit humain
+
+Les cartes réelles affichent désormais `Établir ce fait`, `Contester ce fait` ou `Valider la décision` uniquement lorsque la capability serveur correspondante est vraie. Chaque confirmation conserve une UUID v4 initialisée côté serveur; l’établissement et la validation transmettent aussi le jeton HMAC opaque. Les Server Actions authentifient, délèguent aux commandes R5-IIIa2 et revalident le cockpit sans état optimiste fictif.
+
+Le propriétaire voit les fonctions mémoire actives et peut les révoquer avec confirmation. L’attribution visible reste arrêtée : aucun sélecteur d’utilisateur applicatif owner-scoped sûr n’existe, et les contacts de l’Annuaire ne constituent pas une identité utilisateur. Aucun champ d’ID libre, invitation ou recherche globale n’a été introduit.

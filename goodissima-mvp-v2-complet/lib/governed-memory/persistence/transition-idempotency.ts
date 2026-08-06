@@ -26,6 +26,10 @@ const tokenSecret = () => {
   if (!secret) throw new Error("GOVERNED_MEMORY_TOKEN_SECRET_MISSING");
   return secret;
 };
+
+export function buildPublicJourneyMemoryRoleKey(input: { governedJourneyId: string; userId: string; role: "MEMORY_STEWARD" | "MEMORY_DELEGATE" }) {
+  return createHmac("sha256", tokenSecret()).update(`journey-memory-role:v1:${input.governedJourneyId}:${input.userId}:${input.role}`, "utf8").digest("hex");
+}
 export function buildMemoryConcurrencyToken(input: { id: string; updatedAt: Date; type: "FACT" | "DECISION"; governedJourneyId: string }) {
   const payload = Buffer.from(JSON.stringify({ v: 1, i: input.id, u: input.updatedAt.toISOString(), t: input.type, j: input.governedJourneyId }), "utf8").toString("base64url");
   const signature = createHmac("sha256", tokenSecret()).update(payload).digest("base64url");

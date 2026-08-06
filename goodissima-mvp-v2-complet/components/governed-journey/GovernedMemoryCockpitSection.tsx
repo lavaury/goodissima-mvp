@@ -1,6 +1,7 @@
 import type { GovernedMemoryCockpitView } from "@/lib/governed-journey/cockpit/memory-read-model";
 import type { GovernedMemoryCreationCapabilities } from "@/lib/governed-journey/cockpit/memory-creation-capabilities";
 import { GovernedMemoryCreationPanel } from "./GovernedMemoryCreationPanel";
+import { GovernedMemoryTransitionControls } from "./GovernedMemoryTransitionControls";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -8,7 +9,8 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export function GovernedMemoryCockpitSection({ view, creation }: { view: GovernedMemoryCockpitView; creation?: { formTemplateId: string; capabilities: GovernedMemoryCreationCapabilities; requestKeys: { fact: string; decision: string; source: string }; today: string } }) {
+type TransitionKeys = Record<string, { ESTABLISH_FACT: string; DISPUTE_FACT: string; VALIDATE_DECISION: string }>;
+export function GovernedMemoryCockpitSection({ view, creation, formTemplateId, transitionRequestKeys }: { view: GovernedMemoryCockpitView; formTemplateId: string; transitionRequestKeys: TransitionKeys; creation?: { formTemplateId: string; capabilities: GovernedMemoryCreationCapabilities; requestKeys: { fact: string; decision: string; source: string }; today: string } }) {
   return (
     <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
       <h2 className="text-xl font-bold text-slate-950">Mémoire gouvernée</h2>
@@ -46,6 +48,7 @@ export function GovernedMemoryCockpitSection({ view, creation }: { view: Governe
                   {item.disputeLabel ? <div><dt className="font-semibold text-slate-500">Contestation</dt><dd>{item.disputeLabel}</dd></div> : null}
                   {item.contextLabel ? <div><dt className="font-semibold text-slate-500">Contexte</dt><dd>{item.contextLabel}</dd></div> : null}
                 </dl>
+                {item.capabilities ? <GovernedMemoryTransitionControls formTemplateId={formTemplateId} publicMemoryKey={item.publicKey} concurrencyToken={item.concurrencyToken} content={item.content.title ?? item.content.text} capabilities={item.capabilities} requestKeys={transitionRequestKeys[item.publicKey]} /> : null}
               </article>
             ))}
           </div>
