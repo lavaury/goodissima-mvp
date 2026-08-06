@@ -131,7 +131,7 @@ export type GovernedMemoryEvent = {
   visibility: GovernedMemoryVisibility;
 };
 
-export type GovernedMemoryPermission = "VIEW_MEMORY" | "VIEW_SOURCES" | "PROPOSE_FACT" | "ESTABLISH_FACT" | "DISPUTE_FACT" | "RECORD_DECISION" | "VALIDATE_DECISION" | "VALIDATE_SYNTHESIS" | "MANAGE_MEMORY_ACCESS" | "PROMOTE_PRIVATE_SOURCE";
+export type GovernedMemoryPermission = "VIEW_MEMORY" | "VIEW_SOURCES" | "REGISTER_SOURCE" | "PROPOSE_FACT" | "ESTABLISH_FACT" | "DISPUTE_FACT" | "RECORD_DECISION" | "VALIDATE_DECISION" | "VALIDATE_SYNTHESIS" | "MANAGE_MEMORY_ACCESS" | "PROMOTE_PRIVATE_SOURCE";
 export type GovernedMemoryAccessGrant = {
   id: GovernedMemoryAccessGrantId;
   scope: GovernedMemoryScope;

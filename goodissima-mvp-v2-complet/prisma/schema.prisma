@@ -893,6 +893,7 @@ model RelationTemplate {
   memoryFacts GovernedMemoryFact[]
   memoryDecisions GovernedMemoryDecision[]
   memorySources GovernedMemorySource[]
+  memoryEvents GovernedMemoryEvent[]
   governedMemoryCreationRequests GovernedMemoryCreationRequest[]
 
   @@index([workspaceId])
@@ -1430,7 +1431,9 @@ model GovernedMemoryAccessGrant {
 
 model GovernedMemoryEvent {
   id String @id @default(cuid())
-  relationCaseId String
+  relationTemplateId String
+  governedJourneyId String?
+  relationCaseId String?
   type GovernedMemoryEventType
   actorType GovernedMemoryActorType
   actorUserId String?
@@ -1442,12 +1445,16 @@ model GovernedMemoryEvent {
   summary String
   createdAt DateTime @default(now())
 
-  relationCase RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney GovernedJourney? @relation("MemoryEventGovernedJourney", fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onDelete: Restrict, onUpdate: Restrict)
   actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
   actorRepresentation Representation? @relation("MemoryEventActorRepresentation", fields: [actorRepresentationId, actorUserId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([relationCaseId, recordedAt, id])
   @@index([relationCaseId, objectType, objectId])
+  @@index([relationTemplateId, recordedAt, id])
+  @@index([governedJourneyId, recordedAt, id])
 }
 
 model GovernedMemoryRoleAssignment {
@@ -1735,6 +1742,7 @@ model GovernedJourney {
   memoryFacts GovernedMemoryFact[] @relation("MemoryFactGovernedJourney")
   memoryDecisions GovernedMemoryDecision[] @relation("MemoryDecisionGovernedJourney")
   memorySources GovernedMemorySource[] @relation("MemorySourceGovernedJourney")
+  memoryEvents GovernedMemoryEvent[] @relation("MemoryEventGovernedJourney")
   governedMemoryCreationRequests GovernedMemoryCreationRequest[]
   relationCaseContexts GovernedJourneyRelationCase[]
   creationRequest GovernedJourneyCreationRequest?

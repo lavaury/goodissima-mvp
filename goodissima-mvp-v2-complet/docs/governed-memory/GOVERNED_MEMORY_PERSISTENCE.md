@@ -116,7 +116,13 @@ MG-2 n’ajoute aucune API, page, composant, assistant, synthèse, génération,
 
 `relationTemplateId` devient la racine obligatoire des faits, décisions et sources. `RelationCase` devient facultatif dans le schéma, mais les commandes historiques restent case-scoped et résolvent exclusivement côté serveur `RelationCase.templateId`. Les futures commandes cockpit pourront être journey-scoped. Aucun rattachement `GovernedJourney` historique n'est déduit.
 
-`REGISTER_SOURCE` est réservé à R5-I2 : il n'est ni accordé ni utilisé ici. `GovernedMemoryCreationRequest` fournit une structure d'idempotence serveur vide, sans branchement aux commandes. R5-I1 n'ajoute aucune UI, commande produit ou création automatique.
+En R5-I1, `REGISTER_SOURCE` n'était encore ni accordé ni utilisé. `GovernedMemoryCreationRequest` fournit une structure d'idempotence serveur vide, sans branchement aux commandes. R5-I1 n'ajoutait aucune UI, commande produit ou création automatique.
+
+## R5-I2a — portée structurelle des événements
+
+`GovernedMemoryEvent` possède désormais une racine `RelationTemplate` obligatoire. `RelationCase` et `GovernedJourney` sont facultatifs, mais au moins l'un des deux scopes est obligatoire; les clés étrangères composites garantissent leur appartenance au même template. Le backfill conserve les événements historiques case-scoped et dérive uniquement `relationTemplateId` depuis `RelationCase.templateId`, sans déduire de `GovernedJourney`. Les écritures historiques résolvent la racine côté serveur dans leur transaction existante.
+
+La matrice canonique attribue désormais `REGISTER_SOURCE` à `RELATION_CASE_OWNER`, `MEMORY_STEWARD` et `MEMORY_DELEGATE` seulement. Le service historique `registerMemorySource` conserve provisoirement son contrôle `VIEW_SOURCES`; R5-I2b devra effectuer le basculement et livrer les commandes journey-scoped. Aucune UI ni création automatique n'est ajoutée.
 
 ## Risques et lots futurs
 

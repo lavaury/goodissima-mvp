@@ -129,6 +129,8 @@ Le GJ global R2 est créé en `DRAFT`, version 1, sans étape courante ni date l
 
 `createGovernedJourney` vérifie successivement le dossier, son propriétaire, le formulaire éventuel, le template relationnel et l'appartenance de la version au template. Le parcours et son événement sont créés dans une transaction `Serializable`. Aucun template n'est modifié et aucun objet de mémoire gouvernée n'est créé.
 
+R5-I2a aligne la racine de `GovernedMemoryEvent` sur celle des objets mémoire : `relationTemplateId` est obligatoire, tandis que `governedJourneyId` et `relationCaseId` sont facultatifs avec au moins un scope requis. Les contraintes composites garantissent la cohérence du template. Aucun événement historique n'est rattaché artificiellement à un parcours et aucun événement de parcours n'est créé.
+
 La cohérence `formTemplateId/relationTemplateId` reste un contrôle transactionnel. Les cohérences dossier/autorité et template/version sont également garanties par SQL, en défense en profondeur.
 
 ## Reprise des parcours historiques

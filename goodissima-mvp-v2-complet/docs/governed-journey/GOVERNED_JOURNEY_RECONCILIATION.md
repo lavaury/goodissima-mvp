@@ -154,6 +154,8 @@ Le test `qa/governed-journey-reconciliation-boundaries.test.ts` matérialise ce 
 
 R5-I1 ajoute uniquement les contrats Prisma/PostgreSQL de portée et d'idempotence. `REGISTER_SOURCE` existe sans grant et sans utilisation; `GovernedMemoryCreationRequest` reste vide et non branché. Les commandes historiques résolvent `relationTemplateId` depuis leur `RelationCase`, tandis que les futures commandes cockpit seront directement journey-scoped. Aucun écran parallèle, automatisme ou changement R4 n'est introduit.
 
+R5-I2a ajoute la racine `RelationTemplate` au journal mémoire, rend ses scopes dossier et parcours facultatifs et impose qu'au moins l'un soit présent. Le backfill est strictement structurel depuis les dossiers historiques; aucun `GovernedJourney` n'est inféré. `REGISTER_SOURCE` est attribué uniquement aux rôles `RELATION_CASE_OWNER`, `MEMORY_STEWARD` et `MEMORY_DELEGATE`; `VIEW_SOURCES` reste distinct et le contrôle historique ne sera remplacé qu'en R5-I2b. Aucune commande journey-scoped, idempotence branchée ou UI n'est livrée ici.
+
 ### Décisions ouvertes après R1-A
 
 - `GovernedJourney` conserve-t-il un lifecycle ou devient-il un ledger pur ?
