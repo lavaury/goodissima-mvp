@@ -174,3 +174,7 @@ R5-I2b active `REGISTER_SOURCE` pour l'écriture ordinaire et branche `GovernedM
 - comment gérer un parcours couvrant plusieurs `RelationCase` ?
 - quelles données historiques peuvent être rattachées humainement ?
 - quelles promotions mémoire sont autorisées ?
+
+## R5-IIIa2
+
+Les commandes mémoire résolvent toujours `FormTemplate → RelationTemplate → Workspace ACTIVE → GovernedJourney`. Les clés publiques et jetons opaques sont résolus côté serveur; aucun ID Prisma fourni par un client ne devient une autorité. R5-IIIb pourra consommer les capabilities déjà projetées, sans modifier cette réconciliation.

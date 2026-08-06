@@ -18,6 +18,8 @@ export type GovernedMemoryCockpitItem = {
   humanValidation: { label: string; validatedAt: string } | null;
   disputeLabel: string | null;
   contextLabel: string | null;
+  capabilities: { canEstablish: boolean; canDispute: boolean; canValidate: boolean } | null;
+  concurrencyToken: string | null;
 };
 
 export type GovernedMemoryCockpitView = {
@@ -39,6 +41,8 @@ export type GovernedMemoryCockpitRawItem = {
   dispute: { status: "OPEN" | "RESOLVED" | "MAINTAINED" | "WITHDRAWN" } | null;
   hasExplicitContext: boolean;
   directJourneyScope?: boolean;
+  capabilities?: { canEstablish: boolean; canDispute: boolean; canValidate: boolean } | null;
+  concurrencyToken?: string | null;
 };
 
 const factStates: Record<GovernedMemoryFactStatus, { label: string; isActive: boolean }> = {
@@ -113,6 +117,8 @@ export function buildGovernedMemoryCockpitView(input: {
       } : null,
       disputeLabel: item.dispute ? disputeLabels[item.dispute.status] : null,
       contextLabel: item.hasExplicitContext ? "Contexte dossier rattaché" : null,
+      capabilities: item.capabilities ?? null,
+      concurrencyToken: item.concurrencyToken ?? null,
     }));
   return { availability: items.length ? "AVAILABLE" : "EMPTY", visibleCount: items.length, items };
 }

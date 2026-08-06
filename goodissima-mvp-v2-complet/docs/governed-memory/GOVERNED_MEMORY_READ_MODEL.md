@@ -178,3 +178,7 @@ R5-I2b charge directement les faits, décisions et sources dont `governedJourney
 La projection ne filtre aucun état de fait, décision ou source. Les lignes supprimées logiquement ou anonymisées restent comptées lorsqu'elles sont autorisées, avec contenu neutralisé. Les sources non autorisées sont entièrement exclues et ne fuient pas dans le compteur. Les références polymorphiques invalides sont exclues et tracées côté serveur par raison et nombre, sans identifiant. L'ordre est `recordedAt DESC`, puis identifiant interne décroissant uniquement avant production d'une clé opaque SHA-256 non affichée.
 
 La provenance ne charge jamais le journal complet : une source reliée à un événement expose uniquement une formulation humaine et son horodatage. La dernière validation persistée peut être affichée comme preuve explicite, y compris lorsqu'elle est un rejet; elle ne transforme pas l'état persistant de l'unité. R4 est sans mutation, IA, backfill ou création automatique.
+
+## Capabilities R5-IIIa2
+
+Le read model projette seulement `canEstablish`, `canDispute` et `canValidate`, calculés à partir du type, de l’état, du Workspace actif, du parcours et d’une affectation journey-scoped active dont la matrice contient la permission attendue. Il fournit un jeton de concurrence opaque aux faits et décisions. Aucun rôle, enum de permission, identifiant interne ou motif de refus n’est exposé, et aucune action n’est rendue dans l’interface.

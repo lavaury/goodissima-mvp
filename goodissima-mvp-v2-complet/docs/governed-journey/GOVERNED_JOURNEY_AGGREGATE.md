@@ -178,3 +178,7 @@ Les objets mémoire portent une racine `RelationTemplate` obligatoire. Les faits
 GJ-0 n'introduit ni interface, ni API, ni mémoire de parcours, ni orientation, ni IA, ni ingestion. Le service n'est pas encore appelé par le formulaire historique, car celui-ci ne choisit aucun `RelationCase`.
 
 Avant MG-6A, les nouvelles instances devront être créées explicitement, les éventuelles instances historiques devront être reprises humainement avec preuve, et la doctrine d'affectation d'autorité non propriétaire devra être conçue si ce besoin devient réel. `GovernedJourney(id, relationCaseId)` fournira alors la base nécessaire aux FK composites de MG-6A.
+
+## Fonctions mémoire R5-IIIa2
+
+Le propriétaire du Workspace actif administre explicitement les fonctions mémoire du parcours sans devenir titulaire implicitement. Les transitions mémoire restent un sous-système serveur atomique et idempotent; elles n’altèrent ni l’identité canonique `FormTemplate`, ni le cycle de vie du `GovernedJourney`.

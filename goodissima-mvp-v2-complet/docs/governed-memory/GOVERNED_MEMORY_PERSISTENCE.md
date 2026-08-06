@@ -144,6 +144,10 @@ Chaque commande réserve une `GovernedMemoryCreationRequest`, revalide scope et 
 
 ## Risques et lots futurs
 
+## R5-IIIa2 — idempotence des transitions
+
+`GovernedMemoryTransitionRequest` est distincte des requêtes de création. Elle conserve la racine, le parcours, la cible technique et les résultats d’audit, avec une forme SQL stricte, des FK `RESTRICT`, RLS sans policy client et aucune donnée initiale. Les affectations de rôle sont administrées explicitement par le propriétaire du Workspace actif; aucun événement de parcours artificiel n’est créé faute de type canonique adapté.
+
 - renforcer les extrémités polymorphes avec des tables ciblées si leur vocabulaire devient stable ;
 - ajouter une politique persistante structurée de visibilité plutôt qu’une `policyRef` ;
 - tester les courses sur une base PostgreSQL réelle après déploiement contrôlé ;

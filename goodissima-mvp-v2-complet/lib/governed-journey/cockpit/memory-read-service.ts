@@ -1,5 +1,6 @@
 import { canViewMemoryObject, resolveMemoryPermissions } from "@/lib/governed-memory/persistence/permission-resolver";
 import { ROLE_PERMISSIONS } from "@/lib/governed-memory/permissions";
+import { buildMemoryConcurrencyToken } from "@/lib/governed-memory/persistence/transition-idempotency";
 import {
   buildGovernedMemoryCockpitView,
   type GovernedMemoryCockpitRawItem,
@@ -64,6 +65,8 @@ export function createGovernedMemoryCockpitReadService(
           governedJourneyId: extension.id,
           relationCaseId: extension.relationCaseId,
         });
+        const journeyRoles = await repository.listActiveJourneyMemoryRoles({ userId: input.requesterUserId, governedJourneyId: extension.id, relationTemplateId: root.relationTemplate.id });
+        const journeyPermissions = new Set(journeyRoles.flatMap(({ role }) => ROLE_PERMISSIONS[role]));
         const validations = latestValidations(rows.validations);
         const disputes = latestDisputes(rows.disputes);
         const mayViewMemory = access.permissions.has("VIEW_MEMORY");
@@ -94,6 +97,8 @@ export function createGovernedMemoryCockpitReadService(
             recordedAt: fact.recordedAt, sourceEventOccurredAt: null,
             validation: validations.get(`FACT:${fact.id}`) ?? null, hasExplicitContext: Boolean(fact.relationCaseId), directJourneyScope: fact.governedJourneyId === extension.id,
             dispute: disputes.get(`FACT:${fact.id}`) ?? null,
+            capabilities: { canEstablish: fact.status === "PROPOSED" && journeyPermissions.has("ESTABLISH_FACT"), canDispute: journeyPermissions.has("DISPUTE_FACT"), canValidate: false },
+            concurrencyToken: buildMemoryConcurrencyToken({ id: fact.id, updatedAt: fact.updatedAt, type: "FACT", governedJourneyId: extension.id }),
           });
           for (const decision of rows.decisions) items.push({
             id: decision.id, type: "DECISION", title: decision.title, text: decision.rationale, kind: null, status: decision.status,
@@ -101,6 +106,8 @@ export function createGovernedMemoryCockpitReadService(
             validation: validations.get(`DECISION:${decision.id}`)
               ?? (decision.status === "VALIDATED" && decision.validatedAt ? { decision: "APPROVED" as const, validatedAt: decision.validatedAt } : null),
             dispute: disputes.get(`DECISION:${decision.id}`) ?? null, hasExplicitContext: Boolean(decision.relationCaseId), directJourneyScope: decision.governedJourneyId === extension.id,
+            capabilities: { canEstablish: false, canDispute: false, canValidate: decision.status === "DRAFT" && journeyPermissions.has("VALIDATE_DECISION") },
+            concurrencyToken: buildMemoryConcurrencyToken({ id: decision.id, updatedAt: decision.updatedAt, type: "DECISION", governedJourneyId: extension.id }),
           });
         }
 

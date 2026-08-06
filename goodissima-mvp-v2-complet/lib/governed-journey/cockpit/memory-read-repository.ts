@@ -6,8 +6,8 @@ const sourceSelect = {
   visibilityPolicyRef: true, governedJourneyEvent: { select: { occurredAt: true } },
 } satisfies Prisma.GovernedMemorySourceSelect;
 const relationSelect = { sourceType: true, sourceId: true, targetType: true, targetId: true } satisfies Prisma.GovernedMemoryRelationSelect;
-const factSelect = { id: true, statement: true, status: true, recordedAt: true, governedJourneyId: true, relationCaseId: true } satisfies Prisma.GovernedMemoryFactSelect;
-const decisionSelect = { id: true, title: true, rationale: true, status: true, recordedAt: true, validatedAt: true, governedJourneyId: true, relationCaseId: true } satisfies Prisma.GovernedMemoryDecisionSelect;
+const factSelect = { id: true, statement: true, status: true, recordedAt: true, updatedAt: true, governedJourneyId: true, relationCaseId: true } satisfies Prisma.GovernedMemoryFactSelect;
+const decisionSelect = { id: true, title: true, rationale: true, status: true, recordedAt: true, updatedAt: true, validatedAt: true, governedJourneyId: true, relationCaseId: true } satisfies Prisma.GovernedMemoryDecisionSelect;
 const validationSelect = { targetType: true, targetId: true, decision: true, validatedAt: true } satisfies Prisma.GovernedMemoryValidationSelect;
 const disputeSelect = { targetType: true, targetId: true, status: true, raisedAt: true } satisfies Prisma.GovernedMemoryDisputeSelect;
 
@@ -29,9 +29,13 @@ export function createGovernedMemoryCockpitRepository(database: PrismaClient = p
           relationTemplate: { workspaceId: input.workspaceId, workspace: { ownerId: input.requesterUserId, status: "ACTIVE" } },
         },
         select: {
-          relationTemplate: { select: { governedJourney: { select: { id: true, relationCaseId: true } } } },
+          relationTemplate: { select: { id: true, governedJourney: { select: { id: true, relationCaseId: true } } } },
         },
       });
+    },
+
+    listActiveJourneyMemoryRoles(input: { userId: string; governedJourneyId: string; relationTemplateId: string }) {
+      return database.governedJourneyMemoryRoleAssignment.findMany({ where: { userId: input.userId, governedJourneyId: input.governedJourneyId, relationTemplateId: input.relationTemplateId, revokedAt: null, role: { in: ["MEMORY_STEWARD", "MEMORY_DELEGATE"] } }, select: { role: true } });
     },
 
     async listLinkedMemory(input: { governedJourneyId: string; relationCaseId: string | null }): Promise<GovernedMemoryCockpitRows> {
