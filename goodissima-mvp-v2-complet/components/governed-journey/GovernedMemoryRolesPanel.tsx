@@ -1,7 +1,8 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { initialGovernedMemoryTransitionActionState, renounceJourneyMemoryStewardRoleAction, revokeJourneyMemoryRoleAction, takeJourneyMemoryStewardRoleAction, type GovernedMemoryTransitionActionState } from "@/lib/governed-memory/cockpit-transition-actions";
+import { renounceJourneyMemoryStewardRoleAction, revokeJourneyMemoryRoleAction, takeJourneyMemoryStewardRoleAction } from "@/lib/governed-memory/cockpit-transition-actions";
+import { initialGovernedMemoryTransitionActionState, type GovernedMemoryTransitionActionState } from "@/lib/governed-memory/cockpit-transition-action-state";
 
 type Role = { beneficiaryKey: string; displayName: string; roleLabel: string; requestKey: string; isOrganizerSteward: boolean };
 type Props = { formTemplateId: string; roles: Role[]; takeRequestKey: string; renounceRequestKey: string };

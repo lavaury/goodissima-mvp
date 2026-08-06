@@ -4,6 +4,7 @@ import test from "node:test";
 const read = (path: string) => readFileSync(path, "utf8");
 const panel = read("components/governed-journey/GovernedMemoryRolesPanel.tsx");
 const actions = read("lib/governed-memory/cockpit-transition-actions.ts");
+const actionState = read("lib/governed-memory/cockpit-transition-action-state.ts");
 const roleService = read("lib/governed-memory/cockpit-role-service.ts");
 const page = read("app/gouvernance/parcours/[id]/pilotage/page.tsx");
 
@@ -44,4 +45,14 @@ test("R5-IIIc adds no migration and preserves server-computed capabilities", () 
   assert.doesNotMatch(panel, /canEstablish|canDispute|canValidate|ROLE_PERMISSIONS/);
   assert.doesNotMatch(actions, /\$transaction|updateMany|governedJourneyMemoryRoleAssignment\.(?:create|update|delete)/);
   assert.doesNotMatch(read("prisma/schema.prisma"), /R5-IIIc/);
+});
+
+test("the use-server module exports async Server Actions only", () => {
+  const exportedActions = ["establishJourneyFactAction", "disputeJourneyFactAction", "validateJourneyDecisionAction", "revokeJourneyMemoryRoleAction", "takeJourneyMemoryStewardRoleAction", "renounceJourneyMemoryStewardRoleAction"];
+  for (const name of exportedActions) assert.match(actions, new RegExp(`export async function ${name}\\b`));
+  assert.doesNotMatch(actions, /export\s+(?:const|let|class|enum|default|\*)\b|export\s*\{/);
+  assert.doesNotMatch(actions, /export\s+function\s+/);
+  assert.doesNotMatch(actionState, /["']use server["']/);
+  assert.match(actionState, /export const initialGovernedMemoryTransitionActionState/);
+  assert.match(actionState, /export type GovernedMemoryTransitionActionState/);
 });

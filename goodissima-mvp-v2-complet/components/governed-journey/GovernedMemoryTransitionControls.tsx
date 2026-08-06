@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { disputeJourneyFactAction, establishJourneyFactAction, initialGovernedMemoryTransitionActionState, validateJourneyDecisionAction, type GovernedMemoryTransitionActionState } from "@/lib/governed-memory/cockpit-transition-actions";
+import { disputeJourneyFactAction, establishJourneyFactAction, validateJourneyDecisionAction } from "@/lib/governed-memory/cockpit-transition-actions";
+import { initialGovernedMemoryTransitionActionState, type GovernedMemoryTransitionActionState } from "@/lib/governed-memory/cockpit-transition-action-state";
 
 type Action = "ESTABLISH_FACT" | "DISPUTE_FACT" | "VALIDATE_DECISION";
 type Props = { formTemplateId: string; publicMemoryKey: string; concurrencyToken: string | null; content: string; capabilities: { canEstablish: boolean; canDispute: boolean; canValidate: boolean }; requestKeys: Record<Action, string> };

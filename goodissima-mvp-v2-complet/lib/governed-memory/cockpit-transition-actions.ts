@@ -4,13 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { disputeJourneyFact, establishJourneyFact, grantJourneyMemoryRole, GovernedMemoryTransitionError, revokeJourneyMemoryRole, validateJourneyDecision } from "./persistence/journey-transition-service";
 import { resolveActiveJourneyMemoryRolePublicKey } from "./cockpit-role-service";
-
-export type GovernedMemoryTransitionActionState =
-  | { status: "IDLE" }
-  | { status: "SUCCESS"; transition: "ESTABLISH_FACT" | "DISPUTE_FACT" | "VALIDATE_DECISION" | "GRANT_JOURNEY_MEMORY_ROLE" | "REVOKE_JOURNEY_MEMORY_ROLE"; message: string }
-  | { status: "ERROR"; code: "INVALID_INPUT" | "NOT_FOUND" | "FORBIDDEN" | "STATE_CONFLICT" | "TRANSITION_CONFLICT" | "ALREADY_APPLIED" | "GOVERNED_MEMORY_TRANSITION_FAILED"; message: string; fieldErrors?: Record<string, string> };
-
-export const initialGovernedMemoryTransitionActionState: GovernedMemoryTransitionActionState = { status: "IDLE" };
+import type { GovernedMemoryTransitionActionState } from "./cockpit-transition-action-state";
 const value = (data: FormData, key: string) => typeof data.get(key) === "string" ? String(data.get(key)).trim() : "";
 const messages = {
   ESTABLISH_FACT: "Le fait est maintenant établi dans la mémoire du parcours.",
@@ -62,12 +56,12 @@ async function run(formData: FormData, transition: keyof typeof messages) {
   }
 }
 
-export const establishJourneyFactAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "ESTABLISH_FACT");
-export const disputeJourneyFactAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "DISPUTE_FACT");
-export const validateJourneyDecisionAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "VALIDATE_DECISION");
-export const revokeJourneyMemoryRoleAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "REVOKE_JOURNEY_MEMORY_ROLE");
-export const takeJourneyMemoryStewardRoleAction = (_: GovernedMemoryTransitionActionState, formData: FormData) => run(formData, "GRANT_JOURNEY_MEMORY_ROLE");
-export const renounceJourneyMemoryStewardRoleAction = async (_: GovernedMemoryTransitionActionState, formData: FormData) => {
+export async function establishJourneyFactAction(_: GovernedMemoryTransitionActionState, formData: FormData) { return run(formData, "ESTABLISH_FACT"); }
+export async function disputeJourneyFactAction(_: GovernedMemoryTransitionActionState, formData: FormData) { return run(formData, "DISPUTE_FACT"); }
+export async function validateJourneyDecisionAction(_: GovernedMemoryTransitionActionState, formData: FormData) { return run(formData, "VALIDATE_DECISION"); }
+export async function revokeJourneyMemoryRoleAction(_: GovernedMemoryTransitionActionState, formData: FormData) { return run(formData, "REVOKE_JOURNEY_MEMORY_ROLE"); }
+export async function takeJourneyMemoryStewardRoleAction(_: GovernedMemoryTransitionActionState, formData: FormData) { return run(formData, "GRANT_JOURNEY_MEMORY_ROLE"); }
+export async function renounceJourneyMemoryStewardRoleAction(_: GovernedMemoryTransitionActionState, formData: FormData) {
   const result = await run(formData, "REVOKE_JOURNEY_MEMORY_ROLE");
   return result.status === "SUCCESS" ? { ...result, message: "Vous n’êtes plus responsable de la mémoire. Les actions historiques restent conservées." } : result;
-};
+}
