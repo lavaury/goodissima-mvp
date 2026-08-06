@@ -184,3 +184,7 @@ La provenance ne charge jamais le journal complet : une source reliée à un év
 Le read model projette seulement `canEstablish`, `canDispute` et `canValidate`, calculés à partir du type, de l’état, du Workspace actif, du parcours et d’une affectation journey-scoped active dont la matrice contient la permission attendue. Il fournit un jeton de concurrence opaque aux faits et décisions. Aucun rôle, enum de permission, identifiant interne ou motif de refus n’est exposé, et aucune action n’est rendue dans l’interface.
 
 R5-IIIb consomme ces booléens sans recalcul client. Les validations et contestations de portée parcours sont relues même en l’absence de `RelationCase`, afin que l’état confirmé apparaisse immédiatement après `revalidatePath`. Les sources ne reçoivent aucune capability de transition.
+
+### Configuration des jetons de concurrence
+
+Un jeton HMAC est généré uniquement lorsque `canEstablish` ou `canValidate` est vrai. Le serveur résout le secret dans cet ordre : `GOVERNED_MEMORY_TOKEN_SECRET`, `NEXTAUTH_SECRET`, puis `AUTH_SECRET`. L’absence des trois variables est tolérée pour un cockpit sans capability nécessitant un jeton; elle reste une erreur de configuration explicite dès qu’une telle capability est active. Aucun fallback constant ou token non signé n’est autorisé.

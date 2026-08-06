@@ -1,6 +1,6 @@
 import { canViewMemoryObject, resolveMemoryPermissions } from "@/lib/governed-memory/persistence/permission-resolver";
 import { ROLE_PERMISSIONS } from "@/lib/governed-memory/permissions";
-import { buildMemoryConcurrencyToken } from "@/lib/governed-memory/persistence/transition-idempotency";
+import { buildMemoryConcurrencyTokenForCapability } from "@/lib/governed-memory/persistence/transition-idempotency";
 import {
   buildGovernedMemoryCockpitView,
   type GovernedMemoryCockpitRawItem,
@@ -40,6 +40,19 @@ function latestDisputes(rows: GovernedMemoryCockpitRows["disputes"]) {
 
 function traceExclusion(reason: string, count: number) {
   if (count > 0) console.error("GOVERNED_MEMORY_COCKPIT_PROJECTION_EXCLUDED", { reason, count });
+}
+
+function concurrencyToken(enabled: boolean, input: { id: string; updatedAt: Date; type: "FACT" | "DECISION"; governedJourneyId: string }) {
+  try {
+    return buildMemoryConcurrencyTokenForCapability(enabled, input);
+  } catch (error) {
+    console.error("CONCURRENCY_TOKEN_GENERATION_FAILED", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorCode: error && typeof error === "object" && "code" in error ? String(error.code) : null,
+      message: error instanceof Error ? error.message : "Unknown token generation error",
+    });
+    throw error;
+  }
 }
 
 export function createGovernedMemoryCockpitReadService(
@@ -92,23 +105,29 @@ export function createGovernedMemoryCockpitReadService(
         }
 
         if (mayViewMemory) {
-          for (const fact of rows.facts) items.push({
+          for (const fact of rows.facts) {
+            const canEstablish = fact.status === "PROPOSED" && journeyPermissions.has("ESTABLISH_FACT");
+            items.push({
             id: fact.id, type: "FACT", title: null, text: fact.statement, kind: null, status: fact.status,
             recordedAt: fact.recordedAt, sourceEventOccurredAt: null,
             validation: validations.get(`FACT:${fact.id}`) ?? null, hasExplicitContext: Boolean(fact.relationCaseId), directJourneyScope: fact.governedJourneyId === extension.id,
             dispute: disputes.get(`FACT:${fact.id}`) ?? null,
-            capabilities: { canEstablish: fact.status === "PROPOSED" && journeyPermissions.has("ESTABLISH_FACT"), canDispute: journeyPermissions.has("DISPUTE_FACT"), canValidate: false },
-            concurrencyToken: buildMemoryConcurrencyToken({ id: fact.id, updatedAt: fact.updatedAt, type: "FACT", governedJourneyId: extension.id }),
+            capabilities: { canEstablish, canDispute: journeyPermissions.has("DISPUTE_FACT"), canValidate: false },
+            concurrencyToken: concurrencyToken(canEstablish, { id: fact.id, updatedAt: fact.updatedAt, type: "FACT", governedJourneyId: extension.id }),
           });
-          for (const decision of rows.decisions) items.push({
+          }
+          for (const decision of rows.decisions) {
+            const canValidate = decision.status === "DRAFT" && journeyPermissions.has("VALIDATE_DECISION");
+            items.push({
             id: decision.id, type: "DECISION", title: decision.title, text: decision.rationale, kind: null, status: decision.status,
             recordedAt: decision.recordedAt, sourceEventOccurredAt: null,
             validation: validations.get(`DECISION:${decision.id}`)
               ?? (decision.status === "VALIDATED" && decision.validatedAt ? { decision: "APPROVED" as const, validatedAt: decision.validatedAt } : null),
             dispute: disputes.get(`DECISION:${decision.id}`) ?? null, hasExplicitContext: Boolean(decision.relationCaseId), directJourneyScope: decision.governedJourneyId === extension.id,
-            capabilities: { canEstablish: false, canDispute: false, canValidate: decision.status === "DRAFT" && journeyPermissions.has("VALIDATE_DECISION") },
-            concurrencyToken: buildMemoryConcurrencyToken({ id: decision.id, updatedAt: decision.updatedAt, type: "DECISION", governedJourneyId: extension.id }),
+            capabilities: { canEstablish: false, canDispute: false, canValidate },
+            concurrencyToken: concurrencyToken(canValidate, { id: decision.id, updatedAt: decision.updatedAt, type: "DECISION", governedJourneyId: extension.id }),
           });
+          }
         }
 
         const linkedObjectCount = new Set(rows.relations.flatMap((relation) => [

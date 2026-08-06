@@ -36,6 +36,10 @@ export function buildMemoryConcurrencyToken(input: { id: string; updatedAt: Date
   return `${payload}.${signature}`;
 }
 
+export function buildMemoryConcurrencyTokenForCapability(enabled: boolean, input: { id: string; updatedAt: Date; type: "FACT" | "DECISION"; governedJourneyId: string }) {
+  return enabled ? buildMemoryConcurrencyToken(input) : null;
+}
+
 export function verifyMemoryConcurrencyToken(value: unknown, expected: { id: string; updatedAt: Date; type: "FACT" | "DECISION"; governedJourneyId: string }) {
   if (typeof value !== "string" || value.length > 1000) return false;
   const [payload, signature, extra] = value.split("."); if (!payload || !signature || extra) return false;
