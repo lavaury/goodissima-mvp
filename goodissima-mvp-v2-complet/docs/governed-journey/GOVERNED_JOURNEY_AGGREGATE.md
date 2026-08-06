@@ -1,5 +1,11 @@
 # Agrégat persistant de parcours gouverné — GJ-0
 
+## R5-II — geste mémoire explicite
+
+L'identité UI demeure `FormTemplate.id` sur `/gouvernance/parcours/[FormTemplate.id]/pilotage`. L'extension `GovernedJourney` fournit la capacité technique, sans nouvelle route ni seconde identité produit. Un humain autorisé peut proposer un fait, consigner un brouillon de décision ou référencer une source déterminante. Seule la confirmation appelle la commande journey-scoped.
+
+Le contexte dossier reste facultatif dans le modèle et volontairement absent de R5-II : la première interface crée une mémoire globale au parcours sans exposer `relationCaseId`. Le rattachement depuis réunions, revues, communications et documents appartient à un lot ultérieur.
+
 > **Statut R4 — mémoire dans le cockpit canonique.** Le cockpit fondé sur `FormTemplate.id`, `RelationTemplate` et `TemplateVersion` reste l'unique interface et la racine opérationnelle du produit. R3 y rend visible l'extension technique et R4 ses mémoires persistées autorisées, sans réactiver GJ-4 et sans ajouter de mutation.
 
 ## Présentation cockpit R3

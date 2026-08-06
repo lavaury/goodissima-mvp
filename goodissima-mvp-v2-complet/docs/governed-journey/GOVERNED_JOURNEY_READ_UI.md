@@ -1,5 +1,11 @@
 # Lecture R3 dans le cockpit canonique
 
+## R5-II — action de création
+
+« Retenir dans la mémoire » apparaît dans la section mémoire uniquement si l'extension existe, si le Workspace actif appartient au demandeur et si au moins une catégorie est autorisée. Le DTO client expose seulement trois booléens et une liste de contextes vide; aucun rôle, droit brut ou identifiant interne n'est transmis. Les formulaires annoncent honnêtement les états Proposition, Brouillon et Active, puis R4 relit la carte réelle après succès.
+
+Le geste reste hors séquence Boussole : aucun identifiant, aucune cible et aucune `journeyVersion` ne changent. Il ne déclenche ni autosave, ni IA, ni invitation, ni communication, ni notification, ni validation automatique.
+
 > **Statut R3.** `GovernedJourney` n'est pas la racine opérationnelle. R3 raccorde une synthèse strictement read-only au cockpit fondé sur `FormTemplate.id`; les routes GJ-4 restent neutralisées. La doctrine canonique est définie dans `GOVERNED_JOURNEY_RECONCILIATION.md`.
 
 L'interface GJ-4 est temporairement neutralisée. Le cockpit historique fondé sur `FormTemplate` et `RelationTemplate`, accessible sous `/gouvernance/parcours/[FormTemplate.id]/pilotage`, reste l'unique interface produit des parcours gouvernés.

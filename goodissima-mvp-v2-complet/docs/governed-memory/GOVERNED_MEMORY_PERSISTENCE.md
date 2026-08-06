@@ -1,5 +1,11 @@
 # Persistance de la mémoire gouvernée — MG-2
 
+## R5-II — création humaine depuis le cockpit
+
+Le cockpit canonique expose « Retenir dans la mémoire » pour les catégories permises : fait (`PROPOSE_FACT`, état `PROPOSED`), décision (`RECORD_DECISION`, état `DRAFT`) et source déterminante (`REGISTER_SOURCE`, état `ACTIVE`). `VIEW_MEMORY` et `VIEW_SOURCES` restent des droits de lecture. Chaque formulaire reçoit une clé UUID v4 distincte générée côté serveur, stable pendant la tentative et renouvelée après succès par le nouveau rendu serveur; l'idempotence, le fingerprint, la transaction et l'événement restent dans les commandes R5-I2b.
+
+R5-II crée uniquement au niveau global du parcours. Aucun identifiant de dossier n'est exposé : le choix d'un contexte est reporté jusqu'à l'existence d'un mapping opaque sûr. Il n'existe ni autosave, ni validation implicite, ni IA, ni notification, ni extraction automatique depuis le journal.
+
 > **Statut R0 — réconciliation des parcours.** Le cockpit historique fondé sur `FormTemplate.id` reste l'unique interface produit du parcours gouverné; `GovernedJourney` n'est pas encore sa racine opérationnelle. Une provenance GJ existante est un contexte technique et ne prouve pas le rattachement au vrai parcours. GJ-4 reste neutralisé et aucune réactivation n'est autorisée avant R1/R3. Voir `../governed-journey/GOVERNED_JOURNEY_RECONCILIATION.md`.
 
 ## Périmètre

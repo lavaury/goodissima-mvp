@@ -1,5 +1,9 @@
 # Lecture et reconstruction de la mémoire gouvernée — MG-3
 
+## Revalidation R5-II
+
+Après chaque création humaine confirmée, le cockpit canonique est revalidé et R4 relit la base. Le compteur et les cartes ne reposent sur aucun objet optimiste ou temporaire. Les états affichés sont les états initiaux réels (`PROPOSED`, `DRAFT`, `ACTIVE`) et ne constituent jamais une validation humaine.
+
 > **Statut R0 — réconciliation des parcours.** Le cockpit historique fondé sur `FormTemplate.id` reste l'unique interface produit du parcours gouverné; `GovernedJourney` n'est pas encore sa racine opérationnelle. La provenance GJ projetée par ce read model est un contexte interne et ne prouve pas le rattachement au vrai parcours. GJ-4 reste neutralisé et aucune réactivation n'est autorisée avant R1/R3. Voir `../governed-journey/GOVERNED_JOURNEY_RECONCILIATION.md`.
 
 ## Objectif et périmètre

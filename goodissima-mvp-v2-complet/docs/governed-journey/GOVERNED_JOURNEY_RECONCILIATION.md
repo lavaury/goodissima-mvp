@@ -1,5 +1,11 @@
 # Réconciliation du parcours gouverné — R0 / R1-A / R1-B / R1-C1 / R1-C2 / R1-C3 / R2-B / R2-C / R3 / R4
 
+## État après R5-II
+
+Le cockpit `FormTemplate.id` raccorde les trois commandes R5-I2b à une action humaine explicite. Les clés de requête distinctes sont initialisées côté serveur et la lecture R4 est revalidée après succès. La capability view filtre le bouton et les catégories sans exposer permissions ou identifiants structurels.
+
+La réconciliation avec un contexte précis n'est pas simulée : R5-II reste global jusqu'à la livraison d'un token opaque résolu côté serveur. L'action contextuelle depuis réunions, revues, communications et documents reste future. Aucune route parallèle, IA ou extraction automatique n'est introduite.
+
 ## Statut
 
 R4 rend les mémoires gouvernées autorisées dans le cockpit canonique, immédiatement sous le bloc R3. La lecture reste exhaustive sur les `SOURCE` directement rattachées au GJ et les `FACT`/`DECISION` explicitement reliés à ces sources, sans filtre de statut. Les restrictions mémoire gagnent sur l'accès owner au cockpit. Les états, provenances et validations sont projetés sans identifiants techniques, sans confusion avec le journal et sans aucune mutation ou IA.

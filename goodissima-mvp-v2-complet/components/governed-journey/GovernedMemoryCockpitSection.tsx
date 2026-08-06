@@ -1,4 +1,6 @@
 import type { GovernedMemoryCockpitView } from "@/lib/governed-journey/cockpit/memory-read-model";
+import type { GovernedMemoryCreationCapabilities } from "@/lib/governed-journey/cockpit/memory-creation-capabilities";
+import { GovernedMemoryCreationPanel } from "./GovernedMemoryCreationPanel";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -6,7 +8,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export function GovernedMemoryCockpitSection({ view }: { view: GovernedMemoryCockpitView }) {
+export function GovernedMemoryCockpitSection({ view, creation }: { view: GovernedMemoryCockpitView; creation?: { formTemplateId: string; capabilities: GovernedMemoryCreationCapabilities; requestKeys: { fact: string; decision: string; source: string }; today: string } }) {
   return (
     <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
       <h2 className="text-xl font-bold text-slate-950">Mémoire gouvernée</h2>
@@ -49,6 +51,7 @@ export function GovernedMemoryCockpitSection({ view }: { view: GovernedMemoryCoc
           </div>
         </>
       )}
+      {creation ? <GovernedMemoryCreationPanel {...creation} /> : null}
     </section>
   );
 }

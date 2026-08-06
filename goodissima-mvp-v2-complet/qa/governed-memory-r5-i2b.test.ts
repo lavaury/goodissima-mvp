@@ -67,9 +67,6 @@ test("R4 directly loads journey objects, preserves relations and deduplicates in
   assert.doesNotMatch(r4Service, /if \(!extension\.relationCaseId\) return/);
 });
 
-test("R5-I2b adds no schema migration, UI action or parallel route", () => {
-  const page = read("app/gouvernance/parcours/[id]/pilotage/page.tsx"); const component = read("components/governed-journey/GovernedMemoryCockpitSection.tsx");
-  assert.doesNotMatch(`${page}\n${component}`, /proposeJourneyFact|createJourneyDecisionDraft|registerJourneySource/);
-  assert.doesNotMatch(component, /<form|<button|action=|onClick/);
+test("R5-I2b commands remain independent from UI and parallel routes", () => {
   assert.doesNotMatch(commands, /revalidatePath|redirect|Server Action|"use server"/);
 });
