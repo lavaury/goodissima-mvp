@@ -33,7 +33,7 @@ async function getApiErrorMessage(res: Response) {
   }
 }
 
-export function NewTemplateButton() {
+export function NewTemplateButton({ workspaces }: { workspaces: Array<{ id: string; name: string }> }) {
   const router = useRouter();
   const { t } = useI18n();
   const toast = useToast();
@@ -41,6 +41,7 @@ export function NewTemplateButton() {
   const [saving, setSaving] = useState(false);
   const [keyEdited, setKeyEdited] = useState(false);
   const [form, setForm] = useState({ name: "", key: "", description: "", journeyType: "EMPTY" });
+  const [workspaceId, setWorkspaceId] = useState(workspaces.length === 1 ? workspaces[0].id : "");
   const generatedKey = useMemo(() => keyFromName(form.name), [form.name]);
   const effectiveKey = keyEdited ? form.key : generatedKey;
 
@@ -51,7 +52,7 @@ export function NewTemplateButton() {
     const res = await fetch("/api/templates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, key: effectiveKey }),
+      body: JSON.stringify({ ...form, key: effectiveKey, workspaceId: workspaceId || undefined }),
     });
 
     setSaving(false);
@@ -65,6 +66,10 @@ export function NewTemplateButton() {
     toast.success(t("studio.createdToast"));
     router.push(`/templates/${template.id}`);
     router.refresh();
+  }
+
+  if (workspaces.length === 0) {
+    return <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Un espace de travail actif est nécessaire pour créer un parcours.</p>;
   }
 
   if (!open) {
@@ -86,6 +91,16 @@ export function NewTemplateButton() {
         <p className="mt-1 text-sm text-slate-500">{t("studio.businessBaseHelp")}</p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
+        {workspaces.length === 1 ? (
+          <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700 md:col-span-2">Espace de travail : <strong>{workspaces[0].name}</strong></p>
+        ) : (
+          <label className="text-sm font-medium text-slate-700 md:col-span-2">Espace de travail
+            <select required value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} className="mt-1 w-full rounded-xl border bg-white px-4 py-3 font-normal">
+              <option value="">Choisir un espace de travail</option>
+              {workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
+            </select>
+          </label>
+        )}
         <input
           className="rounded-xl border px-4 py-3"
           placeholder={t("studio.namePlaceholder")}
@@ -137,7 +152,7 @@ export function NewTemplateButton() {
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || (workspaces.length > 1 && !workspaceId)}
           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
           {saving ? t("studio.creation") : t("studio.createJourney")}

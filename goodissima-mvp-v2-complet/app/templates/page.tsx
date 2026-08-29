@@ -10,6 +10,7 @@ import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { authorizedFormTemplateScopeWhere } from "@/lib/template-authorization";
 import { localizeTemplateDescription, localizeTemplateName } from "@/lib/template-localization";
 import { ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { isDemoSurfaceEnabled } from "@/lib/debug";
@@ -34,6 +35,7 @@ export default async function TemplatesPage() {
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const templates = await prisma.formTemplate.findMany({
+    where: authorizedFormTemplateScopeWhere(owner.id),
     include: {
       _count: { select: { fields: true } },
       relationTemplate: {
@@ -44,6 +46,11 @@ export default async function TemplatesPage() {
       },
     },
     orderBy: { createdAt: "desc" },
+  });
+  const activeWorkspaces = await prisma.workspace.findMany({
+    where: { ownerId: owner.id, status: "ACTIVE" },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    select: { id: true, name: true },
   });
 
   return (
@@ -61,14 +68,14 @@ export default async function TemplatesPage() {
       </div>
       <ProductLifecycle current="journey" />
       <div className="mt-6">
-        <NewTemplateButton />
+        <NewTemplateButton workspaces={activeWorkspaces} />
       </div>
       {isDemoSurfaceEnabled() ? <div className="mt-3">
         <Link href="/templates/demo" className="inline-flex rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900">
           Démo · Expérimental · parcours IA guidé
         </Link>
       </div> : null}
-      <AITemplateDesigner />
+      <AITemplateDesigner workspaces={activeWorkspaces} />
 
       <div className="mt-8 overflow-hidden rounded-2xl border bg-white">
         {templates.length === 0 ? (

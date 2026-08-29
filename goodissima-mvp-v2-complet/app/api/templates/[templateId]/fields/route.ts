@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthorizedMutableFormTemplate } from "@/lib/template-authorization";
 
 const fieldTypes = new Set(["TEXT", "EMAIL", "TEXTAREA", "PHONE", "NUMBER", "DATE", "SELECT", "CHECKBOX", "FILE"]);
 
@@ -26,7 +27,7 @@ function parseStep(value: unknown) {
 }
 
 export async function POST(req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
 
   const body = await req.json();
   const key = typeof body.key === "string" ? body.key.trim() : "";
@@ -39,10 +40,7 @@ export async function POST(req: Request, { params }: { params: { templateId: str
   if (!fieldTypes.has(type)) return jsonError("type invalide");
   if (!step) return jsonError("step invalide");
 
-  const template = await prisma.formTemplate.findUnique({
-    where: { id: params.templateId },
-    select: { id: true },
-  });
+  const template = await resolveAuthorizedMutableFormTemplate(params.templateId, owner.id);
 
   if (!template) {
     return jsonError("template introuvable", 404);

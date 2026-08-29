@@ -64,7 +64,7 @@ function DraftList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export function AITemplateDesigner() {
+export function AITemplateDesigner({ workspaces }: { workspaces: Array<{ id: string; name: string }> }) {
   const router = useRouter();
   const toast = useToast();
   const [description, setDescription] = useState("");
@@ -81,6 +81,7 @@ export function AITemplateDesigner() {
   const [feedback, setFeedback] = useState("");
   const [pendingRevision, setPendingRevision] = useState<{ feedback: string; inputMode: "text" | "voice"; transcript?: string; capturedAt: string } | null>(null);
   const [aiInstructions, setAiInstructions] = useState("");
+  const [workspaceId, setWorkspaceId] = useState(workspaces.length === 1 ? workspaces[0].id : "");
 
   function updateDraft(nextDraft: Draft) {
     setDraft(nextDraft);
@@ -178,7 +179,7 @@ export function AITemplateDesigner() {
     const response = await fetch(`/api/templates/ai-generate/${generationId}/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ humanValidated: true, draft, aiInstructions }),
+      body: JSON.stringify({ humanValidated: true, draft, aiInstructions, workspaceId: workspaceId || undefined }),
     });
     setLoading(null);
     if (!response.ok) {
@@ -292,11 +293,23 @@ export function AITemplateDesigner() {
               {candidateFormSafety.error ? <p className="mt-2 text-sm text-red-800">{candidateFormSafety.error}</p> : null}
             </div>
           ) : null}
+          {workspaces.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Un espace de travail actif est nécessaire pour créer ce parcours.</p>
+          ) : workspaces.length === 1 ? (
+            <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">Espace de travail : <strong>{workspaces[0].name}</strong></p>
+          ) : (
+            <label className="mt-4 block text-sm font-semibold text-slate-800">Espace de travail
+              <select required value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)} className="mt-1 w-full rounded-xl border bg-white px-4 py-3 font-normal">
+                <option value="">Choisir un espace de travail</option>
+                {workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
+              </select>
+            </label>
+          )}
           <label className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <input type="checkbox" className="mt-0.5" checked={confirmed} disabled={Boolean(validation && !validation.valid) || Boolean(candidateFormSafety && !candidateFormSafety.publishable)} onChange={(event) => setConfirmed(event.target.checked)} />
             J'ai relu cette proposition et je valide sa création comme brouillon non publié.
           </label>
-          <button type="button" onClick={() => void validate()} disabled={!confirmed || loading !== null || Boolean(validation && !validation.valid) || Boolean(candidateFormSafety && !candidateFormSafety.publishable)} className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          <button type="button" onClick={() => void validate()} disabled={!confirmed || loading !== null || workspaces.length === 0 || (workspaces.length > 1 && !workspaceId) || Boolean(validation && !validation.valid) || Boolean(candidateFormSafety && !candidateFormSafety.publishable)} className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
             {loading === "validate" ? "Création..." : `Valider cette version (v${proposalHistory[activeVersionIndex]?.version ?? 1})`}
           </button>
         </div>

@@ -4,12 +4,13 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { generateTemplateOptimizationProposal } from "@/lib/ai/template-optimizer";
 import type { TemplateCriticReport } from "@/lib/ai/template-critic";
 import { prisma } from "@/lib/prisma";
+import { authorizedMutableFormTemplateWhere } from "@/lib/template-authorization";
 
 export async function POST(_req: Request, { params }: { params: { templateId: string; reportId: string } }) {
   try {
     const owner = await getCurrentPrismaUser();
-    const formTemplate = await prisma.formTemplate.findUnique({
-      where: { id: params.templateId },
+    const formTemplate = await prisma.formTemplate.findFirst({
+      where: authorizedMutableFormTemplateWhere(params.templateId, owner.id),
       select: { relationTemplateId: true },
     });
     if (!formTemplate?.relationTemplateId) return NextResponse.json({ error: "Parcours introuvable." }, { status: 404 });

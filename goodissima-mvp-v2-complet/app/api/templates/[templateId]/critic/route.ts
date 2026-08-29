@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { analyzeTemplateVersionQuality } from "@/lib/ai/template-critic";
 import { prisma } from "@/lib/prisma";
+import { authorizedMutableFormTemplateWhere } from "@/lib/template-authorization";
 
 function provenanceFromSnapshot(snapshot: Prisma.JsonValue) {
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
@@ -19,8 +20,8 @@ export async function POST(req: Request, { params }: { params: { templateId: str
     const owner = await getCurrentPrismaUser();
     const body = await req.json().catch(() => ({}));
     const requestedVersionId = typeof body.versionId === "string" ? body.versionId : null;
-    const formTemplate = await prisma.formTemplate.findUnique({
-      where: { id: params.templateId },
+    const formTemplate = await prisma.formTemplate.findFirst({
+      where: authorizedMutableFormTemplateWhere(params.templateId, owner.id),
       select: { relationTemplateId: true },
     });
     if (!formTemplate?.relationTemplateId) {

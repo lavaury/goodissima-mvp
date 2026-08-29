@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthorizedMutableFormField } from "@/lib/template-authorization";
 
 const fieldTypes = new Set(["TEXT", "EMAIL", "TEXTAREA", "PHONE", "NUMBER", "DATE", "SELECT", "CHECKBOX", "FILE"]);
 
@@ -26,7 +27,7 @@ function parseStep(value: unknown) {
 }
 
 export async function PATCH(req: Request, { params }: { params: { fieldId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
 
   const body = await req.json();
   const key = typeof body.key === "string" ? body.key.trim() : "";
@@ -50,8 +51,11 @@ export async function PATCH(req: Request, { params }: { params: { fieldId: strin
     return jsonError(error instanceof Error ? error.message : "JSON invalide");
   }
 
+  const authorizedField = await resolveAuthorizedMutableFormField(params.fieldId, owner.id);
+  if (!authorizedField) return jsonError("champ introuvable", 404);
+
   const field = await prisma.formField.update({
-    where: { id: params.fieldId },
+    where: { id: authorizedField.id },
     data: {
       key,
       label,
@@ -67,10 +71,13 @@ export async function PATCH(req: Request, { params }: { params: { fieldId: strin
 }
 
 export async function DELETE(_req: Request, { params }: { params: { fieldId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+
+  const field = await resolveAuthorizedMutableFormField(params.fieldId, owner.id);
+  if (!field) return jsonError("champ introuvable", 404);
 
   await prisma.formField.delete({
-    where: { id: params.fieldId },
+    where: { id: field.id },
   });
 
   return NextResponse.json({ ok: true });

@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { transitionOpportunity, type OpportunityLifecycle } from "@/lib/goodissima-experience";
 import { prisma } from "@/lib/prisma";
+import { authorizedMutableFormTemplateWhere } from "@/lib/template-authorization";
 
 export async function POST(req: Request, { params }: { params: { templateId: string } }) {
   try {
     const owner = await getCurrentPrismaUser();
     const body = await req.json();
     if (body.humanConfirmed !== true) return NextResponse.json({ error: "Une confirmation humaine est requise." }, { status: 400 });
-    const formTemplate = await prisma.formTemplate.findUnique({ where: { id: params.templateId }, include: { relationTemplate: true } });
+    const formTemplate = await prisma.formTemplate.findFirst({ where: authorizedMutableFormTemplateWhere(params.templateId, owner.id), include: { relationTemplate: true } });
     if (!formTemplate?.relationTemplate) return NextResponse.json({ error: "Opportunité introuvable." }, { status: 404 });
     const current = formTemplate.relationTemplate.status as OpportunityLifecycle;
     const requested = body.status as OpportunityLifecycle;

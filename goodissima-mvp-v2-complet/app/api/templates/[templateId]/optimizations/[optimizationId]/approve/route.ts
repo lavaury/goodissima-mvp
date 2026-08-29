@@ -4,6 +4,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import type { TemplateOptimizationProposal } from "@/lib/ai/template-optimizer";
 import { parseTemplateSnapshot } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
+import { authorizedMutableFormTemplateWhere } from "@/lib/template-authorization";
 
 export async function POST(req: Request, { params }: { params: { templateId: string; optimizationId: string } }) {
   try {
@@ -13,8 +14,8 @@ export async function POST(req: Request, { params }: { params: { templateId: str
       return NextResponse.json({ error: "Une approbation humaine explicite est requise." }, { status: 400 });
     }
 
-    const formTemplate = await prisma.formTemplate.findUnique({
-      where: { id: params.templateId },
+    const formTemplate = await prisma.formTemplate.findFirst({
+      where: authorizedMutableFormTemplateWhere(params.templateId, owner.id),
       select: { relationTemplateId: true },
     });
     if (!formTemplate?.relationTemplateId) return NextResponse.json({ error: "Parcours introuvable." }, { status: 404 });

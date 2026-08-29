@@ -17,6 +17,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { candidateIdentityRequiredFromSnapshotMetadata, checkCandidatePublicationSafety, inspectCandidateForm, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { authorizedFormTemplateWhere } from "@/lib/template-authorization";
 import { localizeTemplateDescription, localizeTemplateName } from "@/lib/template-localization";
 import {
   formatConditionalRule,
@@ -99,8 +100,8 @@ export default async function TemplateDetailPage({ params, searchParams }: { par
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
-  const template = await prisma.formTemplate.findUnique({
-    where: { id: params.templateId },
+  const template = await prisma.formTemplate.findFirst({
+    where: authorizedFormTemplateWhere(params.templateId, owner.id),
     include: {
       relationTemplate: {
         include: {

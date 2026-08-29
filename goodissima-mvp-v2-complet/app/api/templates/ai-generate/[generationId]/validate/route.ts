@@ -6,6 +6,7 @@ import { validateTemplateDraftQuality } from "@/lib/ai/template-draft-quality";
 import { candidateFieldsFromTemplateDraft, candidateIdentityRequiredFromTemplateDraft, checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { prisma } from "@/lib/prisma";
 import { buildPersistedOpportunityPresentation } from "@/lib/opportunity-preview";
+import { resolveTemplateWorkspaceDestination } from "@/lib/template-authorization";
 
 function normalizeKey(value: string) {
   return value
@@ -93,10 +94,17 @@ export async function POST(req: Request, { params }: { params: { generationId: s
       key = `${baseKey}_${suffix}`.slice(0, 80);
     }
     const formKey = `${key}_FORM`.slice(0, 80);
+    const destination = await resolveTemplateWorkspaceDestination(
+      owner.id,
+      typeof body.workspaceId === "string" ? body.workspaceId : null,
+    );
+    if (destination.kind === "ZERO") return NextResponse.json({ error: "Un espace de travail actif est nécessaire pour créer ce parcours." }, { status: 409 });
+    if (destination.kind === "MULTIPLE") return NextResponse.json({ error: "Choisissez un espace de travail pour créer ce parcours.", code: "WORKSPACE_SELECTION_REQUIRED" }, { status: 409 });
+    if (destination.kind === "INVALID_SELECTION") return NextResponse.json({ error: "Espace de travail introuvable." }, { status: 404 });
 
     const template = await prisma.$transaction(async (tx) => {
       const relationTemplate = await tx.relationTemplate.create({
-        data: { key, name: draft.name, description: draft.description, status: "DRAFT", aiInstructions: typeof body.aiInstructions === "string" && body.aiInstructions.trim() ? body.aiInstructions.trim().slice(0, 5000) : null },
+        data: { workspaceId: destination.workspace.id, key, name: draft.name, description: draft.description, status: "DRAFT", aiInstructions: typeof body.aiInstructions === "string" && body.aiInstructions.trim() ? body.aiInstructions.trim().slice(0, 5000) : null },
       });
       const formTemplate = await tx.formTemplate.create({
         data: { key: formKey, name: draft.name, description: draft.description, relationTemplateId: relationTemplate.id },

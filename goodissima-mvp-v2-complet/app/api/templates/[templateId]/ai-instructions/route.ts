@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { prisma } from "@/lib/prisma";
+import { authorizedMutableFormTemplateWhere } from "@/lib/template-authorization";
 
 const maxInstructionsLength = 4000;
 const blockedPatterns = [
@@ -22,7 +23,7 @@ function cleanInstructions(value: unknown) {
 }
 
 export async function PATCH(req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
 
   const body = await req.json();
   const aiInstructions = cleanInstructions(body.aiInstructions);
@@ -38,8 +39,8 @@ export async function PATCH(req: Request, { params }: { params: { templateId: st
     );
   }
 
-  const formTemplate = await prisma.formTemplate.findUnique({
-    where: { id: params.templateId },
+  const formTemplate = await prisma.formTemplate.findFirst({
+    where: authorizedMutableFormTemplateWhere(params.templateId, owner.id),
     select: { relationTemplateId: true },
   });
 

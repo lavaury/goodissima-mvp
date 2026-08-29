@@ -5,6 +5,7 @@ import { validateTemplateDraftQuality } from "@/lib/ai/template-draft-quality";
 import { assertEditableDraftVersion, buildManualJourneyVersionPlan, changedJourneyFields, manualJourneyChanges, parseEditableJourneyDesign } from "@/lib/manual-journey-editor";
 import { prisma } from "@/lib/prisma";
 import { parseTemplateSnapshot } from "@/lib/template-snapshots";
+import { authorizedMutableFormTemplateWhere } from "@/lib/template-authorization";
 
 export async function POST(req: Request, { params }: { params: { templateId: string } }) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: Request, { params }: { params: { templateId: str
     const sourceVersionId = typeof body.sourceVersionId === "string" ? body.sourceVersionId : "";
     const reason = typeof body.reason === "string" && body.reason.trim() ? body.reason.trim().slice(0, 1000) : null;
 
-    const formTemplate = await prisma.formTemplate.findUnique({ where: { id: params.templateId }, select: { relationTemplateId: true } });
+    const formTemplate = await prisma.formTemplate.findFirst({ where: authorizedMutableFormTemplateWhere(params.templateId, owner.id), select: { relationTemplateId: true } });
     if (!formTemplate?.relationTemplateId) return NextResponse.json({ error: "Parcours introuvable." }, { status: 404 });
 
     const sourceVersion = await prisma.templateVersion.findFirst({ where: { id: sourceVersionId, templateId: formTemplate.relationTemplateId } });

@@ -4,11 +4,15 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { candidateIdentityRequiredFromSnapshotMetadata, checkCandidatePublicationSafety, toCandidateFormField } from "@/lib/candidate-form-safety";
 import { buildTemplateSnapshot } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthorizedMutableFormTemplate } from "@/lib/template-authorization";
 
 export async function POST(_req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
 
-  const snapshot = await buildTemplateSnapshot(params.templateId);
+  const authorized = await resolveAuthorizedMutableFormTemplate(params.templateId, owner.id);
+  if (!authorized) return NextResponse.json({ error: "Parcours introuvable ou incomplet" }, { status: 404 });
+
+  const snapshot = await buildTemplateSnapshot(authorized.id);
 
   if (!snapshot) {
     return NextResponse.json({ error: "Parcours introuvable ou incomplet" }, { status: 404 });

@@ -5,10 +5,16 @@ import { AITemplateDesigner } from "@/components/AITemplateDesigner";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { PlatformNavigation } from "@/components/PlatformNavigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export default async function NewOpportunityPage() {
   const owner = await getCurrentPrismaUser();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
+  const activeWorkspaces = await prisma.workspace.findMany({
+    where: { ownerId: owner.id, status: "ACTIVE" },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    select: { id: true, name: true },
+  });
 
   return <main className="mx-auto max-w-6xl px-6 py-10">
     <DashboardBackLink className="mb-4" />
@@ -33,6 +39,6 @@ export default async function NewOpportunityPage() {
         <Link href="/opportunities" className="rounded-xl border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-900">Voir mes opportunités</Link>
       </div>
     </section>
-    <div id="ai-assisted" className="scroll-mt-6"><AITemplateDesigner /></div>
+    <div id="ai-assisted" className="scroll-mt-6"><AITemplateDesigner workspaces={activeWorkspaces} /></div>
   </main>;
 }

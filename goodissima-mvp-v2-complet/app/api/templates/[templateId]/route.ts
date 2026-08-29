@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { authorizedMutableFormTemplateWhere } from "@/lib/template-authorization";
 
 export async function DELETE(_req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
-  const template = await prisma.formTemplate.findUnique({
-    where: { id: params.templateId },
+  const owner = await getCurrentPrismaUser();
+  const template = await prisma.formTemplate.findFirst({
+    where: authorizedMutableFormTemplateWhere(params.templateId, owner.id),
     include: { relationTemplate: { include: { _count: { select: { links: true, relationCases: true } } } } },
   });
   if (!template?.relationTemplate) return NextResponse.json({ error: "Brouillon introuvable." }, { status: 404 });

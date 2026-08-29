@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { authorizedFormTemplateScopeWhere, resolveTemplateWorkspaceDestination } from "@/lib/template-authorization";
 
 function normalizeKey(value: unknown) {
   if (typeof value !== "string") return "";
@@ -60,9 +61,10 @@ const starterFieldsByType: Record<
 };
 
 export async function GET() {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
 
   const templates = await prisma.formTemplate.findMany({
+    where: authorizedFormTemplateScopeWhere(owner.id),
     include: {
       _count: { select: { fields: true } },
     },
@@ -73,7 +75,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
 
   const body = await req.json();
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -97,9 +99,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "identifiant déjà utilisé" }, { status: 409 });
   }
 
+  const destination = await resolveTemplateWorkspaceDestination(
+    owner.id,
+    typeof body.workspaceId === "string" ? body.workspaceId : null,
+  );
+  if (destination.kind === "ZERO") return NextResponse.json({ error: "Un espace de travail actif est nécessaire pour créer un parcours." }, { status: 409 });
+  if (destination.kind === "MULTIPLE") return NextResponse.json({ error: "Choisissez un espace de travail pour créer ce parcours.", code: "WORKSPACE_SELECTION_REQUIRED" }, { status: 409 });
+  if (destination.kind === "INVALID_SELECTION") return NextResponse.json({ error: "Espace de travail introuvable." }, { status: 404 });
+
   const template = await prisma.$transaction(async (tx) => {
     const relationTemplate = await tx.relationTemplate.create({
       data: {
+        workspaceId: destination.workspace.id,
         key,
         name,
         description,
