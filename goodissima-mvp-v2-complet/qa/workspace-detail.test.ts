@@ -94,6 +94,6 @@ test("both Workspace entry repositories use canonical destination, Governance ex
     assert.ok(read(file).includes('href: `/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`'));
     assert.ok(!read(file).includes("firstWorkspaceHref") && !read(file).includes("firstJourneyHref"));
   }
-  assert.match(read("app/(connected)/gouvernance/page.tsx"), /<Link href=\{workspace.href\}/);
+  assert.ok(read("components/SpacesTreeView.tsx").includes("/gouvernance/workspaces/${encodeURIComponent(workspace.id)}"));
   assert.match(read("app/(connected)/gouvernance/portfolios/[id]/page.tsx"), /<Link href=\{workspace.href\}/);
 });

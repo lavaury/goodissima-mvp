@@ -26,8 +26,8 @@ test("participant UI refreshes session states without auto-joining", () => {
 });
 
 test("Workspace CTA names the governed journey creation flow", () => {
-  const page = source("app/(connected)/gouvernance/page.tsx");
-  assert.match(page, /href="\/gouvernance\/nouveau"[\s\S]*Creer un parcours gouverne/);
+  const page = source("components/PlatformNavigation.tsx");
+  assert.ok(page.includes('href: "/gouvernance/nouveau"'));
   assert.doesNotMatch(page, /Commencer une activite/);
 });
 

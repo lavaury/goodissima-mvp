@@ -13,6 +13,7 @@ import { governedJourneySequences } from "@/lib/boussole-governed-journey";
 import { dossierSequences } from "@/lib/boussole-dossiers";
 import { boussoleGlossary, getGlossaryTerm, searchGlossary, type GlossaryTerm } from "@/lib/boussole/glossary";
 import { resolveNextTargetInSequence } from "@/lib/boussole/target-resolver";
+import { isInClosedPortfolio, revealPortfolio } from "@/lib/boussole/portfolio-disclosure";
 import { isInClosedNavigationDisclosure, revealNavigationDisclosure } from "@/lib/boussole/navigation-disclosure";
 import { resolveBoussolePageState } from "@/lib/boussole/page-state";
 import type { BoussoleRuntimeContext } from "@/lib/boussole/contracts";
@@ -66,7 +67,7 @@ export function ContextualBoussole() {
   const runtimeContext = useMemo<BoussoleRuntimeContext>(() => {
     if (typeof document === "undefined") return { pageState: "EMPTY", visibleObjectCount: 0 };
     const targets = Array.from(document.querySelectorAll<HTMLElement>("[data-boussole-id]"));
-    const availableTargetIds = [...new Set(targets.filter((element) => element.getClientRects().length > 0 || isInClosedNavigationDisclosure(element)).map((element) => element.dataset.boussoleId).filter((id): id is string => Boolean(id)))];
+    const availableTargetIds = [...new Set(targets.filter((element) => element.getClientRects().length > 0 || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element))).map((element) => element.dataset.boussoleId).filter((id): id is string => Boolean(id)))];
     const focusedObjectId = context?.id === "governed-journey" && availableTargetIds.includes("governed-journey-overview") ? pathname.match(/^\/gouvernance\/parcours\/([^/]+)/)?.[1] : undefined;
     const visibleObjectCount = context?.id === "governance"
       ? ["governance-first-workspace", "governance-first-journey", "governance-first-portfolio", "first-unassigned-governed-journey", "first-unassigned-relational-case"].filter((id) => availableTargetIds.includes(id)).length
@@ -88,7 +89,7 @@ export function ContextualBoussole() {
         if (!(element instanceof HTMLElement)) return false;
         const style = window.getComputedStyle(element);
         const stateMatches = !candidate.targetStates?.length || candidate.targetStates.includes(element.dataset.boussoleState ?? "");
-        return stateMatches && ((element.getClientRects().length > 0 && style.display !== "none" && style.visibility !== "hidden" && element.getAttribute("aria-hidden") !== "true") || isInClosedNavigationDisclosure(element));
+        return stateMatches && ((element.getClientRects().length > 0 && style.display !== "none" && style.visibility !== "hidden" && element.getAttribute("aria-hidden") !== "true") || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element)));
       });
       if (!available && candidate.targetId === "simple-link-final-check-section" && process.env.NODE_ENV !== "production" && !missingTargetWarnings.current.has(candidate.targetId)) {
         missingTargetWarnings.current.add(candidate.targetId);
@@ -291,6 +292,7 @@ export function ContextualBoussole() {
       return;
     }
     revealNavigationDisclosure(target);
+    revealPortfolio(target);
     target.classList.add("goodissima-boussole-highlight");
     highlighted.current = target;
     const targetRect = target.getBoundingClientRect();
@@ -415,7 +417,7 @@ export function ContextualBoussole() {
       const target = Array.from(document.querySelectorAll(`[data-boussole-id="${candidate.dataBoussoleId}"]`)).find((element) => {
         if (!(element instanceof HTMLElement)) return false;
         const style = window.getComputedStyle(element);
-        return (element.getClientRects().length > 0 && style.display !== "none" && style.visibility !== "hidden" && element.getAttribute("aria-hidden") !== "true") || isInClosedNavigationDisclosure(element);
+        return (element.getClientRects().length > 0 && style.display !== "none" && style.visibility !== "hidden" && element.getAttribute("aria-hidden") !== "true") || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element));
       });
       if (target instanceof HTMLElement) return target;
     }
@@ -427,6 +429,7 @@ export function ContextualBoussole() {
     if (!target) return;
     clearHighlight();
     revealNavigationDisclosure(target);
+    revealPortfolio(target);
     target.classList.add("goodissima-boussole-highlight");
     highlighted.current = target;
     const rect = target.getBoundingClientRect();

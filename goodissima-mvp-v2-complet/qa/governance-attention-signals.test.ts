@@ -75,8 +75,8 @@ test("renders honest populated and empty summaries in Workspace and Pilotage", (
   const workspace = read("app/(connected)/gouvernance/page.tsx");
   const pilotage = read("app/(connected)/gouvernance/pilotage/page.tsx");
   const portfolio = read("app/(connected)/gouvernance/portfolios/[id]/pilotage/page.tsx");
-  assert.match(workspace, /À examiner/);
-  assert.match(workspace, /Aucune intervention humaine requise détectée/);
+  assert.doesNotMatch(workspace, /getGovernancePilotage/);
+  assert.match(workspace, /getSpacesTree/);
   assert.match(pilotage, /Intervention humaine requise/);
   assert.match(pilotage, /Aucune intervention humaine requise détectée dans ce périmètre/);
   assert.match(portfolio, /scope: "PORTFOLIO"/);

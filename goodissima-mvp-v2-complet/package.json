@@ -60,6 +60,7 @@
     "qa:connected-shell": "node --experimental-strip-types --test qa/connected-shell.test.ts",
     "qa:connected-navigation": "node scripts/qa-connected-navigation.mjs",
     "qa:spatial-navigation": "node --experimental-strip-types --test qa/spatial-navigation.test.ts",
+    "qa:spaces": "node --experimental-strip-types --test qa/spaces.test.ts",
     "qa:workspace-detail": "node --experimental-strip-types --test qa/workspace-detail.test.ts",
     "qa:workspace-pilotage": "node --experimental-strip-types --test qa/workspace-pilotage.test.ts",
     "qa:workspace-creation": "node --experimental-strip-types --test qa/workspace-creation.test.ts",
