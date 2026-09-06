@@ -72,9 +72,9 @@ test("builds deterministic, scoped and non-sensitive attention counters", () => 
 });
 
 test("renders honest populated and empty summaries in Workspace and Pilotage", () => {
-  const workspace = read("app/gouvernance/page.tsx");
-  const pilotage = read("app/gouvernance/pilotage/page.tsx");
-  const portfolio = read("app/gouvernance/portfolios/[id]/pilotage/page.tsx");
+  const workspace = read("app/(connected)/gouvernance/page.tsx");
+  const pilotage = read("app/(connected)/gouvernance/pilotage/page.tsx");
+  const portfolio = read("app/(connected)/gouvernance/portfolios/[id]/pilotage/page.tsx");
   assert.match(workspace, /À examiner/);
   assert.match(workspace, /Aucune intervention humaine requise détectée/);
   assert.match(pilotage, /Intervention humaine requise/);

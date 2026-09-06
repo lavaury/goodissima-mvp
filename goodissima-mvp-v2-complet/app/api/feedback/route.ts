@@ -2,6 +2,7 @@ import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { sanitizeFeedbackUrl } from "@/lib/feedback-url";
 import {
   cleanFeedbackString,
   feedbackScreenshotBucketName,
@@ -150,7 +151,7 @@ export async function POST(req: Request) {
   const feedback = {
     type,
     message,
-    page: cleanFeedbackString((body as { page?: unknown }).page, 300),
+    page: sanitizeFeedbackUrl((body as { page?: unknown }).page),
     role: appUser?.role ?? (authUser?.email ? "AUTHENTICATED" : "VISITOR"),
     userId: appUser?.id ?? null,
     caseId: caseExists?.id ?? null,

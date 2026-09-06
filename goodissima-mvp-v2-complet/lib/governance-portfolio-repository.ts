@@ -59,17 +59,6 @@ export type GovernancePortfolioWorkspaceOption = {
   kindLabel: string;
 };
 
-function firstWorkspaceHref(workspace: {
-  relationTemplates: Array<{
-    formTemplates: Array<{ id: string }>;
-  }>;
-}) {
-  const formTemplateId = workspace.relationTemplates
-    .flatMap((template) => template.formTemplates)
-    .at(0)?.id;
-  return formTemplateId ? `/gouvernance/parcours/${formTemplateId}/pilotage` : "/gouvernance";
-}
-
 function workspaceSummary(workspace: {
   id: string;
   slug: string;
@@ -92,7 +81,7 @@ function workspaceSummary(workspace: {
     categoryLabel: workspaceCategoryLabels[workspace.category],
     kind: workspace.kind,
     kindLabel: workspaceKindLabels[workspace.kind],
-    href: firstWorkspaceHref(workspace),
+    href: `/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`,
     journeyCount: workspace._count.relationTemplates,
     gLinkCount: workspace._count.links,
     relationCaseCount: workspace._count.relationCases,

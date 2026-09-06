@@ -26,6 +26,8 @@ function fieldKey(label: string, index: number) {
 export async function POST(request: Request) {
   const owner = await getCurrentPrismaUser();
   const body = await request.json();
+  const workspaceId = body.workspaceId === undefined ? undefined : typeof body.workspaceId === "string" ? body.workspaceId.trim() : "";
+  if (workspaceId === "") return NextResponse.json({ error: "Workspace invalide." }, { status: 400 });
   const title = text(body.title, 160);
   const description = text(body.description, 1200);
   const welcomeMessage = text(body.welcomeMessage, 800);
@@ -82,6 +84,11 @@ export async function POST(request: Request) {
   const slug = `${slugify(title) || "lien"}-${unique.slice(0, 5)}`;
 
   const link = await prisma.$transaction(async (tx) => {
+    // Contextual creation checks the current owner and ACTIVE inside the creation transaction.
+    if (workspaceId) {
+      const workspace = await tx.workspace.findFirst({ where: { id: workspaceId, ownerId: owner.id, status: "ACTIVE" }, select: { id: true } });
+      if (!workspace) return null;
+    }
     const relationTemplate = await tx.relationTemplate.create({
       data: {
         key: relationKey,
@@ -102,6 +109,7 @@ export async function POST(request: Request) {
     const createdLink = await tx.gLink.create({
       data: {
         ownerId: owner.id,
+        ...(workspaceId ? { workspaceId } : {}),
         templateId: relationTemplate.id,
         slug,
         title,
@@ -126,6 +134,9 @@ export async function POST(request: Request) {
     });
     return { ...createdLink, formTemplateId: formTemplate.id };
   });
+
+  if (!link) return NextResponse.json({ error: "Workspace indisponible pour cette création." }, { status: 404 });
+  if (workspaceId) revalidatePath(`/gouvernance/workspaces/${encodeURIComponent(workspaceId)}`);
 
   revalidatePath("/dashboard");
   revalidatePath("/opportunities");

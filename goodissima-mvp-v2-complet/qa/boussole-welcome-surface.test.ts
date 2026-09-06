@@ -4,7 +4,7 @@ import test from "node:test";
 import { WELCOME_ENTRY_TARGET_IDS, WELCOME_INTENTS, WELCOME_MODES, WELCOME_STEP_IDS } from "../lib/boussole/welcome-contracts.ts";
 import { welcomeGeneralContent } from "../lib/boussole/welcome-content.ts";
 
-const page = readFileSync(new URL("../app/boussole/decouverte/page.tsx", import.meta.url), "utf8");
+const page = readFileSync(new URL("../app/(connected)/boussole/decouverte/page.tsx", import.meta.url), "utf8");
 const component = readFileSync(new URL("../components/BoussoleWelcomeDiscovery.tsx", import.meta.url), "utf8");
 const scenes = readFileSync(new URL("../components/boussole/welcome/WelcomeScenes.tsx", import.meta.url), "utf8");
 

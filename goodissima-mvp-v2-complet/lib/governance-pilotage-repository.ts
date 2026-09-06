@@ -11,11 +11,45 @@ export type GovernancePilotageSignal = { id: string; kind: PilotageSignalKind; t
 function record(value: unknown) { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function selectedParticipants(value: unknown) { const rows = record(value).selectedParticipants; return Array.isArray(rows) ? rows.map(record).map((row) => ({ name: typeof row.participantName === "string" ? row.participantName : "", role: typeof row.participantRole === "string" ? row.participantRole : "" })).filter((row) => row.name) : []; }
 
-export async function getGovernancePilotage(ownerId: string, portfolioId?: string) {
+export async function getGovernancePilotage(ownerId: string, portfolioId?: string, workspaceId?: string, now = new Date()) {
   const [workspaces, gLinks] = await Promise.all([
-    prisma.workspace.findMany({ where: { ownerId, ...(portfolioId ? { portfolioId } : {}) }, include: { portfolio: true, relationTemplates: { include: { formTemplates: { select: { id: true } }, governedJourneyInvitations: true, communicationSessions: { include: { meetingParticipants: true } }, relationCases: { select: { id: true, candidateName: true, matchingEnabled: true, embeddingStatus: true, embeddingUpdatedAt: true, createdAt: true, gLink: { select: { rules: true } }, aiEvents: { where: { action: { in: ["matching_analysis", "semantic_matching_analysis", "matching_proposed"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { action: true, outputSummary: true, createdAt: true } }, relationEvents: { where: { type: "MATCHING_PROPOSED" }, orderBy: { createdAt: "desc" }, take: 10, select: { createdAt: true } } } }, links: { select: { id: true } } } } }, orderBy: { updatedAt: "desc" } }),
+    // PARCOURS: only journeys of the requested Workspace; child signals also require DIRECT membership.
+    // Without workspaceId, preserve the existing global / Portfolio aggregation.
+    prisma.workspace.findMany({
+      where: { ownerId, ...(portfolioId ? { portfolioId } : {}), ...(workspaceId ? { id: workspaceId } : {}) },
+      include: {
+        portfolio: true,
+        relationTemplates: {
+          where: workspaceId ? { workspaceId } : undefined,
+          include: {
+            formTemplates: { orderBy: workspaceId ? { createdAt: "asc" } : undefined, select: { id: true } },
+            governedJourneyInvitations: {
+              where: workspaceId ? { ownerId, workspaceId } : undefined,
+              select: { id: true, displayName: true, status: true, revokedAt: true, accessTokenExpiresAt: true, acceptedAt: true, createdAt: true },
+            },
+            communicationSessions: {
+              where: workspaceId ? { ownerId, workspaceId, relationCaseId: null,
+                status: { notIn: ["COMPLETED", "CANCELLED"] }, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } : undefined,
+              include: { meetingParticipants: true },
+            },
+            relationCases: {
+              where: workspaceId ? { ownerId, workspaceId } : undefined,
+              select: {
+                id: true, candidateName: true, matchingEnabled: true, embeddingStatus: true, embeddingUpdatedAt: true, createdAt: true,
+                gLink: { select: { rules: true } },
+                aiEvents: { where: { action: { in: ["matching_analysis", "semantic_matching_analysis", "matching_proposed"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { action: true, outputSummary: true, createdAt: true } },
+                relationEvents: { where: { type: "MATCHING_PROPOSED" }, orderBy: { createdAt: "desc" }, take: 10, select: { createdAt: true } },
+              },
+            },
+            links: { select: { id: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+    // DIRECT: matching belongs to the link's recorded Workspace, never its template's Workspace.
     prisma.gLink.findMany({
-      where: { ownerId, status: "ACTIVE", ...(portfolioId ? { workspace: { portfolioId } } : {}) },
+      where: { ownerId, status: "ACTIVE", ...(workspaceId ? { workspaceId, workspace: { ownerId } } : {}), ...(portfolioId ? { workspace: { portfolioId } } : {}) },
       orderBy: { createdAt: "desc" },
       select: {
         id: true, title: true, description: true, createdAt: true, templateId: true, rules: true,
@@ -30,7 +64,7 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
     }),
   ]);
   const matchingSummaries = await getGLinkMatchingSummariesForOwner(ownerId, gLinks.map((link) => link.id));
-  const now = new Date(); const recentSince = new Date(now.getTime() - 14 * 86400000); const signals: GovernancePilotageSignal[] = [];
+  const recentSince = new Date(now.getTime() - 14 * 86400000); const signals: GovernancePilotageSignal[] = [];
   for (const workspace of workspaces) for (const journey of workspace.relationTemplates) {
     const formId = journey.formTemplates[0]?.id; if (!formId) continue;
     const base = { journey: journey.name, workspaceId: workspace.id, workspace: workspace.name, portfolioId: workspace.portfolioId, portfolio: workspace.portfolio?.name ?? null };
@@ -66,7 +100,9 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
       if (meeting.status === "CANCELLED") signals.push({ id: `cancelled-${meeting.id}`, kind: "HISTORY", title: "Réunion annulée", subject: meeting.title, ...base, reason: "Réunion annulée et conservée dans l’historique.", actionLabel: "Consulter", href: meetingHref, date: meeting.updatedAt });
       if (meeting.createdAt >= recentSince || meeting.updatedAt >= recentSince) signals.push({ id: `recent-${meeting.id}`, kind: "RECENT", title: "Communication récente", subject: meeting.title, ...base, reason: "Communication créée ou mise à jour au cours des 14 derniers jours.", actionLabel: "Ouvrir le parcours", href: meetingHref, date: meeting.updatedAt });
       const activeNames = new Set(journey.governedJourneyInvitations.filter((item) => item.status === "ACTIVE" && !item.revokedAt && item.accessTokenExpiresAt > now).map((item) => item.displayName.toLocaleLowerCase("fr")));
-      for (const participant of selectedParticipants(meeting.metadata)) if (!activeNames.has(participant.name.toLocaleLowerCase("fr"))) signals.push({ id: `missing-${meeting.id}-${participant.name}`, kind: "ACTION", title: "Participant sans accès actif", subject: participant.name, ...base, reason: `Sélectionné pour « ${meeting.title} », mais aucun accès invité actif ne correspond.`, actionLabel: "Créer ou renouveler l’accès invité", href: meetingHref, date: meeting.scheduledAt });
+      // Workspace V1 excludes absence inferred by names from a filtered invitation set:
+      // a valid historical invitation may belong to another Workspace after a move.
+      if (!workspaceId) for (const participant of selectedParticipants(meeting.metadata)) if (!activeNames.has(participant.name.toLocaleLowerCase("fr"))) signals.push({ id: `missing-${meeting.id}-${participant.name}`, kind: "ACTION", title: "Participant sans accès actif", subject: participant.name, ...base, reason: `Sélectionné pour « ${meeting.title} », mais aucun accès invité actif ne correspond.`, actionLabel: "Créer ou renouveler l’accès invité", href: meetingHref, date: meeting.scheduledAt });
     }
   }
   for (const link of gLinks) {

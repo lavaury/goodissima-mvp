@@ -6,7 +6,7 @@ const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.
 
 test("governance review follows explicit human-only transitions", () => {
   const actions = source("lib/governance-review-preparations-actions.ts");
-  const page = source("app/gouvernance/parcours/[id]/pilotage/page.tsx");
+  const page = source("app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx");
   const signals = source("lib/governance-cockpit-consolidation-repository.ts");
   const assistant = source("components/GovernanceReviewAIAssistant.tsx");
   const button = source("components/ConfirmGovernanceReviewTransitionButton.tsx");

@@ -6,9 +6,9 @@ import { welcomeManifest } from "../lib/boussole/welcome-manifest.ts";
 import { WELCOME_STEP_IDS } from "../lib/boussole/welcome-contracts.ts";
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const dashboard = source("app/dashboard/page.tsx");
+const dashboard = source("app/(connected)/dashboard/page.tsx");
 const navigation = source("components/PlatformNavigation.tsx");
-const discoveryPage = source("app/boussole/decouverte/page.tsx");
+const discoveryPage = source("app/(connected)/boussole/decouverte/page.tsx");
 
 test("dashboard exposes a compact canonical Boussole entry in empty and active states", () => {
   assert.match(dashboard, /data-boussole-id="open-boussole-from-dashboard"/);
@@ -21,17 +21,19 @@ test("dashboard exposes a compact canonical Boussole entry in empty and active s
 });
 
 test("global navigation links canonically to discovery on desktop and mobile", () => {
-  assert.match(navigation, /\{ label: "Boussole", href: "\/boussole\/decouverte" \}/);
+  assert.match(navigation, /\{ label: "Boussole", href: "\/boussole\/decouverte", icon:/);
   assert.match(navigation, /data-boussole-id=\{boussoleIds\[item\.href\]\}/);
   assert.match(navigation, /"\/boussole\/decouverte": "open-boussole-from-navigation"/);
-  assert.match(navigation, /overflow-x-auto/);
+  assert.match(navigation, /grid-cols-3/);
   assert.match(navigation, /aria-label="Navigation principale"/);
 });
 
-test("discovery page renders the connected navigation with an explicit active state", () => {
-  assert.match(discoveryPage, /<PlatformNavigation active="boussole" \/>/);
-  assert.match(navigation, /active === "boussole"[\s\S]*\? "\/boussole\/decouverte"/);
-  assert.match(navigation, /aria-current=\{item\.href === resolvedActiveHref \? "page" : undefined\}/);
+test("discovery page inherits the connected navigation with a pathname active state", () => {
+  assert.doesNotMatch(discoveryPage, /<PlatformNavigation/);
+  assert.match(source("app/(connected)/layout.tsx"), /<ConnectedShell/);
+  assert.match(source("components/ConnectedShell.tsx"), /<PlatformNavigation/);
+  assert.match(navigation, /usePathname\(\)/);
+  assert.match(navigation, /aria-current=\{item\.href === resolvedActiveHref \? \(pathname === item\.href \? "page" : "location"\) : undefined\}/);
   assert.match(discoveryPage, /<Link href="\/dashboard"/);
 });
 
@@ -63,9 +65,9 @@ test("welcome contracts remain unchanged by navigation integration", () => {
 test("modified UI files contain no common UTF-8 corruption markers", () => {
   const markers = ["\u00c3", "\u00c2", "\u00e2\u20ac", "\u00ef\u00bf\u00bd"];
   for (const [path, content] of [
-    ["app/dashboard/page.tsx", dashboard],
+    ["app/(connected)/dashboard/page.tsx", dashboard],
     ["components/PlatformNavigation.tsx", navigation],
-    ["app/boussole/decouverte/page.tsx", discoveryPage],
+    ["app/(connected)/boussole/decouverte/page.tsx", discoveryPage],
   ]) {
     for (const marker of markers) assert.equal(content.includes(marker), false, `${path}: corrupt UTF-8`);
   }

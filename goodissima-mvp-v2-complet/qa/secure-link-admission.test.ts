@@ -21,9 +21,9 @@ test("defaults new and legacy secure links to open admission", () => {
 
 test("shows the Admission block consistently on every secure link card", () => {
   const card = source("components/LinkCard.tsx");
-  const dashboard = source("app/dashboard/page.tsx");
-  const linkPage = source("app/links/[linkId]/page.tsx");
-  const opportunities = source("app/opportunities/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
+  const linkPage = source("app/(connected)/links/[linkId]/page.tsx");
+  const opportunities = source("app/(connected)/opportunities/page.tsx");
 
   assert.match(card, /<LinkAdmissionPanel/);
   assert.doesNotMatch(card, /isTrustAdmissionPilot|showAdmissionPanel/);
@@ -59,7 +59,7 @@ test("enforces verified-only while allowing anonymous open submissions", () => {
 
 test("guides unverified candidates without making identity mandatory in open mode", () => {
   const candidateForm = source("app/l/[slug]/candidate-form.tsx");
-  const creationForm = source("app/links/new/NewLinkForm.tsx");
+  const creationForm = source("app/(connected)/links/new/NewLinkForm.tsx");
 
   assert.match(candidateForm, /Vérifier mon identité/);
   assert.match(candidateForm, /Vous pouvez répondre sans fournir votre identité/);

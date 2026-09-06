@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
 import { useToast } from "@/components/ToastProvider";
+import { sanitizeFeedbackUrl } from "@/lib/feedback-url";
 
 const feedbackTypes = ["Bug", "Suggestion", "UX", "Compréhension", "Autre"] as const;
 const maxScreenshots = 5;
@@ -28,7 +29,7 @@ function getPageContext() {
   const opportunityMatch = url.pathname.match(/\/(?:links|opportunities)\/([^/?#]+)/);
 
   return {
-    page: `${url.pathname}${url.search}`,
+    page: sanitizeFeedbackUrl(url.href) ?? "",
     caseId: caseMatch?.[1] ?? url.searchParams.get("caseId"),
     templateId: templateMatch?.[1] ?? url.searchParams.get("templateId"),
     opportunityId: opportunityMatch?.[1] ?? url.searchParams.get("opportunityId") ?? url.searchParams.get("linkId"),

@@ -9,7 +9,7 @@ const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.
 
 test("simple link builder stays independent from governed journeys and automation", () => {
   const api = source("app/api/links/simple/route.ts");
-  const builder = source("app/links/simple/simple-link-builder.tsx");
+  const builder = source("app/(connected)/links/simple/simple-link-builder.tsx");
   assert.match(builder, /Créer un lien simple/);
   assert.match(builder, /Aucune diffusion ne sera faite automatiquement/);
   assert.match(builder, /Dernière vérification/);
@@ -29,7 +29,7 @@ test("simple link builder stays independent from governed journeys and automatio
   assert.match(api, /expiresAt/);
   assert.match(api, /admissionMode/);
   assert.doesNotMatch(api, /sendSecureLinkCreatedEmail|GovernedJourneyInvitation|CommunicationSession/);
-  assert.doesNotMatch(api, /workspaceId:/);
+  assert.match(api, /ownerId: owner.id, status: "ACTIVE"/);
   assert.match(api, /humanValidated/);
   assert.match(api, /automaticWorkflow: false/);
   assert.match(api, /matchingEnabled: body\.matchingEnabled === true/);
@@ -54,7 +54,7 @@ test("simple links use a dedicated public presentation with the real UTC civil e
 });
 
 test("new and legacy simple-link relational email fields are excluded", () => {
-  const builder = source("app/links/simple/simple-link-builder.tsx");
+  const builder = source("app/(connected)/links/simple/simple-link-builder.tsx");
   const creation = source("app/api/links/simple/route.ts");
   const page = source("app/l/[slug]/page.tsx");
   const cases = source("app/api/cases/route.ts");
@@ -74,7 +74,7 @@ test("private notification remains explicit, optional and hidden from owner iden
   const form = source("app/l/[slug]/candidate-form.tsx");
   const copy = source("lib/template-localization.ts");
   const cases = source("app/api/cases/route.ts");
-  const caseList = source("app/cases/page.tsx");
+  const caseList = source("app/(connected)/cases/page.tsx");
   const workspace = source("components/RelationCaseWorkspace.tsx");
   assert.match(form, /useState\(false\)/);
   assert.match(form, /emailNotificationsConsent \? \(/);
@@ -86,7 +86,7 @@ test("private notification remains explicit, optional and hidden from owner iden
 });
 
 test("only simple-link private notification channels are hidden from owner identity views", () => {
-  const caseList = source("app/cases/page.tsx");
+  const caseList = source("app/(connected)/cases/page.tsx");
   const workspace = source("components/RelationCaseWorkspace.tsx");
   assert.match(caseList, /isSimpleLinkCase && item\.candidateEmailNotificationsEnabled \? null : item\.candidateEmail/);
   assert.match(workspace, /isSimpleLinkCase && item\.candidateEmailNotificationsEnabled \? null : item\.candidateEmail/);
@@ -113,7 +113,7 @@ test("simple-link submission keeps notification data outside functional answers 
 });
 
 test("every retained Simple link Boussole step targets a real builder zone", () => {
-  const builder = source("app/links/simple/simple-link-builder.tsx");
+  const builder = source("app/(connected)/links/simple/simple-link-builder.tsx");
   assert.equal(simpleLinkSequences.length, 7);
   assert.equal(simpleLinkSteps.length, 40);
   for (const step of simpleLinkSteps) {

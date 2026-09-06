@@ -40,7 +40,7 @@ test("builds normalized public links from the configured canonical base", () => 
 
 test("public link producers do not use VERCEL_URL or request origins", () => {
   const helper = readFileSync(new URL("../lib/public-app-url.ts", import.meta.url), "utf8");
-  const legacyBuilder = readFileSync(new URL("../app/links/new/NewLinkForm.tsx", import.meta.url), "utf8");
+  const legacyBuilder = readFileSync(new URL("../app/(connected)/links/new/NewLinkForm.tsx", import.meta.url), "utf8");
   const simpleApi = readFileSync(new URL("../app/api/links/simple/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(helper, /VERCEL_URL/);
   assert.doesNotMatch(legacyBuilder, /window\.location\.origin/);

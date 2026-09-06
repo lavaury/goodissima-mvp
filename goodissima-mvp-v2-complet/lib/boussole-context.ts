@@ -60,8 +60,12 @@ const contexts: CompassContext[] = [
 ];
 
 export function getCompassContext(pathname: string, search = "") {
+  // A guest invitation must not inherit the owner's Governance guide/navigation.
+  if (/^\/gouvernance\/invitation\/[^/]+\/?$/.test(pathname)) return null;
   if (pathname === "/links/simple") return contexts.find((item) => item.id === "simple-link")!;
   if (/^\/links\/[^/]+$/.test(pathname) && pathname !== "/links/new") return contexts.find((item) => item.id === "link-owner")!;
+  // A focused Workspace is not the Governance collection: its guide targets do not apply.
+  if (/^\/gouvernance\/workspaces\/[^/]+\/?$/.test(pathname) && !pathname.endsWith("/nouveau")) return null;
   if (pathname.startsWith("/gouvernance/parcours/")) return contexts.find((item) => item.id === "governed-journey")!;
   if (pathname === "/gouvernance/nouveau") return contexts.find((item) => item.id === "new-governed-journey")!;
   if (pathname.startsWith("/gouvernance/portfolios")) return contexts.find((item) => item.id === "portfolio")!;

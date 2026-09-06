@@ -307,7 +307,7 @@ test("AI template routes run candidate form safety before draft validation and p
   const validateRoute = source("app/api/templates/ai-generate/[generationId]/validate/route.ts");
   const publishRoute = source("app/api/templates/[templateId]/publish/route.ts");
   const designer = source("components/AITemplateDesigner.tsx");
-  const detailPage = source("app/templates/[templateId]/page.tsx");
+  const detailPage = source("app/(connected)/templates/[templateId]/page.tsx");
   const templateDesigner = source("lib/ai/template-designer.ts");
 
   assert.match(generateRoute, /checkCandidatePublicationSafety/);

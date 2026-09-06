@@ -63,8 +63,8 @@ test("active and archived announcement views are mutually exclusive", () => {
   assert.equal(announcementBelongsToView("ACTIVE", "active"), true);
   assert.equal(announcementBelongsToView("DISABLED", "active"), true);
 
-  const opportunities = source("app/opportunities/page.tsx");
-  const dashboard = source("app/dashboard/page.tsx");
+  const opportunities = source("app/(connected)/opportunities/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   const dashboardFilters = source("components/DashboardLinkFilters.tsx");
   const archiveDefinition = source("lib/archived-opportunity.ts");
   assert.match(opportunities, /view === "archived" \? "ARCHIVED" : \{ not: "ARCHIVED" \}/);

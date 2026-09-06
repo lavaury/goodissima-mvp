@@ -29,7 +29,7 @@ test("separates announcement, journey and relation actions", () => {
   assert.match(announcement, /Publier l'annonce/);
   assert.match(announcement, /Voir l'annonce publique/);
   assert.match(announcement, /Archiver l'annonce/);
-  const journey = source("app/templates/[templateId]/page.tsx");
+  const journey = source("app/(connected)/templates/[templateId]/page.tsx");
   assert.match(journey, /Modifier le parcours/);
   assert.match(journey, /Analyser le parcours/);
   assert.match(journey, /Optimiser le parcours/);
@@ -39,15 +39,15 @@ test("separates announcement, journey and relation actions", () => {
 });
 
 test("provides cross navigation between product objects", () => {
-  assert.match(source("app/templates/page.tsx"), /Voir les annonces/);
-  assert.match(source("app/opportunities/page.tsx"), /sourceJourneyHref/);
+  assert.match(source("app/(connected)/templates/page.tsx"), /Voir les annonces/);
+  assert.match(source("app/(connected)/opportunities/page.tsx"), /sourceJourneyHref/);
   assert.match(source("components/LinkCard.tsx"), /Voir le parcours/);
-  assert.match(source("app/relations/page.tsx"), /Voir l'annonce/);
+  assert.match(source("app/(connected)/relations/page.tsx"), /Voir l'annonce/);
   assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l'annonce/);
 });
 
 test("adds dashboard business-object counts", () => {
-  const dashboard = source("app/dashboard/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   assert.match(dashboard, /Parcours actifs/);
   assert.match(dashboard, /Annonces publiées/);
   assert.match(dashboard, /Relations en cours/);

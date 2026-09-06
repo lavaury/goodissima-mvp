@@ -2,6 +2,7 @@
 
 import type { Prisma, WorkspaceCategory } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -381,6 +382,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
           where: {
             id: workspaceId,
             ownerId: owner.id,
+            status: "ACTIVE",
           },
         })
       : null;
@@ -533,5 +535,6 @@ export async function createGovernedJourneyAction(formData: FormData) {
     return createdFormTemplate;
   });
 
+  if (workspaceId) revalidatePath(`/gouvernance/workspaces/${encodeURIComponent(workspaceId)}`);
   redirect(`/gouvernance/parcours/${formTemplate.id}/pilotage`);
 }

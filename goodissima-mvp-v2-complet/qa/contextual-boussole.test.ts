@@ -156,10 +156,10 @@ test("offers contextual targeting or concerned pages without business actions", 
 
 test("declares every important Boussole target on a real UI element", () => {
   const source = [
-    read("app/links/simple/simple-link-builder.tsx"),
-    read("app/links/[linkId]/page.tsx"),
-    read("app/dashboard/page.tsx"),
-    read("app/gouvernance/pilotage/page.tsx"),
+    read("app/(connected)/links/simple/simple-link-builder.tsx"),
+    read("app/(connected)/links/[linkId]/page.tsx"),
+    read("app/(connected)/dashboard/page.tsx"),
+    read("app/(connected)/gouvernance/pilotage/page.tsx"),
     read("components/GLinkMatchingPanel.tsx"),
     read("components/LinkCard.tsx"),
     read("components/MatchingOptInPanel.tsx"),

@@ -60,7 +60,7 @@ test("counts each owner-scoped link independently without deduplication across l
 });
 
 test("LinkCard uses one count for the request badge and dossier button", () => {
-  const dashboard = source("app/dashboard/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   const card = source("components/LinkCard.tsx");
 
   assert.match(dashboard, /getDashboardLinkCounts\(item\.cases\)/);
@@ -73,7 +73,7 @@ test("LinkCard uses one count for the request badge and dossier button", () => {
 });
 
 test("Dashboard source remains owner-scoped and performs no per-card query", () => {
-  const dashboard = source("app/dashboard/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
 
   assert.match(dashboard, /prisma\.gLink\.findMany\(\{[\s\S]*?where: \{ ownerId: owner\.id \}/);
   assert.doesNotMatch(source("components/LinkCard.tsx"), /prisma|fetch\([^\n]*count/i);

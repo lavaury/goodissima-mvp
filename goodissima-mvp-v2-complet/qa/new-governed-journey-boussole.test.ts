@@ -15,12 +15,12 @@ test("provides the builder journeys and the local educational visit", () => {
 });
 
 test("targets every retained control on the real page or assistant", () => {
-  const source = `${read("app/gouvernance/nouveau/page.tsx")}\n${read("app/gouvernance/nouveau/GovernanceJourneyAssistant.tsx")}\n${read("app/gouvernance/nouveau/GovernedJourneyEducationalPreview.tsx")}`;
+  const source = `${read("app/(connected)/gouvernance/nouveau/page.tsx")}\n${read("app/(connected)/gouvernance/nouveau/GovernanceJourneyAssistant.tsx")}\n${read("app/(connected)/gouvernance/nouveau/GovernedJourneyEducationalPreview.tsx")}`;
   for (const target of new Set(newGovernedJourneySteps.map((step) => step.targetId))) assert.ok(source.includes(target!), `missing builder target ${target}`);
 });
 
 test("implements a static, closable preview with every stable target", () => {
-  const preview = read("app/gouvernance/nouveau/GovernedJourneyEducationalPreview.tsx");
+  const preview = read("app/(connected)/gouvernance/nouveau/GovernedJourneyEducationalPreview.tsx");
   assert.match(preview, /Exemple pédagogique — aucun parcours créé, aucune donnée réelle, aucune action possible\./);
   for (const target of [
     "governed-journey-educational-preview",
@@ -39,9 +39,9 @@ test("implements a static, closable preview with every stable target", () => {
 });
 
 test("keeps the educational example local and out of business views", () => {
-  const preview = read("app/gouvernance/nouveau/GovernedJourneyEducationalPreview.tsx");
+  const preview = read("app/(connected)/gouvernance/nouveau/GovernedJourneyEducationalPreview.tsx");
   assert.doesNotMatch(preview, /fetch\(|prisma|server action|@\/lib\/.*actions|email|token|lien sécurisé/i);
-  for (const path of ["app/dashboard/page.tsx", "app/gouvernance/page.tsx", "app/gouvernance/portfolios/page.tsx"]) {
+  for (const path of ["app/(connected)/dashboard/page.tsx", "app/(connected)/gouvernance/page.tsx", "app/(connected)/gouvernance/portfolios/page.tsx"]) {
     assert.doesNotMatch(read(path), /GovernedJourneyEducationalPreview|educational-journey-framework/);
   }
 });

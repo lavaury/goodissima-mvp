@@ -6,7 +6,7 @@ import { getCompassContext } from "../lib/boussole-context.ts";
 import { validateGlossaryReferences } from "../lib/boussole/glossary.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const cockpit = read("app/gouvernance/parcours/[id]/pilotage/page.tsx");
+const cockpit = read("app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx");
 const boussole = read("components/ContextualBoussole.tsx");
 
 test("provides six contextual micro-journeys for the real cockpit", () => {

@@ -15,7 +15,7 @@ test("an announcement without a secure link keeps the explicit creation flow", (
 
 test("an existing secure link is opened instead of being created or copied again", () => {
   const actions = source("components/AnnouncementActions.tsx");
-  const managementPage = source("app/links/[linkId]/page.tsx");
+  const managementPage = source("app/(connected)/links/[linkId]/page.tsx");
 
   assert.doesNotMatch(actions, /Créer un lien sécurisé/);
   assert.match(actions, /<a href={publicUrl}/);
@@ -27,7 +27,7 @@ test("an existing secure link is opened instead of being created or copied again
 });
 
 test("management and mutation routes remain owner-scoped", () => {
-  const managementPage = source("app/links/[linkId]/page.tsx");
+  const managementPage = source("app/(connected)/links/[linkId]/page.tsx");
   const mutationRoute = source("app/api/links/[linkId]/route.ts");
 
   assert.match(managementPage, /where: \{ id: params\.linkId, ownerId: owner\.id \}/);

@@ -7,7 +7,7 @@ const route = source("app/api/links/[linkId]/matching/route.ts");
 const panel = source("components/GLinkMatchingPanel.tsx");
 const repository = source("lib/matching/matching-repository.ts");
 const lifecycle = source("lib/matching/matching-lifecycle-service.ts");
-const linkPage = source("app/links/[linkId]/page.tsx");
+const linkPage = source("app/(connected)/links/[linkId]/page.tsx");
 
 test("GET reads the latest owner-scoped persistent run without executing matching", () => {
   assert.match(route, /export async function GET/);

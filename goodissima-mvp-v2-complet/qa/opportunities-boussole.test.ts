@@ -21,7 +21,7 @@ test("uses seven real Opportunity micro-journeys", () => {
 });
 
 test("targets only Opportunity functions that really exist", () => {
-  const source = `${read("app/opportunities/page.tsx")}\n${read("components/LinkCard.tsx")}`;
+  const source = `${read("app/(connected)/opportunities/page.tsx")}\n${read("components/LinkCard.tsx")}`;
   for (const targetId of new Set(opportunitySteps.map((step) => step.targetId))) {
     assert.ok(source.includes(targetId!), `missing Opportunity target ${targetId}`);
   }
@@ -31,7 +31,7 @@ test("targets only Opportunity functions that really exist", () => {
 });
 
 test("uses only the first real card as the Boussole example", () => {
-  const page = read("app/opportunities/page.tsx");
+  const page = read("app/(connected)/opportunities/page.tsx");
   const card = read("components/LinkCard.tsx");
   assert.match(page, /boussoleOpportunityExample=\{index === 0\}/);
   assert.match(card, /boussoleOpportunityExample \? "opportunity-card"/);
@@ -42,7 +42,7 @@ test("adapts matching guidance to every real display state", () => {
   const matching = opportunitySequences.find((sequence) => sequence.id === "understand-opportunity-matching")!;
   const states = matching.steps.flatMap((step) => step.targetStates ?? []);
   assert.deepEqual(states, ["DISABLED", "TO_ANALYZE", "MATCHES_TO_REVIEW", "FOLLOW_UP_TO_DECIDE", "NO_RESULTS"]);
-  const page = read("app/opportunities/page.tsx");
+  const page = read("app/(connected)/opportunities/page.tsx");
   assert.match(page, /deriveGLinkMatchingDisplayState/);
   assert.match(page, /getGLinkMatchingSummariesForOwner/);
   assert.doesNotMatch(page, /aiEvents/);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSelectedLayoutSegment } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -21,6 +22,7 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const connected = useSelectedLayoutSegment() === "(connected)";
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const pushToast = useCallback(({ message, variant = "success" }: ToastInput) => {
@@ -41,10 +43,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   return (
     <ToastContext.Provider value={value}>
-      {children}
       <div
         aria-live="polite"
-        className="fixed right-4 top-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2 sm:right-6 sm:top-6"
+        className={connected
+          ? "sticky top-0 z-50 mx-auto flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"
+          : "fixed right-4 top-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2 sm:right-6 sm:top-6"}
       >
         {toasts.map((toast) => (
           <div
@@ -61,6 +64,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
+      {children}
     </ToastContext.Provider>
   );
 }

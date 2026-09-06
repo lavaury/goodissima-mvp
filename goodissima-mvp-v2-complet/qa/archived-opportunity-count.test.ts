@@ -44,8 +44,8 @@ test("archive filters are owner-scoped and preserve the optional template scope"
 test("Dashboard and Opportunities use the same transactional source of truth", () => {
   const repository = source("lib/archived-opportunity-repository.ts");
   const definition = source("lib/archived-opportunity.ts");
-  const dashboard = source("app/dashboard/page.tsx");
-  const opportunities = source("app/opportunities/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
+  const opportunities = source("app/(connected)/opportunities/page.tsx");
 
   assert.match(repository, /prisma\.\$transaction/);
   assert.match(repository, /isolationLevel: "RepeatableRead"/);

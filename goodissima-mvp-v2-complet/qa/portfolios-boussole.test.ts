@@ -12,7 +12,7 @@ test("provides the real Portfolio journeys", () => {
   for (const step of portfolioSteps) assert.ok(step.animation?.narration && step.animation.tryNow);
 });
 test("targets the first real Portfolio and its actual counters", () => {
-  const page = read("app/gouvernance/portfolios/page.tsx");
+  const page = read("app/(connected)/gouvernance/portfolios/page.tsx");
   for (const target of new Set(portfolioSteps.map((step) => step.targetId))) assert.ok(page.includes(target!), `missing Portfolio target ${target}`);
   assert.match(page, /index === 0 \? "first-portfolio-card"/);
   assert.match(page, /portfolio\.totalObjectCount/);

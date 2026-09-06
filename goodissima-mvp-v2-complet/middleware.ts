@@ -11,6 +11,10 @@ function withPrivateRobotsHeader(response: NextResponse) {
 }
 
 export async function middleware(request: NextRequest) {
+  // Only this leaf page authenticates by guest token; sibling/child routes stay protected.
+  if (/^\/gouvernance\/invitation\/[^/]+\/?$/.test(request.nextUrl.pathname)) {
+    return withPrivateRobotsHeader(NextResponse.next());
+  }
   if (request.nextUrl.pathname.startsWith("/secure/")) {
     const pathname = request.nextUrl.pathname;
     secureTrace("middleware_hit", {

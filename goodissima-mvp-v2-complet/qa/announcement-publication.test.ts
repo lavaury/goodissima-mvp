@@ -63,7 +63,7 @@ test("frontend refreshes, updates status and exposes success feedback", () => {
 });
 
 test("template page derives publication UX from the displayed persisted version", () => {
-  const page = source("app/templates/[templateId]/page.tsx");
+  const page = source("app/(connected)/templates/[templateId]/page.tsx");
   assert.match(page, /isPublished:\s*Boolean\(lastVersion\?\.isPublished\)/);
   assert.match(page, /Date de publication:/);
   assert.match(page, /activeVersion\.createdAt/);

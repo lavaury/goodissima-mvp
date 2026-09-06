@@ -9,7 +9,7 @@ import {
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("dashboard and pilotage use the same GLink matching state derivation", () => {
-  const dashboard = source("app/dashboard/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   const pilotage = source("lib/governance-pilotage-repository.ts");
   const card = source("components/LinkCard.tsx");
   assert.match(dashboard, /deriveGLinkMatchingDisplayState/);
@@ -23,7 +23,7 @@ test("dashboard and pilotage use the same GLink matching state derivation", () =
 });
 
 test("GLink creation is derived once into the dashboard chronology without requiring a case", () => {
-  const dashboard = source("app/dashboard/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   assert.match(dashboard, /\.\.\.links\.map/);
   assert.match(dashboard, /id: `link-\$\{item\.id\}`/);
   assert.match(dashboard, /label: "Lien sécurisé créé"/);

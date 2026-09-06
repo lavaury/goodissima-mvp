@@ -26,13 +26,13 @@ test("participant UI refreshes session states without auto-joining", () => {
 });
 
 test("Workspace CTA names the governed journey creation flow", () => {
-  const page = source("app/gouvernance/page.tsx");
+  const page = source("app/(connected)/gouvernance/page.tsx");
   assert.match(page, /href="\/gouvernance\/nouveau"[\s\S]*Creer un parcours gouverne/);
   assert.doesNotMatch(page, /Commencer une activite/);
 });
 
 test("journey Workspace change requires owner scope and explicit confirmation", () => {
-  const page = source("app/gouvernance/parcours/[id]/pilotage/page.tsx");
+  const page = source("app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx");
   const actions = source("lib/governance-workspace-actions.ts");
   assert.match(page, /changeGovernedJourneyWorkspaceAction/);
   assert.match(page, /name="humanConfirmed" value="yes"/);

@@ -285,7 +285,6 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
       (total, relationCase) => total + relationCase.communicationsCount,
       0,
     );
-    const firstJourneyHref = journeys.find((journey) => journey.href)?.href;
 
     return {
       workspaceId: workspace.id,
@@ -295,7 +294,7 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
       categoryLabel: workspaceCategoryLabels[workspace.category],
       kind: workspace.kind,
       kindLabel: workspaceKindLabels[workspace.kind],
-      href: firstJourneyHref ?? "/gouvernance",
+      href: `/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`,
       journeyCount: workspace._count.relationTemplates,
       relationCount: workspace._count.relationCases,
       linkCount: workspace._count.links,

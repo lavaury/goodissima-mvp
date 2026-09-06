@@ -4,7 +4,7 @@ import test from "node:test";
 import { playWelcomeChime } from "../components/boussole/welcome/useWelcomeAudioGuide.ts";
 
 const discovery = readFileSync(new URL("../components/BoussoleWelcomeDiscovery.tsx", import.meta.url), "utf8");
-const page = readFileSync(new URL("../app/boussole/decouverte/page.tsx", import.meta.url), "utf8");
+const page = readFileSync(new URL("../app/(connected)/boussole/decouverte/page.tsx", import.meta.url), "utf8");
 const welcomeVideo = readFileSync(new URL("../components/BoussoleWelcomeVideo.tsx", import.meta.url), "utf8");
 const scenes = readFileSync(new URL("../components/boussole/welcome/WelcomeScenes.tsx", import.meta.url), "utf8");
 const controls = readFileSync(new URL("../components/boussole/welcome/WelcomeMediaControls.tsx", import.meta.url), "utf8");

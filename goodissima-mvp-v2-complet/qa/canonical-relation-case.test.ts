@@ -30,7 +30,7 @@ test("a unique active access is canonical when historical access is revoked", ()
 });
 
 test("owner routing and notification use the message RelationCase", () => {
-  const page = readFileSync(new URL("../app/cases/[caseId]/page.tsx", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../app/(connected)/cases/[caseId]/page.tsx", import.meta.url), "utf8");
   const messages = readFileSync(new URL("../app/api/messages/route.ts", import.meta.url), "utf8");
   const email = readFileSync(new URL("../lib/email.ts", import.meta.url), "utf8");
   assert.match(page, /resolveCanonicalOwnerRelationCaseId\(params\.caseId, owner\.id\)/);
