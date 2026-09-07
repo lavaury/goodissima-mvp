@@ -15,13 +15,13 @@ export const portfolioSequences: BoussoleSequence[] = [
     step("portfolio-card-type", "portfolio-type", "Type", "Le type affiché précise le domaine ou l’usage réel de ce Portfolio.", ["portfolio"]),
     step("portfolio-card-description", "portfolio-description", "Description", "Cette description résume la finalité du Portfolio.", ["portfolio"]),
   ] },
-  { id: "portfolio-counters", title: "Compteurs et périmètre V1", description: "Comprendre les données consolidées et les limites présentes.", steps: [
+  { id: "portfolio-counters", title: "Compteurs et pilotage", description: "Comprendre les données consolidées et le pilotage disponible.", steps: [
     step("portfolio-workspaces", "portfolio-workspaces-count", "Workspaces", "Ce nombre indique combien de Workspaces sont regroupés dans ce Portfolio.", ["workspace", "portfolio"]),
     step("portfolio-objects", "portfolio-objects-count", "Objets", "Ce compteur représente les objets rattachés selon le calcul réel de Goodissima. Il est informatif.", ["objet", "portfolio"]),
     step("portfolio-cases", "portfolio-cases-count", "Dossiers", "Ce compteur indique le nombre de dossiers consolidés dans le périmètre du Portfolio.", ["dossier", "portfolio"]),
     step("portfolio-communications", "portfolio-communications-count", "Communications", "Ce compteur indique les communications rattachées au périmètre du Portfolio.", ["communication-securisee", "portfolio"]),
     step("portfolio-open", "open-portfolio", "Ouvrir le Portfolio", "Ouvrez ce Portfolio pour consulter ses Workspaces et les informations consolidées. La Boussole ne l’active pas.", ["portfolio", "validation-humaine"]),
-    step("portfolio-limit", "portfolio-v1-limit", "Périmètre de la V1", "En V1, le Portfolio regroupe principalement les Workspaces. Le pilotage consolidé, les signaux et l’assistance IA restent des évolutions futures, pas des fonctions disponibles.", ["portfolio", "workspace"]),
+    step("portfolio-limit", "portfolio-v1-limit", "Périmètre du Portfolio", "Le Portfolio regroupe ses Workspaces. Son pilotage présente les signaux existants et une assistance à la lecture. Les décisions restent humaines ; les signaux ne sont pas une simple somme des vues Workspace.", ["portfolio", "workspace"]),
   ] },
 ];
 export const portfolioSteps = portfolioSequences.flatMap((sequence) => sequence.steps);

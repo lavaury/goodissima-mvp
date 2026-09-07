@@ -19,10 +19,10 @@ test("targets the first real Portfolio and its actual counters", () => {
   assert.match(page, /portfolio\.relationCaseCount/);
   assert.match(page, /portfolio\.communicationSessionCount/);
 });
-test("states the V1 limit without presenting future features as available", () => {
+test("describes the existing pilotage without claiming it is a future feature", () => {
   const limit = portfolioSteps.find((step) => step.targetId === "portfolio-v1-limit")!;
-  assert.match(limit.body, /évolutions futures/);
-  assert.match(limit.body, /pas des fonctions disponibles/);
+  assert.match(limit.body, /signaux existants/);
+  assert.doesNotMatch(limit.body, /évolutions futures|pas des fonctions disponibles/);
 });
 test("uses only the global glossary and never executes actions", () => {
   assert.deepEqual(validateGlossaryReferences(portfolioSteps.flatMap((step) => step.glossaryTermIds ?? [])), []);

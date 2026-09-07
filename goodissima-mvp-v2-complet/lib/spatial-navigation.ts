@@ -105,6 +105,12 @@ export function workspaceBreadcrumb(workspace: WorkspaceContext): BreadcrumbItem
 export function portfolioBreadcrumb(portfolio: { id: string; name: string }, pilotage = false): BreadcrumbItem[] {
   const label = businessLabel(portfolio.name, "Portfolio", [portfolio.id]);
   return pilotage
-    ? [home, { label, href: `/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}` }, { label: "Salle de pilotage" }]
+    ? [home, spaces, { label, href: `/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}` }, { label: "Piloter" }]
     : [home, spaces, { label }];
+}
+
+export function workspaceCreationBreadcrumb(portfolio: { id: string; name: string } | null): BreadcrumbItem[] {
+  if (!portfolio) return pageBreadcrumb("/gouvernance/workspaces/nouveau");
+  return [home, spaces, { label: businessLabel(portfolio.name, "Portfolio", [portfolio.id]),
+    href: `/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}` }, { label: "Créer un Workspace" }];
 }

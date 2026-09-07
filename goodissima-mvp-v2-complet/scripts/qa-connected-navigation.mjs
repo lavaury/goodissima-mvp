@@ -19,7 +19,7 @@ const chrome = process.env.GOODISSIMA_CHROME || [
 assert.ok(chrome, "Set GOODISSIMA_CHROME to a Chromium browser executable");
 
 execFileSync(process.execPath, ["node_modules/tailwindcss/lib/cli.js", "-i", "app/globals.css", "-o", path.join(output, "styles.css")], { stdio: "pipe" });
-const files = ["ConnectedShell", "PlatformNavigation", "ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton", "ToastProvider", "GlobalLanguageSwitcher", "SpatialNavigationContext", "SpatialNavigationBar", "WorkspaceDetailView", "WorkspacePilotageView", "WorkspaceCreateActions", "SpacesTreeView", "SpacesCreateActions"];
+const files = ["ConnectedShell", "PlatformNavigation", "ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton", "ToastProvider", "GlobalLanguageSwitcher", "SpatialNavigationContext", "SpatialNavigationBar", "WorkspaceDetailView", "WorkspacePilotageView", "WorkspaceCreateActions", "SpacesTreeView", "SpacesCreateActions", "WorkspaceRow", "PortfolioExplorerView", "PortfolioOrganize", "WorkspaceCreationForm"];
 const sources = Object.fromEntries(files.map(name => [`@/components/${name}`, `components/${name}.tsx`]));
 sources["@/lib/boussole/navigation-disclosure"] = "lib/boussole/navigation-disclosure.ts";
 sources["@/lib/spatial-navigation"] = "lib/spatial-navigation.ts";
@@ -44,6 +44,9 @@ function LanguageProvider({children}) {
 __qa.navigate = href => { __qa.navigations.push(href); history.pushState({fixture:true},'',href); __qa.path=location.pathname; dispatchEvent(new Event('qa-route')); };
 addEventListener('popstate',()=>{__qa.path=location.pathname;dispatchEvent(new Event('qa-route'));});
 const modules = {
+  '@/lib/governance-workspace-actions': { createWorkspaceAction: '/qa-create-workspace' },
+  '@/lib/governance-workspace-repository': { workspaceCategoryLabels: { PROFESSIONAL:'Professionnel', PRIVATE:'Prive', FAMILY:'Famille', ASSOCIATION:'Association', PROJECT:'Projet', CLIENT:'Client', OTHER:'Autre' }, workspaceKindLabels: { GOVERNANCE:'Gouvernance', RELATION:'Relation', MIXED:'Mixte' } },
+  '@/lib/governance-portfolio-actions': { attachWorkspaceToPortfolioAction: '/qa-attach', detachWorkspaceFromPortfolioAction: '/qa-detach' },
   'react': React,
   'react-dom': ReactDOM,
   'react/jsx-runtime': { jsx:(type,props,key)=>h(type,{...props,key}), jsxs:(type,props,key)=>h(type,{...props,key}), Fragment:React.Fragment },
@@ -80,7 +83,20 @@ function SpacesFixture(){
  return h('main',{className:'mx-auto min-w-0 max-w-6xl px-4 py-8 sm:px-6'},h('h1',{className:'text-3xl font-bold'},'Mes espaces'),h(require('@/components/SpacesCreateActions').SpacesCreateActions),h(require('@/components/SpacesTreeView').SpacesTreeView,{data}));
 }
 
-function Content(){const toast=useToast();const pathname=modules['next/navigation'].usePathname();if(pathname==='/gouvernance')return h(SpacesFixture);if(pathname==='/gouvernance/workspaces/technical-workspace-id')return h(WorkspaceFixture);return h('main',{className:'px-4 py-8'},__qa.contexts[pathname]?h(PageNavigationContext,{pathname,items:__qa.contexts[pathname]}):null,h('h1',null,'Contenu métier'),h('button',{id:'toast-test',onClick:()=>toast.success('Notification de test')},'Tester la notification'));}
+
+function PortfolioFixture(){
+ const workspace={id:'portfolio-child',name:'Workspace accompagnement des projets internationaux '.repeat(3),status:'ACTIVE',_count:{relationTemplates:1,links:2,relationCases:3,communicationSessions:4}};
+ const portfolio={id:'portfolio-explorer-test',name:'Portfolio Europe projets internationaux '.repeat(3),status:'ACTIVE',kind:'PROJECT',slug:'europe-'+'x'.repeat(140),createdAt:new Date('2026-01-01'),description:'Description du Portfolio',workspaces:[workspace,{...workspace,id:'portfolio-child-two',status:'ARCHIVED'}]};
+ const organize=h(require('@/components/PortfolioOrganize').PortfolioOrganize,{portfolio,available:[{id:'available-workspace',name:'Workspace disponible '.repeat(8)}]});
+ return h(require('@/components/PortfolioExplorerView').PortfolioExplorerView,{portfolio,kindLabel:'Projet',organize});
+}
+
+function WorkspaceCreationFixture(){
+ const href=React.useSyncExternalStore(callback=>{addEventListener('qa-route',callback);return()=>removeEventListener('qa-route',callback);},()=>location.href,()=>location.href);
+ const portfolio=new URL(href).searchParams.has('portfolioId')?{id:'portfolio-explorer-test',name:'Portfolio Europe accompagnement des projets internationaux '.repeat(3)}:null;
+ return h(require('@/components/WorkspaceCreationForm').WorkspaceCreationForm,{portfolio});
+}
+function Content(){const toast=useToast();const pathname=modules['next/navigation'].usePathname();if(pathname==='/gouvernance/workspaces/nouveau')return h(WorkspaceCreationFixture);if(pathname==='/gouvernance/portfolios/portfolio-explorer-test')return h(PortfolioFixture);if(pathname==='/gouvernance')return h(SpacesFixture);if(pathname==='/gouvernance/workspaces/technical-workspace-id')return h(WorkspaceFixture);return h('main',{className:'px-4 py-8'},__qa.contexts[pathname]?h(PageNavigationContext,{pathname,items:__qa.contexts[pathname]}):null,h('h1',null,'Contenu métier'),h('button',{id:'toast-test',onClick:()=>toast.success('Notification de test')},'Tester la notification'));}
 function App(){const pathname=modules['next/navigation'].usePathname();return __qa.spatial.isConnectedPathname(pathname)?h(ConnectedShell,{organizationName:'Organisation Goodissima avec un nom volontairement très long pour vérifier la troncature'},h(Content)):h('main',null,'Surface exclue');}
 ReactDOM.createRoot(document.getElementById('root')).render(h(LanguageProvider,null,h(ToastProvider,null,h(App),h(GlobalLanguageSwitcher))));
 `;
@@ -325,7 +341,58 @@ try {
     assert.equal(await evaluate('location.pathname'), '/gouvernance/portfolios/spaces-portfolio-0');
     await traverse('Retour'); await go('/dashboard');
 
-    results.push({ spaces: "pass", ...metrics, spatialHeight, keyboard: "pass", disclosures: "pass", navigation: "pass", nativeHistory: "pass", breadcrumb: "pass", exclusions: "pass", languageAndLogout: "pass", toast: "pass" });
+
+    await go('/gouvernance/portfolios/portfolio-explorer-test');
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, 'Portfolio closed overflow');
+    assert.equal(await evaluate("document.querySelector('[data-portfolio-organize]').open"), false);
+    assert.equal(await evaluate("document.querySelector('[data-portfolio-information]').open"), false);
+    const portfolioHistory = await evaluate('__qa.navigations.length');
+    await evaluate("window.__qa.portfolioSubmits=0;document.addEventListener('submit',event=>{event.preventDefault();__qa.portfolioSubmits++;});document.querySelector('[data-portfolio-organize] summary').focus()");
+    await key('Enter'); await pause();
+    assert.equal(await evaluate("document.querySelector('[data-portfolio-organize]').open"), true);
+    assert.equal(await evaluate("getComputedStyle(document.activeElement).outlineStyle"), 'solid');
+    assert.equal(await evaluate("document.querySelectorAll('[data-portfolio-organize] form').length"), 3);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, 'Portfolio Organiser overflow');
+    assert.equal(await evaluate('__qa.navigations.length'), portfolioHistory);
+    assert.equal(await evaluate('__qa.portfolioSubmits'), 0);
+    await key('Enter'); await pause();
+    await evaluate("document.querySelector('[data-portfolio-information] summary').focus()");await key('Enter');await pause();
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, 'Portfolio information overflow');
+    await key('Enter'); await pause();
+    const portfolioScreenshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true},sessionId);
+    fs.writeFileSync(path.join(output,width+'-portfolio.png'),Buffer.from(portfolioScreenshot.data,'base64'));
+    await evaluate("document.querySelector('a[href=\"/gouvernance/workspaces/portfolio-child\"]').click()");await pause();
+    assert.equal(await evaluate('location.pathname'),'/gouvernance/workspaces/portfolio-child');
+    await traverse('Retour');
+    await evaluate("document.querySelector('[data-boussole-id=portfolio-open-pilotage]').click()");await pause();
+    assert.equal(await evaluate('location.pathname'),'/gouvernance/portfolios/portfolio-explorer-test/pilotage');
+    await traverse('Retour');await go('/dashboard');
+
+
+    await go('/gouvernance/portfolios/portfolio-explorer-test');
+    await evaluate("document.querySelector('[data-spaces-create] summary').focus()"); await key('Enter');await pause();
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-spaces-create] a')].map(a=>a.getAttribute('href'))"), ['/gouvernance/workspaces/nouveau?portfolioId=portfolio-explorer-test']);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, 'Portfolio create menu overflow');
+    await key('Tab'); await key('Enter');await pause();
+    assert.equal(await evaluate('location.pathname+location.search'), '/gouvernance/workspaces/nouveau?portfolioId=portfolio-explorer-test');
+    assert.equal(await evaluate("document.querySelector('input[name=portfolioId]').value"), 'portfolio-explorer-test');
+    assert.equal(await evaluate("document.querySelector('section[aria-label=Portfolio]').textContent.includes('Portfolio Europe')"), true);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, 'Contextual form overflow');
+    assert.equal(await evaluate("document.querySelector('input[name=name]').checkValidity()"), false);
+    await evaluate("document.querySelector('input[name=name]').focus()");await key('Tab');
+    assert.equal(await evaluate('document.activeElement.name'),'description');
+    await evaluate("document.querySelector('input[name=name]').value='Nouveau Workspace';window.__qa.createdForm=null;document.addEventListener('submit',event=>{event.preventDefault();if(event.target.getAttribute('action')==='/qa-create-workspace')__qa.createdForm=Object.fromEntries(new FormData(event.target));});document.querySelector('form button[type=submit]').focus()");
+    const formScreenshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true},sessionId);
+    fs.writeFileSync(path.join(output,width+'-workspace-create.png'),Buffer.from(formScreenshot.data,'base64'));
+    await key('Enter');await pause();
+    assert.equal(await evaluate('__qa.createdForm.portfolioId'), 'portfolio-explorer-test');
+    assert.equal(await evaluate('__qa.createdForm.name'), 'Nouveau Workspace');
+    await go('/gouvernance/workspaces/nouveau');
+    assert.equal(await evaluate("document.querySelector('input[name=portfolioId]')===null"), true);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, 'Global form overflow');
+    await go('/dashboard');
+
+    results.push({ workspaceCreation: "pass", portfolio: "pass", spaces: "pass", ...metrics, spatialHeight, keyboard: "pass", disclosures: "pass", navigation: "pass", nativeHistory: "pass", breadcrumb: "pass", exclusions: "pass", languageAndLogout: "pass", toast: "pass" });
   }
   const newTab = await send("Target.createTarget", { url: `${origin}/annuaire?token=never-show-this` });
   const attached = await send("Target.attachToTarget", { targetId: newTab.targetId, flatten: true });

@@ -3,6 +3,8 @@ import { governanceSequences } from "../boussole-governance.ts";
 import { governedJourneySequences } from "../boussole-governed-journey.ts";
 import { newGovernedJourneySequences } from "../boussole-new-governed-journey.ts";
 import { boussoleGlossary } from "./glossary.ts";
+import { portfolioSequences } from "../boussole-portfolios.ts";
+import { portfolioDetailSequences, portfolioPilotageSequences } from "../boussole-portfolio-detail.ts";
 import type {
   BoussoleJourneyDefinition,
   BoussolePageManifest,
@@ -22,6 +24,7 @@ const journeyVersions: Record<string, number> = {
   "understand-governance": 2,
   "governance-summary": 2,
   "understand-workspaces": 2,
+  "portfolio-counters": 2,
 };
 
 export function getBoussoleJourneyVersion(journeyId: string) {
@@ -62,6 +65,9 @@ export const boussoleRegistry: BoussoleRegistryEntry[] = [
   registerPage("governance", ["/gouvernance"], governanceSequences),
   registerPage("new-governed-journey", ["/gouvernance/nouveau"], newGovernedJourneySequences),
   registerPage("governed-journey-cockpit", ["/gouvernance/parcours/:id/pilotage"], governedJourneySequences),
+  registerPage("portfolio", ["/gouvernance/portfolios"], portfolioSequences),
+  registerPage("portfolio-detail", ["/gouvernance/portfolios/:id"], portfolioDetailSequences),
+  registerPage("portfolio-pilotage", ["/gouvernance/portfolios/:id/pilotage"], portfolioPilotageSequences),
 ];
 
 export type BoussoleIntegrityIssue = {

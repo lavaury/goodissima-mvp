@@ -21,7 +21,8 @@ function repository(rows = workspaces) {
   return { read: getSpacesTree, calls };
 }
 const common = { react: React, "react/jsx-runtime": jsx, "react-dom": { flushSync: (fn: () => void) => fn() }, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial };
-const { SpacesTreeView } = loadTestModule("components/SpacesTreeView.tsx", common);
+const row = loadTestModule("components/WorkspaceRow.tsx", common);
+const { SpacesTreeView } = loadTestModule("components/SpacesTreeView.tsx", { ...common, "@/components/WorkspaceRow": row });
 test("real owner-scoped repository groups by foreign key exactly once; inaccessible parents are never roots", async () => {
   const s = repository(); const data = await s.read("a");
   assert.deepEqual(data.portfolios.map((p: any) => [p.id, p.workspaces.map((w: any) => w.id)]), [["p1", ["w1", "w2"]], ["p2", ["w3"]]]);

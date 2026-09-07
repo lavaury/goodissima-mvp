@@ -9,6 +9,7 @@ import {
   type RealGovernanceWorkspaceSummary,
 } from "@/lib/governance-workspace-repository";
 import { prisma } from "@/lib/prisma";
+import { getWorkspacePortfolioContext, parseWorkspacePortfolioId } from "@/lib/workspace-portfolio-context";
 
 const workspaceCategories = new Set<WorkspaceCategory>([
   "PROFESSIONAL",
@@ -69,6 +70,11 @@ export async function listCurrentUserGovernanceWorkspacesAction(): Promise<RealG
 
 export async function createWorkspaceAction(formData: FormData) {
   const owner = await getCurrentPrismaUser();
+  const portfolioValues = formData.getAll("portfolioId");
+  if (portfolioValues.length > 1) throw new Error("Contexte Portfolio invalide.");
+  const portfolioId = parseWorkspacePortfolioId(portfolioValues[0]);
+  const portfolio = portfolioId ? await getWorkspacePortfolioContext(owner.id, portfolioId) : null;
+  if (portfolioId && !portfolio) throw new Error("Portfolio cible introuvable pour cet utilisateur.");
   const name = textFromForm(formData, "name");
   const description = textFromForm(formData, "description");
   const categoryInput = textFromForm(formData, "category") as WorkspaceCategory;
@@ -82,9 +88,10 @@ export async function createWorkspaceAction(formData: FormData) {
   const kind = workspaceKinds.has(kindInput) ? kindInput : "GOVERNANCE";
   const slug = await uniqueWorkspaceSlug(owner.id, name);
 
-  await prisma.workspace.create({
+  const workspace = await prisma.workspace.create({
     data: {
       ownerId: owner.id,
+      portfolioId: portfolio?.id ?? null,
       slug,
       name,
       description: description || null,
@@ -95,8 +102,14 @@ export async function createWorkspaceAction(formData: FormData) {
         source: "workspace-product-create-v1",
       },
     },
+    select: { id: true },
   });
 
+  if (portfolio) {
+    revalidatePath("/gouvernance");
+    revalidatePath(`/gouvernance/portfolios/${portfolio.id}`);
+    redirect(`/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`);
+  }
   redirect("/gouvernance");
 }
 

@@ -7,6 +7,8 @@ import { dashboardSequences, type BoussoleSequence } from "@/lib/boussole-dashbo
 import { simpleLinkSequences } from "@/lib/boussole-simple-link";
 import { opportunitySequences } from "@/lib/boussole-opportunities";
 import { governanceSequences } from "@/lib/boussole-governance";
+import { portfolioDetailSequences, portfolioPilotageSequences } from "@/lib/boussole-portfolio-detail";
+import { portfolioRuntimeContext } from "@/lib/boussole/portfolio-context";
 import { portfolioSequences } from "@/lib/boussole-portfolios";
 import { newGovernedJourneySequences } from "@/lib/boussole-new-governed-journey";
 import { governedJourneySequences } from "@/lib/boussole-governed-journey";
@@ -77,6 +79,7 @@ export function ContextualBoussole() {
       focusedObjectType: focusedObjectId ? "GOVERNED_JOURNEY" : undefined,
       focusedObjectId,
       visibleObjectCount,
+      ...portfolioRuntimeContext(context?.id, pathname, availableTargetIds),
       availableTargetIds,
       functionalStates: [...new Set(targets.map((element) => element.dataset.boussoleState).filter((state): state is string => Boolean(state)))],
     };
@@ -98,7 +101,7 @@ export function ContextualBoussole() {
       return available;
     });
   }, [context, domRevision]);
-  const allSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : [];
+  const allSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "portfolio-detail" ? portfolioDetailSequences : context?.id === "portfolio-pilotage" ? portfolioPilotageSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : [];
   const availableSequences = allSequences.filter((item) => !item.applicableStates || item.applicableStates.includes(runtimeContext.pageState));
   const sequence = sequenceId === "all" ? null : availableSequences.find((item) => item.id === sequenceId);
   const selectedSteps = sequence ? visibleSteps.filter((item) => sequence.steps.some((candidate) => candidate.id === item.id)) : visibleSteps;

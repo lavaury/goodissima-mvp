@@ -3,6 +3,7 @@ import { simpleLinkSteps } from "./boussole-simple-link.ts";
 import { opportunitySteps } from "./boussole-opportunities.ts";
 import { governanceSteps } from "./boussole-governance.ts";
 import { portfolioSteps } from "./boussole-portfolios.ts";
+import { portfolioDetailSteps, portfolioPilotageSteps } from "./boussole-portfolio-detail.ts";
 import { newGovernedJourneySteps } from "./boussole-new-governed-journey.ts";
 import { governedJourneySteps } from "./boussole-governed-journey.ts";
 import { dossierSteps } from "./boussole-dossiers.ts";
@@ -11,6 +12,8 @@ export type CompassStep = { id?: string; title: string; body: string; detailedBo
 export type CompassContext = { id: string; pageName: string; summary: string; caution: string; steps: CompassStep[] };
 
 const contexts: CompassContext[] = [
+  { id: "portfolio-detail", pageName: "Explorer ce Portfolio", summary: "Ce Portfolio contient ses Workspaces dans Mes espaces.", caution: "Ouvrir, rattacher et détacher restent des actions humaines.", steps: portfolioDetailSteps },
+  { id: "portfolio-pilotage", pageName: "Pilotage du Portfolio", summary: "Les signaux concernent le Portfolio ouvert.", caution: "La Boussole ne traite aucun signal et ne lance pas l’assistant.", steps: portfolioPilotageSteps },
   { id: "simple-link", pageName: "Créer un lien simple", summary: "Vous êtes dans le constructeur de lien simple. Il permet de créer rapidement un formulaire sécurisé à partir d’un modèle ou de vos propres champs.", caution: "Cette page structure un besoin sans créer un parcours gouverné complet. Commencez par choisir un modèle ou renseignez directement le titre.", steps: simpleLinkSteps },
   { id: "link-owner", pageName: "Lien sécurisé", summary: "Cette page permet de gérer le lien, vérifier son formulaire et examiner son matching avant toute réponse candidate.", caution: "Le matching du lien analyse le besoin initial ; le matching d’un dossier devient plus précis après une réponse. Aucun contact n’est automatique.", steps: [
     { title: "Comprendre l’état du matching", body: "L’état indique si le matching est désactivé, à analyser, à examiner ou sans résultat exploitable.", targetId: "link-matching-status", glossaryTermIds: ["matching-relationnel", "correspondance-potentielle"] },
@@ -65,10 +68,14 @@ export function getCompassContext(pathname: string, search = "") {
   if (pathname === "/links/simple") return contexts.find((item) => item.id === "simple-link")!;
   if (/^\/links\/[^/]+$/.test(pathname) && pathname !== "/links/new") return contexts.find((item) => item.id === "link-owner")!;
   // A focused Workspace is not the Governance collection: its guide targets do not apply.
+  if (/^\/gouvernance\/workspaces\/nouveau\/?$/.test(pathname)) return null;
   if (/^\/gouvernance\/workspaces\/[^/]+\/?$/.test(pathname) && !pathname.endsWith("/nouveau")) return null;
   if (pathname.startsWith("/gouvernance/parcours/")) return contexts.find((item) => item.id === "governed-journey")!;
   if (pathname === "/gouvernance/nouveau") return contexts.find((item) => item.id === "new-governed-journey")!;
-  if (pathname.startsWith("/gouvernance/portfolios")) return contexts.find((item) => item.id === "portfolio")!;
+  if (/^\/gouvernance\/portfolios\/?$/.test(pathname)) return contexts.find((item) => item.id === "portfolio")!;
+  if (/^\/gouvernance\/portfolios\/[^/]+\/pilotage\/?$/.test(pathname)) return contexts.find((item) => item.id === "portfolio-pilotage")!;
+  if (/^\/gouvernance\/portfolios\/[^/]+\/?$/.test(pathname) && !/\/nouveau\/?$/.test(pathname)) return contexts.find((item) => item.id === "portfolio-detail")!;
+  if (pathname.startsWith("/gouvernance/portfolios/")) return null;
   if (pathname.startsWith("/gouvernance/pilotage")) return contexts.find((item) => item.id === "pilotage")!;
   if (pathname.startsWith("/gouvernance")) return contexts.find((item) => item.id === "governance")!;
   if (pathname.startsWith("/dashboard")) return contexts.find((item) => item.id === "dashboard")!;

@@ -39,7 +39,7 @@ test("uses four Spaces micro-journeys backed by the main page", () => {
 });
 
 test("resolves every retained target on the real Governance page", () => {
-  const page = `${read("app/(connected)/gouvernance/page.tsx")}\n${["components/PlatformNavigation.tsx", "components/SpacesTreeView.tsx", "components/SpacesCreateActions.tsx", "components/SpacesExistingAttachments.tsx"].map(read).join("\n")}`;
+  const page = `${read("app/(connected)/gouvernance/page.tsx")}\n${["components/WorkspaceRow.tsx", "components/PlatformNavigation.tsx", "components/SpacesTreeView.tsx", "components/SpacesCreateActions.tsx", "components/SpacesExistingAttachments.tsx"].map(read).join("\n")}`;
   for (const target of new Set(governanceSteps.map((step) => step.targetId))) assert.ok(page.includes(target!), `missing Governance target ${target}`);
   assert.match(page, /firstWorkspaceId/);
   assert.match(page, /workspace.id === firstWorkspaceId/);
