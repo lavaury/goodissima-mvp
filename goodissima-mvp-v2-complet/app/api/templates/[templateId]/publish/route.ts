@@ -1,3 +1,4 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -6,7 +7,9 @@ import { buildTemplateSnapshot } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(_req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const access = await getTemplateMutationAccess(owner, params.templateId);
+  if (!access) return templateMutationNotFound();
 
   const snapshot = await buildTemplateSnapshot(params.templateId);
 

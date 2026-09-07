@@ -1,3 +1,4 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
@@ -22,7 +23,9 @@ function cleanInstructions(value: unknown) {
 }
 
 export async function PATCH(req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const access = await getTemplateMutationAccess(owner, params.templateId);
+  if (!access) return templateMutationNotFound();
 
   const body = await req.json();
   const aiInstructions = cleanInstructions(body.aiInstructions);

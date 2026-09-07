@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 
 const fieldTypes = new Set(["TEXT", "EMAIL", "TEXTAREA", "PHONE", "NUMBER", "DATE", "SELECT", "CHECKBOX", "FILE"]);
 
@@ -26,7 +27,9 @@ function parseStep(value: unknown) {
 }
 
 export async function PATCH(req: Request, { params }: { params: { fieldId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const source = await prisma.formField.findUnique({ where: { id: params.fieldId }, select: { formTemplateId: true } });
+  if (!source || !await getTemplateMutationAccess(owner, source.formTemplateId)) return templateMutationNotFound();
 
   const body = await req.json();
   const key = typeof body.key === "string" ? body.key.trim() : "";
@@ -67,7 +70,9 @@ export async function PATCH(req: Request, { params }: { params: { fieldId: strin
 }
 
 export async function DELETE(_req: Request, { params }: { params: { fieldId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const source = await prisma.formField.findUnique({ where: { id: params.fieldId }, select: { formTemplateId: true } });
+  if (!source || !await getTemplateMutationAccess(owner, source.formTemplateId)) return templateMutationNotFound();
 
   await prisma.formField.delete({
     where: { id: params.fieldId },

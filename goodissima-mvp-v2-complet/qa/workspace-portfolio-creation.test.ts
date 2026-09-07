@@ -25,6 +25,7 @@ function setup(owner: string | null = "owner", collision = false) {
   const context = loadTestModule("lib/workspace-portfolio-context.ts", { "@/lib/prisma": { prisma } });
   const auth = { getCurrentPrismaUser: async () => { calls.push({ model: "auth" }); if (!owner) throw Error("LOGIN"); return { id: owner }; } };
   const actions = loadTestModule("lib/governance-workspace-actions.ts", {
+    "@/lib/template-mutation-access": { getTemplateMutationAccess: () => { throw Error("Unexpected template mutation during Workspace creation"); } },
     "@/lib/prisma": { prisma }, "@/lib/auth": auth, "@/lib/workspace-portfolio-context": context,
     "@/lib/governance-workspace-repository": {}, "next/cache": { revalidatePath: (p: string) => invalidated.push(p) },
     "next/navigation": { redirect: (p: string) => { throw Error(`REDIRECT ${p}`); } },

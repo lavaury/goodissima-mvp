@@ -1,3 +1,4 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -17,6 +18,8 @@ function provenanceFromSnapshot(snapshot: Prisma.JsonValue) {
 export async function POST(req: Request, { params }: { params: { templateId: string } }) {
   try {
     const owner = await getCurrentPrismaUser();
+    const access = await getTemplateMutationAccess(owner, params.templateId);
+    if (!access) return templateMutationNotFound();
     const body = await req.json().catch(() => ({}));
     const requestedVersionId = typeof body.versionId === "string" ? body.versionId : null;
     const formTemplate = await prisma.formTemplate.findUnique({

@@ -10,6 +10,7 @@ import {
 } from "@/lib/governance-workspace-repository";
 import { prisma } from "@/lib/prisma";
 import { getWorkspacePortfolioContext, parseWorkspacePortfolioId } from "@/lib/workspace-portfolio-context";
+import { getTemplateMutationAccess } from "@/lib/template-mutation-access";
 
 const workspaceCategories = new Set<WorkspaceCategory>([
   "PROFESSIONAL",
@@ -120,6 +121,10 @@ export async function attachGovernedJourneyToWorkspaceAction(formData: FormData)
 
   if (!formTemplateId || !workspaceId) {
     throw new Error("Le parcours et le Workspace cible sont obligatoires.");
+  }
+
+  if (!await getTemplateMutationAccess(owner, formTemplateId)) {
+    throw new Error("Ce parcours ne peut pas etre rattache par cet utilisateur.");
   }
 
   const formTemplate = await prisma.formTemplate.findUnique({
