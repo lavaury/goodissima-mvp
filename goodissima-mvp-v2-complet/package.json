@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "npm --prefix goodissima-intent-engine run build && next dev",
     "build": "npm --prefix goodissima-intent-engine run build && prisma generate && next build",
+    "typecheck": "tsc --noEmit --project tsconfig.json --incremental false",
     "start": "next start",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",

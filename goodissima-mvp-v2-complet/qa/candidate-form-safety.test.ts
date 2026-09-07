@@ -17,7 +17,8 @@ import {
 test("empty required choices are normalized to a fillable text field", () => {
   const field = normalizePublicFormField({ key: "preference", label: "Préférence", type: "SELECT", required: true, options: [] });
   assert.equal(field.type, "TEXT");
-  assert.equal((field as CandidateFormField & { placeholder?: string }).placeholder, "Précisez votre réponse.");
+  assert.ok("placeholder" in field);
+  assert.equal(field.placeholder, "Précisez votre réponse.");
 });
 
 test("garage choice fields receive useful business options", () => {
@@ -25,8 +26,32 @@ test("garage choice fields receive useful business options", () => {
   const size = normalizePublicFormField({ key: "tailleGarage", label: "Taille souhaitée garage", type: "RADIO", required: false, options: [] });
   assert.equal(type.type, "SELECT");
   assert.equal(size.type, "SELECT");
-  assert.equal((type.options as Array<unknown>).length, 6);
-  assert.equal((size.options as Array<unknown>).length, 7);
+  assert.ok(Array.isArray(type.options));
+  assert.ok(Array.isArray(size.options));
+  assert.equal(type.options.length, 6);
+  assert.equal(size.options.length, 7);
+});
+
+test("normalization preserves metadata and input while honestly widening transformed fields", () => {
+  const input = { key: "choice", label: "Choice", type: "RADIO" as const, required: true, options: null, placeholder: null, step: 2 };
+  const output = normalizePublicFormField(input);
+  const step: number = output.step;
+  // @ts-expect-error Normalization can replace literal type, null options and placeholder.
+  const unchanged: typeof input = output;
+  assert.notStrictEqual(output, input);
+  assert.equal(step, 2);
+  assert.equal(unchanged, output);
+  assert.equal(output.type, "TEXT");
+  assert.deepEqual(output.options, []);
+  assert.equal(output.placeholder, "Précisez votre réponse.");
+  assert.deepEqual(input, { key: "choice", label: "Choice", type: "RADIO", required: true, options: null, placeholder: null, step: 2 });
+
+  const text = { ...input, type: "text", options: { custom: true } };
+  const normalized = normalizePublicFormField(text);
+  assert.equal(normalized.type, "TEXT");
+  assert.strictEqual(normalized.options, text.options);
+  assert.equal(normalized.placeholder, null);
+  assert.equal(text.type, "text");
 });
 
 function source(path: string) {

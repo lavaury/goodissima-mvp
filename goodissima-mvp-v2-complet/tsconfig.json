@@ -1,1 +1,34 @@
-{"compilerOptions":{"target":"ES2022","lib":["dom","dom.iterable","es2022"],"allowJs":false,"allowImportingTsExtensions":true,"skipLibCheck":true,"strict":true,"noEmit":true,"esModuleInterop":true,"module":"esnext","moduleResolution":"bundler","resolveJsonModule":true,"isolatedModules":true,"jsx":"preserve","incremental":true,"plugins":[{"name":"next"}],"paths":{"@/*":["./*"]}},"include":["next-env.d.ts","**/*.ts","**/*.tsx",".next/types/**/*.ts"],"exclude":["node_modules"]}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "allowJs": false,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./*"] }
+  },
+  "include": [
+    "*.ts",
+    "app/**/*.ts", "app/**/*.tsx",
+    "components/**/*.ts", "components/**/*.tsx",
+    "lib/**/*.ts", "lib/**/*.tsx",
+    "config/**/*.ts", "config/**/*.tsx",
+    "emails/**/*.ts", "emails/**/*.tsx",
+    "qa/**/*.ts", "qa/**/*.tsx",
+    "scripts/**/*.ts", "scripts/**/*.tsx",
+    "goodissima-intent-engine/src/**/*.ts",
+    "goodissima-intent-engine/test/**/*.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", "m1a", "goodissima-mobile", ".worktrees", "dist", "build"]
+}

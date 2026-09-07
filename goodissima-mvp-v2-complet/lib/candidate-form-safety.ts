@@ -41,7 +41,16 @@ export function parseCandidateFieldOptions(options: unknown): CandidateFormOptio
   });
 }
 
-export function normalizePublicFormField<T extends CandidateFormField>(field: T): T {
+// Non-choice fields retain their options; choice fields replace them, and the
+// empty-choice fallback can also replace the original placeholder.
+export type NormalizedPublicFormField<T extends CandidateFormField> =
+  | (Omit<T, "type"> & { type: string })
+  | (Omit<T, "type" | "options"> & { type: "SELECT"; options: CandidateFormOption[] })
+  | (Omit<T, "type" | "options" | "placeholder"> & {
+      type: "TEXT"; options: CandidateFormOption[]; placeholder: string;
+    });
+
+export function normalizePublicFormField<T extends CandidateFormField>(field: T): NormalizedPublicFormField<T> {
   const type = field.type.toUpperCase();
   if (!["SELECT", "RADIO", "CHOICE"].includes(type)) return { ...field, type };
   let options = parseCandidateFieldOptions(field.options);
@@ -51,7 +60,7 @@ export function normalizePublicFormField<T extends CandidateFormField>(field: T)
     else if (identity.includes("taille") || identity.includes("size")) options = garageOptions.size;
   }
   if (options.length) return { ...field, type: "SELECT", options };
-  return { ...field, type: "TEXT", options: [], placeholder: "Précisez votre réponse." } as T;
+  return { ...field, type: "TEXT", options: [], placeholder: "Précisez votre réponse." };
 }
 
 export type MissingCandidateField = {

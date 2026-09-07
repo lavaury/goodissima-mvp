@@ -24,7 +24,7 @@ class MemoryMatchingRepository implements MatchingRepository {
   writes = 0;
   private sequence = 0;
 
-  async transaction<T>(operation: (repository: MatchingRepository) => Promise<T>) {
+  async transaction<T>(operation: (repository: MatchingRepository) => Promise<T>): Promise<T> {
     return operation(this);
   }
 
