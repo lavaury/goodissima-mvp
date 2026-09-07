@@ -65,6 +65,18 @@ Jalon DEBT-AUTH-01 : commit unique `fix(auth): enforce template ownership on mut
 
 ## Suites à prévoir pour les dettes ouvertes
 
+### DEBT-AUTH-02 — READ / USE, RESOLVED TECHNICALLY
+
+Anomalies découvertes par UX-01E.0 : catalogue et création GLink sans permission USE explicite ; lectures privées de parcours fondées sur des preuves divergentes. Traitement documenté dans [debt-auth-02.md](debt-auth-02.md), baseline `91185ea804262f9006aa517844e7d8fa08dd8729`. Aucun nouvel ID D-xxx attribué arbitrairement ; aucune entrée historique supprimée ou clôturée.
+
+Preuves : garde READ commune avec priorité Workspace et créateur initial unique ; USE serveur avant création GLink, catalogue filtré ; exception strictement limitée au template système de conversation sécurisé démontré par les migrations, sans droit MUTATE ajouté. 40 tests READ/USE, 256 tests de non-régression dont 43 DEBT-AUTH-01, 55 maintenance Boussole ; typecheck zéro et build 61/61. Recette humaine et commit encore à effectuer. Aucun hash de résolution inventé.
+
+Le filtrage READ couvre aussi le compteur de brouillons et les templates de la cohorte d'archives ; D-015 reste OPEN pour les autres incohérences de cohortes. D-003/D-018 conservent leur statut et leurs protections. D-020 reste OPEN : 8 tests réussis et les 2 échecs historiques reproduits sans modification. D-002/D-004/D-019 inchangées.
+
+Propositions UX-01E.0 encore ouvertes : périmètre des enfants des agrégats de pilotage, effets du rattachement dossier → lien parent, volumes/pagination, éligibilité serveur du rattachement Portfolio. Besoins conservés : attribution historique explicite, propriété des créations manuelles, destination Workspace dans l'UI de duplication (409 sans cible), futures créations libres et fonctionnalités transversales. Aucun de ces chantiers n'est lancé ici.
+
+### Suivi historique conservé
+
 - D-003/D-018 : conserver la suite `qa/template-mutation-access.test.ts`, qui remplace les seules simulations d'audit par des régressions versionnables ; compléter par la recette humaine et un jalon de résolution explicite.
 - D-002/D-019 : tests de contexte par propriétaire/Portfolio/Workspace/parcours, identifiants invalides refusés, destinations internes normalisées ; ne pas confondre visibilité UI et validation serveur.
 - D-004 : collisions de slug, Workspace archivé, actif et attaché ; conserver le test de création contextualisée qui interdit déplacement/réactivation.
@@ -73,3 +85,5 @@ Jalon DEBT-AUTH-01 : commit unique `fix(auth): enforce template ownership on mut
 - D-005 à D-014 : recette humaine des libellés/densité, navigation et accessibilité ; maintenance Boussole si une surface guidée change.
 
 Les corrections P0 d'autorisation D-003/D-018, maintenant validées techniquement, attendent leur recette et jalon avant UX-02. La résolution TypeScript ne vaut pas validation de sécurité ni remboursement des autres dettes.
+
+Jalon DEBT-AUTH-02 autorisé : `fix(auth): enforce template read and use access`. La validation technique ci-dessus est conservée ; aucun autre statut de dette ne change. Le hash sera fourni après création du commit, puis enregistré lors d’une mise à jour documentaire ultérieure autorisée, comme pour DEBT-AUTH-01. Aucun amend ou second commit destiné à inscrire un hash qui se modifierait lui-même. Aucun push dans ce jalon.

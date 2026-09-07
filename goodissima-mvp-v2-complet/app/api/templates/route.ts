@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
 
 function normalizeKey(value: unknown) {
   if (typeof value !== "string") return "";
@@ -60,9 +61,10 @@ const starterFieldsByType: Record<
 };
 
 export async function GET() {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
 
   const templates = await prisma.formTemplate.findMany({
+    where: { relationTemplateId: { in: await getAccessibleRelationTemplateIds(owner.id) } },
     include: {
       _count: { select: { fields: true } },
     },

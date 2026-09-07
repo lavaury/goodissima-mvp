@@ -8,6 +8,8 @@ export function getDefaultRelationTemplate() {
   });
 }
 
+/** Resolve an already-authorized public link/case template, not a USE permission.
+ * New owner-side links must use getTemplateForLinkCreation instead. */
 export async function getRelationTemplateForLink(templateId?: string | null) {
   const selectedTemplate = templateId
     ? await prisma.relationTemplate.findUnique({

@@ -6,6 +6,7 @@ import { ProductLifecycle, ProductObjectDefinition } from "@/components/ProductO
 import { announcementListView } from "@/lib/announcement-archive";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
 import { getPublicAppUrl } from "@/lib/public-app-url";
 import { isDemoSurfaceEnabled } from "@/lib/debug";
 import { deriveGLinkMatchingDisplayState } from "@/lib/glink-matching";
@@ -40,7 +41,7 @@ export default async function OpportunitiesPage({
   const archivedJourneys = archivedOpportunitySummary.journeys;
   const totalArchivedCount = archivedOpportunitySummary.count;
   const statusCards = [
-    { label: "Brouillons", value: await prisma.relationTemplate.count({ where: { status: "DRAFT" } }), href: "/parcours" },
+    { label: "Brouillons", value: await prisma.relationTemplate.count({ where: { status: "DRAFT", id: { in: await getAccessibleRelationTemplateIds(owner.id) } } }), href: "/parcours" },
     { label: "Publiées", value: announcements.filter((item) => item.status === "ACTIVE").length, href: "/opportunities" },
     { label: "Suspendues", value: announcements.filter((item) => item.status === "DISABLED").length, href: "/opportunities" },
     { label: "Clôturées", value: announcements.filter((item) => item.status === "EXPIRED").length, href: "/opportunities" },

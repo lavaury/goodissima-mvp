@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { sendSecureLinkCreatedEmail } from "@/lib/email";
-import { getRelationTemplateForLink } from "@/lib/relation-templates";
+import { getTemplateForLinkCreation } from "@/lib/relation-template-access";
 import { getActiveTemplateVersion } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
@@ -18,9 +18,11 @@ export async function POST(req: Request) {
   }
 
   const owner = await getCurrentPrismaUser();
-  const relationTemplate = await getRelationTemplateForLink(
-    typeof body.templateId === "string" ? body.templateId : null,
-  );
+  if (body.templateId != null && (typeof body.templateId !== "string" || !body.templateId.trim())) {
+    return NextResponse.json({ error: "Template invalide." }, { status: 400 });
+  }
+  const relationTemplate = await getTemplateForLinkCreation(owner, body.templateId ?? null);
+  if (!relationTemplate) return NextResponse.json({ error: "Parcours introuvable." }, { status: 404 });
   const templateVersion = relationTemplate ? await getActiveTemplateVersion(relationTemplate.id) : null;
   const slug = `${slugify(body.title)}-${Math.random().toString(36).slice(2, 7)}`;
   const link = await prisma.gLink.create({

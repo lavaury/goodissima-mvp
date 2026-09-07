@@ -23,6 +23,7 @@ import { getGovernanceCockpitConsolidation } from "@/lib/governance-cockpit-cons
 import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-repository";
 import { changeGovernedJourneyWorkspaceAction } from "@/lib/governance-workspace-actions";
 import { prisma } from "@/lib/prisma";
+import { getTemplateReadAccess } from "@/lib/relation-template-access";
 
 export const dynamic = "force-dynamic";
 
@@ -397,6 +398,7 @@ function formatDate(value: Date | string | null | undefined) {
 
 export default async function GovernedJourneyPilotagePage({ params, searchParams }: { params: { id: string }; searchParams: { meetingPrepared?: string; similarMeetingId?: string } }) {
   const owner = await getCurrentPrismaUser();
+  if (!await getTemplateReadAccess(owner, params.id)) notFound();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const formTemplate = await prisma.formTemplate.findUnique({
@@ -421,8 +423,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const version = formTemplate.relationTemplate?.versions[0];
   const snapshot = asRecord(version?.snapshot);
   const metadata = asRecord(snapshot.metadata);
-  const metadataOwnerId = text(metadata.createdById);
-  if (!formTemplate.relationTemplate || (formTemplate.relationTemplate.workspace?.ownerId !== owner.id && metadataOwnerId !== owner.id)) notFound();
+  if (!formTemplate.relationTemplate) notFound();
   const workspaceOptions = await getGovernanceWorkspaceOptions(owner.id);
   const creationPlan = asRecord(metadata.creationPlan);
   const validation = asRecord(metadata.humanValidation);

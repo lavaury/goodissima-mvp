@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
 import type {
   CommunicationChannelType,
   CommunicationProvider,
@@ -359,14 +360,7 @@ export async function getUnassignedGovernedJourneySummaries(ownerId: string): Pr
   const templates = await prisma.relationTemplate.findMany({
     where: {
       workspaceId: null,
-      versions: {
-        some: {
-          snapshot: {
-            path: ["metadata", "source"],
-            equals: "governance-v1-minimal-create",
-          },
-        },
-      },
+      id: { in: await getAccessibleRelationTemplateIds(ownerId) },
     },
     orderBy: { createdAt: "desc" },
     include: {
@@ -393,10 +387,9 @@ export async function getUnassignedGovernedJourneySummaries(ownerId: string): Pr
       const latestVersion = template.versions[0];
       const metadata = asRecord(asRecord(latestVersion?.snapshot).metadata);
       const creationPlan = asRecord(metadata.creationPlan);
-      const createdById = text(metadata.createdById);
       const formTemplate = template.formTemplates[0] ?? null;
 
-      if (createdById !== ownerId || !formTemplate || !latestVersion) return null;
+      if (!formTemplate || !latestVersion) return null;
 
       return {
         relationTemplateId: template.id,

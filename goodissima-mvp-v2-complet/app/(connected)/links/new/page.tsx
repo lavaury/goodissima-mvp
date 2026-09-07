@@ -7,6 +7,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { DEFAULT_RELATION_TEMPLATE_KEY } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
+import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
 import {
   localizeTemplateFields,
   localizeTemplateName,
@@ -23,7 +24,7 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const templates = await prisma.relationTemplate.findMany({
-    where: { status: { not: "ARCHIVED" } },
+    where: { id: { in: await getAccessibleRelationTemplateIds(owner.id, "use") }, status: { not: "ARCHIVED" } },
     orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     select: {
       id: true,

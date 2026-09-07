@@ -8,6 +8,7 @@ import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
 import { localizeTemplateDescription, localizeTemplateName } from "@/lib/template-localization";
 import { ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { isDemoSurfaceEnabled } from "@/lib/debug";
@@ -32,6 +33,7 @@ export default async function TemplatesPage() {
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const templates = await prisma.formTemplate.findMany({
+    where: { relationTemplateId: { in: await getAccessibleRelationTemplateIds(owner.id) } },
     include: {
       _count: { select: { fields: true } },
       relationTemplate: {
