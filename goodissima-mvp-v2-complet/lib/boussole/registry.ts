@@ -1,3 +1,4 @@
+import { dashboardSequences } from "../boussole-dashboard.ts";
 import type { BoussoleSequence } from "../boussole-dashboard.ts";
 import { governanceSequences } from "../boussole-governance.ts";
 import { governedJourneySequences } from "../boussole-governed-journey.ts";
@@ -18,6 +19,8 @@ export type BoussoleRegistryEntry = {
 
 const commonStates: BoussolePageState[] = ["EMPTY", "POPULATED", "FOCUSED"];
 const journeyVersions: Record<string, number> = {
+  "repères": 2,
+  "activité": 2,
   ...Object.fromEntries(governanceSequences.map((journey) => [journey.id, 1])),
   ...Object.fromEntries(newGovernedJourneySequences.map((journey) => [journey.id, 1])),
   ...Object.fromEntries(governedJourneySequences.map((journey) => [journey.id, 1])),
@@ -35,6 +38,7 @@ function registerPage(
   pageId: string,
   routes: string[],
   sourceJourneys: BoussoleSequence[],
+  supportedStates: BoussolePageState[] = [...commonStates],
 ): BoussoleRegistryEntry {
   const version = 1;
   const journeys = sourceJourneys.map((journey) => ({
@@ -51,7 +55,7 @@ function registerPage(
       pageId,
       version,
       routes,
-      supportedStates: [...commonStates],
+      supportedStates,
       targets: [...new Set(sourceJourneys.flatMap((journey) => journey.steps.flatMap((step) =>
         [step.targetId, step.fallbackTargetId].filter((target): target is string => Boolean(target)),
       )))],
@@ -68,6 +72,7 @@ export const boussoleRegistry: BoussoleRegistryEntry[] = [
   registerPage("portfolio", ["/gouvernance/portfolios"], portfolioSequences),
   registerPage("portfolio-detail", ["/gouvernance/portfolios/:id"], portfolioDetailSequences),
   registerPage("portfolio-pilotage", ["/gouvernance/portfolios/:id/pilotage"], portfolioPilotageSequences),
+  registerPage("dashboard", ["/dashboard"], dashboardSequences, ["EMPTY", "POPULATED"]),
 ];
 
 export type BoussoleIntegrityIssue = {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getCompassContext } from "@/lib/boussole-context";
-import { dashboardSequences, type BoussoleSequence } from "@/lib/boussole-dashboard";
+import { dashboardRuntimeContext, dashboardSequences, type BoussoleSequence } from "@/lib/boussole-dashboard";
 import { simpleLinkSequences } from "@/lib/boussole-simple-link";
 import { opportunitySequences } from "@/lib/boussole-opportunities";
 import { governanceSequences } from "@/lib/boussole-governance";
@@ -80,6 +80,7 @@ export function ContextualBoussole() {
       focusedObjectId,
       visibleObjectCount,
       ...portfolioRuntimeContext(context?.id, pathname, availableTargetIds),
+      ...dashboardRuntimeContext(context?.id, availableTargetIds),
       availableTargetIds,
       functionalStates: [...new Set(targets.map((element) => element.dataset.boussoleState).filter((state): state is string => Boolean(state)))],
     };

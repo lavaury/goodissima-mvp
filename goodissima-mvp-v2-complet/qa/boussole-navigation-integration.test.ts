@@ -6,18 +6,16 @@ import { welcomeManifest } from "../lib/boussole/welcome-manifest.ts";
 import { WELCOME_STEP_IDS } from "../lib/boussole/welcome-contracts.ts";
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const dashboard = source("app/(connected)/dashboard/page.tsx");
+const dashboard = source("components/DashboardHome.tsx");
 const navigation = source("components/PlatformNavigation.tsx");
 const discoveryPage = source("app/(connected)/boussole/decouverte/page.tsx");
 
 test("dashboard exposes a compact canonical Boussole entry in empty and active states", () => {
   assert.match(dashboard, /data-boussole-id="open-boussole-from-dashboard"/);
   assert.match(dashboard, /href="\/boussole\/decouverte"/);
-  assert.match(dashboard, /Ouvrir la Boussole/);
-  assert.match(dashboard, /const hasDashboardActivity = links\.length > 0 \|\| cases\.length > 0/);
-  assert.match(dashboard, /hasDashboardActivity\s*\?/);
-  assert.match(dashboard, /Vous ne savez pas par où commencer/);
-  assert.match(dashboard, /<DashboardLinkFilters/);
+  assert.match(dashboard, /Comprendre les possibilités et choisir comment commencer/);
+  assert.match(dashboard, /activity.length > 0/);
+  assert.doesNotMatch(dashboard, /DashboardLinkFilters|hasDashboardActivity/);
 });
 
 test("global navigation links canonically to discovery on desktop and mobile", () => {

@@ -19,7 +19,7 @@ const chrome = process.env.GOODISSIMA_CHROME || [
 assert.ok(chrome, "Set GOODISSIMA_CHROME to a Chromium browser executable");
 
 execFileSync(process.execPath, ["node_modules/tailwindcss/lib/cli.js", "-i", "app/globals.css", "-o", path.join(output, "styles.css")], { stdio: "pipe" });
-const files = ["ConnectedShell", "PlatformNavigation", "ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton", "ToastProvider", "GlobalLanguageSwitcher", "SpatialNavigationContext", "SpatialNavigationBar", "WorkspaceDetailView", "WorkspacePilotageView", "WorkspaceCreateActions", "SpacesTreeView", "SpacesCreateActions", "WorkspaceRow", "PortfolioExplorerView", "PortfolioOrganize", "WorkspaceCreationForm"];
+const files = ["DashboardHome", "ConnectedShell", "PlatformNavigation", "ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton", "ToastProvider", "GlobalLanguageSwitcher", "SpatialNavigationContext", "SpatialNavigationBar", "WorkspaceDetailView", "WorkspacePilotageView", "WorkspaceCreateActions", "SpacesTreeView", "SpacesCreateActions", "WorkspaceRow", "PortfolioExplorerView", "PortfolioOrganize", "WorkspaceCreationForm"];
 const sources = Object.fromEntries(files.map(name => [`@/components/${name}`, `components/${name}.tsx`]));
 sources["@/lib/boussole/navigation-disclosure"] = "lib/boussole/navigation-disclosure.ts";
 sources["@/lib/spatial-navigation"] = "lib/spatial-navigation.ts";
@@ -96,7 +96,7 @@ function WorkspaceCreationFixture(){
  const portfolio=new URL(href).searchParams.has('portfolioId')?{id:'portfolio-explorer-test',name:'Portfolio Europe accompagnement des projets internationaux '.repeat(3)}:null;
  return h(require('@/components/WorkspaceCreationForm').WorkspaceCreationForm,{portfolio});
 }
-function Content(){const toast=useToast();const pathname=modules['next/navigation'].usePathname();if(pathname==='/gouvernance/workspaces/nouveau')return h(WorkspaceCreationFixture);if(pathname==='/gouvernance/portfolios/portfolio-explorer-test')return h(PortfolioFixture);if(pathname==='/gouvernance')return h(SpacesFixture);if(pathname==='/gouvernance/workspaces/technical-workspace-id')return h(WorkspaceFixture);return h('main',{className:'px-4 py-8'},__qa.contexts[pathname]?h(PageNavigationContext,{pathname,items:__qa.contexts[pathname]}):null,h('h1',null,'Contenu métier'),h('button',{id:'toast-test',onClick:()=>toast.success('Notification de test')},'Tester la notification'));}
+function Content(){const toast=useToast();const pathname=modules['next/navigation'].usePathname();if(pathname==='/dashboard' && location.search.includes('home='))return h(require('@/components/DashboardHome').DashboardHome,{activity:location.search.includes('home=populated')?Array.from({length:5},(_,i)=>({id:'event-'+i,label:['Lien créé','Dossier ouvert','Document déposé'][i%3],context:'Un contexte métier '+ 'X'.repeat(160),date:new Date('2026-09-01T12:00:00Z'),href:i===0?'/links/real-link':'/cases/real-case'})):[]});if(pathname==='/gouvernance/workspaces/nouveau')return h(WorkspaceCreationFixture);if(pathname==='/gouvernance/portfolios/portfolio-explorer-test')return h(PortfolioFixture);if(pathname==='/gouvernance')return h(SpacesFixture);if(pathname==='/gouvernance/workspaces/technical-workspace-id')return h(WorkspaceFixture);return h('main',{className:'px-4 py-8'},__qa.contexts[pathname]?h(PageNavigationContext,{pathname,items:__qa.contexts[pathname]}):null,h('h1',null,'Contenu métier'),h('button',{id:'toast-test',onClick:()=>toast.success('Notification de test')},'Tester la notification'));}
 function App(){const pathname=modules['next/navigation'].usePathname();return __qa.spatial.isConnectedPathname(pathname)?h(ConnectedShell,{organizationName:'Organisation Goodissima avec un nom volontairement très long pour vérifier la troncature'},h(Content)):h('main',null,'Surface exclue');}
 ReactDOM.createRoot(document.getElementById('root')).render(h(LanguageProvider,null,h(ToastProvider,null,h(App),h(GlobalLanguageSwitcher))));
 `;
@@ -392,7 +392,23 @@ try {
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, 'Global form overflow');
     await go('/dashboard');
 
-    results.push({ workspaceCreation: "pass", portfolio: "pass", spaces: "pass", ...metrics, spatialHeight, keyboard: "pass", disclosures: "pass", navigation: "pass", nativeHistory: "pass", breadcrumb: "pass", exclusions: "pass", languageAndLogout: "pass", toast: "pass" });
+    for (const state of ['empty','populated']) {
+      await send('Page.navigate',{url:origin+'/dashboard?home='+state},sessionId);
+      for(let retry=0;retry<50 && !(await evaluate("Boolean(document.querySelector('nav[aria-label=\"Choisir une destination\"]'))"));retry++)await pause();
+      await pause();
+      const home=await evaluate(`(() => {const main=document.querySelector('main');return {title:main.querySelector('h1').textContent,overflow:document.documentElement.scrollWidth>innerWidth,events:main.querySelectorAll('time').length,doors:[...main.querySelectorAll('nav a')].map(a=>a.getAttribute('href')),scrolling:[...main.querySelectorAll('*')].some(e=>['auto','scroll'].includes(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight)}})()`);
+      assert.equal(home.title,'Accueil');assert.equal(home.overflow,false);assert.equal(home.scrolling,false);
+      assert.equal(home.events,state==='empty'?0:5);
+      assert.deepEqual(home.doors,['/boussole/decouverte','/annuaire','/gouvernance']);
+      await evaluate("document.querySelector('main nav a').focus()");await key('Tab');
+      assert.equal(await evaluate("document.activeElement.getAttribute('href')"),'/annuaire');
+      assert.equal(await evaluate("getComputedStyle(document.activeElement).outlineStyle !== 'none'"),true);
+      const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true},sessionId);
+      fs.writeFileSync(path.join(output,width+'-home-'+state+'.png'),Buffer.from(shot.data,'base64'));
+      await key('Enter');await pause();assert.equal(await evaluate('location.pathname'),'/annuaire');
+      assert.deepEqual(await evaluate('__qa.errors'),[]);
+    }
+    results.push({ dashboardHome: "pass", workspaceCreation: "pass", portfolio: "pass", spaces: "pass", ...metrics, spatialHeight, keyboard: "pass", disclosures: "pass", navigation: "pass", nativeHistory: "pass", breadcrumb: "pass", exclusions: "pass", languageAndLogout: "pass", toast: "pass" });
   }
   const newTab = await send("Target.createTarget", { url: `${origin}/annuaire?token=never-show-this` });
   const attached = await send("Target.attachToTarget", { targetId: newTab.targetId, flatten: true });

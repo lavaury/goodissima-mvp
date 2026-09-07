@@ -63,10 +63,10 @@ test("keeps the floating guide state-aware and locally controlled", () => {
   assert.match(source, /« Montrer la zone » repère l’élément sans déclencher d’action/);
 });
 
-test("provides the 21 Dashboard targets in five reusable micro-journeys", () => {
-  assert.equal(dashboardSequences.length, 5);
-  assert.equal(dashboardSteps.length, 21);
-  assert.equal(new Set(dashboardSteps.map((step) => step.targetId)).size, 21);
+test("provides orientation and factual activity dashboard journeys", () => {
+  assert.equal(dashboardSequences.length, 2);
+  assert.equal(dashboardSteps.length, 5);
+  assert.equal(new Set(dashboardSteps.map((step) => step.targetId)).size, 5);
   for (const step of dashboardSteps) {
     assert.ok(step.animation?.focus);
     assert.ok(step.animation?.narration);
@@ -158,7 +158,7 @@ test("declares every important Boussole target on a real UI element", () => {
   const source = [
     read("app/(connected)/links/simple/simple-link-builder.tsx"),
     read("app/(connected)/links/[linkId]/page.tsx"),
-    read("app/(connected)/dashboard/page.tsx"),
+    read("components/DashboardHome.tsx"),
     read("app/(connected)/gouvernance/pilotage/page.tsx"),
     read("components/GLinkMatchingPanel.tsx"),
     read("components/LinkCard.tsx"),

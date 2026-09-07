@@ -8,8 +8,8 @@ import {
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("dashboard and pilotage use the same GLink matching state derivation", () => {
-  const dashboard = source("app/(connected)/dashboard/page.tsx");
+test("business collection and pilotage retain GLink matching state derivation", () => {
+  const dashboard = source("app/(connected)/opportunities/page.tsx");
   const pilotage = source("lib/governance-pilotage-repository.ts");
   const card = source("components/LinkCard.tsx");
   assert.match(dashboard, /deriveGLinkMatchingDisplayState/);
@@ -23,12 +23,10 @@ test("dashboard and pilotage use the same GLink matching state derivation", () =
 });
 
 test("GLink creation is derived once into the dashboard chronology without requiring a case", () => {
-  const dashboard = source("app/(connected)/dashboard/page.tsx");
-  assert.match(dashboard, /\.\.\.links\.map/);
-  assert.match(dashboard, /id: `link-\$\{item\.id\}`/);
-  assert.match(dashboard, /label: "Lien sécurisé créé"/);
-  assert.match(dashboard, /href: `\/links\/\$\{item\.id\}`/);
-  assert.doesNotMatch(dashboard, /candidateAccessToken|\/secure\//);
+  const repository = source("lib/dashboard-activity-repository.ts");
+  assert.match(repository, /label: "Lien créé"/);
+  assert.match(repository, /href: `\/links\//);
+  assert.doesNotMatch(repository, /candidateAccessToken|\/secure\//);
 });
 
 test("creation matching metadata remains distinct from later activation", () => {

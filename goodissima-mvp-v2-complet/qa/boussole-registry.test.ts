@@ -1,3 +1,4 @@
+import { dashboardSequences } from "../lib/boussole-dashboard.ts";
 import { portfolioSequences } from "../lib/boussole-portfolios.ts";
 import { portfolioDetailSequences, portfolioPilotageSequences } from "../lib/boussole-portfolio-detail.ts";
 import assert from "node:assert/strict";
@@ -24,7 +25,7 @@ test("validates the central Boussole registry", () => {
 });
 
 test("registers the real sources without duplicating their steps", () => {
-  const expected = [governanceSequences, newGovernedJourneySequences, governedJourneySequences, portfolioSequences, portfolioDetailSequences, portfolioPilotageSequences];
+  const expected = [governanceSequences, newGovernedJourneySequences, governedJourneySequences, portfolioSequences, portfolioDetailSequences, portfolioPilotageSequences, dashboardSequences];
   assert.equal(boussoleRegistry.length, expected.length);
   for (const [pageIndex, entry] of boussoleRegistry.entries()) {
     assert.deepEqual(entry.manifest.journeyIds, expected[pageIndex].map((journey) => journey.id));
