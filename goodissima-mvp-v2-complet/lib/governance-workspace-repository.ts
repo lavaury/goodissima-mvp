@@ -1,6 +1,7 @@
 import { linkObjectLabel } from "@/lib/object-creation";
 import { prisma } from "@/lib/prisma";
-import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
+import { getTemplateCreationProofWhere, resolveTemplateAccess, templateAccessSelect } from "@/lib/relation-template-access";
+import { organizeWindow, organizeResults } from "@/lib/unassigned-pagination";
 import type {
   CommunicationChannelType,
   CommunicationProvider,
@@ -155,10 +156,11 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-export async function getGovernanceWorkspaceOptions(ownerId: string): Promise<GovernanceWorkspaceOption[]> {
+export async function getGovernanceWorkspaceOptions(ownerId: string, page?: number): Promise<GovernanceWorkspaceOption[]> {
   const workspaces = await prisma.workspace.findMany({
     where: { ownerId, status: "ACTIVE" },
-    orderBy: [{ name: "asc" }],
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    ...(page === undefined ? {} : organizeWindow(page)),
     select: {
       id: true,
       name: true,
@@ -358,121 +360,47 @@ export async function getGovernanceCommunicationSessionsForJourney(input: {
   }));
 }
 
-export async function getUnassignedGovernedJourneySummaries(ownerId: string): Promise<UnassignedGovernedJourneySummary[]> {
+/** A bounded READ candidate window, including conflicting proofs for the final guard.
+ * Pagination follows candidates, so a rejected row never hides later pages. */
+export async function getUnassignedGovernedJourneySummaries(ownerId: string, page = 0) {
   const templates = await prisma.relationTemplate.findMany({
-    where: {
-      workspaceId: null,
-      id: { in: await getAccessibleRelationTemplateIds(ownerId) },
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      formTemplates: {
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      versions: {
-        orderBy: { version: "desc" },
-        take: 1,
-        select: {
-          snapshot: true,
-          createdAt: true,
-        },
-      },
+    where: { ...getTemplateCreationProofWhere(ownerId), formTemplates: { some: {} } },
+    ...organizeWindow(page),
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    select: {
+      ...templateAccessSelect, name: true, createdAt: true,
+      formTemplates: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 1, select: { id: true, name: true } },
     },
   });
-
-  return templates
-    .map((template) => {
-      const latestVersion = template.versions[0];
-      const metadata = asRecord(asRecord(latestVersion?.snapshot).metadata);
-      const creationPlan = asRecord(metadata.creationPlan);
-      const formTemplate = template.formTemplates[0] ?? null;
-
-      if (!formTemplate || !latestVersion) return null;
-
-      return {
-        relationTemplateId: template.id,
-        formTemplateId: formTemplate.id,
-        title: text(creationPlan.title) ?? formTemplate.name ?? template.name,
-        createdAt: latestVersion.createdAt,
-        href: `/gouvernance/parcours/${formTemplate.id}/pilotage`,
-      };
-    })
-    .filter((item): item is UnassignedGovernedJourneySummary => item !== null);
+  const window = organizeResults(templates);
+  return {
+    hasMore: window.hasMore,
+    items: window.items.filter(template => resolveTemplateAccess(ownerId, template).read).flatMap(template => {
+      const form = template.formTemplates[0];
+      if (!form) return [];
+      return [{ relationTemplateId: template.id, formTemplateId: form.id, title: form.name || template.name,
+        createdAt: template.createdAt, href: `/gouvernance/parcours/${encodeURIComponent(form.id)}/pilotage` }];
+    }),
+  };
 }
 
-export async function getUnassignedRelationCaseSummaries(ownerId: string): Promise<UnassignedRelationCaseSummary[]> {
-  const relationCases = await prisma.relationCase.findMany({
-    where: {
-      ownerId,
-      workspaceId: null,
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      gLink: {
-        select: {
-          id: true,
-          title: true,
-        },
-      },
-      _count: {
-        select: {
-          communicationSessions: true,
-        },
-      },
-    },
+export async function getUnassignedRelationCaseSummaries(ownerId: string, page = 0) {
+  const rows = await prisma.relationCase.findMany({
+    where: { ownerId, workspaceId: null }, ...organizeWindow(page),
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    select: { id: true, candidateName: true, candidateEmail: true, createdAt: true,
+      gLink: { select: { id: true, title: true } } },
   });
-
-  return relationCases.map((relationCase) => ({
-    id: relationCase.id,
-    gLinkId: relationCase.gLink.id,
-    candidateName: relationCase.candidateName,
-    candidateEmail: relationCase.candidateEmail,
-    status: relationCase.status,
-    createdAt: relationCase.createdAt,
-    href: `/cases/${relationCase.id}`,
-    gLinkTitle: relationCase.gLink.title,
-    communicationsCount: relationCase._count.communicationSessions,
-  }));
+  return organizeResults(rows.map(row => ({ id: row.id, title: row.candidateName || row.candidateEmail,
+    gLinkTitle: row.gLink.title, createdAt: row.createdAt, href: `/cases/${encodeURIComponent(row.id)}` })));
 }
 
-export async function getUnassignedGLinkSummaries(ownerId: string): Promise<UnassignedGLinkSummary[]> {
-  const links = await prisma.gLink.findMany({
-    where: {
-      ownerId,
-      workspaceId: null,
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      cases: {
-        where: {
-          ownerId,
-          workspaceId: null,
-        },
-        select: {
-          id: true,
-        },
-      },
-      _count: {
-        select: {
-          cases: true,
-        },
-      },
-    },
+export async function getUnassignedGLinkSummaries(ownerId: string, page = 0) {
+  const rows = await prisma.gLink.findMany({
+    where: { ownerId, workspaceId: null }, ...organizeWindow(page),
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    select: { id: true, title: true, rules: true, createdAt: true },
   });
-
-  return links.map((link) => ({
-    id: link.id,
-    title: link.title,
-    slug: link.slug,
-    status: link.status,
-    createdAt: link.createdAt,
-    href: `/links/${link.id}`,
-    relationCaseCount: link._count.cases,
-    unassignedRelationCaseCount: link.cases.length,
-    objectLabel: linkObjectLabel(link.rules),
-  }));
+  return organizeResults(rows.map(row => ({ id: row.id, title: row.title, createdAt: row.createdAt,
+    objectLabel: linkObjectLabel(row.rules), href: `/links/${encodeURIComponent(row.id)}` })));
 }

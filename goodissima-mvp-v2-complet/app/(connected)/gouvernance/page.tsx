@@ -5,7 +5,7 @@ import { SpacesTreeView } from "@/components/SpacesTreeView";
 import { SpacesCreateActions } from "@/components/SpacesCreateActions";
 import { SpacesExistingAttachments } from "@/components/SpacesExistingAttachments";
 
-export default async function GovernanceWorkspacePage() {
+export default async function GovernanceWorkspacePage({ searchParams = {} }: { searchParams?: Record<string, string | string[] | undefined> }) {
   noStore();
   const owner = await getCurrentPrismaUser();
   const data = await getSpacesTree(owner.id);
@@ -17,6 +17,6 @@ export default async function GovernanceWorkspacePage() {
     </header>
     <SpacesTreeView data={data} />
     <p data-boussole-id="governance-human-control-notice" className="mt-6 text-sm text-slate-600">Créer ou ouvrir un espace ne contacte personne. Les décisions, invitations et revues restent humaines.</p>
-    <SpacesExistingAttachments ownerId={owner.id} />
+    <SpacesExistingAttachments ownerId={owner.id} params={searchParams} />
   </main>;
 }

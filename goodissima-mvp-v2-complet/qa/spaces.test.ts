@@ -68,8 +68,8 @@ test("page authenticates before loading, removes old cards and preserves existin
     "@/components/SpacesTreeView": { SpacesTreeView }, "@/components/SpacesCreateActions": { SpacesCreateActions: () => null },
     "@/components/SpacesExistingAttachments": { SpacesExistingAttachments: () => null },
   });
-  await assert.rejects(page(false).default(), /LOGIN/); assert.equal(reads, 0);
-  const html = renderToStaticMarkup(await page(true).default());
+  await assert.rejects(page(false).default({}), /LOGIN/); assert.equal(reads, 0);
+  const html = renderToStaticMarkup(await page(true).default({}));
   assert.ok(html.includes('>Mes espaces</h1>'));
   for (const old of ["Accueil de la Gouvernance", ">Gouvernance</h1>", "Annuaire Goodissima V1", "Salle de pilotage"]) assert.ok(!html.includes(old));
   const legacy = readFileSync("components/SpacesExistingAttachments.tsx", "utf8");
@@ -77,7 +77,7 @@ test("page authenticates before loading, removes old cards and preserves existin
 });
 test("Boussole versions change only for revised journeys; Workspace focus remains outside collection guide", () => {
   for (const id of ["understand-governance", "governance-summary", "understand-workspaces"]) assert.equal(getBoussoleJourneyVersion(id), 2);
-  assert.equal(getBoussoleJourneyVersion("organize-unassigned"), 1);
+  assert.equal(getBoussoleJourneyVersion("organize-unassigned"), 2);
   assert.equal(getCompassContext("/gouvernance/workspaces/w1"), null);
   assert.equal(getCompassContext("/gouvernance")?.pageName, "Comprendre Mes espaces");
 });

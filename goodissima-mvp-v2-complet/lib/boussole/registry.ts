@@ -27,6 +27,7 @@ const journeyVersions: Record<string, number> = {
   "understand-governance": 2,
   "governance-summary": 2,
   "understand-workspaces": 2,
+  "organize-unassigned": 2,
   "portfolio-counters": 2,
   "use-journey-assistant": 2,
   "create-manually": 2,

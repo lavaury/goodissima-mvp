@@ -56,8 +56,9 @@ export async function getTemplateForLinkCreation(user: { id: string }, templateI
   return template && resolveTemplateAccess(user.id, template).use ? { id: template.id } : null;
 }
 
-export async function getAccessibleRelationTemplateIds(userId: string, permission: "read" | "use" = "read") {
-  const creationProof: Prisma.RelationTemplateWhereInput = {
+/** Server-scoped candidates; resolveTemplateAccess must still reject conflicting proofs. */
+export function getTemplateCreationProofWhere(userId: string): Prisma.RelationTemplateWhereInput {
+  return {
     workspaceId: null,
     OR: [
       { generations: { some: { createdById: userId, status: "VALIDATED", validatedAt: { not: null } } } },
@@ -67,6 +68,10 @@ export async function getAccessibleRelationTemplateIds(userId: string, permissio
       ] } } },
     ],
   };
+}
+
+export async function getAccessibleRelationTemplateIds(userId: string, permission: "read" | "use" = "read") {
+  const creationProof = getTemplateCreationProofWhere(userId);
   const templates = await prisma.relationTemplate.findMany({
     where: { OR: [
       { workspace: { ownerId: userId } }, creationProof,

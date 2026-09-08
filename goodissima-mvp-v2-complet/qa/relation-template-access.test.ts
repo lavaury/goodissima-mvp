@@ -1,4 +1,5 @@
 import * as creation from "../lib/object-creation.ts";
+import * as pagination from "../lib/unassigned-pagination.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -61,7 +62,7 @@ function setup(userId: string | null = "A") {
     "next/server": { NextResponse: { json: Response.json } },
     "next/cache": { unstable_noStore() {}, revalidatePath() {} },
     "next/navigation": { notFound() { throw Error("404"); } },
-    "@/lib/object-creation": creation, "@/lib/auth": { getCurrentPrismaUser: async () => {
+    "@/lib/unassigned-pagination": pagination, "@/lib/object-creation": creation, "@/lib/auth": { getCurrentPrismaUser: async () => {
       if (!userId) throw Error("LOGIN"); return { id: userId, email: "owner@example.test" };
     } },
     "@/lib/i18n": { getI18n: () => ({ locale: "fr", t: (s: string) => s }) },
@@ -215,25 +216,22 @@ test("version selection and validated generation filters are strict for single-o
   assert.ok(await s.access.getTemplateReadAccess({ id: "A" }, "TA0"));
 });
 
-test("orphan list uses initial ownership, includes validated creator, and ignores latest author", async () => {
-  const s = setup(); const proofQuery = s.prisma.relationTemplate.findMany;
-  let queries = 0;
+test("orphan list uses bounded READ candidates and rejects conflicting creators", async () => {
+  const s = setup(); let queries = 0;
   s.prisma.relationTemplate.findMany = async (args: any) => {
     queries++;
-    if (args.select) return proofQuery(args);
     assert.equal(args.where.workspaceId, null);
-    const ids = args.where.id.in;
-    assert.ok(ids.includes("TA0")); assert.ok(ids.includes("initialA"));
-    assert.ok(!ids.includes("TB0")); assert.ok(!ids.includes("conflict"));
-    return [...s.rows.values()].filter(row => row.workspaceId === null && ids.includes(row.id)).map(row => ({
-      ...row, name: row.id, formTemplates: [{ id: row.id, name: row.id }],
-      versions: [{ createdAt: new Date("2026-09-01"), snapshot: { metadata: { source: "later-edit", createdById: "B" } } }],
+    assert.equal(args.where.OR[0].generations.some.createdById, "A");
+    assert.equal(args.take, 21); assert.equal(args.skip, 0);
+    assert.equal(args.select.formTemplates.take, 1);
+    return [...s.rows.values()].filter(row => row.workspaceId === null).map(row => ({
+      ...row, name: row.id, createdAt: new Date("2026-09-01"), formTemplates: [{ id: row.id, name: row.id }],
     }));
   };
   const result = await s.module("lib/governance-workspace-repository.ts").getUnassignedGovernedJourneySummaries("A");
-  assert.deepEqual(result.map((row: any) => row.relationTemplateId).sort(), ["TA0", "initialA"]);
-  assert.equal(queries, 2);
-  assert.ok(result.every((row: any) => row.href === `/gouvernance/parcours/${row.formTemplateId}/pilotage`));
+  assert.deepEqual(result.items.map((row: any) => row.relationTemplateId).sort(), ["TA0", "initialA"]);
+  assert.equal(queries, 1);
+  assert.ok(result.items.every((row: any) => row.href === `/gouvernance/parcours/${row.formTemplateId}/pilotage`));
 });
 
 test("archive repository intersects its historical cohort with READ permission", async () => {

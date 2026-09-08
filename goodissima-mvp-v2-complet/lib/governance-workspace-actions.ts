@@ -115,6 +115,7 @@ export async function createWorkspaceAction(formData: FormData) {
 }
 
 export async function attachGovernedJourneyToWorkspaceAction(formData: FormData) {
+  const unassignedOnly = textFromForm(formData, "attachmentMode") === "unassigned";
   const owner = await getCurrentPrismaUser();
   const formTemplateId = textFromForm(formData, "formTemplateId");
   const workspaceId = textFromForm(formData, "workspaceId");
@@ -201,10 +202,18 @@ export async function attachGovernedJourneyToWorkspaceAction(formData: FormData)
   };
 
   await prisma.$transaction(async (tx) => {
-    await tx.relationTemplate.update({
-      where: { id: formTemplate.relationTemplate!.id },
-      data: { workspaceId: workspace.id },
-    });
+    if (unassignedOnly) {
+      const result = await tx.relationTemplate.updateMany({
+        where: { id: formTemplate.relationTemplate!.id, workspaceId: null },
+        data: { workspaceId: workspace.id },
+      });
+      if (result.count !== 1) throw new Error("Ce parcours est déjà rattaché. Actualisez Mes espaces.");
+    } else {
+      await tx.relationTemplate.update({
+        where: { id: formTemplate.relationTemplate!.id },
+        data: { workspaceId: workspace.id },
+      });
+    }
 
     await tx.templateVersion.update({
       where: { id: latestVersion.id },
@@ -218,6 +227,7 @@ export async function attachGovernedJourneyToWorkspaceAction(formData: FormData)
   });
 
   revalidatePath("/gouvernance");
+  revalidatePath(`/gouvernance/workspaces/${workspace.id}`);
   revalidatePath(`/gouvernance/parcours/${formTemplateId}/pilotage`);
   redirect("/gouvernance");
 }
@@ -230,6 +240,7 @@ export async function changeGovernedJourneyWorkspaceAction(formData: FormData) {
 }
 
 export async function attachRelationCaseToWorkspaceAction(formData: FormData) {
+  const unassignedOnly = textFromForm(formData, "attachmentMode") === "unassigned";
   const owner = await getCurrentPrismaUser();
   const relationCaseId = textFromForm(formData, "relationCaseId");
   const workspaceId = textFromForm(formData, "workspaceId");
@@ -276,20 +287,26 @@ export async function attachRelationCaseToWorkspaceAction(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.relationCase.update({
-      where: { id: relationCase.id },
-      data: { workspaceId: workspace.id },
-    });
+    if (unassignedOnly) {
+      const result = await tx.relationCase.updateMany({
+        where: { id: relationCase.id, ownerId: owner.id, workspaceId: null },
+        data: { workspaceId: workspace.id },
+      });
+      if (result.count !== 1) throw new Error("Ce dossier est déjà rattaché. Actualisez Mes espaces.");
+    } else {
+      await tx.relationCase.update({ where: { id: relationCase.id }, data: { workspaceId: workspace.id } });
+    }
 
     if (relationCase.gLink.ownerId === owner.id && !relationCase.gLink.workspaceId) {
-      await tx.gLink.update({
-        where: { id: relationCase.gLinkId },
+      await tx.gLink.updateMany({
+        where: { id: relationCase.gLinkId, ownerId: owner.id, workspaceId: null },
         data: { workspaceId: workspace.id },
       });
     }
   });
 
   revalidatePath("/gouvernance");
+  revalidatePath(`/gouvernance/workspaces/${workspace.id}`);
   revalidatePath(`/cases/${relationCase.id}`);
   revalidatePath(`/links/${relationCase.gLinkId}`);
   if (relationCase.candidateAccessToken) {
@@ -335,10 +352,11 @@ export async function detachRelationCaseFromWorkspaceAction(formData: FormData) 
 }
 
 export async function attachGLinkToWorkspaceAction(formData: FormData) {
+  const unassignedOnly = textFromForm(formData, "attachmentMode") === "unassigned";
   const owner = await getCurrentPrismaUser();
   const gLinkId = textFromForm(formData, "gLinkId");
   const workspaceId = textFromForm(formData, "workspaceId");
-  const attachUnassignedCases = textFromForm(formData, "attachUnassignedCases") === "on";
+  const attachUnassignedCases = !unassignedOnly && textFromForm(formData, "attachUnassignedCases") === "on";
 
   if (!gLinkId || !workspaceId) {
     throw new Error("Le lien relationnel et le Workspace cible sont obligatoires.");
@@ -353,7 +371,9 @@ export async function attachGLinkToWorkspaceAction(formData: FormData) {
       select: {
         id: true,
         cases: {
+          // The conservative mode neither loads nor cascades to related cases.
           where: {
+            ...(!attachUnassignedCases ? { id: { in: [] } } : {}),
             ownerId: owner.id,
             workspaceId: null,
           },
@@ -383,10 +403,15 @@ export async function attachGLinkToWorkspaceAction(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.gLink.update({
-      where: { id: gLink.id },
-      data: { workspaceId: workspace.id },
-    });
+    if (unassignedOnly) {
+      const result = await tx.gLink.updateMany({
+        where: { id: gLink.id, ownerId: owner.id, workspaceId: null },
+        data: { workspaceId: workspace.id },
+      });
+      if (result.count !== 1) throw new Error("Ce lien est déjà rattaché. Actualisez Mes espaces.");
+    } else {
+      await tx.gLink.update({ where: { id: gLink.id }, data: { workspaceId: workspace.id } });
+    }
 
     if (attachUnassignedCases) {
       await tx.relationCase.updateMany({
@@ -401,6 +426,7 @@ export async function attachGLinkToWorkspaceAction(formData: FormData) {
   });
 
   revalidatePath("/gouvernance");
+  revalidatePath(`/gouvernance/workspaces/${workspace.id}`);
   revalidatePath(`/links/${gLink.id}`);
   for (const relationCase of gLink.cases) {
     revalidatePath(`/cases/${relationCase.id}`);
