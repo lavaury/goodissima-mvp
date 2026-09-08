@@ -1,3 +1,4 @@
+import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { generateTemplateDraft, type TemplateDesignerDraft } from "@/lib/ai/template-designer";
@@ -29,12 +30,11 @@ export async function POST(req: Request) {
   try {
     const owner = await getCurrentPrismaUser();
     const body = await req.json();
+    const creationWorkspace = body.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, body.workspaceId) : null;
+    if (body.workspaceId !== undefined && !creationWorkspace) return NextResponse.json({ error: "Workspace indisponible pour cette création." }, { status: 404 });
     const description = typeof body.description === "string" ? body.description.trim() : "";
-    const workspaceId = typeof body.workspaceId === "string" && body.workspaceId.trim() ? body.workspaceId.trim() : `workspace-${owner.id}`;
-    const workspaceName =
-      typeof body.workspaceName === "string" && body.workspaceName.trim()
-        ? body.workspaceName.trim()
-        : "Workspace saisi en creation V1";
+    const workspaceId = creationWorkspace?.id ?? null;
+    const workspaceName = creationWorkspace?.name ?? null;
 
     if (description.length < 20) {
       return NextResponse.json({ error: "Decrivez le besoin en au moins 20 caracteres." }, { status: 400 });

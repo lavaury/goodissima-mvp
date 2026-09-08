@@ -1,3 +1,4 @@
+import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { parseTemplateDesignerDraft, recordTemplateGeneration, reviseTemplateDraft } from "@/lib/ai/template-designer";
@@ -10,6 +11,8 @@ export async function POST(req: Request, { params }: { params: { generationId: s
   try {
     const owner = await getCurrentPrismaUser();
     const body = await req.json();
+    const creationWorkspace = body.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, body.workspaceId) : null;
+    if (body.workspaceId !== undefined && !creationWorkspace) return NextResponse.json({ error: "Workspace indisponible pour cette création." }, { status: 404 });
     const feedback = typeof body.feedback === "string" ? body.feedback.trim() : "";
     if (feedback.length < 3) return NextResponse.json({ error: "Précisez la modification souhaitée." }, { status: 400 });
     if (feedback.length > 2000) return NextResponse.json({ error: "Le commentaire est limité à 2 000 caractères." }, { status: 400 });

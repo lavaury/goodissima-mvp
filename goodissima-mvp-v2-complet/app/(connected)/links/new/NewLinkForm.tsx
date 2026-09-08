@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { useI18n } from "@/components/I18nProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -25,7 +26,8 @@ type RelationTemplateOption = {
   verificationRequired: boolean;
 };
 
-export function NewLinkForm({ templates, defaultTemplateId }: { templates: RelationTemplateOption[]; defaultTemplateId: string | null }) {
+export function NewLinkForm({ templates, defaultTemplateId, workspaceId }: { templates: RelationTemplateOption[]; defaultTemplateId: string | null; workspaceId?: string }) {
+  const router = useRouter();
   const toast = useToast();
   const { t } = useI18n();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -49,19 +51,20 @@ export function NewLinkForm({ templates, defaultTemplateId }: { templates: Relat
       const response = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, suppressNotification: true }),
+        body: JSON.stringify({ ...form, suppressNotification: true, ...(workspaceId ? { workspaceId } : {}) }),
       });
       if (!response.ok) {
         toast.error("Le lien sécurisé n'a pas pu être généré.");
         return;
       }
-      const link = await response.json() as { publicUrl?: string };
+      const link = await response.json() as { id: string; publicUrl?: string };
       if (!link.publicUrl) {
         toast.error("L’URL publique canonique est indisponible.");
         return;
       }
       setGeneratedUrl(link.publicUrl);
       toast.success("Lien sécurisé généré. Aucun message n'a été envoyé.");
+      router.push(`/links/${encodeURIComponent(link.id)}`);
     } catch {
       toast.error("Le lien sécurisé n'a pas pu être généré.");
     } finally {

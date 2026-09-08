@@ -4,6 +4,7 @@ import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { sendSecureLinkCreatedEmail } from "@/lib/email";
 import { getTemplateForLinkCreation } from "@/lib/relation-template-access";
+import { parseCreationWorkspaceId } from "@/lib/object-creation";
 import { getActiveTemplateVersion } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
@@ -18,6 +19,9 @@ export async function POST(req: Request) {
   }
 
   const owner = await getCurrentPrismaUser();
+  let workspaceId: string | null;
+  try { workspaceId = parseCreationWorkspaceId(body.workspaceId); }
+  catch { return NextResponse.json({ error: "Workspace invalide." }, { status: 400 }); }
   if (body.templateId != null && (typeof body.templateId !== "string" || !body.templateId.trim())) {
     return NextResponse.json({ error: "Template invalide." }, { status: 400 });
   }
@@ -25,9 +29,12 @@ export async function POST(req: Request) {
   if (!relationTemplate) return NextResponse.json({ error: "Parcours introuvable." }, { status: 404 });
   const templateVersion = relationTemplate ? await getActiveTemplateVersion(relationTemplate.id) : null;
   const slug = `${slugify(body.title)}-${Math.random().toString(36).slice(2, 7)}`;
-  const link = await prisma.gLink.create({
+  const link = await prisma.$transaction(async (tx) => {
+    if (workspaceId && !await tx.workspace.findFirst({ where: { id: workspaceId, ownerId: owner.id, status: "ACTIVE" }, select: { id: true } })) return null;
+    return tx.gLink.create({
     data: {
       ownerId: owner.id,
+      workspaceId,
       templateId: relationTemplate?.id,
       templateVersionId: templateVersion?.id,
       slug,
@@ -36,12 +43,17 @@ export async function POST(req: Request) {
       description: body.description || null,
       admissionMode: parseSecureLinkAdmissionMode(body.admissionMode),
       rules: {
+        creationSource: "opportunity",
         requireEmail: Boolean(body.requireEmail),
         requireMessage: Boolean(body.requireMessage),
         allowDocument: Boolean(body.allowDocument),
       },
     },
+    });
   });
+  if (!link) return NextResponse.json({ error: "Workspace indisponible pour cette création." }, { status: 404 });
+  if (workspaceId) revalidatePath(`/gouvernance/workspaces/${encodeURIComponent(workspaceId)}`);
+  revalidatePath("/gouvernance");
 
   await auditLog({
     actorEmail: owner.email,

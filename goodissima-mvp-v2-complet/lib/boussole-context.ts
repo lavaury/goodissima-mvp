@@ -51,7 +51,7 @@ const contexts: CompassContext[] = [
   ] },
   { id: "journeys", pageName: "Parcours", summary: "Les parcours structurent les informations, étapes et validations associées à une opportunité.", caution: "Une proposition IA reste un brouillon tant qu’un humain ne l’a pas relue et validée.", steps: [
     { title: "Ouvrir les parcours", body: "Consultez les parcours existants avant d’en préparer un nouveau.", targetId: "open-journeys" },
-    { title: "Créer un parcours gouverné", body: "La gouvernance permet de préparer un parcours rattaché à un Workspace.", targetId: "create-governed-journey" },
+    { title: "Créer un parcours gouverné", body: "La gouvernance permet de préparer un parcours avec ou sans Workspace.", targetId: "create-governed-journey" },
   ] },
   { id: "relations", pageName: "Communications sécurisées", summary: "Les relations donnent accès aux dossiers et canaux autorisés dans leur contexte.", caution: "Aucun message, appel, média ou accès ne démarre sans action explicite de l’utilisateur.", steps: [
     { title: "Consulter les relations", body: "Ouvrez vous-même une relation autorisée pour voir ses canaux disponibles.", targetId: "open-relations" },

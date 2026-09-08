@@ -80,8 +80,8 @@ test("existing name/slug creates a new Workspace without reactivating or moving 
     assert.equal(s.calls.filter(q => q.model === "slug").length, 2);
   }
   const historical = readFileSync("lib/governance-journey-actions.ts", "utf8");
-  assert.match(historical, /workspace\.upsert\(/);
-  assert.match(historical, /update: \{\s*status: "ACTIVE",\s*\}/);
+  assert.doesNotMatch(historical, /workspace\.upsert\(/);
+  assert.doesNotMatch(historical, /update: \{\s*status: "ACTIVE",\s*\}/);
 });
 
 test("form page checks owner/active context, rejects ambiguous query parameters and keeps global mode", async () => {
@@ -111,13 +111,13 @@ const view = loadTestModule("components/WorkspaceCreationForm.tsx", { ...base,
   "@/lib/governance-workspace-repository": { workspaceCategoryLabels: { OTHER: "Autre" }, workspaceKindLabels: { GOVERNANCE: "Gouvernance" } },
 });
 
-test("Portfolio menu offers only contextual Workspace; global menu remains unchanged", () => {
+test("Portfolio menu offers only contextual Workspace; global menu offers five creations", () => {
   const html = renderToStaticMarkup(jsx.jsx(menu.SpacesCreateActions, { portfolioId: active.id }));
   assert.equal((html.match(/<a /g) ?? []).length, 1);
   assert.ok(html.includes(`/gouvernance/workspaces/nouveau?portfolioId=${active.id}`));
   assert.ok(html.includes("+ Nouveau") && html.includes(">Workspace</a>"));
   const global = renderToStaticMarkup(jsx.jsx(menu.SpacesCreateActions, {}));
-  assert.equal((global.match(/<a /g) ?? []).length, 2); assert.ok(!global.includes("portfolioId="));
+  assert.equal((global.match(/<a /g) ?? []).length, 5); assert.ok(!global.includes("portfolioId="));
 });
 
 test("same form shows real Portfolio name, hidden context and scoped cancellation without a selector", () => {

@@ -1,3 +1,4 @@
+import { linkObjectLabel } from "@/lib/object-creation";
 import { prisma } from "@/lib/prisma";
 import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
 import type {
@@ -143,6 +144,7 @@ export type UnassignedRelationCaseSummary = GovernanceWorkspaceRelationCaseSumma
 
 export type UnassignedGLinkSummary = GovernanceWorkspaceGLinkSummary & {
   unassignedRelationCaseCount: number;
+  objectLabel: string;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -471,5 +473,6 @@ export async function getUnassignedGLinkSummaries(ownerId: string): Promise<Unas
     href: `/links/${link.id}`,
     relationCaseCount: link._count.cases,
     unassignedRelationCaseCount: link.cases.length,
+    objectLabel: linkObjectLabel(link.rules),
   }));
 }

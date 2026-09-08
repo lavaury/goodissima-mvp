@@ -1,10 +1,11 @@
 "use server";
 
-import type { Prisma, WorkspaceCategory } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseCreationWorkspaceId } from "@/lib/object-creation";
 
 type GovernanceJourneyActor = {
   name: string;
@@ -71,39 +72,10 @@ function normalizeKey(value: string) {
     .slice(0, 56);
 }
 
-function workspaceSlugFrom(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80);
-}
-
-function workspaceNameFromSlug(slug: string) {
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function fieldKeyFromLabel(label: string, fallback: string) {
   const key = normalizeKey(label).toLowerCase();
   return key || fallback;
 }
-
-const workspaceCategories = new Set<WorkspaceCategory>([
-  "PROFESSIONAL",
-  "PRIVATE",
-  "FAMILY",
-  "ASSOCIATION",
-  "PROJECT",
-  "CLIENT",
-  "OTHER",
-]);
 
 async function uniqueRelationTemplateKey(base: string) {
   const prefix = base || "PARCOURS_GOUVERNE";
@@ -122,8 +94,8 @@ export type GovernanceJourneyProposal = {
   name: string;
   initialNeed: string;
   objective: string;
-  workspaceId: string;
-  workspaceName: string;
+  workspaceId: string | null;
+  workspaceName: string | null;
   participants: GovernanceJourneyActor[];
   documents: GovernanceJourneyDocument[];
   confidentialityRules: string[];
@@ -134,8 +106,12 @@ export type GovernanceJourneyProposal = {
 export async function proposeGovernedJourneyAction(formData: FormData): Promise<GovernanceJourneyProposal> {
   const owner = await getCurrentPrismaUser();
   const initialNeed = textFromForm(formData, "aiNeed");
-  const workspaceId = textFromForm(formData, "workspaceId") || `workspace-${owner.id}`;
-  const workspaceName = textFromForm(formData, "workspaceName") || "Workspace saisi en creation V1";
+  const workspaceValues = formData.getAll("workspaceId");
+  if (workspaceValues.length > 1) throw new Error("Workspace invalide.");
+  const workspaceId = parseCreationWorkspaceId(workspaceValues[0]);
+  const workspace = workspaceId ? await prisma.workspace.findFirst({ where: { id: workspaceId, ownerId: owner.id, status: "ACTIVE" } }) : null;
+  if (workspaceId && !workspace) throw new Error("Workspace introuvable pour cet utilisateur.");
+  const workspaceName = workspace?.name ?? null;
 
   if (initialNeed.length < 10) {
     throw new Error("Decrivez le besoin en au moins 10 caracteres.");
@@ -203,9 +179,9 @@ export async function createGovernedJourneyAction(formData: FormData) {
   const name = textFromForm(formData, "name");
   const initialNeed = textFromForm(formData, "initialNeed");
   const objective = textFromForm(formData, "objective") || initialNeed;
-  const workspaceId = textFromForm(formData, "workspaceId");
-  const workspaceName = textFromForm(formData, "workspaceName");
-  const workspaceCategoryInput = textFromForm(formData, "workspaceCategory") as WorkspaceCategory;
+  const workspaceValues = formData.getAll("workspaceId");
+  if (workspaceValues.length > 1) throw new Error("Workspace invalide.");
+  const workspaceId = parseCreationWorkspaceId(workspaceValues[0]);
   const participants = linesFromForm(formData, "participants");
   const documents = linesFromForm(formData, "documents");
   const confidentialityRules = linesFromForm(formData, "confidentialityRules");
@@ -219,18 +195,13 @@ export async function createGovernedJourneyAction(formData: FormData) {
     throw new Error("Le nom du parcours et le besoin initial sont obligatoires.");
   }
 
-  const workspaceCategory = workspaceCategories.has(workspaceCategoryInput) ? workspaceCategoryInput : "OTHER";
-  const requestedWorkspace = workspaceName || `workspace-${owner.id}`;
-  const workspaceSlug = workspaceSlugFrom(requestedWorkspace) || `workspace-${owner.id.toLowerCase()}`;
-  const resolvedWorkspaceName = workspaceName || workspaceNameFromSlug(workspaceSlug) || "Workspace Goodissima";
-
   const key = await uniqueRelationTemplateKey(normalizeKey(name));
   const formKey = `${key}_FORM`.slice(0, 80);
   const now = new Date().toISOString();
   const intent = {
     intentId: `intent-${key.toLowerCase()}`,
     accountId: owner.id,
-    workspaceId: workspaceSlug,
+    workspaceId,
     initialNeed,
     status: "Captured",
     createdAt: now,
@@ -246,8 +217,8 @@ export async function createGovernedJourneyAction(formData: FormData) {
     confidentialityRules: string[];
     discoveryInvitations: [];
     firstActions: GovernanceJourneyAction[];
-    recommendedWorkspaceId: string;
-    recommendedWorkspaceName: string;
+    recommendedWorkspaceId: string | null;
+    recommendedWorkspaceName: string | null;
     rationale: string;
     createdAt: string;
   } = {
@@ -273,8 +244,8 @@ export async function createGovernedJourneyAction(formData: FormData) {
       firstActions.length > 0
         ? firstActions.map((action) => ({ title: action, owner: "Createur du parcours" }))
         : [{ title: "Relire le parcours avant publication", owner: "Createur du parcours" }],
-    recommendedWorkspaceId: workspaceSlug,
-    recommendedWorkspaceName: resolvedWorkspaceName,
+    recommendedWorkspaceId: workspaceId,
+    recommendedWorkspaceName: null,
     rationale: "Creation issue d'une validation humaine V1.",
     createdAt: now,
   };
@@ -290,8 +261,8 @@ export async function createGovernedJourneyAction(formData: FormData) {
     confidentialityRules: proposal.confidentialityRules,
     discoveryInvitations: [],
     firstActions: proposal.firstActions,
-    workspaceId: workspaceSlug,
-    workspaceName: resolvedWorkspaceName,
+    workspaceId,
+    workspaceName: null,
     correctionNotes: [],
     createdAt: now,
   };
@@ -309,7 +280,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
   };
   const plan: {
     journeyId: string;
-    workspaceId: string;
+    workspaceId: string | null;
     intentId: string;
     proposalId: string;
     draftId: string;
@@ -391,35 +362,11 @@ export async function createGovernedJourneyAction(formData: FormData) {
       throw new Error("Workspace introuvable pour cet utilisateur.");
     }
 
-    const workspace =
-      selectedWorkspace ??
-      (await tx.workspace.upsert({
-        where: {
-          ownerId_slug: {
-            ownerId: owner.id,
-            slug: workspaceSlug,
-          },
-        },
-        update: {
-          status: "ACTIVE",
-        },
-        create: {
-          ownerId: owner.id,
-          slug: workspaceSlug,
-          name: resolvedWorkspaceName,
-          kind: "GOVERNANCE",
-          category: workspaceCategory,
-          status: "ACTIVE",
-          metadata: {
-            source: "governance-v1-minimal-create",
-            createdFrom: "createGovernedJourneyAction",
-          },
-        },
-      }));
+    const workspace = selectedWorkspace;
 
     const relationTemplate = await tx.relationTemplate.create({
       data: {
-        workspaceId: workspace.id,
+        workspaceId: workspace?.id ?? null,
         key,
         name,
         description: initialNeed,
@@ -494,8 +441,8 @@ export async function createGovernedJourneyAction(formData: FormData) {
         lifecycle: "DRAFT",
         source: "governance-v1-minimal-create",
         intent: { ...intent, status: "JourneyCreationPlanned", updatedAt: now },
-        proposal,
-        draft,
+        proposal: { ...proposal, recommendedWorkspaceName: workspace?.name ?? null },
+        draft: { ...draft, workspaceName: workspace?.name ?? null },
         humanValidation: validation,
         creationPlan: plan,
         confidentialityRules,
@@ -510,11 +457,11 @@ export async function createGovernedJourneyAction(formData: FormData) {
         requiresHumanValidation,
         createdById: owner.id,
         createdAt: now,
-        workspaceId: workspace.id,
-        workspaceSlug: workspace.slug,
-        workspaceName: workspace.name,
-        workspaceCategory: workspace.category,
-        workspacePersistence: "prisma-workspace-v1",
+        workspaceId: workspace?.id ?? null,
+        workspaceSlug: workspace?.slug ?? null,
+        workspaceName: workspace?.name ?? null,
+        workspaceCategory: workspace?.category ?? null,
+        workspacePersistence: workspace ? "prisma-workspace-v1" : null,
         automaticPublication: false,
         automaticWorkflowExecution: false,
         automaticContact: false,

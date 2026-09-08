@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { describeSimpleFieldRule, type SimpleFieldRule, type SimpleRuleOperator } from "@/lib/simple-field-rules";
 import {
@@ -43,6 +44,7 @@ const ruleLabels: Array<{ value: SimpleRuleOperator; label: string }> = [
 ];
 
 export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("");
@@ -133,6 +135,7 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
       if (!response.ok) throw new Error(result.error || "Impossible de créer le lien.");
       setPublicUrl(result.publicUrl);
       setCreatedLinkId(result.id);
+      router.push(`/links/${encodeURIComponent(result.id)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Impossible de créer le lien.");
     } finally { setLoading(false); }

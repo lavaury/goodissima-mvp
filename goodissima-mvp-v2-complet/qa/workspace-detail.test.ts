@@ -1,3 +1,4 @@
+import * as creation from "../lib/object-creation.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -47,7 +48,7 @@ test("Explorer selects only direct objects and omits unassigned, foreign and ind
 });
 const spatial = loadTestModule("lib/spatial-navigation.ts", {});
 const { WorkspaceDetailView } = loadTestModule("components/WorkspaceDetailView.tsx", { "react/jsx-runtime": jsx,
-  "@/components/WorkspaceCreateActions": { WorkspaceCreateActions: () => jsx.jsx("div", { children: "+ Nouveau" }) },
+  "@/lib/object-creation": creation, "@/components/WorkspaceCreateActions": { WorkspaceCreateActions: () => jsx.jsx("div", { children: "+ Nouveau" }) },
   "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial,
   "@/components/SpatialNavigationContext": { PageNavigationContext: () => null } });
 test("real Explorer rendering uses FormTemplate IDs, no fake link or duplicate Opportunity", async () => {

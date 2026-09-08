@@ -58,7 +58,8 @@ test("frontend refreshes, updates status and exposes success feedback", () => {
   assert.match(card, /publication\.publicationStatus/);
   assert.match(card, /publication\.publishedAt/);
   assert.match(card, /publication\.status === "PUBLISHED"/);
-  assert.match(actions, /isPublished \? <Link href=\{`\/links\/new\?templateId=\$\{encodeURIComponent\(relationTemplateId\)\}`\}/);
+  assert.ok(actions.includes("isPublished ? <Link href={withCreationWorkspace("));
+  assert.ok(actions.includes("encodeURIComponent(relationTemplateId)"));
   assert.match(actions, /Créer un lien sécurisé/);
 });
 

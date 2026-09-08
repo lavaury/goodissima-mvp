@@ -15,7 +15,7 @@ export async function getWorkspaceDetail(ownerId: string, workspaceId: string) {
       },
       links: {
         where: { workspaceId, ownerId }, orderBy: { createdAt: "desc" },
-        select: { id: true, title: true, status: true },
+        select: { id: true, title: true, status: true, rules: true },
       },
       relationCases: {
         where: { workspaceId, ownerId }, orderBy: { createdAt: "desc" },

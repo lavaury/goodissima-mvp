@@ -141,7 +141,7 @@ export async function SpacesExistingAttachments({ ownerId }: { ownerId: string }
               <article key={link.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <h4 className="font-bold text-slate-950">{link.title}</h4>
+                    <h4 className="font-bold text-slate-950">{link.title}</h4><p className="text-xs text-slate-500">{link.objectLabel}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
                       /l/{link.slug} - {link.status} - cree le {formatDate(link.createdAt)}
                     </p>

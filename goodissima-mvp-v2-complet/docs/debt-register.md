@@ -87,3 +87,14 @@ Propositions UX-01E.0 encore ouvertes : périmètre des enfants des agrégats de
 Les corrections P0 d'autorisation D-003/D-018, maintenant validées techniquement, attendent leur recette et jalon avant UX-02. La résolution TypeScript ne vaut pas validation de sécurité ni remboursement des autres dettes.
 
 Jalon DEBT-AUTH-02 autorisé : `fix(auth): enforce template read and use access`. La validation technique ci-dessus est conservée ; aucun autre statut de dette ne change. Le hash sera fourni après création du commit, puis enregistré lors d’une mise à jour documentaire ultérieure autorisée, comme pour DEBT-AUTH-01. Aucun amend ou second commit destiné à inscrire un hash qui se modifierait lui-même. Aucun push dans ce jalon.
+
+### Observation UX-01E.1 — 2026-09-08, sans commit
+
+Baseline locale et référence de suivi Preview : `92b5711dcf97361d4e2c9d0f2d34390f5c269b30`. Voir [le rapport UX-01E.1](ux-01e1-objets-creations.md).
+
+- D-004 reste **OPEN**. Le contrat de création UX-01E.1 retire nécessairement l'upsert par nom de `createGovernedJourneyAction` : un nouveau parcours global n'a plus de Workspace. Cela ne constitue ni une migration des données historiques ni une clôture générale de D-004. La preuve historique du tableau ci-dessus décrit la baseline auditée.
+- D-002, D-015 et D-019 restent **OPEN**. Aucun changement des assistants de pilotage, des cohortes générales ou des destinations de D-019.
+- D-020 reste **OPEN** : ses deux suites restent inchangées, **8 réussites / 2 échecs historiques**. Le contrôle élargi `qa/product-object-clarity.test.ts` révèle aussi l'assertion historique `adds dashboard business-object counts` : **7 réussites / 1 échec**. Elle exige les KPI retirés de l'Accueil. Le test et le Dashboard sont identiques à HEAD ; ce troisième échec relève du même besoin de requalification QA, sans correction ni masquage dans UX-01E.1.
+- Un repli UI préexistant de `/links/new?templateId=...` remplaçait une sélection indisponible par un autre template autorisé. UX-01E.1 refuse désormais cette sélection par 404, conformément au contrat explicite du flux concerné ; le garde USE de l'API est conservé.
+- Les templates historiques sans provenance fiable restent refusés ; aucune attribution automatique. La duplication historique sans Workspace cible explicite conserve son **409**. Aucun statut d'autorisation n'est modifié par cette note.
+- Le marqueur des nouvelles Opportunités est applicatif (`GLink.rules.creationSource = "opportunity"`). Les GLinks historiques sans marqueur restent génériques : aucune migration ou reclassification conjecturale.

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { withCreationWorkspace } from "@/lib/object-creation";
 import { useToast } from "@/components/ToastProvider";
 import { validateTemplateDraftQuality } from "@/lib/ai/template-draft-quality";
 import { candidateFieldsFromTemplateDraft, candidateIdentityRequiredFromTemplateDraft, checkCandidatePublicationSafety } from "@/lib/candidate-form-safety";
@@ -64,7 +65,7 @@ function DraftList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export function AITemplateDesigner() {
+export function AITemplateDesigner({ workspaceId }: { workspaceId?: string } = {}) {
   const router = useRouter();
   const toast = useToast();
   const [description, setDescription] = useState("");
@@ -99,6 +100,7 @@ export function AITemplateDesigner() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(workspaceId ? { workspaceId } : {}),
         description,
         voiceAudit: generationVoice ? { mode: "generation", transcript: generationVoice.transcript, capturedAt: generationVoice.capturedAt, proposalVersion: 1 } satisfies VoiceAuditInput : undefined,
       }),
@@ -138,6 +140,7 @@ export function AITemplateDesigner() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(workspaceId ? { workspaceId } : {}),
         feedback: pendingRevision.feedback,
         currentDraft: draft,
         proposalVersion: nextVersion,
@@ -178,7 +181,7 @@ export function AITemplateDesigner() {
     const response = await fetch(`/api/templates/ai-generate/${generationId}/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ humanValidated: true, draft, aiInstructions }),
+      body: JSON.stringify({ humanValidated: true, draft, aiInstructions, ...(workspaceId ? { workspaceId } : {}) }),
     });
     setLoading(null);
     if (!response.ok) {
@@ -194,7 +197,7 @@ export function AITemplateDesigner() {
     }
     const body = await response.json();
     toast.success("Parcours créé en brouillon v1.");
-    router.push(draftPreviewHref(body.templateId, "studio"));
+    router.push(withCreationWorkspace(draftPreviewHref(body.templateId, "studio"), workspaceId));
     router.refresh();
   }
 

@@ -28,6 +28,9 @@ const journeyVersions: Record<string, number> = {
   "governance-summary": 2,
   "understand-workspaces": 2,
   "portfolio-counters": 2,
+  "use-journey-assistant": 2,
+  "create-manually": 2,
+  "verify-create": 2,
 };
 
 export function getBoussoleJourneyVersion(journeyId: string) {

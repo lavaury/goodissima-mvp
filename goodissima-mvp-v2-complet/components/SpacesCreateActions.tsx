@@ -18,7 +18,10 @@ export function SpacesCreateActions({ portfolioId }: { portfolioId?: string } = 
   }, []);
   const items = portfolioId
     ? [{ href: `/gouvernance/workspaces/nouveau?portfolioId=${encodeURIComponent(portfolioId)}`, label: "Workspace", target: "create-workspace" }]
-    : [{ href: "/gouvernance/workspaces/nouveau", label: "Workspace", target: "create-workspace" }, { href: "/gouvernance/portfolios/nouveau", label: "Portfolio", target: "create-portfolio" }];
+    : [{ href: "/gouvernance/portfolios/nouveau", label: "Portfolio", target: "create-portfolio" }, { href: "/gouvernance/workspaces/nouveau", label: "Workspace", target: "create-workspace" },
+      { href: "/links/simple", label: "Lien simple", target: "create-simple-link" },
+      { href: "/opportunities/new", label: "Opportunité", target: "create-opportunity" },
+      { href: "/gouvernance/nouveau", label: "Parcours gouverné", target: "create-governed-journey" }];
   return <details ref={ref} data-boussole-disclosure="navigation" data-spaces-create className={`${portfolioId ? "" : "mt-4 "}w-full rounded-xl border bg-white sm:w-fit`}>
     <summary className="cursor-pointer rounded-xl px-4 py-3 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">+ Nouveau</summary>
     <nav aria-label={portfolioId ? "Créer dans ce Portfolio" : "Créer dans Mes espaces"} className="flex flex-col gap-1 border-t p-2">

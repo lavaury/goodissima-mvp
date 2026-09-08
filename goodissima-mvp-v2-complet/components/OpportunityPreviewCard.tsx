@@ -22,7 +22,7 @@ function PreviewList({ title, items, empty }: { title: string; items: string[]; 
   return <div className="rounded-2xl bg-slate-50 p-4"><h3 className="text-sm font-semibold text-slate-800">{title}</h3>{items.length ? <ul className="mt-2 space-y-1.5 text-sm text-slate-600">{items.map((item) => <li key={item}>• {item}</li>)}</ul> : <p className="mt-2 text-sm text-slate-400">{empty}</p>}</div>;
 }
 
-export function OpportunityPreviewCard({ preview, templateId, relationTemplateId, returnHref, created }: { preview: OpportunityPreview; templateId: string; relationTemplateId: string; returnHref: string; created: boolean }) {
+export function OpportunityPreviewCard({ preview, templateId, relationTemplateId, returnHref, created, workspaceId }: { preview: OpportunityPreview; templateId: string; relationTemplateId: string; returnHref: string; created: boolean; workspaceId?: string }) {
   const [activeTab, setActiveTab] = useState<TabId>("announcement");
   const [publication, setPublication] = useState(() => announcementPublicationState({ isPublished: preview.status === "PUBLISHED", publishedAt: preview.publishedAt }));
   const [publicationSucceeded, setPublicationSucceeded] = useState(false);
@@ -69,7 +69,7 @@ export function OpportunityPreviewCard({ preview, templateId, relationTemplateId
       {activeTab === "journey" ? <div className="mt-5 grid gap-4 md:grid-cols-2"><PreviewList title="Personnes concernées" items={preview.actors} empty="Aucune personne suggérée" /><PreviewList title="Étapes d'accompagnement" items={preview.stages} empty="Aucune étape proposée" /><PreviewList title="Documents attendus" items={preview.requiredDocuments} empty="Aucun document obligatoire" /><PreviewList title="Indicateurs de réussite" items={preview.kpis} empty="Aucun indicateur proposé" /><PreviewList title="Objectifs de la recherche" items={preview.validationCriteria} empty="Aucun objectif proposé" /></div> : null}
       {activeTab === "governance" ? <div className="mt-5 grid gap-4 md:grid-cols-2"><PreviewList title="Validation et contrôle" items={preview.governance.validation} empty="Aucune information de validation" /><PreviewList title="Provenance" items={preview.governance.provenance} empty="Aucune provenance enregistrée" /><PreviewList title="Traçabilité" items={preview.governance.audit} empty="Aucune information d'audit" /></div> : null}
 
-      <div className="mt-7 border-t pt-5"><OpportunityPreviewActions templateId={templateId} relationTemplateId={relationTemplateId} returnHref={returnHref} isPublished={publication.status === "PUBLISHED"} onPublished={handlePublished} /></div>
+      <div className="mt-7 border-t pt-5"><OpportunityPreviewActions workspaceId={workspaceId} templateId={templateId} relationTemplateId={relationTemplateId} returnHref={returnHref} isPublished={publication.status === "PUBLISHED"} onPublished={handlePublished} /></div>
     </div>
   </section>;
 }

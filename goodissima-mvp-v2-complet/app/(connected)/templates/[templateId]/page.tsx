@@ -1,3 +1,5 @@
+import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
+import { withCreationWorkspace } from "@/lib/object-creation";
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
@@ -96,11 +98,13 @@ function designItems(value: unknown, primary: string, secondary: string) {
     .filter(Boolean);
 }
 
-export default async function TemplateDetailPage({ params, searchParams }: { params: { templateId: string }; searchParams?: { created?: string; assistant?: string; advanced?: string } }) {
+export default async function TemplateDetailPage({ params, searchParams }: { params: { templateId: string }; searchParams?: { created?: string; assistant?: string; advanced?: string; workspaceId?: string } }) {
   noStore();
   const { locale, t } = getI18n();
   const owner = await getCurrentPrismaUser();
   if (!await getTemplateReadAccess(owner, params.templateId)) notFound();
+  const creationWorkspace = searchParams?.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, searchParams.workspaceId) : null;
+  if (searchParams?.workspaceId !== undefined && !creationWorkspace) notFound();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const template = await prisma.formTemplate.findUnique({
@@ -170,9 +174,9 @@ export default async function TemplateDetailPage({ params, searchParams }: { par
 
       <div className="mt-6"><ProductLifecycle current="journey" /><ProductContextBanner object="journey" /></div>
 
-      {opportunityPreview && template.relationTemplate ? <OpportunityPreviewCard preview={opportunityPreview} templateId={template.id} relationTemplateId={template.relationTemplate.id} returnHref={assistantReturnHref(searchParams?.assistant)} created={searchParams?.created === "1"} /> : null}
+      {opportunityPreview && template.relationTemplate ? <OpportunityPreviewCard workspaceId={creationWorkspace?.id} preview={opportunityPreview} templateId={template.id} relationTemplateId={template.relationTemplate.id} returnHref={creationWorkspace ? withCreationWorkspace("/opportunities/new", creationWorkspace.id) : assistantReturnHref(searchParams?.assistant)} created={searchParams?.created === "1"} /> : null}
 
-      {searchParams?.advanced !== "1" ? <section className="mt-6 rounded-2xl border bg-white p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-bold">Processus de suivi</h2><p className="mt-1 text-sm text-slate-500">Documents demandés, étapes prévues et assistance IA restent associés à cette annonce.</p></div><Link href={`/templates/${template.id}?advanced=1`} className="rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700">Ouvrir la vue avancée du parcours</Link></div></section> : null}
+      {searchParams?.advanced !== "1" ? <section className="mt-6 rounded-2xl border bg-white p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-bold">Processus de suivi</h2><p className="mt-1 text-sm text-slate-500">Documents demandés, étapes prévues et assistance IA restent associés à cette annonce.</p></div><Link href={withCreationWorkspace(`/templates/${template.id}?advanced=1`, creationWorkspace?.id)} className="rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700">Ouvrir la vue avancée du parcours</Link></div></section> : null}
 
       {searchParams?.advanced === "1" ? <>
 
@@ -195,7 +199,7 @@ export default async function TemplateDetailPage({ params, searchParams }: { par
             </span>
             {template.relationTemplate ? (
               <Link
-                href={`/links/new?templateId=${template.relationTemplate.id}`}
+                href={withCreationWorkspace(`/links/new?templateId=${template.relationTemplate.id}`, creationWorkspace?.id)}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
               >
                 {t("studio.createLinkWithJourney")}

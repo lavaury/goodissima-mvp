@@ -115,7 +115,7 @@ test("simple-link submission keeps notification data outside functional answers 
 test("every retained Simple link Boussole step targets a real builder zone", () => {
   const builder = source("app/(connected)/links/simple/simple-link-builder.tsx");
   assert.equal(simpleLinkSequences.length, 7);
-  assert.equal(simpleLinkSteps.length, 40);
+  assert.equal(simpleLinkSteps.length, 36);
   for (const step of simpleLinkSteps) {
     assert.ok(step.targetId && builder.includes(step.targetId), `missing builder target ${step.targetId}`);
   }

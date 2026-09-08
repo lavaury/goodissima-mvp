@@ -52,15 +52,11 @@ export const simpleLinkSequences: BoussoleSequence[] = [
   { id: "configure-more", title: "Configurer davantage", description: "Ouvrir seulement les réglages complémentaires utiles.", steps: [
     s("simple-link-advanced", "simple-link-advanced-options", "Options avancées", "Vous êtes dans les réglages complémentaires du lien. Cette zone n’est pas nécessaire dans la majorité des créations simples. Ouvrez-la uniquement si vous devez ajuster un paramètre complémentaire ; sinon poursuivez vers la vérification."),
   ]},
-  { id: "verify-create", title: "Vérifier et créer", description: "Contrôler le formulaire puis gérer l’état créé.", steps: [
+  { id: "verify-create", title: "Vérifier et créer", description: "Contrôler le formulaire puis ouvrir le lien créé.", steps: [
     s("simple-link-final-check", "simple-link-final-check-section", "Dernière vérification", "Cette zone permet de vérifier le formulaire et de confirmer explicitement sa création. Relisez les champs et l’aperçu avant de confirmer.", { glossary: ["apercu", "validation-humaine"], states: ["unconfirmed", "confirmed"] }),
     s("simple-link-confirm", "confirm-simple-link", "Confirmer la création", "Cochez cette case uniquement après avoir vérifié les champs. Aucune diffusion ne sera faite automatiquement.", { glossary: ["validation-humaine"], states: ["unconfirmed", "confirmed"] }),
     s("simple-link-create-disabled", "create-simple-link", "Bouton désactivé", "Le bouton reste désactivé tant que la vérification humaine n’est pas confirmée.", { glossary: ["validation-humaine"], states: ["disabled"] }),
-    s("simple-link-create", "create-simple-link", "Créer le lien", "Ce bouton crée le lien. Il ne l’envoie et ne le partage pas automatiquement.", { glossary: ["publication", "validation-humaine"], states: ["ready"] }),
-    s("simple-link-copy", "copy-public-link", "Copier le lien", "Copiez le lien lorsque vous êtes prêt à le transmettre vous-même.", { glossary: ["lien-public"] }),
-    s("simple-link-open", "open-public-link", "Ouvrir le lien", "Vérifiez l’expérience publique avant tout partage.", { glossary: ["lien-public", "publication"] }),
-    s("simple-link-open-matching", "open-link-matching", "Matching après création", "Ouvrez l’espace du lien pour analyser les correspondances.", { glossary: ["matching-du-lien", "correspondance-potentielle"], states: ["created-matching"] }),
-    s("simple-link-pilotage", "open-pilotage-matching-signal", "Salle de pilotage", "Un signal réel de matching peut aussi être examiné dans la Salle de pilotage.", { glossary: ["salle-pilotage"] }),
+    s("simple-link-create", "create-simple-link", "Créer le lien", "Ce bouton crée le lien, puis ouvre son espace propriétaire. Vous pourrez y vérifier et copier le lien public ; aucun partage n’est automatique.", { glossary: ["publication", "validation-humaine"], states: ["ready"] }),
   ]},
 ];
 

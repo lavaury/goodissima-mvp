@@ -24,6 +24,7 @@ const sources = Object.fromEntries(files.map(name => [`@/components/${name}`, `c
 sources["@/lib/boussole/navigation-disclosure"] = "lib/boussole/navigation-disclosure.ts";
 sources["@/lib/spatial-navigation"] = "lib/spatial-navigation.ts";
 sources["@/lib/boussole/portfolio-disclosure"] = "lib/boussole/portfolio-disclosure.ts";
+sources["@/lib/object-creation"] = "lib/object-creation.ts";
 sources["@/lib/connected-history"] = "lib/connected-history.ts";
 const factories = Object.entries(sources).map(([id, file]) => `${JSON.stringify(id)}: function(module,exports,require) {\n${ts.transpileModule(fs.readFileSync(file, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
@@ -142,7 +143,7 @@ try {
   };
   const pause = () => new Promise(resolve => setTimeout(resolve, 80));
   const results = [];
-  for (const width of [320, 390, 768, 1024, 1440]) {
+  for (const width of [320, 375, 768, 1024, 1440]) {
     await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
     await send("Page.navigate", { url: `${origin}/dashboard` }, sessionId);
     for (let tries = 0; tries < 50 && !(await evaluate("Boolean(document.querySelector('nav'))")); tries++) await pause();
@@ -266,7 +267,7 @@ try {
     assert.equal(await evaluate("document.querySelector('[data-workspace-create]').open"), true);
     assert.ok(await evaluate("[...document.querySelectorAll('[data-workspace-create] a')].every(a=>a.checkVisibility() && a.getBoundingClientRect().right<=innerWidth)"));
     await key("Tab");
-    assert.equal(await evaluate("document.activeElement.getAttribute('href')"), "/gouvernance/nouveau?workspaceId=technical-workspace-id");
+    assert.equal(await evaluate("document.activeElement.getAttribute('href')"), "/links/simple?workspaceId=technical-workspace-id");
     assert.equal(await evaluate("getComputedStyle(document.activeElement).outlineStyle"), "solid");
     await key("Escape"); await pause();
     assert.equal(await evaluate("!document.querySelector('[data-workspace-create]').open && document.activeElement===document.querySelector('[data-workspace-create] summary')"), true);
@@ -276,7 +277,7 @@ try {
     await evaluate("document.querySelector('[data-workspace-create] summary').click()");
     await evaluate("document.querySelector('[data-workspace-create] a').focus()");
     await key("Enter"); await pause();
-    assert.equal(await evaluate("location.pathname+location.search"), "/gouvernance/nouveau?workspaceId=technical-workspace-id");
+    assert.equal(await evaluate("location.pathname+location.search"), "/links/simple?workspaceId=technical-workspace-id");
     await traverse("Retour");
     assert.equal(await evaluate("location.pathname"), "/gouvernance/workspaces/technical-workspace-id");
     assert.ok(await evaluate("[...document.querySelectorAll('main a:not([data-workspace-create] a)')].every(a=>a.checkVisibility() && a.getBoundingClientRect().right<=innerWidth)"));
@@ -328,9 +329,9 @@ try {
     assert.equal(await evaluate("document.querySelector('[data-boussole-id=governance-first-workspace]').checkVisibility()"), true);
     assert.equal(await evaluate('__qa.navigations.length'), startNavigations);
     await evaluate("document.querySelector('[data-spaces-create] summary').focus()"); await key('Enter'); await pause();
-    assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-spaces-create] a')].map(a=>a.getAttribute('href'))"), ['/gouvernance/workspaces/nouveau','/gouvernance/portfolios/nouveau']);
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-spaces-create] a')].map(a=>a.getAttribute('href'))"), ['/gouvernance/portfolios/nouveau','/gouvernance/workspaces/nouveau','/links/simple','/opportunities/new','/gouvernance/nouveau']);
     assert.equal(await evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), true);
-    await key('Tab'); assert.equal(await evaluate("document.activeElement.getAttribute('href')"), '/gouvernance/workspaces/nouveau');
+    await key('Tab'); assert.equal(await evaluate("document.activeElement.getAttribute('href')"), '/gouvernance/portfolios/nouveau');
     await key('Escape'); assert.equal(await evaluate("document.querySelector('[data-spaces-create]').open"), false);
     const spacesScreenshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true},sessionId);
     fs.writeFileSync(path.join(output, width+'-spaces.png'),Buffer.from(spacesScreenshot.data,'base64'));

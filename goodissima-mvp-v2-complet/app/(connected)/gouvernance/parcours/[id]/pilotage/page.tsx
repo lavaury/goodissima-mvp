@@ -1006,7 +1006,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                       <p className="font-bold text-[#247f88]">Organisateur — accès via compte Goodissima</p>
                       <p className="mt-1 text-sm text-slate-600">L’organisateur n’a pas besoin de lien invité.</p>
                     </div>
-                  ) : <GovernedJourneyGuestAccessPanel
+                  ) : !attachedWorkspaceId ? <p className="mt-4 text-sm text-slate-600">Un Workspace est nécessaire pour créer un accès invité.</p> : <GovernedJourneyGuestAccessPanel
                     formTemplateId={formTemplate.id}
                     participantName={participant.name}
                     participantRole={participant.role}

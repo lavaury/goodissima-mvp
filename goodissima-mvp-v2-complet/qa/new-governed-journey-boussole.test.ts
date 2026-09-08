@@ -61,7 +61,7 @@ test("distinguishes generation, human review and creation", () => {
 
 test("documents the actual post-create redirect and Workspace behavior", () => {
   const actions = read("lib/governance-journey-actions.ts");
-  assert.match(actions, /tx\.workspace\.upsert/);
+  assert.doesNotMatch(actions, /tx\.workspace\.upsert/);
   assert.match(actions, /redirect\(`\/gouvernance\/parcours\/\$\{formTemplate\.id\}\/pilotage`\)/);
   assert.match(actions, /automaticWorkflowExecution: false/);
   assert.match(actions, /automaticContact: false/);

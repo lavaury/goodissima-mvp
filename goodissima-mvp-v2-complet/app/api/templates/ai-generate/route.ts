@@ -1,3 +1,4 @@
+import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { generateTemplateDraft, recordTemplateGeneration } from "@/lib/ai/template-designer";
@@ -9,6 +10,8 @@ export async function POST(req: Request) {
   try {
     const owner = await getCurrentPrismaUser();
     const body = await req.json();
+    const creationWorkspace = body.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, body.workspaceId) : null;
+    if (body.workspaceId !== undefined && !creationWorkspace) return NextResponse.json({ error: "Workspace indisponible pour cette création." }, { status: 404 });
     const description = typeof body.description === "string" ? body.description.trim() : "";
     const voiceAudit = parseVoiceAuditInput(body.voiceAudit, "generation");
 

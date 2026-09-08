@@ -8,6 +8,8 @@ import { getI18n } from "@/lib/i18n";
 import { DEFAULT_RELATION_TEMPLATE_KEY } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
 import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
+import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
+import { notFound } from "next/navigation";
 import {
   localizeTemplateFields,
   localizeTemplateName,
@@ -17,10 +19,12 @@ import { buildOpportunityPreview } from "@/lib/opportunity-preview";
 import { formatConditionalRule } from "@/lib/template-readable";
 import { NewLinkForm } from "./NewLinkForm";
 
-export default async function NewLinkPage({ searchParams }: { searchParams?: { templateId?: string } }) {
+export default async function NewLinkPage({ searchParams }: { searchParams?: { templateId?: string; workspaceId?: string } }) {
   noStore();
   const { locale, t } = getI18n();
   const owner = await getCurrentPrismaUser();
+  const workspace = searchParams?.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, searchParams.workspaceId) : null;
+  if (searchParams?.workspaceId !== undefined && !workspace) notFound();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   const templates = await prisma.relationTemplate.findMany({
@@ -66,6 +70,8 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
       },
     },
   });
+  if (searchParams?.templateId !== undefined &&
+      (typeof searchParams.templateId !== "string" || !templates.some((template) => template.id === searchParams.templateId))) notFound();
   const defaultTemplate = templates.find((template) => template.key === DEFAULT_RELATION_TEMPLATE_KEY);
   const templateOptions = templates.map((template) => {
     const activeVersion = template.versions[0] ?? null;
@@ -135,6 +141,7 @@ export default async function NewLinkPage({ searchParams }: { searchParams?: { t
         <ActiveOrganizationBadge organizationName={organizationName} />
       </div>
       <NewLinkForm
+        workspaceId={workspace?.id}
         templates={templateOptions}
         defaultTemplateId={
           templateOptions.find((template) => template.id === searchParams?.templateId)?.id ??

@@ -1,3 +1,4 @@
+import { linkObjectLabel } from "@/lib/object-creation";
 import Link from "next/link";
 import type { WorkspaceDetail } from "@/lib/workspace-detail-repository";
 import { businessLabel, workspaceBreadcrumb } from "@/lib/spatial-navigation";
@@ -18,7 +19,7 @@ export function WorkspaceDetailView({ workspace, explorer = false, pilotage }: {
   const rows = [
     ...workspace.relationTemplates.map(item => ({ key: `journey-${item.id}`, name: businessLabel(item.formTemplates[0]?.name || item.name, "Parcours", [item.id]), type: "Parcours", status: item.status,
       href: item.formTemplates[0] ? `/gouvernance/parcours/${encodeURIComponent(item.formTemplates[0].id)}/pilotage` : null })),
-    ...workspace.links.map(item => ({ key: `link-${item.id}`, name: businessLabel(item.title, "Lien", [item.id]), type: "Lien", status: item.status, href: `/links/${encodeURIComponent(item.id)}` })),
+    ...workspace.links.map(item => ({ key: `link-${item.id}`, name: businessLabel(item.title, "Lien", [item.id]), type: linkObjectLabel(item.rules), status: item.status, href: `/links/${encodeURIComponent(item.id)}` })),
     ...workspace.relationCases.map(item => ({ key: `case-${item.id}`, name: businessLabel(`${item.candidateName} — ${item.gLink.title}`, "Dossier relationnel", [item.id]), type: "Dossier", status: item.status, href: `/cases/${encodeURIComponent(item.id)}` })),
   ];
   return <main className="mx-auto min-w-0 max-w-6xl px-4 py-8 sm:px-6">

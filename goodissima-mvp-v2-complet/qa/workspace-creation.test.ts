@@ -1,3 +1,4 @@
+import * as creation from "../lib/object-creation.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as React from "react";
@@ -13,7 +14,7 @@ function findWorkspace(q: any) { return workspaces.find(row => Object.entries(q.
 const context = loadTestModule("lib/workspace-creation-context.ts", { "@/lib/prisma": { prisma: { workspace: { findFirst: async (q: any) => findWorkspace(q) } } }, "@/lib/spatial-navigation": spatial });
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, ...props }: any) => jsx.jsx("a",{...props,children}),
   "next/navigation": { notFound: () => { throw Error("NOT_FOUND"); } },
-  "@/lib/auth": { getCurrentPrismaUser: async () => ({ id:"a",name:"Compte",email:"a@example.test" }) },
+  "@/lib/object-creation": creation, "@/lib/auth": { getCurrentPrismaUser: async () => ({ id:"a",name:"Compte",email:"a@example.test" }) },
   "@/lib/workspace-creation-context": context, "@/lib/spatial-navigation": spatial,
   "@/components/SpatialNavigationContext": { PageNavigationContext: ({ items }: any) => jsx.jsx("p",{children:items.map((i:any)=>i.label).join(" > ")}) },
 };
@@ -36,7 +37,8 @@ test("both creation pages preselect the authorized Workspace and retain its brea
     assert.ok(await page.default({}));
   }
   const html=renderToStaticMarkup(await journeyPage().default({searchParams:{workspaceId:"w-a"}}));
-  assert.match(html, /<option value="w-a" selected="">/);
+  assert.match(html, /type="hidden" name="workspaceId" value="w-a"/);
+  assert.ok(!html.includes("<select"));
 });
 function journeyMutation(owner: string | null = "a") {
   const writes:any[]=[];const invalidated:string[]=[];
@@ -47,6 +49,7 @@ function journeyMutation(owner: string | null = "a") {
   };
   const module=loadTestModule("lib/governance-journey-actions.ts", {
     "@/lib/auth":{getCurrentPrismaUser:async()=>{if(!owner)throw Error("LOGIN");return{id:owner};}},
+    "@/lib/object-creation":creation,
     "@/lib/prisma":{prisma:{relationTemplate:{findUnique:async()=>null},$transaction:async(fn:any)=>fn(tx)}},
     "next/navigation":{redirect:(path:string)=>{throw Error(`REDIRECT ${path}`);}},"next/cache":{revalidatePath:(p:string)=>invalidated.push(p)},
   });
@@ -90,12 +93,13 @@ test("archiving after page preselection is refused by both mutations",async()=>{
   active.status="ARCHIVED";
   try{await assert.rejects(journeyMutation().create(form("w-a")),/Workspace introuvable/);assert.equal((await linkMutation().post("w-a")).status,404);}finally{active.status="ACTIVE";}
 });
-test("Nouveau contains only contextual journey and simple link destinations",()=>{
+test("Nouveau contains the three contextual object destinations",()=>{
   const {WorkspaceCreateActions}=loadTestModule("components/WorkspaceCreateActions.tsx",{react:React,"react/jsx-runtime":jsx,"next/link":common["next/link"]});
   const html=renderToStaticMarkup(jsx.jsx(WorkspaceCreateActions,{workspaceId:"w-a"}));
   assert.ok(html.includes('href="/gouvernance/nouveau?workspaceId=w-a"'));
   assert.ok(html.includes('href="/links/simple?workspaceId=w-a"'));
-  assert.equal((html.match(/<a /g)??[]).length,2);
+  assert.ok(html.includes('href="/opportunities/new?workspaceId=w-a"'));
+  assert.equal((html.match(/<a /g)??[]).length,3);
 });
 test("Explorer retains Open only; archived Workspace does not mount creation actions",()=>{
   const source=readFileSync(new URL("../components/WorkspaceDetailView.tsx",import.meta.url),"utf8");

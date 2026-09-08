@@ -78,7 +78,7 @@ test("provides orientation and factual activity dashboard journeys", () => {
 
 test("provides the complete state-aware Simple link journey", () => {
   assert.equal(simpleLinkSequences.length, 7);
-  assert.equal(simpleLinkSteps.length, 40);
+  assert.equal(simpleLinkSteps.length, 36);
   assert.equal(getCompassContext("/links/simple")?.steps, simpleLinkSteps);
   for (const step of simpleLinkSteps) {
     assert.ok(step.targetId);
@@ -90,7 +90,8 @@ test("provides the complete state-aware Simple link journey", () => {
   }
   assert.ok(simpleLinkSteps.some((step) => step.targetStates?.includes("disabled")));
   assert.ok(simpleLinkSteps.some((step) => step.targetStates?.includes("enabled")));
-  assert.ok(simpleLinkSteps.some((step) => step.targetStates?.includes("created-matching")));
+  assert.ok(!simpleLinkSteps.some((step) => step.targetStates?.includes("created-matching")));
+  assert.ok(getCompassContext("/links/real-link")?.steps.some(step => step.targetId === "copy-public-link"));
   const verify = simpleLinkSequences.find((sequence) => sequence.id === "verify-create")!;
   assert.equal(verify.steps[0].targetId, "simple-link-final-check-section");
   assert.ok(!verify.steps.some((step) => step.targetId === "simple-link-advanced-options"));

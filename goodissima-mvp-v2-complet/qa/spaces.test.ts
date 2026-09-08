@@ -52,10 +52,10 @@ test("more than five Portfolios starts with only first expanded; empty states ar
   const unavailable = renderToStaticMarkup(jsx.jsx(SpacesTreeView, { data: { ...data, portfolios: [], unavailableParentCount: 1 } }));
   assert.ok(!unavailable.includes('data-boussole-id="governance-empty-state"'));
 });
-test("root creation exposes only Workspace and Portfolio; original global functions remain reachable", () => {
+test("root creation exposes the five global destinations", () => {
   const { SpacesCreateActions } = loadTestModule("components/SpacesCreateActions.tsx", common);
   const html = renderToStaticMarkup(jsx.jsx(SpacesCreateActions, {}));
-  assert.equal((html.match(/<a /g) ?? []).length, 2);
+  assert.equal((html.match(/<a /g) ?? []).length, 5);
   for (const route of ["/gouvernance/workspaces/nouveau", "/gouvernance/portfolios/nouveau"]) assert.ok(html.includes(route));
   const nav = readFileSync("components/PlatformNavigation.tsx", "utf8");
   for (const route of ["/annuaire", "/gouvernance/nouveau", "/gouvernance/pilotage", "/links/simple"]) assert.ok(nav.includes(route));
