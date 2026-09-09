@@ -20,6 +20,9 @@ export function ConnectedShell({ children, organizationName }: {
           </Link>
         <PlatformNavigation organizationName={organizationName} />
       </header>
+      <div className="mx-auto flex max-w-[92rem] justify-end px-4 sm:px-6">
+        <Link href="/recherche" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-700">Recherche Goodissima</Link>
+      </div>
       <SpatialNavigationBar />
       {/* Each page keeps its own main landmark, title and business actions. */}
       <div data-connected-content="true" className="min-w-0">{children}</div>

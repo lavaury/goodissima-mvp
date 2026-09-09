@@ -10,6 +10,7 @@
     "/cases",
     "/cases/[caseId]",
     "/dashboard",
+    "/recherche",
     "/experience",
     "/gouvernance",
     "/gouvernance/nouveau",

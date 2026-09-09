@@ -18,11 +18,11 @@ function files(dir: string): string[] {
 const appFiles = files("app");
 const routeOf = (file: string) => normalizeAppPath("/" + file.slice(4).replace(/\.(tsx?|js)$/, ""));
 
-test("all 47 page URLs and all 84 handlers match the inventory including Workspace, without duplicates", () => {
+test("all 48 page URLs and all 84 handlers match the inventory including Search, without duplicates", () => {
   const pages = appFiles.filter(f => f.endsWith("/page.tsx"));
   const actual = pages.map(routeOf).sort();
   assert.deepEqual(actual, [...expected.connected, ...expected.excluded].sort());
-  assert.equal(new Set(actual).size, 47);
+  assert.equal(new Set(actual).size, 48);
   assert.deepEqual(appFiles.filter(f => f.endsWith("/route.ts")).map(routeOf).sort(), expected.handlers);
   assert.equal(expected.handlers.length, 84);
   assert.ok(appFiles.filter(f => f.endsWith("/route.ts")).every(f => !f.includes("(connected)")));

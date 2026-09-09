@@ -5,6 +5,7 @@ const spaces: BreadcrumbItem = { label: "Mes espaces", href: "/gouvernance" };
 // Explicit page vocabulary, never labels derived from URL segments.
 const pages: Record<string, { label: string; parent?: string }> = {
   "/dashboard": { label: "Accueil" },
+  "/recherche": { label: "Recherche Goodissima" },
   "/boussole": { label: "Boussole" },
   "/boussole/decouverte": { label: "Boussole" },
   "/annuaire": { label: "Annuaire" },
