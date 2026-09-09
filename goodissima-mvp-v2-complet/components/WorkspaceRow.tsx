@@ -5,7 +5,7 @@ const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outli
 const openLink = `inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-semibold ${focus}`;
 export type WorkspaceRowData = { id: string; name: string; status: string; _count: { relationTemplates: number; links: number; relationCases: number } };
 export function WorkspaceRow({ workspace, first = false, firstTarget = "governance-first-workspace" }: { workspace: WorkspaceRowData; first?: boolean; firstTarget?: string }) {
-  return <ObjectActionRow as="li" name={businessLabel(workspace.name, "Workspace", [workspace.id])} href={`/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`} data-boussole-id={first ? firstTarget : undefined} className="min-w-0 rounded-xl border bg-white p-3 sm:p-4">
+  return <ObjectActionRow as="li" favorite={{ objectKind: "WORKSPACE", objectId: workspace.id }} name={businessLabel(workspace.name, "Workspace", [workspace.id])} href={`/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`} data-boussole-id={first ? firstTarget : undefined} className="min-w-0 rounded-xl border bg-white p-3 sm:p-4">
     <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 pr-14">
       <div className="min-w-0 flex-1"><h3 className="break-words font-bold"><span aria-hidden="true">📁 </span><Link href={`/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`} className={`rounded underline underline-offset-4 ${focus}`}>{businessLabel(workspace.name, "Workspace", [workspace.id])}</Link></h3>
         <p className="mt-1 text-sm text-slate-600">Workspace · {workspace.status === "ACTIVE" ? "Actif" : "Archivé"}</p>

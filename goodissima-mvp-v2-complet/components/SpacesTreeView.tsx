@@ -21,7 +21,7 @@ function PortfolioBranch({ portfolio, initialOpen, first, firstWorkspaceId }: { 
   }, []);
   const name = businessLabel(portfolio.name, "Portfolio", [portfolio.id]);
   return <li className="min-w-0"><div ref={root} data-boussole-portfolio="true" data-boussole-id={first ? "governance-first-portfolio" : undefined} className="rounded-xl border bg-slate-50 p-2 sm:p-4">
-    <ObjectActionRow name={name} href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} className="flex flex-wrap items-start gap-2 pr-16">
+    <ObjectActionRow favorite={{ objectKind: "PORTFOLIO", objectId: portfolio.id }} name={name} href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} className="flex flex-wrap items-start gap-2 pr-16">
       <button type="button" aria-expanded={open} aria-controls={id} aria-label={`${open ? "Réduire" : "Développer"} le Portfolio : ${name}`} onClick={() => setOpen(value => !value)} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border bg-white ${focus}`}><span aria-hidden="true">{open ? "▾" : "▸"}</span></button>
       <div className="min-w-0 flex-1"><h3 className="break-words font-bold"><span aria-hidden="true">🗂 </span>{name}</h3><p className="mt-1 text-sm text-slate-600">Portfolio · {portfolio.status === "ACTIVE" ? "Actif" : "Archivé"} · {portfolio.workspaces.length} Workspaces</p></div>
       <Link href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} aria-label={`Ouvrir le Portfolio : ${name}`} className={openLink}>Ouvrir</Link>

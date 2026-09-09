@@ -30,7 +30,7 @@ const factories = Object.entries(sources).map(([id, file]) => `${JSON.stringify(
 const react = fs.readFileSync(path.join(path.dirname(require.resolve("react")), "umd/react.development.js"), "utf8");
 const reactDom = fs.readFileSync(path.join(path.dirname(require.resolve("react-dom")), "umd/react-dom.development.js"), "utf8");
 const fixture = `
-window.__qa={navigations:[],submissions:[],errors:[]};
+window.__qa={navigations:[],submissions:[],errors:[],favorites:{},favoriteChanges:[]};
 addEventListener('error',e=>__qa.errors.push(e.message));
 addEventListener('unhandledrejection',e=>__qa.errors.push(String(e.reason)));
 document.addEventListener('submit',e=>{e.preventDefault();__qa.submissions.push(Object.fromEntries(new FormData(e.target)))});
@@ -42,6 +42,11 @@ const baseItem={id:'fixture',title,createdAt:date,href:'/links/fixture',gLinkTit
 const page=items=>({items,hasMore:false});
 const modules={
  'react':React,'react-dom':ReactDOM,
+ 'next/navigation':{useRouter:()=>({refresh(){}})},
+ '@/lib/personal-favorites-actions':{
+ getFavoriteState:async t=>({available:true,saved:Boolean(__qa.favorites[JSON.stringify(t)])}),
+ addFavorite:async t=>{__qa.favorites[JSON.stringify(t)]=true;__qa.favoriteChanges.push(['add',t]);return {ok:true}},
+ removeFavorite:async t=>{delete __qa.favorites[JSON.stringify(t)];__qa.favoriteChanges.push(['remove',t]);return {ok:true}}},
  'react/jsx-runtime':{jsx:(type,props,key)=>h(type,{...props,key}),jsxs:(type,props,key)=>h(type,{...props,key}),Fragment:React.Fragment},
  'next/link':({href,children,onClick,...props})=>h('a',{...props,href,onClick:e=>{onClick?.(e);e.preventDefault();__qa.navigations.push(href)}},children),
  '@/components/SpacesCreateActions':{SpacesCreateActions:()=>null},
@@ -51,7 +56,7 @@ const modules={
  '@/lib/governance-workspace-repository':{
  getGovernanceWorkspaceOptions:async()=>location.search.includes('noWorkspace')?[]:[{id:'destination',name:'Destination active',categoryLabel:'Projet'}],
  getUnassignedGLinkSummaries:async()=>page([{...baseItem,id:'simple',objectLabel:'Lien simple'},{...baseItem,id:'opportunity',objectLabel:'Opportunité'}]),
- getUnassignedGovernedJourneySummaries:async()=>page([{...baseItem,formTemplateId:'journey',href:'/gouvernance/parcours/journey/pilotage'}]),
+ getUnassignedGovernedJourneySummaries:async()=>page([{...baseItem,relationTemplateId:'relation-journey',formTemplateId:'journey',href:'/gouvernance/parcours/journey/pilotage'}]),
  getUnassignedRelationCaseSummaries:async()=>page([{...baseItem,id:'case',href:'/cases/case'}])}
 };
 const factories={${factories}};
@@ -130,7 +135,7 @@ try {
       await click(trigger);
       const before=await evaluate("({id:document.querySelector('[role=menu]')?.id,items:[...document.querySelectorAll('[role=menuitem]')].map(el=>el.textContent),nav:__qa.navigations.length})");
       const isUnassigned=await evaluate(`document.querySelector('#row-${index}').tagName==='ARTICLE'`);
-      assert.deepEqual(before.items,isUnassigned?['Ouvrir','Rattacher à un Workspace']:['Ouvrir']);
+      assert.deepEqual(before.items,isUnassigned?['Ouvrir','Rattacher à un Workspace','Ajouter aux favoris']:['Ouvrir','Ajouter aux favoris']);
       assert.equal(before.nav,0,'trigger must not open the object');
       assert.equal(await evaluate("document.activeElement.getAttribute('role')"),'menuitem');
       assert.equal(await evaluate("(()=>{const r=document.querySelector('[role=menu]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight})()"),true);
@@ -139,7 +144,12 @@ try {
       await click(`#row-${index}`,true);
       const after=await evaluate("({id:document.querySelector('[role=menu]')?.id,items:[...document.querySelectorAll('[role=menuitem]')].map(el=>el.textContent),nav:__qa.navigations.length})");
       assert.deepEqual(after,before,`row ${index}: right-click must open the identical menu`);
-      await key('Escape');
+      await key('End');await key('Enter');await pause();
+      assert.equal(await evaluate('__qa.favoriteChanges.at(-1)[0]'),'add');
+      await click(trigger);await key('End');
+      assert.equal(await evaluate('document.activeElement.textContent'),'Retirer des favoris');
+      await key('Enter');await pause();
+      assert.equal(await evaluate('__qa.favoriteChanges.at(-1)[0]'),'remove');
     }
     if (contextOnly) { console.log('Right-click and button: identical menus on all 10 rows'); break; }
     assert.equal(await evaluate("(()=>{const e=new MouseEvent('contextmenu',{bubbles:true,cancelable:true});document.querySelector('#outside').dispatchEvent(e);return e.defaultPrevented})()"),false);
@@ -149,7 +159,7 @@ try {
     await key('Enter');await pause();await key('ArrowDown');
     assert.equal(await evaluate('document.activeElement.textContent'),'Rattacher à un Workspace');
     await key('Home');assert.equal(await evaluate('document.activeElement.textContent'),'Ouvrir');
-    await key('End');await key('Enter');await pause();
+    await key('End');await key('ArrowUp');await key('Enter');await pause();
     assert.equal(await evaluate("document.activeElement.closest('form').id"),'attach-case-case');
     assert.equal(await evaluate('__qa.submissions.length'),0);
     assert.equal(await evaluate("(()=>{const form=document.querySelector('#attach-case-case');const warning=form.previousElementSibling;return warning.textContent.includes('lien parent') && Boolean(warning.compareDocumentPosition(form)&Node.DOCUMENT_POSITION_FOLLOWING) && warning.checkVisibility()})()"),true);
@@ -157,7 +167,7 @@ try {
     assert.equal(await evaluate('__qa.submissions.length'),1);
     assert.equal(await evaluate('__qa.submissions[0].attachmentMode'),'unassigned');
     await click(`#${caseRow} > button[aria-haspopup]`,false,true);
-    assert.equal(await evaluate("document.querySelectorAll('[role=menuitem]').length"),2);
+    assert.equal(await evaluate("document.querySelectorAll('[role=menuitem]').length"),3);
     await key('Escape');
     // Open the existing internal destination through the same menu.
     await click('#row-0 > button[aria-haspopup]');await key('Enter');await pause();
@@ -170,7 +180,7 @@ try {
   if (!contextOnly) {
   await send('Page.navigate',{url:origin+'/?noWorkspace'},sessionId);
   for(let i=0;i<50 && !(await evaluate("Boolean(document.querySelector('#organize-no-destination'))"));i++)await pause();
-  await click('article > button[aria-haspopup]');await key('End');await key('Enter');await pause();
+  await click('article > button[aria-haspopup]');await key('End');await key('ArrowUp');await key('Enter');await pause();
   assert.equal(await evaluate('document.activeElement.id'),'organize-no-destination');
   assert.equal(await evaluate('__qa.submissions.length'),0);
   }

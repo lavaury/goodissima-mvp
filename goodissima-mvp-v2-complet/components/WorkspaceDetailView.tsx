@@ -18,10 +18,10 @@ const labels: Record<string, string> = {
 export function WorkspaceDetailView({ workspace, explorer = false, pilotage }: { workspace: WorkspaceDetail; explorer?: boolean; pilotage?: ReactNode }) {
   const pathname = `/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`;
   const rows = [
-    ...workspace.relationTemplates.map(item => ({ key: `journey-${item.id}`, name: businessLabel(item.formTemplates[0]?.name || item.name, "Parcours", [item.id]), type: "Parcours", status: item.status,
+    ...workspace.relationTemplates.map(item => ({ favorite: { objectKind: "RELATION_TEMPLATE" as const, objectId: item.id }, key: `journey-${item.id}`, name: businessLabel(item.formTemplates[0]?.name || item.name, "Parcours", [item.id]), type: "Parcours", status: item.status,
       href: item.formTemplates[0] ? `/gouvernance/parcours/${encodeURIComponent(item.formTemplates[0].id)}/pilotage` : null })),
-    ...workspace.links.map(item => ({ key: `link-${item.id}`, name: businessLabel(item.title, "Lien", [item.id]), type: linkObjectLabel(item.rules), status: item.status, href: `/links/${encodeURIComponent(item.id)}` })),
-    ...workspace.relationCases.map(item => ({ key: `case-${item.id}`, name: businessLabel(`${item.candidateName} — ${item.gLink.title}`, "Dossier relationnel", [item.id]), type: "Dossier", status: item.status, href: `/cases/${encodeURIComponent(item.id)}` })),
+    ...workspace.links.map(item => ({ favorite: { objectKind: "GLINK" as const, objectId: item.id }, key: `link-${item.id}`, name: businessLabel(item.title, "Lien", [item.id]), type: linkObjectLabel(item.rules), status: item.status, href: `/links/${encodeURIComponent(item.id)}` })),
+    ...workspace.relationCases.map(item => ({ favorite: { objectKind: "RELATION_CASE" as const, objectId: item.id }, key: `case-${item.id}`, name: businessLabel(`${item.candidateName} — ${item.gLink.title}`, "Dossier relationnel", [item.id]), type: "Dossier", status: item.status, href: `/cases/${encodeURIComponent(item.id)}` })),
   ];
   return <main className="mx-auto min-w-0 max-w-6xl px-4 py-8 sm:px-6">
     <PageNavigationContext pathname={pathname} items={workspaceBreadcrumb(workspace)} />
@@ -34,7 +34,7 @@ export function WorkspaceDetailView({ workspace, explorer = false, pilotage }: {
     </nav>
     {explorer ? <section className="mt-6" aria-label="Objets directement rattachés">
       <h2 className="text-xl font-bold">Explorer</h2><p className="mt-2 text-sm text-slate-600">Parcours, liens et dossiers directement rattachés à cet espace.</p>
-      {rows.length ? <ul className="mt-4 space-y-3">{rows.map(row => <ObjectActionRow as="li" key={row.key} name={row.name} href={row.href} className="grid min-w-0 gap-3 rounded-xl border bg-white p-4 pr-16 md:grid-cols-[minmax(0,1fr)_7rem_8rem_7rem] md:items-center">
+      {rows.length ? <ul className="mt-4 space-y-3">{rows.map(row => <ObjectActionRow as="li" favorite={row.favorite} key={row.key} name={row.name} href={row.href} className="grid min-w-0 gap-3 rounded-xl border bg-white p-4 pr-16 md:grid-cols-[minmax(0,1fr)_7rem_8rem_7rem] md:items-center">
         <h3 className="min-w-0 break-words font-semibold">{row.name}</h3><span className="text-sm text-slate-600">{row.type}</span><span className="break-words text-sm">{labels[row.status] ?? row.status}</span>
         {row.href ? <Link href={row.href} aria-label={`Ouvrir : ${row.name}`} className="w-fit rounded-lg border px-4 py-2 text-sm font-semibold">Ouvrir</Link> : <span className="text-sm text-slate-500">Aucun formulaire disponible pour ouvrir ce parcours.</span>}
       </ObjectActionRow>)}</ul> : <p className="mt-4 rounded-xl border border-dashed p-5 text-slate-600">Aucun parcours, lien ou dossier directement rattaché à cet espace.</p>}

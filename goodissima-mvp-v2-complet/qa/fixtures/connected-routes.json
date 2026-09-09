@@ -11,6 +11,7 @@
     "/cases/[caseId]",
     "/dashboard",
     "/recherche",
+    "/favoris",
     "/experience",
     "/gouvernance",
     "/gouvernance/nouveau",

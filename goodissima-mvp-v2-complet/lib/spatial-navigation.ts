@@ -6,6 +6,7 @@ const spaces: BreadcrumbItem = { label: "Mes espaces", href: "/gouvernance" };
 const pages: Record<string, { label: string; parent?: string }> = {
   "/dashboard": { label: "Accueil" },
   "/recherche": { label: "Recherche Goodissima" },
+  "/favoris": { label: "Favoris" },
   "/boussole": { label: "Boussole" },
   "/boussole/decouverte": { label: "Boussole" },
   "/annuaire": { label: "Annuaire" },
