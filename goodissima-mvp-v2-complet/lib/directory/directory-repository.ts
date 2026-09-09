@@ -10,6 +10,7 @@ export const directoryAttributeSelect = {
   id: true,
   kind: true,
   displayValue: true,
+  normalizedValue: true,
   code: true,
   locale: true,
   locationGranularity: true,

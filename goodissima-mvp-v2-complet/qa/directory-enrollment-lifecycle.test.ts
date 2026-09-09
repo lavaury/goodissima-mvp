@@ -152,6 +152,7 @@ function accessRepository(repository: MemoryEnrollmentRepository): DirectoryRepo
             id: item.id,
             kind: item.kind,
             displayValue: item.displayValue,
+            normalizedValue: item.normalizedValue,
             code: item.code,
             locale: item.locale,
             locationGranularity: item.locationGranularity,

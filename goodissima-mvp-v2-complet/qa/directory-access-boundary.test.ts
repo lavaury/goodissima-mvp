@@ -17,6 +17,7 @@ function attribute(overrides: Partial<DirectoryAttributeRecord> = {}): Directory
     id: "attribute-public",
     kind: "SKILL",
     displayValue: "Cybersécurité",
+    normalizedValue: "cybersécurité",
     code: "CYBERSECURITY",
     locale: "fr",
     locationGranularity: null,

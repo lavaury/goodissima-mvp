@@ -14,7 +14,7 @@ function iso(value: Date | null): string | null {
   return value?.toISOString() ?? null;
 }
 
-function isVerificationCurrentlyValid(attribute: DirectoryAttributeRecord, now: Date): boolean {
+export function isDirectoryAttributeEffectivelyVerified(attribute: DirectoryAttributeRecord, now: Date): boolean {
   const verification = attribute.verification;
   if (attribute.declaredTrustLevel !== "VERIFIED" || !verification) return false;
   if (verification.state !== "VALID" || verification.credential.status !== "ACTIVE") return false;
@@ -23,27 +23,27 @@ function isVerificationCurrentlyValid(attribute: DirectoryAttributeRecord, now: 
   return true;
 }
 
-function publicAttribute(attribute: DirectoryAttributeRecord, now: Date): PublishedDirectoryAttributeDto {
+export function toPublishedDirectoryAttributeDto(attribute: DirectoryAttributeRecord, now: Date): PublishedDirectoryAttributeDto {
   return {
     kind: attribute.kind,
     displayValue: attribute.displayValue,
     code: attribute.code,
     locale: attribute.locale,
     locationGranularity: attribute.locationGranularity,
-    trustLevel: isVerificationCurrentlyValid(attribute, now) ? "VERIFIED" : "DECLARED",
+    trustLevel: isDirectoryAttributeEffectivelyVerified(attribute, now) ? "VERIFIED" : "DECLARED",
   };
 }
 
-function isAttributePubliclyVisible(attribute: DirectoryAttributeRecord, now: Date): boolean {
+export function isDirectoryAttributePubliclyVisible(attribute: DirectoryAttributeRecord, now: Date): boolean {
   if (attribute.publicationStatus !== "PUBLISHED") return false;
   return attribute.declaredTrustLevel !== "VERIFIED"
-    || isVerificationCurrentlyValid(attribute, now)
+    || isDirectoryAttributeEffectivelyVerified(attribute, now)
     || attribute.verificationLossPolicy === "KEEP_AS_DECLARED";
 }
 
 function managedAttribute(attribute: DirectoryAttributeRecord, now: Date): ManagedDirectoryAttributeDto {
   return {
-    ...publicAttribute(attribute, now),
+    ...toPublishedDirectoryAttributeDto(attribute, now),
     attributeId: attribute.id,
     publicationStatus: attribute.publicationStatus,
     verificationLossPolicy: attribute.verificationLossPolicy,
@@ -81,8 +81,8 @@ export class DirectoryAccessService {
       publicName: profile.publicName,
       publishedAt: profile.publishedAt.toISOString(),
       attributes: profile.attributes
-        .filter((attribute) => isAttributePubliclyVisible(attribute, now))
-        .map((attribute) => publicAttribute(attribute, now)),
+        .filter((attribute) => isDirectoryAttributePubliclyVisible(attribute, now))
+        .map((attribute) => toPublishedDirectoryAttributeDto(attribute, now)),
     };
   }
 
