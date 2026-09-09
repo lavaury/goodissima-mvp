@@ -44,6 +44,7 @@ function isAttributePubliclyVisible(attribute: DirectoryAttributeRecord, now: Da
 function managedAttribute(attribute: DirectoryAttributeRecord, now: Date): ManagedDirectoryAttributeDto {
   return {
     ...publicAttribute(attribute, now),
+    attributeId: attribute.id,
     publicationStatus: attribute.publicationStatus,
     verificationLossPolicy: attribute.verificationLossPolicy,
   };

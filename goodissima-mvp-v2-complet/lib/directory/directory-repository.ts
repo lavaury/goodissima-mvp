@@ -7,6 +7,7 @@ export const directoryVerificationSelect = {
 } satisfies Prisma.DirectoryVerificationProvenanceSelect;
 
 export const directoryAttributeSelect = {
+  id: true,
   kind: true,
   displayValue: true,
   code: true,

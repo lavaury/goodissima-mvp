@@ -35,6 +35,7 @@ export type PublishedDirectoryProfileDto = {
 };
 
 export type ManagedDirectoryAttributeDto = PublishedDirectoryAttributeDto & {
+  attributeId: string;
   publicationStatus: "DRAFT" | "PUBLISHED" | "WITHDRAWN";
   verificationLossPolicy: "KEEP_AS_DECLARED" | "WITHDRAW";
 };

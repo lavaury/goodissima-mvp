@@ -14,6 +14,7 @@ const now = new Date("2026-09-10T12:00:00.000Z");
 
 function attribute(overrides: Partial<DirectoryAttributeRecord> = {}): DirectoryAttributeRecord {
   return {
+    id: "attribute-public",
     kind: "SKILL",
     displayValue: "Cybersécurité",
     code: "CYBERSECURITY",
