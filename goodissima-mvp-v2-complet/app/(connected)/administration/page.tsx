@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { canAccessAIValue } from "@/lib/ai-value-access";
 import { ChampagneScenariosPanel } from "@/components/ChampagneScenariosPanel";
 import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -23,11 +24,11 @@ export default async function AdministrationPage() {
       <h1 className="mt-2 text-3xl font-bold">Administration Goodissima</h1>
       <p className="mt-2 max-w-3xl text-slate-600">Accès aux tableaux de bord et routes d'administration. Les démonstrations restent disponibles, mais ne constituent pas le parcours utilisateur principal.</p>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Link href="/ia-valeur" className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+        {canAccessAIValue(owner.role) && <Link href="/ia-valeur" className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
           <span className="rounded-full bg-violet-700 px-3 py-1 text-xs font-semibold text-white">Admin</span>
           <h2 className="mt-3 font-semibold text-violet-950">IA & Valeur</h2>
           <p className="mt-1 text-sm text-violet-800">Coûts IA, valeur estimée, ROI et exports CSV.</p>
-        </Link>
+        </Link>}
         {showFeedbackAdmin ? (
           <Link href="/administration/feedback" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
             <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold text-white">Admin produit</span>
@@ -53,11 +54,11 @@ export default async function AdministrationPage() {
           <h2 className="mt-3 font-semibold">Démo candidats détectés</h2>
           <p className="mt-1 text-sm text-slate-500">Classement de candidats fictifs par le moteur existant.</p>
         </Link></> : null}
-        <Link href="/admin/ai-costs" className="rounded-2xl border bg-white p-5">
+        {canAccessAIValue(owner.role) && <Link href="/admin/ai-costs" className="rounded-2xl border bg-white p-5">
           <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">Route admin historique</span>
           <h2 className="mt-3 font-semibold">Observabilité IA</h2>
           <p className="mt-1 text-sm text-slate-500">URL conservée pour compatibilité.</p>
-        </Link>
+        </Link>}
       </div>
     </section>
     {showChampagneScenarios ? <div id="tests-champagne" className="mt-8"><ChampagneScenariosPanel /></div> : null}

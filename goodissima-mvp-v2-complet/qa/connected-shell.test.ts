@@ -15,6 +15,12 @@ const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.ur
 function files(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(`${dir}/${e.name}`) : [`${dir}/${e.name}`]);
 }
+const layoutRoleDependencies = {
+  "next/cache": { unstable_noStore() {} },
+  "@/lib/ai-value-access": { canAccessAIValue: (role: string) => role === "ADMIN" || role === "SUPER_ADMIN" },
+  "@/lib/access-invitations": { normalizeInvitationEmail: (email: string) => email },
+  "@/lib/prisma": { prisma: { user: { findUnique: async () => ({ role: "OWNER" }) } } },
+};
 const appFiles = files("app");
 const routeOf = (file: string) => normalizeAppPath("/" + file.slice(4).replace(/\.(tsx?|js)$/, ""));
 
@@ -36,7 +42,7 @@ for (const route of expected.connected) {
     if (route !== "/parcours" && route !== "/ia-valeur") assert.match(source, /await (?:getCurrentPrismaUser|requireCurrentUser|listFavorites)\(/);
     const { ConnectedShell } = shellModules(route);
     let reads = 0;
-    const layout = loadTestModule("app/(connected)/layout.tsx", { "react/jsx-runtime": jsx,
+    const layout = loadTestModule("app/(connected)/layout.tsx", { ...layoutRoleDependencies, "react/jsx-runtime": jsx,
       "@/components/ConnectedShell": { ConnectedShell },
       "@/lib/auth": { requireCurrentUser: async () => { reads++; return { email: "fixture@example.test", user_metadata: { name: "Fixture organisation" } }; } } });
     const html = renderToStaticMarkup(await layout.default({ children: jsx.jsx("main", { children: `Content ${route}` }) }));
@@ -50,7 +56,7 @@ for (const route of expected.connected) {
 
 test("connected layout propagates the existing unauthenticated redirect before rendering", async () => {
   const redirect = new Error("NEXT_REDIRECT: /login");
-  const layout = loadTestModule("app/(connected)/layout.tsx", {
+  const layout = loadTestModule("app/(connected)/layout.tsx", { ...layoutRoleDependencies,
     "react/jsx-runtime": jsx,
     "@/components/ConnectedShell": { ConnectedShell: () => { throw new Error("Unexpected render"); } },
     "@/lib/auth": { requireCurrentUser: async () => { throw redirect; } },
@@ -81,21 +87,22 @@ for (const route of expected.excluded) {
 test("root is neutral; one connected layout and one navigation mount; utilities are scoped individually", () => {
   assert.deepEqual(appFiles.filter(f => f.endsWith("/layout.tsx")).sort(), ["app/(connected)/layout.tsx", "app/layout.tsx"]);
   assert.doesNotMatch(read("app/layout.tsx"), /ContextualBoussole|ConnectedShell|requireCurrentUser|getCurrentPrismaUser/);
-  assert.doesNotMatch(read("app/(connected)/layout.tsx"), /await getCurrentPrismaUser|prisma\./);
+  assert.doesNotMatch(read("app/(connected)/layout.tsx"), /await getCurrentPrismaUser|\.(?:upsert|create|update|delete)\(/);
   for (const utility of ["ToastProvider", "I18nProvider", "FeedbackButton", "GlobalLanguageSwitcher"]) assert.match(read("app/layout.tsx"), new RegExp(`<${utility}`));
   assert.match(read("components/ConnectedShell.tsx"), /<ContextualBoussole/);
   assert.equal(files("components").concat(appFiles).filter(f => /\.tsx$/.test(f)).reduce((n,f) => n+(read(f).match(/<PlatformNavigation\b/g)??[]).length, 0), 1);
 });
 
-test("logo links accessibly to Dashboard, content has its own main, and all 16 destinations remain", () => {
+test("logo links accessibly to Dashboard, content has its own main, and non-admin destinations remain", () => {
   const html = renderShellFixture();
+  assert.ok(!html.includes('href="/ia-valeur"'));
   assert.match(html, /href="\/dashboard" aria-label="Goodissima — Accueil"/);
   assert.match(html, /alt="Goodissima"/);
   assert.equal((html.match(/<main\b/g)??[]).length, 1);
   const nav = html.slice(html.indexOf("<nav"), html.indexOf("</nav>"));
   assert.equal((nav.match(/<a\b/g)??[]).length, 3);
   for (const href of ["/boussole/decouverte", "/annuaire", "/gouvernance"]) assert.ok(nav.includes(`href="${href}"`));
-  for (const href of ["/dashboard", "/links/simple", "/gouvernance", "/gouvernance/pilotage", "/gouvernance/portfolios", "/gouvernance/nouveau", "/annuaire", "/identity", "/trust/connectors", "/settings", "/opportunities", "/parcours", "/relations", "/ia-valeur", "/boussole/decouverte", "/administration"]) assert.ok(html.includes(`href="${href}"`), href);
+  for (const href of ["/dashboard", "/links/simple", "/gouvernance", "/gouvernance/pilotage", "/gouvernance/portfolios", "/gouvernance/nouveau", "/annuaire", "/identity", "/trust/connectors", "/settings", "/opportunities", "/parcours", "/relations", "/boussole/decouverte", "/administration"]) assert.ok(html.includes(`href="${href}"`), href);
   assert.equal((html.match(/data-boussole-id="dashboard-menu"/g)??[]).length, 1);
   assert.doesNotMatch(renderShellFixture("/annuaire"), /data-boussole-id="dashboard-menu"/);
 });
@@ -147,6 +154,7 @@ test("language control is inline once on A and retains its existing public/guest
   }
   assert.equal(renderToStaticMarkup(jsx.jsx(shellModules("/",false).GlobalLanguageSwitcher,{})), "");
   const html = renderShellFixture();
+  assert.ok(!html.includes('href="/ia-valeur"'));
   assert.equal((html.match(/aria-label="Langue"/g)??[]).length,1);
   assert.doesNotMatch(read("components/ConnectedShell.tsx"), /\bfixed\b|\bsticky\b/);
 });

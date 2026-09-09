@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { canAccessAIValue } from "@/lib/ai-value-access";
 import { unstable_noStore as noStore } from "next/cache";
 import { AICostTrendChart } from "@/components/AICostTrendChart";
 import { AIValueTrendChart } from "@/components/AIValueTrendChart";
@@ -62,6 +64,7 @@ function queryValue(value: string | string[] | undefined) {
 export default async function AICostAdminPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
   noStore();
   const owner = await getCurrentPrismaUser();
+  if (!canAccessAIValue(owner.role)) notFound();
   const organizationName = owner.name ?? owner.email;
   const requestedPeriod = queryValue(searchParams?.period);
   const period: ValueAnalyticsPeriod = requestedPeriod === "30d" || requestedPeriod === "90d" ? requestedPeriod : "12m";

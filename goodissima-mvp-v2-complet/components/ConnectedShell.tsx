@@ -6,9 +6,10 @@ import { ContextualBoussole } from "@/components/ContextualBoussole";
 import { SpatialNavigationProvider } from "@/components/SpatialNavigationContext";
 import { SpatialNavigationBar } from "@/components/SpatialNavigationBar";
 
-export function ConnectedShell({ children, organizationName }: {
+export function ConnectedShell({ children, organizationName, aiValueAllowed = false }: {
   children: ReactNode;
   organizationName?: string | null;
+  aiValueAllowed?: boolean;
 }) {
   return (
     <SpatialNavigationProvider>
@@ -18,7 +19,7 @@ export function ConnectedShell({ children, organizationName }: {
             <span className="relative block h-11 w-16 overflow-hidden sm:w-24"><Image src="/logo-goodissima.png" alt="Goodissima" width={2048} height={1365} priority className="absolute left-0 top-1/2 h-auto w-full -translate-y-1/2" /></span>
             <span>Accueil</span>
           </Link>
-        <PlatformNavigation organizationName={organizationName} />
+        <PlatformNavigation organizationName={organizationName} aiValueAllowed={aiValueAllowed} />
       </header>
       <div className="mx-auto flex max-w-[92rem] justify-end px-4 sm:px-6">
         <Link href="/favoris" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-700">Favoris</Link>

@@ -50,7 +50,7 @@ const boussoleIds: Record<string, string> = {
 
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700";
 
-export function PlatformNavigation({ organizationName }: { organizationName?: string | null }) {
+export function PlatformNavigation({ organizationName, aiValueAllowed = false }: { organizationName?: string | null; aiValueAllowed?: boolean }) {
   const pathname = usePathname();
   const userMenu = useRef<HTMLDetailsElement>(null);
   const matches = (href: string) => pathname === href || pathname.startsWith(href + "/");
@@ -101,7 +101,7 @@ export function PlatformNavigation({ organizationName }: { organizationName?: st
           <details data-boussole-disclosure="navigation" className="border-t pt-2">
             <summary className={`cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold ${focus}`}>Autres accès</summary>
             <ul className="mt-1 grid gap-1">
-              {secondaryItems.map(item => <li key={item.href}><Link href={item.href} data-boussole-id={boussoleIds[item.href]} aria-current={matches(item.href) || ("legacyHref" in item && matches(item.legacyHref!)) ? "page" : undefined} onClick={() => closeMenu()} className={`block rounded-lg px-3 py-2 text-sm hover:bg-slate-100 ${focus} ${matches(item.href) ? "font-bold underline" : ""}`}>{item.label}</Link></li>)}
+              {secondaryItems.filter(item => item.href !== "/ia-valeur" || aiValueAllowed).map(item => <li key={item.href}><Link href={item.href} data-boussole-id={boussoleIds[item.href]} aria-current={matches(item.href) || ("legacyHref" in item && matches(item.legacyHref!)) ? "page" : undefined} onClick={() => closeMenu()} className={`block rounded-lg px-3 py-2 text-sm hover:bg-slate-100 ${focus} ${matches(item.href) ? "font-bold underline" : ""}`}>{item.label}</Link></li>)}
             </ul>
           </details>
         </div>

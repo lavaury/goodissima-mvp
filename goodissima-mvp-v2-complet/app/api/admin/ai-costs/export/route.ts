@@ -1,3 +1,4 @@
+import { canAccessAIValue } from "@/lib/ai-value-access";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { buildAICostCsv, buildAIValueMetrics } from "@/lib/ai/cost-observability";
 import { getOrganizationAICostEvents, getOrganizationAIValueActivity, getOrganizationAIValueAnalyticsData } from "@/lib/ai/cost-data";
@@ -6,6 +7,9 @@ import { AI_VALUE_ESTIMATION_INPUT, AI_VALUE_ESTIMATION_RULES } from "@/config/a
 
 export async function GET(req: Request) {
   const owner = await getCurrentPrismaUser();
+  if (!canAccessAIValue(owner.role)) {
+    return Response.json({ error: "Forbidden" }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
   const requestedPeriod = new URL(req.url).searchParams.get("period");
   const period: ValueAnalyticsPeriod = requestedPeriod === "30d" || requestedPeriod === "90d" ? requestedPeriod : "12m";
   const since = new Date();
