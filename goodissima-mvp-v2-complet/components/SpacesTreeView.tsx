@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ObjectActionRow } from "@/components/ObjectActionRow";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { WorkspaceRow } from "@/components/WorkspaceRow";
@@ -20,11 +21,11 @@ function PortfolioBranch({ portfolio, initialOpen, first, firstWorkspaceId }: { 
   }, []);
   const name = businessLabel(portfolio.name, "Portfolio", [portfolio.id]);
   return <li className="min-w-0"><div ref={root} data-boussole-portfolio="true" data-boussole-id={first ? "governance-first-portfolio" : undefined} className="rounded-xl border bg-slate-50 p-2 sm:p-4">
-    <div className="flex flex-wrap items-start gap-2">
+    <ObjectActionRow name={name} href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} className="flex flex-wrap items-start gap-2 pr-16">
       <button type="button" aria-expanded={open} aria-controls={id} aria-label={`${open ? "Réduire" : "Développer"} le Portfolio : ${name}`} onClick={() => setOpen(value => !value)} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border bg-white ${focus}`}><span aria-hidden="true">{open ? "▾" : "▸"}</span></button>
       <div className="min-w-0 flex-1"><h3 className="break-words font-bold"><span aria-hidden="true">🗂 </span>{name}</h3><p className="mt-1 text-sm text-slate-600">Portfolio · {portfolio.status === "ACTIVE" ? "Actif" : "Archivé"} · {portfolio.workspaces.length} Workspaces</p></div>
       <Link href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} aria-label={`Ouvrir le Portfolio : ${name}`} className={openLink}>Ouvrir</Link>
-    </div>
+    </ObjectActionRow>
     <div id={id} hidden={!open} data-boussole-portfolio-content="true" className="ml-2 mt-3 border-l-2 border-slate-300 pl-2 sm:ml-5 sm:pl-4">
       {portfolio.workspaces.length ? <ul aria-label={`Workspaces du Portfolio ${name}`} className="space-y-2">{portfolio.workspaces.map(workspace => <WorkspaceRow key={workspace.id} workspace={workspace} first={workspace.id === firstWorkspaceId} />)}</ul> : <p className="p-2 text-sm text-slate-600">Aucun Workspace dans ce Portfolio.</p>}
     </div>

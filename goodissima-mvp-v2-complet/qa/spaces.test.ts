@@ -1,3 +1,4 @@
+import { objectActionRow } from "./helpers/object-action-row.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as React from "react";
@@ -20,7 +21,7 @@ function repository(rows = workspaces) {
   } } });
   return { read: getSpacesTree, calls };
 }
-const common = { react: React, "react/jsx-runtime": jsx, "react-dom": { flushSync: (fn: () => void) => fn() }, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial };
+const common = { react: React, "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "react-dom": { flushSync: (fn: () => void) => fn() }, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial };
 const row = loadTestModule("components/WorkspaceRow.tsx", common);
 const { SpacesTreeView } = loadTestModule("components/SpacesTreeView.tsx", { ...common, "@/components/WorkspaceRow": row });
 test("real owner-scoped repository groups by foreign key exactly once; inaccessible parents are never roots", async () => {
@@ -47,7 +48,7 @@ test("real tree renders distinct native disclosures, canonical links, counts and
 test("more than five Portfolios starts with only first expanded; empty states are truthful", () => {
   const data = { portfolios: Array.from({ length: 6 }, (_, i) => ({ id: `p${i}`, name: `P${i}`, status: "ACTIVE", workspaces: [] })), roots: [], unavailableParentCount: 0 };
   const html = renderToStaticMarkup(jsx.jsx(SpacesTreeView, { data }));
-  assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 5);
+  assert.equal((html.match(/<button\b(?=[^>]*aria-label="Développer le Portfolio : )(?=[^>]*aria-expanded="false")[^>]*>/g) ?? []).length, 5);
   assert.ok(html.includes('data-boussole-id="governance-empty-state"'));
   const unavailable = renderToStaticMarkup(jsx.jsx(SpacesTreeView, { data: { ...data, portfolios: [], unavailableParentCount: 1 } }));
   assert.ok(!unavailable.includes('data-boussole-id="governance-empty-state"'));
@@ -62,7 +63,7 @@ test("root creation exposes the five global destinations", () => {
 });
 test("page authenticates before loading, removes old cards and preserves existing attachments", async () => {
   let reads = 0;
-  const page = (authenticated: boolean) => loadTestModule("app/(connected)/gouvernance/page.tsx", { "react/jsx-runtime": jsx,
+  const page = (authenticated: boolean) => loadTestModule("app/(connected)/gouvernance/page.tsx", { "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow,
     "next/cache": { unstable_noStore() {} }, "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "a" }; } },
     "@/lib/spaces-repository": { getSpacesTree: async (id: string) => { assert.equal(id, "a"); reads++; return { portfolios: [], roots: [], unavailableParentCount: 0 }; } },
     "@/components/SpacesTreeView": { SpacesTreeView }, "@/components/SpacesCreateActions": { SpacesCreateActions: () => null },

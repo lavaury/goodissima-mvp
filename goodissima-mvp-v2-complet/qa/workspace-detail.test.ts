@@ -1,3 +1,4 @@
+import { objectActionRow } from "./helpers/object-action-row.ts";
 import * as creation from "../lib/object-creation.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -47,7 +48,7 @@ test("Explorer selects only direct objects and omits unassigned, foreign and ind
   assert.deepEqual(data.relationCases.map((row: any) => row.id), ["case"]);
 });
 const spatial = loadTestModule("lib/spatial-navigation.ts", {});
-const { WorkspaceDetailView } = loadTestModule("components/WorkspaceDetailView.tsx", { "react/jsx-runtime": jsx,
+const { WorkspaceDetailView } = loadTestModule("components/WorkspaceDetailView.tsx", { "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow,
   "@/lib/object-creation": creation, "@/components/WorkspaceCreateActions": { WorkspaceCreateActions: () => jsx.jsx("div", { children: "+ Nouveau" }) },
   "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial,
   "@/components/SpatialNavigationContext": { PageNavigationContext: () => null } });
@@ -67,7 +68,7 @@ test("empty archived and default Piloter render honestly without mutation contro
 });
 test("page executes authentication before scoped read and propagates notFound", async () => {
   const module = (owner: string | null) => loadTestModule("app/(connected)/gouvernance/workspaces/[id]/page.tsx", {
-    "react/jsx-runtime": jsx, "next/navigation": { notFound: () => { throw Error("NOT_FOUND"); } },
+    "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "next/navigation": { notFound: () => { throw Error("NOT_FOUND"); } },
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!owner) throw Error("LOGIN"); return { id: owner }; } },
     "@/lib/workspace-detail-repository": { getWorkspaceDetail: repository().read },
     "@/components/WorkspaceDetailView": { WorkspaceDetailView },
