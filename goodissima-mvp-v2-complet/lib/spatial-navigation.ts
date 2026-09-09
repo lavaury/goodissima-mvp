@@ -37,6 +37,7 @@ const pages: Record<string, { label: string; parent?: string }> = {
   "/experience": { label: "Démonstration Goodissima" },
 };
 const detailPages = [
+  { pattern: /^\/annuaire\/[^/]+$/, label: "Profil de l’Annuaire" },
   { pattern: /^\/gouvernance\/workspaces\/[^/]+$/, label: "Workspace" },
   { pattern: /^\/gouvernance\/portfolios\/[^/]+\/pilotage$/, label: "Pilotage du Portfolio" },
   { pattern: /^\/gouvernance\/portfolios\/[^/]+$/, label: "Portfolio" },
