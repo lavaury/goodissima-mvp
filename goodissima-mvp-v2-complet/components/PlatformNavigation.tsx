@@ -13,24 +13,10 @@ const items = [
   { label: "Mes espaces", href: "/gouvernance", icon: "🗂" },
 ];
 
-// Progressive migration: every former destination still has a direct access.
-const secondaryItems = [
-  { label: "Alertes", href: "/alertes" },
-  { label: "Lien simple", href: "/links/simple" },
-  { label: "Salle de pilotage", href: "/gouvernance/pilotage" },
-  { label: "Portfolios", href: "/gouvernance/portfolios" },
-  { label: "Nouveau parcours", href: "/gouvernance/nouveau" },
-  { label: "Confiance", href: "/trust/connectors" },
-  { label: "Opportunités", href: "/opportunities" },
-  { label: "Parcours", href: "/parcours", legacyHref: "/templates" },
-  { label: "Relations", href: "/relations" },
+const userItems = [{ label: "Mon profil", href: "/identity" }];
+const accountItems = [
   { label: "IA & Valeur", href: "/ia-valeur" },
   { label: "Administration", href: "/administration" },
-];
-
-const userItems = [
-  { label: "Identité", href: "/identity" },
-  { label: "Paramètres", href: "/settings" },
 ];
 
 const boussoleIds: Record<string, string> = {
@@ -88,24 +74,32 @@ export function PlatformNavigation({ organizationName, aiValueAllowed = false }:
           </Link>
         ))}
       </nav>
+      <div className="flex min-w-0 items-center justify-self-end gap-1">
+        {[{ href: "/favoris", label: "Favoris", icon: "⭐" }, { href: "/recherche", label: "Recherche Goodissima", icon: "🔎" }].map(item =>
+          <Link key={item.href} href={item.href} aria-label={item.label} title={item.label} aria-current={matches(item.href) ? "page" : undefined}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg hover:bg-slate-100 ${focus}`}>
+            <span aria-hidden="true">{item.icon}</span>
+          </Link>)}
       <details ref={userMenu} data-boussole-disclosure="navigation" className="justify-self-end">
         <summary className={`flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl border bg-white px-3 text-sm font-semibold text-slate-800 ${focus} [&::-webkit-details-marker]:hidden`}>
-          <span aria-hidden="true">👤</span>Utilisateur<span aria-hidden="true">▾</span>
+          <span aria-hidden="true">👤</span><span className="sr-only sm:not-sr-only">Utilisateur</span><span aria-hidden="true">▾</span>
         </summary>
-        <div aria-label="Compte et autres accès" data-boussole-navigation="global" className="absolute right-4 top-[calc(100%-0.25rem)] z-40 max-h-[min(70dvh,36rem)] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border bg-white p-3 shadow-xl sm:right-6">
+        <div aria-label="Compte" data-boussole-navigation="global" className="absolute right-4 top-[calc(100%-0.25rem)] z-40 max-h-[min(70dvh,36rem)] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border bg-white p-3 shadow-xl sm:right-6">
           <ActiveOrganizationBadge organizationName={organizationName} className="mb-3" />
           <ul className="space-y-1">
             {userItems.map(item => <li key={item.href}><Link href={item.href} data-boussole-id={boussoleIds[item.href]} aria-current={matches(item.href) ? "page" : undefined} onClick={() => closeMenu()} className={`block rounded-lg px-3 py-2 text-sm ${focus} ${matches(item.href) ? "font-bold underline" : "hover:bg-slate-100"}`}>{item.label}</Link></li>)}
           </ul>
-          <div className="my-3 flex flex-wrap items-center gap-2"><LanguageSwitcher /><LogoutButton compact /></div>
-          <details data-boussole-disclosure="navigation" className="border-t pt-2">
-            <summary className={`cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold ${focus}`}>Autres accès</summary>
-            <ul className="mt-1 grid gap-1">
-              {secondaryItems.filter(item => item.href !== "/ia-valeur" || aiValueAllowed).map(item => <li key={item.href}><Link href={item.href} data-boussole-id={boussoleIds[item.href]} aria-current={matches(item.href) || ("legacyHref" in item && matches(item.legacyHref!)) ? "page" : undefined} onClick={() => closeMenu()} className={`block rounded-lg px-3 py-2 text-sm hover:bg-slate-100 ${focus} ${matches(item.href) ? "font-bold underline" : ""}`}>{item.label}</Link></li>)}
-            </ul>
-          </details>
+          <div className="my-3"><LanguageSwitcher /></div>
+          <ul className="space-y-1 border-t pt-2">
+            {accountItems.filter(item => item.href !== "/ia-valeur" || aiValueAllowed).map(item => <li key={item.href}>
+              <Link href={item.href} data-boussole-id={boussoleIds[item.href]} onClick={() => closeMenu()}
+                className={`block rounded-lg px-3 py-2 text-sm hover:bg-slate-100 ${focus}`}>{item.label}</Link>
+            </li>)}
+          </ul>
+          <div className="mt-3"><LogoutButton compact /></div>
         </div>
       </details>
+      </div>
     </div>
   );
 }

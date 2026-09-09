@@ -63,6 +63,7 @@ test("page authenticates before the activity repository and calls no historical 
   const load = (authenticated: boolean) => loadTestModule("app/(connected)/dashboard/page.tsx", {
     "react/jsx-runtime": jsx, "next/cache": { unstable_noStore: () => {} },
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "A" }; } },
+    "@/lib/personal-favorites-repository": { readFavoritePage: async () => ({ items: [] }) },
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async (owner: string) => { assert.equal(owner,"A"); reads++; return []; } },
     "@/components/DashboardHome": view,
     "@/lib/factual-attention": { getFactualAttention: async () => ({ items: [], hasMore: false }) },

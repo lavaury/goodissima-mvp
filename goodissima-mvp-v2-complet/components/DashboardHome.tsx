@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { FactualAttentionList } from "@/components/FactualAttentionList";
+import type { ResolvedFavorite } from "@/lib/personal-favorites-repository";
 import type { FactualAttention } from "@/lib/factual-attention";
 import type { DashboardActivity } from "@/lib/dashboard-activity-repository";
 
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-700";
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
 
-export function DashboardHome({ activity, attention }: { activity: DashboardActivity[]; attention: FactualAttention }) {
+export function DashboardHome({ activity, attention, favorites = [] }: { activity: DashboardActivity[]; attention: FactualAttention; favorites?: ResolvedFavorite[] }) {
   return <main className="mx-auto w-full min-w-0 max-w-3xl px-4 py-8 sm:px-6">
     <h1 className="text-3xl font-bold text-slate-950">Accueil</h1>
     <nav aria-label="Choisir une destination" className="mt-6">
@@ -30,6 +31,17 @@ export function DashboardHome({ activity, attention }: { activity: DashboardActi
       <h2 id="dashboard-attention-title" className="text-lg font-semibold text-slate-900">À votre attention</h2>
       <FactualAttentionList items={attention.items} />
       {attention.items.length > 0 && <Link href="/alertes" className={`mt-2 inline-flex min-h-11 items-center rounded-lg text-sm underline ${focus}`}>Voir toutes</Link>}
+    </section>
+    <section aria-labelledby="dashboard-favorites-title" className="mt-8">
+      <h2 id="dashboard-favorites-title" className="text-lg font-semibold text-slate-900"><span aria-hidden="true">★ </span>Favoris</h2>
+      {favorites.length ? <ul className="mt-3 divide-y rounded-2xl border bg-white px-4">
+        {favorites.map(item => <li key={`${item.objectKind}:${item.objectId}`} className="flex min-w-0 items-center justify-between gap-3 py-3">
+          <div className="min-w-0"><span className="block text-xs text-slate-600">{item.label}</span>
+            <span className="block break-words font-medium [overflow-wrap:anywhere]">{item.title}</span></div>
+          <Link href={item.href} prefetch={false} aria-label={`Ouvrir ${item.title}`} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg text-sm underline ${focus}`}>Ouvrir</Link>
+        </li>)}
+      </ul> : <p className="mt-3 text-sm text-slate-600">Ajoutez un objet aux favoris via son menu ••• pour le retrouver ici.</p>}
+      <Link href="/favoris" className={`mt-2 inline-flex min-h-11 items-center rounded-lg text-sm underline ${focus}`}>Voir tous</Link>
     </section>
     {activity.length > 0 ? <section data-boussole-id="dashboard-recent-activity" aria-labelledby="dashboard-activity-title" className="mt-8">
       <h2 id="dashboard-activity-title" className="text-lg font-semibold text-slate-900">Activité récente</h2>

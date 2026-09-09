@@ -70,6 +70,7 @@ test("both pages authenticate before the same projection, never using request ow
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "session-owner" }; } },
     "@/lib/factual-attention": { attentionPage: r.attentionPage, getFactualAttention: async (...args: any[]) => { calls.push(args); return { items: [], hasMore: false }; } },
     "@/components/FactualAttentionList": list, "@/components/DashboardHome": home,
+    "@/lib/personal-favorites-repository": { readFavoritePage: async () => ({ items: [] }) },
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async () => [] },
   };
   const alerts = loadTestModule("app/(connected)/alertes/page.tsx", dependencies).default;
@@ -88,7 +89,7 @@ test("home preview follows the doors; Bien démarrer changes only the home door"
   assert.ok(html.indexOf("À votre attention") > html.indexOf("</nav>"));
   assert.match(html, /Voir toutes/); assert.match(html, /href="\/alertes"/); assert.match(html, /Dossier &lt;test&gt;/);
   assert.match(html, /Bien démarrer/); assert.match(html, /data-boussole-id="open-boussole-from-dashboard" href="\/boussole\/decouverte"/);
-  assert.doesNotMatch(html, /rouge|retard|SLA|Favoris/);
+  assert.doesNotMatch(html, /rouge|retard|SLA/);
   assert.match(renderShellFixture(), /Boussole/); assert.doesNotMatch(renderShellFixture(), /Bien démarrer/);
   assert.equal(spatial.isConnectedPathname("/alertes"), true);
 });

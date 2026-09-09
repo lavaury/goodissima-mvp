@@ -9,6 +9,7 @@ import ts from "typescript";
 
 // Browser contract test: actual React components and Tailwind CSS, local auth/router
 // doubles. No application server, account, business data or network is required.
+const homeOnly = process.argv.includes("--home-only");
 const require = createRequire(import.meta.url);
 const output = fs.mkdtempSync(path.join(os.tmpdir(), "goodissima-navigation-"));
 const chrome = process.env.GOODISSIMA_CHROME || [
@@ -97,7 +98,7 @@ function WorkspaceCreationFixture(){
  const portfolio=new URL(href).searchParams.has('portfolioId')?{id:'portfolio-explorer-test',name:'Portfolio Europe accompagnement des projets internationaux '.repeat(3)}:null;
  return h(require('@/components/WorkspaceCreationForm').WorkspaceCreationForm,{portfolio});
 }
-function Content(){const toast=useToast();const pathname=modules['next/navigation'].usePathname();if(pathname==='/dashboard' && location.search.includes('home='))return h(require('@/components/DashboardHome').DashboardHome,{attention:{items:[],hasMore:false},activity:location.search.includes('home=populated')?Array.from({length:5},(_,i)=>({id:'event-'+i,label:['Lien créé','Dossier ouvert','Document déposé'][i%3],context:'Un contexte métier '+ 'X'.repeat(160),date:new Date('2026-09-01T12:00:00Z'),href:i===0?'/links/real-link':'/cases/real-case'})):[]});if(pathname==='/gouvernance/workspaces/nouveau')return h(WorkspaceCreationFixture);if(pathname==='/gouvernance/portfolios/portfolio-explorer-test')return h(PortfolioFixture);if(pathname==='/gouvernance')return h(SpacesFixture);if(pathname==='/gouvernance/workspaces/technical-workspace-id')return h(WorkspaceFixture);return h('main',{className:'px-4 py-8'},__qa.contexts[pathname]?h(PageNavigationContext,{pathname,items:__qa.contexts[pathname]}):null,h('h1',null,'Contenu métier'),h('button',{id:'toast-test',onClick:()=>toast.success('Notification de test')},'Tester la notification'));}
+function Content(){const toast=useToast();const pathname=modules['next/navigation'].usePathname();if(pathname==='/dashboard' && location.search.includes('home='))return h(require('@/components/DashboardHome').DashboardHome,{favorites:location.search.includes('home=populated')?Array.from({length:5},(_,i)=>({objectKind:'PORTFOLIO',objectId:'p-'+i,label:'Portfolio',title:'Un favori '+ 'X'.repeat(160),href:'/gouvernance/portfolios/p-'+i})):[],attention:{items:location.search.includes('home=populated')?Array.from({length:3},(_,i)=>({id:'c-'+i,type:'WAITING_OWNER',object:'Dossier',label:'Un dossier '+ 'X'.repeat(100),reason:'En attente propriétaire',href:'/cases/c-'+i})):[],hasMore:false},activity:location.search.includes('home=populated')?Array.from({length:5},(_,i)=>({id:'event-'+i,label:['Lien créé','Dossier ouvert','Document déposé'][i%3],context:'Un contexte métier '+ 'X'.repeat(160),date:new Date('2026-09-01T12:00:00Z'),href:i===0?'/links/real-link':'/cases/real-case'})):[]});if(pathname==='/gouvernance/workspaces/nouveau')return h(WorkspaceCreationFixture);if(pathname==='/gouvernance/portfolios/portfolio-explorer-test')return h(PortfolioFixture);if(pathname==='/gouvernance')return h(SpacesFixture);if(pathname==='/gouvernance/workspaces/technical-workspace-id')return h(WorkspaceFixture);return h('main',{className:'px-4 py-8'},__qa.contexts[pathname]?h(PageNavigationContext,{pathname,items:__qa.contexts[pathname]}):null,h('h1',null,'Contenu métier'),h('button',{id:'toast-test',onClick:()=>toast.success('Notification de test')},'Tester la notification'));}
 function App(){const pathname=modules['next/navigation'].usePathname();return __qa.spatial.isConnectedPathname(pathname)?h(ConnectedShell,{organizationName:'Organisation Goodissima avec un nom volontairement très long pour vérifier la troncature'},h(Content)):h('main',null,'Surface exclue');}
 ReactDOM.createRoot(document.getElementById('root')).render(h(LanguageProvider,null,h(ToastProvider,null,h(App),h(GlobalLanguageSwitcher))));
 `;
@@ -156,6 +157,46 @@ try {
     assert.deepEqual(metrics.doors.map(x => x.href), ["/boussole/decouverte", "/annuaire", "/gouvernance"]);
     assert.ok(metrics.doors.every(x => x.visible && x.fits), JSON.stringify(metrics));
 
+    if (homeOnly) {
+      for (const [href, label] of [["/favoris", "Favoris"], ["/recherche", "Recherche Goodissima"]]) {
+        await evaluate(`document.querySelector('a[aria-label="${label}"]').focus()`);
+        assert.equal(await evaluate("getComputedStyle(document.activeElement).outlineStyle"), "solid");
+        await key("Enter"); await pause();
+        assert.equal(await evaluate("location.pathname"), href);
+      }
+      await evaluate("__qa.navigate('/dashboard')"); await pause();
+      await evaluate("document.querySelector('summary').focus()");
+      await key("Enter"); await pause();
+      assert.equal(await evaluate("document.querySelector('details').open"), true);
+      await key("Tab");
+      assert.equal(await evaluate("document.activeElement.getAttribute('href')"), "/identity");
+      assert.equal(await evaluate("getComputedStyle(document.activeElement).outlineStyle"), "solid");
+      const menu = await evaluate(`(()=>{const m=document.querySelector('[aria-label="Compte"]');const r=m.getBoundingClientRect();return {text:m.textContent,links:[...m.querySelectorAll('a')].map(a=>a.getAttribute('href')),left:r.left,right:r.right}})()`);
+      assert.deepEqual(menu.links, ["/identity", "/administration"]);
+      assert.ok(menu.text.includes("Mon profil") && !menu.text.includes("Autres accès"));
+      assert.ok(menu.left >= 0 && menu.right <= width);
+      await key("Escape");
+      assert.equal(await evaluate("!document.querySelector('details').open && document.activeElement===document.querySelector('summary')"), true);
+      for (const state of ["empty", "populated"]) {
+        await send("Page.navigate", { url: `${origin}/dashboard?home=${state}` }, sessionId);
+        for (let tries=0; tries<50 && !(await evaluate("Boolean(document.querySelector('#dashboard-favorites-title'))")); tries++) await pause();
+        await pause();
+        const home = await evaluate(`(()=>{const f=document.querySelector('[aria-labelledby="dashboard-favorites-title"]'),a=document.querySelector('[aria-labelledby="dashboard-attention-title"]');return {overflow:document.documentElement.scrollWidth>innerWidth,favorites:f.querySelectorAll('li').length,alerts:a.querySelectorAll('li').length,text:document.querySelector('main').textContent,headings:[...document.querySelectorAll('main h2')].map(h=>h.textContent),all:[...document.querySelectorAll('main a')].every(a=>a.getAttribute('href').startsWith('/'))}})()`);
+        assert.equal(home.overflow, false);
+        assert.equal(home.favorites, state==="empty"?0:5);
+        assert.equal(home.alerts, state==="empty"?0:3);
+        assert.ok(home.all);
+        assert.ok(home.text.includes("Bien démarrer"));
+        if(state==="empty") assert.ok(home.text.includes("Rien ne nécessite actuellement votre attention.") && home.text.includes("menu •••"));
+        assert.ok(home.headings[1].includes("À votre attention") && home.headings[2].includes("Favoris"));
+        const shot = await send("Page.captureScreenshot", {format:"png", captureBeyondViewport:true}, sessionId);
+        fs.writeFileSync(path.join(output, `${width}-home-${state}.png`), Buffer.from(shot.data,"base64"));
+        assert.deepEqual(await evaluate("__qa.errors"), []);
+      }
+      results.push({width, home:"passed", keyboard:"passed", menu:"passed"});
+      continue;
+    }
+
     const historyState = () => evaluate(`({back:!document.querySelector('button[aria-label^="Retour"]').disabled,forward:!document.querySelector('button[aria-label^="Suivant"]').disabled})`);
     const go = async href => { await evaluate(`__qa.navigate(${JSON.stringify(href)})`); await pause(); };
     const traverse = async label => { await evaluate(`document.querySelector('button[aria-label^="${label}"]').click()`); await pause(); };
@@ -177,7 +218,7 @@ try {
     await key("Enter");
     await pause();
     assert.equal(await evaluate("document.querySelector('details').open"), true, await evaluate("JSON.stringify({active:document.activeElement.outerHTML,focus:document.hasFocus(),errors:__qa.errors})"));
-    assert.equal(await evaluate("document.querySelector('a[href=\"/identity\"]').checkVisibility() && document.querySelector('a[href=\"/settings\"]').checkVisibility()"), true);
+    assert.equal(await evaluate("document.querySelector('a[href=\"/identity\"]').checkVisibility()"), true);
     await key("Tab");
     assert.equal(await evaluate("document.activeElement.getAttribute('href')"), "/identity");
     assert.equal(await evaluate("getComputedStyle(document.activeElement).outlineStyle"), "solid");
@@ -186,27 +227,24 @@ try {
     await key(" ", "Space");
     await pause();
     assert.equal(await evaluate("document.querySelector('details').open"), true);
-    await evaluate("document.querySelector('details details summary').click()");
-    assert.equal(await evaluate("[...document.querySelectorAll('details details a')].length"), 10);
-    assert.equal(await evaluate("[...document.querySelectorAll('details details a')].every(a=>a.checkVisibility())"), true);
+    assert.equal(await evaluate("[...document.querySelectorAll('details a')].length"), 2);
+    assert.equal(await evaluate("[...document.querySelectorAll('details a')].every(a=>a.checkVisibility())"), true);
     assert.equal(await evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), true);
     const menuBounds = await evaluate("(()=>{const r=document.querySelector('[aria-label=\"Compte et autres accès\"]').getBoundingClientRect();return {left:r.left,right:r.right,bottom:r.bottom}})()");
     assert.ok(menuBounds.left >= 0 && menuBounds.right <= width && menuBounds.bottom <= 900);
     const menuScreenshot = await send("Page.captureScreenshot", { format: "png" }, sessionId);
     fs.writeFileSync(path.join(output, `${width}-menu.png`), Buffer.from(menuScreenshot.data, "base64"));
 
-    // Every old destination still has a real anchor. A selection closes the panel.
-    await evaluate("document.querySelector('a[href=\"/opportunities\"]').click()");
+    // Selecting the profile closes the simplified account panel.
+    await evaluate("document.querySelector('a[href=\"/identity\"]').click()");
     await pause();
-    assert.equal(await evaluate("__qa.path"), "/opportunities");
+    assert.equal(await evaluate("__qa.path"), "/identity");
     assert.equal(await evaluate("document.querySelector('details').open"), false);
-    assert.equal(await evaluate("document.querySelector('nav [aria-current]').getAttribute('href')"), "/gouvernance");
-    assert.equal(await evaluate("getComputedStyle(document.querySelector('nav [aria-current]')).textDecorationLine.includes('underline')"), true);
 
     // Boussole opens only presentation disclosures around the real link.
-    assert.equal(await evaluate("__qa.disclosure.isInClosedNavigationDisclosure(document.querySelector('a[href=\"/ia-valeur\"]'))"), true);
+    assert.equal(await evaluate("__qa.disclosure.isInClosedNavigationDisclosure(document.querySelector('a[href=\"/identity\"]'))"), true);
     const navigationCount = await evaluate("__qa.navigations.length");
-    await evaluate("__qa.disclosure.revealNavigationDisclosure(document.querySelector('a[href=\"/ia-valeur\"]'))");
+    await evaluate("__qa.disclosure.revealNavigationDisclosure(document.querySelector('a[href=\"/identity\"]'))");
     assert.equal(await evaluate("[...document.querySelectorAll('details')].every(d=>d.open)"), true);
     assert.equal(await evaluate("__qa.navigations.length"), navigationCount);
     await key("Escape");
@@ -411,6 +449,7 @@ try {
     }
     results.push({ dashboardHome: "pass", workspaceCreation: "pass", portfolio: "pass", spaces: "pass", ...metrics, spatialHeight, keyboard: "pass", disclosures: "pass", navigation: "pass", nativeHistory: "pass", breadcrumb: "pass", exclusions: "pass", languageAndLogout: "pass", toast: "pass" });
   }
+  if (!homeOnly) {
   const newTab = await send("Target.createTarget", { url: `${origin}/annuaire?token=never-show-this` });
   const attached = await send("Target.attachToTarget", { targetId: newTab.targetId, flatten: true });
   let tabResult;
@@ -422,6 +461,7 @@ try {
   assert.ok(tabResult.result.value.disabled, "new tab does not know a back or forward entry");
   assert.ok(!tabResult.result.value.text.includes("never-show-this"));
   await send("Target.closeTarget", { targetId: newTab.targetId });
+  }
   fs.writeFileSync(path.join(output, "results.json"), JSON.stringify(results, null, 2));
   console.log(JSON.stringify({ output, results }, null, 2));
   await send("Browser.close");

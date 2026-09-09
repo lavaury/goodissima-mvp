@@ -102,7 +102,7 @@ test("logo links accessibly to Dashboard, content has its own main, and non-admi
   const nav = html.slice(html.indexOf("<nav"), html.indexOf("</nav>"));
   assert.equal((nav.match(/<a\b/g)??[]).length, 3);
   for (const href of ["/boussole/decouverte", "/annuaire", "/gouvernance"]) assert.ok(nav.includes(`href="${href}"`));
-  for (const href of ["/dashboard", "/links/simple", "/gouvernance", "/gouvernance/pilotage", "/gouvernance/portfolios", "/gouvernance/nouveau", "/annuaire", "/identity", "/trust/connectors", "/settings", "/opportunities", "/parcours", "/relations", "/boussole/decouverte", "/administration"]) assert.ok(html.includes(`href="${href}"`), href);
+  for (const href of ["/dashboard", "/gouvernance", "/annuaire", "/identity", "/boussole/decouverte", "/administration", "/favoris", "/recherche"]) assert.ok(html.includes(`href="${href}"`), href);
   assert.equal((html.match(/data-boussole-id="dashboard-menu"/g)??[]).length, 1);
   assert.doesNotMatch(renderShellFixture("/annuaire"), /data-boussole-id="dashboard-menu"/);
 });
