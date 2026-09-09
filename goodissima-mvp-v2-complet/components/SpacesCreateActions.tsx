@@ -25,7 +25,7 @@ export function SpacesCreateActions({ portfolioId }: { portfolioId?: string } = 
   return <details ref={ref} data-boussole-disclosure="navigation" data-spaces-create className={`${portfolioId ? "" : "mt-4 "}w-full rounded-xl border bg-white sm:w-fit`}>
     <summary className="cursor-pointer rounded-xl px-4 py-3 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">+ Nouveau</summary>
     <nav aria-label={portfolioId ? "Créer dans ce Portfolio" : "Créer dans Mes espaces"} className="flex flex-col gap-1 border-t p-2">
-      {items.map(item => <Link key={item.href} href={item.href} data-boussole-id={item.target} onClick={() => close()} className="rounded-lg px-3 py-3 text-sm font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{item.label}</Link>)}
+      {items.map(item => <span key={item.href} data-boussole-id={!portfolioId && item.href === "/gouvernance/workspaces/nouveau" ? "create-workspace-from-unassigned-journeys" : undefined}><Link key={item.href} href={item.href} data-boussole-id={item.target} onClick={() => close()} className="block rounded-lg px-3 py-3 text-sm font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{item.label}</Link></span>)}
     </nav>
   </details>;
 }

@@ -9,7 +9,7 @@ import { businessLabel } from "@/lib/spatial-navigation";
 
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700";
 const openLink = `inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-semibold ${focus}`;
-function PortfolioBranch({ portfolio, initialOpen, first, firstWorkspaceId }: { portfolio: SpacesTree["portfolios"][number]; initialOpen: boolean; first: boolean; firstWorkspaceId?: string }) {
+function PortfolioBranch({ portfolio, initialOpen, first, firstWorkspaceId, portfolios }: { portfolios: SpacesTree["portfolios"]; portfolio: SpacesTree["portfolios"][number]; initialOpen: boolean; first: boolean; firstWorkspaceId?: string }) {
   const [open, setOpen] = useState(initialOpen);
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -27,7 +27,7 @@ function PortfolioBranch({ portfolio, initialOpen, first, firstWorkspaceId }: { 
       <Link href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} aria-label={`Ouvrir le Portfolio : ${name}`} className={openLink}>Ouvrir</Link>
     </ObjectActionRow>
     <div id={id} hidden={!open} data-boussole-portfolio-content="true" className="ml-2 mt-3 border-l-2 border-slate-300 pl-2 sm:ml-5 sm:pl-4">
-      {portfolio.workspaces.length ? <ul aria-label={`Workspaces du Portfolio ${name}`} className="space-y-2">{portfolio.workspaces.map(workspace => <WorkspaceRow key={workspace.id} workspace={workspace} first={workspace.id === firstWorkspaceId} />)}</ul> : <p className="p-2 text-sm text-slate-600">Aucun Workspace dans ce Portfolio.</p>}
+      {portfolio.workspaces.length ? <ul aria-label={`Workspaces du Portfolio ${name}`} className="space-y-2">{portfolio.workspaces.map(workspace => <WorkspaceRow key={workspace.id} workspace={workspace} first={workspace.id === firstWorkspaceId} portfolios={portfolios} portfolioId={portfolio.id} />)}</ul> : <p className="p-2 text-sm text-slate-600">Aucun Workspace dans ce Portfolio.</p>}
     </div>
   </div></li>;
 }
@@ -38,10 +38,10 @@ export function SpacesTreeView({ data }: { data: SpacesTree }) {
     <p data-boussole-id="governance-workspaces-count" className="text-sm text-slate-600">{count} Workspaces accessibles dans cette arborescence.</p>
     <section aria-labelledby="spaces-portfolios"><h2 id="spaces-portfolios" className="text-xl font-bold">Portfolios</h2>
       <p data-boussole-id="governance-workspace-portfolio-explanation" className="mt-2 text-sm text-slate-600">Un Portfolio regroupe des Workspaces. Chaque Workspace rassemble ses parcours, liens et dossiers.</p>
-      {data.portfolios.length ? <ul className="mt-3 space-y-3">{data.portfolios.map((portfolio, index) => <PortfolioBranch key={portfolio.id} portfolio={portfolio} initialOpen={data.portfolios.length <= 5 || index === 0} first={index === 0} firstWorkspaceId={firstWorkspaceId} />)}</ul> : <p className="mt-3 text-sm text-slate-600">Vous n’avez pas encore de Portfolio.</p>}
+      {data.portfolios.length ? <ul className="mt-3 space-y-3">{data.portfolios.map((portfolio, index) => <PortfolioBranch key={portfolio.id} portfolio={portfolio} initialOpen={data.portfolios.length <= 5 || index === 0} first={index === 0} firstWorkspaceId={firstWorkspaceId} portfolios={data.portfolios} />)}</ul> : <p className="mt-3 text-sm text-slate-600">Vous n’avez pas encore de Portfolio.</p>}
     </section>
     <section aria-labelledby="spaces-roots"><h2 id="spaces-roots" data-boussole-id="governance-workspaces-section" className="text-xl font-bold">Workspaces sans Portfolio</h2>
-      {data.roots.length ? <ul className="mt-3 space-y-2">{data.roots.map(workspace => <WorkspaceRow key={workspace.id} workspace={workspace} first={workspace.id === firstWorkspaceId} />)}</ul> : <p className="mt-3 text-sm text-slate-600">Aucun Workspace sans Portfolio.</p>}
+      {data.roots.length ? <ul className="mt-3 space-y-2">{data.roots.map(workspace => <WorkspaceRow key={workspace.id} workspace={workspace} first={workspace.id === firstWorkspaceId} portfolios={data.portfolios} portfolioId={null} />)}</ul> : <p className="mt-3 text-sm text-slate-600">Aucun Workspace sans Portfolio.</p>}
     </section>
     {!count && !data.unavailableParentCount ? <p data-boussole-id="governance-empty-state" className="rounded-xl border border-dashed p-4">Vous n’avez pas encore de Workspace. Créez-en un avec « + Nouveau ».</p> : null}
     {data.unavailableParentCount > 0 ? <p className="rounded-xl border p-4 text-sm">{data.unavailableParentCount} Workspace(s) ne peuvent pas être affichés : leur Portfolio n’est pas accessible.</p> : null}

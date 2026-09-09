@@ -20,7 +20,7 @@ const chrome = process.env.GOODISSIMA_CHROME || [
 assert.ok(chrome, "Set GOODISSIMA_CHROME to a Chromium browser executable");
 
 execFileSync(process.execPath, ["node_modules/tailwindcss/lib/cli.js", "-i", "app/globals.css", "-o", path.join(output, "styles.css")], { stdio: "pipe" });
-const files = ["ObjectActionRow", "FactualAttentionList", "DashboardHome", "ConnectedShell", "PlatformNavigation", "ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton", "ToastProvider", "GlobalLanguageSwitcher", "SpatialNavigationContext", "SpatialNavigationBar", "WorkspaceDetailView", "WorkspacePilotageView", "WorkspaceCreateActions", "SpacesTreeView", "SpacesCreateActions", "WorkspaceRow", "PortfolioExplorerView", "PortfolioOrganize", "WorkspaceCreationForm"];
+const files = ["OrganizationPanel", "ObjectActionRow", "FactualAttentionList", "DashboardHome", "ConnectedShell", "PlatformNavigation", "ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton", "ToastProvider", "GlobalLanguageSwitcher", "SpatialNavigationContext", "SpatialNavigationBar", "WorkspaceDetailView", "WorkspacePilotageView", "WorkspaceCreateActions", "SpacesTreeView", "SpacesCreateActions", "WorkspaceRow", "PortfolioExplorerView", "PortfolioOrganize", "WorkspaceCreationForm"];
 const sources = Object.fromEntries(files.map(name => [`@/components/${name}`, `components/${name}.tsx`]));
 sources["@/lib/boussole/navigation-disclosure"] = "lib/boussole/navigation-disclosure.ts";
 sources["@/lib/spatial-navigation"] = "lib/spatial-navigation.ts";

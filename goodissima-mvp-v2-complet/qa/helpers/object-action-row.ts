@@ -9,3 +9,5 @@ export const objectActionRow = loadTestModule("components/ObjectActionRow.tsx", 
   "next/navigation": { useRouter: () => ({ refresh() {} }) },
   "@/lib/personal-favorites-actions": { getFavoriteState: async () => ({ available: true, saved: false }), addFavorite: async () => ({ ok: true }), removeFavorite: async () => ({ ok: true }) },
 });
+
+export const organizationPanel = loadTestModule("components/OrganizationPanel.tsx", { react: React, "react/jsx-runtime": jsx });

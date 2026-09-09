@@ -12,6 +12,7 @@ type Props = {
   name: string;
   href: string | null;
   attachmentTargetId?: string;
+  attachmentLabel?: string;
   favorite?: FavoriteTarget;
   children: ReactNode;
   className?: string;
@@ -20,7 +21,7 @@ type Props = {
 
 /** Presentation only: both entry points use this one menu. Attachment only focuses
  * the existing confirmation form; it never submits or grants an authorization. */
-export function ObjectActionRow({ as: Tag = "div", name, href, attachmentTargetId, favorite, children, className = "", ...attributes }: Props) {
+export function ObjectActionRow({ as: Tag = "div", name, href, attachmentTargetId, attachmentLabel = "Rattacher à un Workspace", favorite, children, className = "", ...attributes }: Props) {
   const router = useRouter();
   const [favoriteState, setFavoriteState] = useState<{ available: boolean; saved: boolean } | null>(null);
   const [pending, setPending] = useState(false);
@@ -40,7 +41,7 @@ export function ObjectActionRow({ as: Tag = "div", name, href, attachmentTargetI
   }, [open, favorite?.objectKind, favorite?.objectId, href]);
   const actions = [
     ...(href ? [{ id: "open", label: "Ouvrir", href }] : []),
-    ...(attachmentTargetId ? [{ id: "attach", label: "Rattacher à un Workspace", href: null }] : []),
+    ...(attachmentTargetId ? [{ id: "attach", label: attachmentLabel, href: null }] : []),
     ...(favorite && href && favoriteState?.available !== false ? [{ id: "favorite", label: !favoriteState ? "Vérification du favori…" : favoriteState.saved ? "Retirer des favoris" : "Ajouter aux favoris", href: null }] : []),
   ];
   function close(restore = true) {
@@ -82,6 +83,8 @@ export function ObjectActionRow({ as: Tag = "div", name, href, attachmentTargetI
   function attach() {
     close(false);
     const target = document.getElementById(attachmentTargetId!);
+    const panel = target?.closest("details");
+    if (panel) panel.open = true;
     target?.scrollIntoView({ block: "center" });
     (target?.querySelector<HTMLElement>("select") ?? target)?.focus({ preventScroll: true });
   }

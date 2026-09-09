@@ -1,4 +1,4 @@
-import { objectActionRow } from "./helpers/object-action-row.ts";
+import { objectActionRow, organizationPanel } from "./helpers/object-action-row.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as React from "react";
@@ -13,9 +13,9 @@ import { getBoussoleJourneyVersion } from "../lib/boussole/registry.ts";
 
 const row = (id: string, ownerId = "owner", portfolioId: string | null = "p") => ({ id, name: `Workspace ${id}`, ownerId, portfolioId, status: "ACTIVE", _count: { relationTemplates: 1, links: 2, relationCases: 3, communicationSessions: 4 } });
 const portfolio = { id: "p", ownerId: "owner", name: "Portfolio Europe", slug: "europe", kind: "PROJECT", description: "Projets en Europe", status: "ACTIVE", createdAt: new Date("2026-01-01"), workspaces: [row("one"), row("two")] };
-const base = { react: React, "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial };
+const base = { react: React, "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial };
 const createMenu = loadTestModule("components/SpacesCreateActions.tsx", base);
-const shared = loadTestModule("components/WorkspaceRow.tsx", base);
+const shared = loadTestModule("components/WorkspaceRow.tsx", { ...base, "@/lib/governance-portfolio-actions": { attachWorkspaceToPortfolioAction: "/attach" } });
 const view = loadTestModule("components/PortfolioExplorerView.tsx", { ...base, "@/components/WorkspaceRow": shared, "@/components/SpacesCreateActions": createMenu,
   "@/components/SpatialNavigationContext": { PageNavigationContext: () => null } });
 const organize = loadTestModule("components/PortfolioOrganize.tsx", { ...base,
@@ -49,7 +49,7 @@ test("targeted repository checks Portfolio and child ownership with direct Mes e
 test("page authenticates first, rejects unknown/foreign Portfolio, skips attach options when archived", async () => {
   let reads = 0; let optionReads = 0;
   const load = (authenticated: boolean, result: any) => loadTestModule("app/(connected)/gouvernance/portfolios/[id]/page.tsx", {
-    "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "next/navigation": { notFound: () => { throw Error("NOT_FOUND"); } },
+    "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel, "next/navigation": { notFound: () => { throw Error("NOT_FOUND"); } },
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "owner" }; } },
     "@/lib/portfolio-explorer-repository": { getPortfolioExplorer: async (owner: string, id: string) => { assert.equal(owner, "owner"); assert.equal(id, "p"); reads++; return result; } },
     "@/lib/governance-portfolio-repository": { portfolioKindLabels: { PROJECT: "Projet" }, getAvailableWorkspacesForPortfolio: async (owner: string) => { assert.equal(owner, "owner"); optionReads++; return []; } },

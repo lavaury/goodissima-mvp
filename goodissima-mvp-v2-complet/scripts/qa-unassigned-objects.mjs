@@ -1,4 +1,4 @@
-import { objectActionRow } from "../qa/helpers/object-action-row.ts";
+import { objectActionRow, organizationPanel } from "../qa/helpers/object-action-row.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -21,7 +21,7 @@ async function markup(empty = false, noWorkspace = false) {
   const item = { id: "fixture", formTemplateId: "fixture-form", title, createdAt: new Date("2026-09-01"), href: "/links/fixture", gLinkTitle: title };
   const page = items => ({ items: empty ? [] : items, hasMore: !empty });
   const component = loadTestModule("components/SpacesExistingAttachments.tsx", {
-    "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow,
+    "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel,
     "next/link": ({ children, ...props }) => React.createElement("a", props, children),
     "@/lib/unassigned-pagination": pagination,
     "@/lib/governance-workspace-actions": { attachGLinkToWorkspaceAction: "/fixture-link", attachRelationCaseToWorkspaceAction: "/fixture-case", attachGovernedJourneyToWorkspaceAction: "/fixture-journey" },

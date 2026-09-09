@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import * as jsx from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
-import { objectActionRow } from "./helpers/object-action-row.ts";
+import { objectActionRow, organizationPanel } from "./helpers/object-action-row.ts";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 import * as pagination from "../lib/unassigned-pagination.ts";
 
@@ -28,7 +28,7 @@ test("one menu definition, local context handler, and attachment never submits",
 test("unassigned surfaces retain owner destinations, attachment mode and warning before confirmation", async () => {
   const row = { id: "one", title: "Objet", createdAt: new Date(), href: "/cases/one", gLinkTitle: "Parent" };
   const component = loadTestModule("components/SpacesExistingAttachments.tsx", {
-    "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow,
+    "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel,
     "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }),
     "@/lib/unassigned-pagination": pagination,
     "@/lib/governance-workspace-actions": { attachGLinkToWorkspaceAction: "/link", attachGovernedJourneyToWorkspaceAction: "/journey", attachRelationCaseToWorkspaceAction: "/case" },
@@ -46,7 +46,10 @@ test("unassigned surfaces retain owner destinations, attachment mode and warning
   assert.match(html, /href="\/cases\/one"/); assert.match(html, /href="\/links\/two"/);
   assert.doesNotMatch(html, /attachUnassignedCases|\/secure\//);
 });
-test("attached Workspace rows never receive an attachment action", () => {
-  const source = readFileSync("components/WorkspaceDetailView.tsx", "utf8") + readFileSync("components/WorkspaceRow.tsx", "utf8") + readFileSync("components/SpacesTreeView.tsx", "utf8");
-  assert.doesNotMatch(source, /attachmentTargetId/);
+test("Workspace detail keeps object attachments absent; explorer uses explicit Portfolio semantics", () => {
+  assert.doesNotMatch(readFileSync("components/WorkspaceDetailView.tsx", "utf8"), /attachmentTargetId/);
+  const source = readFileSync("components/WorkspaceRow.tsx", "utf8");
+  assert.match(source, /Déplacer vers un autre Portfolio/);
+  assert.match(source, /Rattacher à un Portfolio/);
+  assert.match(source, /action={attachWorkspaceToPortfolioAction}/);
 });

@@ -19,8 +19,9 @@ const chrome = process.env.GOODISSIMA_CHROME || [
 assert.ok(chrome, "Set GOODISSIMA_CHROME to a Chromium browser executable");
 
 execFileSync(process.execPath, ["node_modules/tailwindcss/lib/cli.js", "-i", "app/globals.css", "-o", path.join(output, "styles.css")], { stdio: "pipe" });
-const files = ["ObjectActionRow", "WorkspaceRow", "SpacesTreeView", "WorkspaceDetailView", "SpacesExistingAttachments"];
+const files = ["OrganizationPanel", "ObjectActionRow", "WorkspaceRow", "SpacesTreeView", "WorkspaceDetailView", "SpacesExistingAttachments"];
 const sources = Object.fromEntries(files.map(name => [`@/components/${name}`, `components/${name}.tsx`]));
+sources["@/lib/boussole/navigation-disclosure"] = "lib/boussole/navigation-disclosure.ts";
 sources["@/lib/spatial-navigation"] = "lib/spatial-navigation.ts";
 sources["@/lib/object-creation"] = "lib/object-creation.ts";
 sources["@/lib/unassigned-pagination"] = "lib/unassigned-pagination.ts";
@@ -52,6 +53,7 @@ const modules={
  '@/components/SpacesCreateActions':{SpacesCreateActions:()=>null},
  '@/components/WorkspaceCreateActions':{WorkspaceCreateActions:()=>null},
  '@/components/SpatialNavigationContext':{PageNavigationContext:()=>null},
+ '@/lib/governance-portfolio-actions':{attachWorkspaceToPortfolioAction:'/fixture-portfolio'},
  '@/lib/governance-workspace-actions':{attachGLinkToWorkspaceAction:'/fixture-link',attachGovernedJourneyToWorkspaceAction:'/fixture-journey',attachRelationCaseToWorkspaceAction:'/fixture-case'},
  '@/lib/governance-workspace-repository':{
  getGovernanceWorkspaceOptions:async()=>location.search.includes('noWorkspace')?[]:[{id:'destination',name:'Destination active',categoryLabel:'Projet'}],
@@ -135,7 +137,7 @@ try {
       await click(trigger);
       const before=await evaluate("({id:document.querySelector('[role=menu]')?.id,items:[...document.querySelectorAll('[role=menuitem]')].map(el=>el.textContent),nav:__qa.navigations.length})");
       const isUnassigned=await evaluate(`document.querySelector('#row-${index}').tagName==='ARTICLE'`);
-      assert.deepEqual(before.items,isUnassigned?['Ouvrir','Rattacher à un Workspace','Ajouter aux favoris']:['Ouvrir','Ajouter aux favoris']);
+      assert.deepEqual(before.items,isUnassigned?['Ouvrir','Rattacher à un Workspace','Ajouter aux favoris']:index===1?['Ouvrir','Déplacer vers un autre Portfolio…','Ajouter aux favoris']:index===2?['Ouvrir','Rattacher à un Portfolio…','Ajouter aux favoris']:['Ouvrir','Ajouter aux favoris']);
       assert.equal(before.nav,0,'trigger must not open the object');
       assert.equal(await evaluate("document.activeElement.getAttribute('role')"),'menuitem');
       assert.equal(await evaluate("(()=>{const r=document.querySelector('[role=menu]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight})()"),true);
@@ -153,6 +155,24 @@ try {
     }
     if (contextOnly) { console.log('Right-click and button: identical menus on all 10 rows'); break; }
     assert.equal(await evaluate("(()=>{const e=new MouseEvent('contextmenu',{bubbles:true,cancelable:true});document.querySelector('#outside').dispatchEvent(e);return e.defaultPrevented})()"),false);
+    // Compact rows: no confirmation controls until their contextual action.
+    assert.equal(await evaluate("[...document.querySelectorAll('#a-organiser select')].every(el=>!el.checkVisibility())"),true);
+    for (const target of ["workspace-portfolio-root","workspace-portfolio-workspace","attach-journey-journey","attach-link-simple","attach-link-opportunity"]) {
+      const ownerRow=await evaluate(`document.getElementById('${target}').closest('[data-object-action-row]').id`);
+      await click(`#${ownerRow} > button[aria-haspopup]`);
+      await key('ArrowDown');await key('Enter');await pause();
+      assert.equal(await evaluate(`document.getElementById('${target}').closest('details').open`),true);
+      assert.equal(await evaluate(`document.activeElement.closest('form').id`),target);
+      assert.equal(await evaluate('__qa.submissions.length'),0);
+      assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
+      await evaluate(`[...document.getElementById('${target}').closest('details').querySelectorAll('button')].find(b=>b.textContent==='Annuler').click()`);
+      assert.equal(await evaluate(`document.getElementById('${target}').closest('details').open`),false);
+    }
+    // Existing Boussole targets still reveal presentation only, including closed panels.
+    assert.equal(await evaluate("require('@/lib/boussole/navigation-disclosure').isInClosedNavigationDisclosure(document.querySelector('#attach-journey-journey select'))"),true);
+    await evaluate("require('@/lib/boussole/navigation-disclosure').revealNavigationDisclosure(document.querySelector('#attach-journey-journey select'))");
+    assert.equal(await evaluate("document.querySelector('#attach-journey-journey select').checkVisibility()"),true);
+    await evaluate("document.querySelector('#attach-journey-journey').closest('details').open=false");
     // Keyboard navigation and attachment of the case: confirmation is still the existing form.
     const caseRow=await evaluate("document.querySelector('form[id^=attach-case]').closest('article').id");
     await evaluate(`document.querySelector('#${caseRow} > button[aria-haspopup]').focus()`);
