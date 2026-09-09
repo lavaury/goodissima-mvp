@@ -132,6 +132,78 @@ enum IdentityStatus {
   REVOKED
 }
 
+enum DirectoryActorType {
+  PERSON
+  ORGANIZATION
+}
+
+enum DirectoryProfileStatus {
+  DRAFT
+  PUBLISHED
+  DISABLED
+}
+
+enum DirectoryManagerRole {
+  OWNER
+  EDITOR
+}
+
+enum DirectoryAttributeKind {
+  PROFESSION
+  SKILL
+  LANGUAGE
+  LOCATION
+  QUALIFICATION
+  CERTIFICATION
+  ORGANIZATION_DOMAIN
+}
+
+enum DirectoryPublicationStatus {
+  DRAFT
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum DirectoryTrustLevel {
+  DECLARED
+  VERIFIED
+}
+
+enum DirectoryLocationGranularity {
+  COUNTRY
+  REGION
+  CITY
+}
+
+enum DirectoryVerificationState {
+  VALID
+  EXPIRED
+  SUSPENDED
+  REVOKED
+  INVALID
+}
+
+enum DirectoryVerificationLossPolicy {
+  KEEP_AS_DECLARED
+  WITHDRAW
+}
+
+enum DirectoryAuditAction {
+  PROFILE_CREATED
+  PROFILE_PUBLISHED
+  PROFILE_DISABLED
+  PROFILE_REPUBLISHED
+  PROFILE_DELETED
+  ATTRIBUTE_ADDED
+  ATTRIBUTE_PUBLISHED
+  ATTRIBUTE_UPDATED
+  ATTRIBUTE_WITHDRAWN
+  VERIFICATION_ATTACHED
+  VERIFICATION_DOWNGRADED
+  MANAGER_ADDED
+  MANAGER_REMOVED
+}
+
 enum TrustCredentialStatus {
   ACTIVE
   EXPIRED
@@ -261,7 +333,7 @@ model PersonalFavorite {
   userId     String
   objectKind FavoriteObjectKind
   objectId   String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime           @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -277,22 +349,23 @@ model User {
   goodissimaIdentityId String?  @unique
   createdAt            DateTime @default(now())
 
-  links                   GLink[]
-  cases                   RelationCase[]              @relation("OwnerCases")
-  matchingRuns            MatchingRun[]                @relation("MatchingRunOwner")
-  portfolios              Portfolio[]                  @relation("OwnerPortfolios")
-  workspaces              Workspace[]                 @relation("OwnerWorkspaces")
-  communicationSessions   CommunicationSession[]
+  links                         GLink[]
+  cases                         RelationCase[]               @relation("OwnerCases")
+  matchingRuns                  MatchingRun[]                @relation("MatchingRunOwner")
+  portfolios                    Portfolio[]                  @relation("OwnerPortfolios")
+  workspaces                    Workspace[]                  @relation("OwnerWorkspaces")
+  communicationSessions         CommunicationSession[]
   authorizedMeetingParticipants GovernedMeetingParticipant[] @relation("MeetingParticipantAuthorizer")
-  goodissimaIdentity      GoodissimaIdentity?         @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
-  notificationPreferences UserNotificationPreference?
-  personalFavorites       PersonalFavorite[]
-  templateGenerations     TemplateGeneration[]
-  templateCriticReports   TemplateCriticReport[]
-  templateOptimizations   TemplateOptimization[]
-  aiEvents                AIEvent[]
-  manualTemplateEditAudits ManualTemplateEditAudit[]
-  productFeedback         ProductFeedback[]
+  goodissimaIdentity            GoodissimaIdentity?          @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
+  notificationPreferences       UserNotificationPreference?
+  personalFavorites             PersonalFavorite[]
+  templateGenerations           TemplateGeneration[]
+  templateCriticReports         TemplateCriticReport[]
+  templateOptimizations         TemplateOptimization[]
+  aiEvents                      AIEvent[]
+  manualTemplateEditAudits      ManualTemplateEditAudit[]
+  productFeedback               ProductFeedback[]
+  directoryProfilesManaged      DirectoryProfileManager[]
 }
 
 model Portfolio {
@@ -316,25 +389,25 @@ model Portfolio {
 }
 
 model Workspace {
-  id          String          @id @default(cuid())
+  id          String            @id @default(cuid())
   ownerId     String
   portfolioId String?
   slug        String
   name        String
   description String?
-  kind        WorkspaceKind   @default(GOVERNANCE)
+  kind        WorkspaceKind     @default(GOVERNANCE)
   category    WorkspaceCategory @default(OTHER)
-  status      WorkspaceStatus @default(ACTIVE)
+  status      WorkspaceStatus   @default(ACTIVE)
   metadata    Json?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  owner             User               @relation("OwnerWorkspaces", fields: [ownerId], references: [id], onDelete: Cascade)
-  portfolio         Portfolio?         @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
-  relationTemplates RelationTemplate[]
-  relationCases     RelationCase[]
-  links             GLink[]
-  communicationSessions CommunicationSession[]
+  owner                      User                        @relation("OwnerWorkspaces", fields: [ownerId], references: [id], onDelete: Cascade)
+  portfolio                  Portfolio?                  @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
+  relationTemplates          RelationTemplate[]
+  relationCases              RelationCase[]
+  links                      GLink[]
+  communicationSessions      CommunicationSession[]
   governedJourneyInvitations GovernedJourneyInvitation[]
 
   @@unique([ownerId, slug])
@@ -345,26 +418,26 @@ model Workspace {
 }
 
 model GovernedJourneyInvitation {
-  id String @id @default(cuid())
-  ownerId String
-  workspaceId String?
-  relationTemplateId String
-  relationCaseId String?
-  displayName String
-  role GovernedJourneyInvitationRole
-  status GovernedJourneyInvitationStatus @default(ACTIVE)
-  accessTokenHash String @unique
+  id                   String                          @id @default(cuid())
+  ownerId              String
+  workspaceId          String?
+  relationTemplateId   String
+  relationCaseId       String?
+  displayName          String
+  role                 GovernedJourneyInvitationRole
+  status               GovernedJourneyInvitationStatus @default(ACTIVE)
+  accessTokenHash      String                          @unique
   accessTokenExpiresAt DateTime
-  revokedAt DateTime?
-  acceptedAt DateTime?
-  lastAccessedAt DateTime?
-  metadata Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  revokedAt            DateTime?
+  acceptedAt           DateTime?
+  lastAccessedAt       DateTime?
+  metadata             Json?
+  createdAt            DateTime                        @default(now())
+  updatedAt            DateTime                        @updatedAt
 
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  relationTemplate RelationTemplate @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
-  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  workspace           Workspace?                   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  relationTemplate    RelationTemplate             @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
+  relationCase        RelationCase?                @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
   meetingParticipants GovernedMeetingParticipant[]
 
   @@index([ownerId, relationTemplateId, status])
@@ -372,35 +445,35 @@ model GovernedJourneyInvitation {
 }
 
 model CommunicationSession {
-  id        String @id @default(cuid())
-  ownerId   String
-  workspaceId String?
-  relationTemplateId String?
-  relationCaseId String?
-  channelType CommunicationChannelType
-  provider CommunicationProvider @default(NONE)
-  status CommunicationSessionStatus @default(PREPARED_NOT_STARTED)
-  title String
-  purpose String?
-  note String?
-  externalUrl String?
-  scheduledAt DateTime?
-  expiresAt DateTime?
-  transcriptionRequested Boolean @default(false)
-  transcriptionConsented Boolean @default(false)
-  recordingEnabled Boolean @default(false)
-  automaticNotificationSent Boolean @default(false)
-  tokenGenerated Boolean @default(false)
-  accessOpened Boolean @default(false)
-  workflowStarted Boolean @default(false)
-  metadata Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                        String                     @id @default(cuid())
+  ownerId                   String
+  workspaceId               String?
+  relationTemplateId        String?
+  relationCaseId            String?
+  channelType               CommunicationChannelType
+  provider                  CommunicationProvider      @default(NONE)
+  status                    CommunicationSessionStatus @default(PREPARED_NOT_STARTED)
+  title                     String
+  purpose                   String?
+  note                      String?
+  externalUrl               String?
+  scheduledAt               DateTime?
+  expiresAt                 DateTime?
+  transcriptionRequested    Boolean                    @default(false)
+  transcriptionConsented    Boolean                    @default(false)
+  recordingEnabled          Boolean                    @default(false)
+  automaticNotificationSent Boolean                    @default(false)
+  tokenGenerated            Boolean                    @default(false)
+  accessOpened              Boolean                    @default(false)
+  workflowStarted           Boolean                    @default(false)
+  metadata                  Json?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
 
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  relationTemplate RelationTemplate? @relation(fields: [relationTemplateId], references: [id], onDelete: SetNull)
-  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  owner               User                         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workspace           Workspace?                   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  relationTemplate    RelationTemplate?            @relation(fields: [relationTemplateId], references: [id], onDelete: SetNull)
+  relationCase        RelationCase?                @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
   meetingParticipants GovernedMeetingParticipant[]
 
   @@index([ownerId, status, createdAt])
@@ -411,20 +484,20 @@ model CommunicationSession {
 }
 
 model GovernedMeetingParticipant {
-  id String @id @default(cuid())
-  communicationSessionId String
+  id                          String                           @id @default(cuid())
+  communicationSessionId      String
   governedJourneyInvitationId String
-  status GovernedMeetingParticipantStatus @default(AUTHORIZED)
-  authorizedAt DateTime @default(now())
-  removedAt DateTime?
-  authorizedById String?
-  metadata Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status                      GovernedMeetingParticipantStatus @default(AUTHORIZED)
+  authorizedAt                DateTime                         @default(now())
+  removedAt                   DateTime?
+  authorizedById              String?
+  metadata                    Json?
+  createdAt                   DateTime                         @default(now())
+  updatedAt                   DateTime                         @updatedAt
 
-  communicationSession CommunicationSession @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
+  communicationSession      CommunicationSession      @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
   governedJourneyInvitation GovernedJourneyInvitation @relation(fields: [governedJourneyInvitationId], references: [id], onDelete: Cascade)
-  authorizedBy User? @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id], onDelete: SetNull)
+  authorizedBy              User?                     @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id], onDelete: SetNull)
 
   @@unique([communicationSessionId, governedJourneyInvitationId])
   @@index([governedJourneyInvitationId, status])
@@ -465,19 +538,19 @@ model UserNotificationPreference {
 }
 
 model GLink {
-  id                String     @id @default(cuid())
+  id                String            @id @default(cuid())
   ownerId           String
   workspaceId       String?
   templateId        String?
   templateVersionId String?
-  slug              String     @unique
+  slug              String            @unique
   title             String
   city              String?
   description       String?
   rules             Json?
-  status            LinkStatus @default(ACTIVE)
+  status            LinkStatus        @default(ACTIVE)
   admissionMode     LinkAdmissionMode @default(OPEN)
-  createdAt         DateTime   @default(now())
+  createdAt         DateTime          @default(now())
   expiresAt         DateTime?
 
   owner                User                  @relation(fields: [ownerId], references: [id])
@@ -487,8 +560,8 @@ model GLink {
   cases                RelationCase[]
   trustPolicies        TrustPolicy[]
   trustAdmissionTokens TrustAdmissionToken[]
-  matchingRuns         MatchingRun[]    @relation("MatchingRunSourceGLink")
-  matchingResults      MatchingResult[] @relation("MatchingResultTargetGLink")
+  matchingRuns         MatchingRun[]         @relation("MatchingRunSourceGLink")
+  matchingResults      MatchingResult[]      @relation("MatchingResultTargetGLink")
 
   @@index([workspaceId])
 }
@@ -518,25 +591,25 @@ model RelationCase {
   createdAt                          DateTime                 @default(now())
   closedAt                           DateTime?
 
-  gLink             GLink               @relation(fields: [gLinkId], references: [id])
-  owner             User                @relation("OwnerCases", fields: [ownerId], references: [id])
-  workspace         Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  gLink                      GLink                       @relation(fields: [gLinkId], references: [id])
+  owner                      User                        @relation("OwnerCases", fields: [ownerId], references: [id])
+  workspace                  Workspace?                  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   governedJourneyInvitations GovernedJourneyInvitation[]
-  template          RelationTemplate?   @relation(fields: [templateId], references: [id])
-  candidateIdentity GoodissimaIdentity? @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
-  messages          Message[]
-  documents         Document[]
-  auditLogs         AuditLog[]
-  relationEvents    RelationEvent[]
-  relationActions   RelationAction[]
-  formSubmissions   FormSubmission[]
-  aiEvents          AIEvent[]
-  embeddings        RelationEmbedding[]
-  embeddingJobs     EmbeddingJob[]
-  trustPolicies     TrustPolicy[]
-  productFeedback   ProductFeedback[]
-  communicationSessions CommunicationSession[]
-  matchingResults   MatchingResult[]
+  template                   RelationTemplate?           @relation(fields: [templateId], references: [id])
+  candidateIdentity          GoodissimaIdentity?         @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
+  messages                   Message[]
+  documents                  Document[]
+  auditLogs                  AuditLog[]
+  relationEvents             RelationEvent[]
+  relationActions            RelationAction[]
+  formSubmissions            FormSubmission[]
+  aiEvents                   AIEvent[]
+  embeddings                 RelationEmbedding[]
+  embeddingJobs              EmbeddingJob[]
+  trustPolicies              TrustPolicy[]
+  productFeedback            ProductFeedback[]
+  communicationSessions      CommunicationSession[]
+  matchingResults            MatchingResult[]
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
@@ -565,10 +638,10 @@ model MatchingRun {
   owner   User             @relation("MatchingRunOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   results MatchingResult[]
 
+  @@unique([ownerId, idempotencyKey])
   @@index([gLinkId, createdAt])
   @@index([ownerId, status])
   @@index([ownerId, isPaused])
-  @@unique([ownerId, idempotencyKey])
 }
 
 model MatchingResult {
@@ -643,41 +716,41 @@ model RelationTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  relationCases RelationCase[]
-  links         GLink[]
-  formTemplates FormTemplate[]
-  versions      TemplateVersion[]
-  trustPolicies TrustPolicy[]
-  generations   TemplateGeneration[]
-  aiEvents      AIEvent[]
-  productFeedback ProductFeedback[]
-  communicationSessions CommunicationSession[]
+  workspace                  Workspace?                  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  relationCases              RelationCase[]
+  links                      GLink[]
+  formTemplates              FormTemplate[]
+  versions                   TemplateVersion[]
+  trustPolicies              TrustPolicy[]
+  generations                TemplateGeneration[]
+  aiEvents                   AIEvent[]
+  productFeedback            ProductFeedback[]
+  communicationSessions      CommunicationSession[]
   governedJourneyInvitations GovernedJourneyInvitation[]
 
   @@index([workspaceId])
 }
 
 model ProductFeedback {
-  id           String                @id @default(cuid())
-  type         String
-  message      String
-  page         String?
-  role         String?
-  userId       String?
-  caseId       String?
-  templateId   String?
-  browserInfo  Json?
-  environment  String?
-  status       ProductFeedbackStatus @default(NEW)
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  resolvedAt   DateTime?
-  adminNotes   String?
+  id          String                @id @default(cuid())
+  type        String
+  message     String
+  page        String?
+  role        String?
+  userId      String?
+  caseId      String?
+  templateId  String?
+  browserInfo Json?
+  environment String?
+  status      ProductFeedbackStatus @default(NEW)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  resolvedAt  DateTime?
+  adminNotes  String?
 
-  user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  case     RelationCase?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  template RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  user        User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  case        RelationCase?               @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  template    RelationTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
   attachments ProductFeedbackAttachment[]
 
   @@index([status, createdAt])
@@ -688,7 +761,7 @@ model ProductFeedback {
 }
 
 model ProductFeedbackAttachment {
-  id         String          @id @default(cuid())
+  id         String   @id @default(cuid())
   feedbackId String
   fileName   String
   fileUrl    String
@@ -697,7 +770,7 @@ model ProductFeedbackAttachment {
   width      Int?
   height     Int?
   annotation Json?
-  createdAt  DateTime        @default(now())
+  createdAt  DateTime @default(now())
 
   feedback ProductFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
 
@@ -833,6 +906,7 @@ model GoodissimaIdentity {
   credentials            TrustCredential[]
   trustAdmissionTokens   TrustAdmissionToken[]
   candidateRelationCases RelationCase[]
+  directoryProfile       DirectoryProfile?
 }
 
 model TrustAdmissionToken {
@@ -884,10 +958,11 @@ model TrustCredential {
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
 
-  identity                  GoodissimaIdentity  @relation(fields: [identityId], references: [id])
-  credentialType            CredentialType      @relation(fields: [credentialTypeId], references: [id])
-  issuerTrustedOrganization TrustedOrganization @relation(fields: [issuerTrustedOrganizationId], references: [id])
+  identity                  GoodissimaIdentity                @relation(fields: [identityId], references: [id])
+  credentialType            CredentialType                    @relation(fields: [credentialTypeId], references: [id])
+  issuerTrustedOrganization TrustedOrganization               @relation(fields: [issuerTrustedOrganizationId], references: [id])
   claims                    TrustClaim[]
+  directoryVerifications    DirectoryVerificationProvenance[]
 
   @@index([identityId])
   @@index([credentialTypeId])
@@ -904,10 +979,111 @@ model TrustClaim {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  credential TrustCredential @relation(fields: [credentialId], references: [id])
+  credential             TrustCredential                   @relation(fields: [credentialId], references: [id])
+  directoryVerifications DirectoryVerificationProvenance[]
 
   @@index([credentialId])
   @@index([claimKey])
+}
+
+model DirectoryProfile {
+  id                String                 @id @default(cuid())
+  publicId          String                 @unique @default(uuid())
+  subjectIdentityId String                 @unique
+  actorType         DirectoryActorType
+  status            DirectoryProfileStatus @default(DRAFT)
+  publicName        String
+  normalizedName    String
+  consentedAt       DateTime?
+  publishedAt       DateTime?
+  disabledAt        DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  subjectIdentity GoodissimaIdentity        @relation(fields: [subjectIdentityId], references: [id], onDelete: Restrict)
+  managers        DirectoryProfileManager[]
+  attributes      DirectoryAttribute[]
+  auditEvents     DirectoryAuditEvent[]
+
+  @@index([status, actorType, publishedAt, id])
+  @@index([actorType, status, normalizedName])
+}
+
+model DirectoryProfileManager {
+  profileId   String
+  userId      String
+  role        DirectoryManagerRole
+  grantedAt   DateTime             @default(now())
+  revokedAt   DateTime?
+  grantedById String?
+
+  profile DirectoryProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([profileId, userId])
+  @@index([userId, revokedAt])
+}
+
+model DirectoryAttribute {
+  id                     String                          @id @default(cuid())
+  profileId              String
+  kind                   DirectoryAttributeKind
+  displayValue           String
+  normalizedValue        String
+  code                   String?
+  locale                 String?
+  locationGranularity    DirectoryLocationGranularity?
+  publicationStatus      DirectoryPublicationStatus      @default(DRAFT)
+  declaredTrustLevel     DirectoryTrustLevel             @default(DECLARED)
+  verificationLossPolicy DirectoryVerificationLossPolicy @default(KEEP_AS_DECLARED)
+  publishedAt            DateTime?
+  withdrawnAt            DateTime?
+  createdAt              DateTime                        @default(now())
+  updatedAt              DateTime                        @updatedAt
+
+  profile      DirectoryProfile                 @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  verification DirectoryVerificationProvenance?
+
+  @@index([profileId, publicationStatus, kind])
+  @@index([kind, normalizedValue, publicationStatus, profileId])
+  @@index([kind, code, publicationStatus, profileId])
+}
+
+model DirectoryVerificationProvenance {
+  id            String                     @id @default(cuid())
+  attributeId   String                     @unique
+  credentialId  String
+  claimId       String?
+  state         DirectoryVerificationState
+  verifiedAt    DateTime
+  validUntil    DateTime?
+  lastCheckedAt DateTime
+  invalidatedAt DateTime?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  attribute  DirectoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  credential TrustCredential    @relation(fields: [credentialId], references: [id], onDelete: Restrict)
+  claim      TrustClaim?        @relation(fields: [claimId], references: [id], onDelete: SetNull)
+
+  @@index([state, validUntil, attributeId])
+  @@index([credentialId, state])
+}
+
+model DirectoryAuditEvent {
+  id            String                  @id @default(cuid())
+  profileId     String?
+  actorUserId   String?
+  action        DirectoryAuditAction
+  attributeId   String?
+  attributeKind DirectoryAttributeKind?
+  occurredAt    DateTime                @default(now())
+
+  profile DirectoryProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, occurredAt])
+  @@index([actorUserId, occurredAt])
 }
 
 model AIEvent {
@@ -973,8 +1149,8 @@ model TemplateVersion {
 
   links               GLink[]
   criticReports       TemplateCriticReport[]
-  optimizationSources TemplateOptimization[] @relation("OptimizationSourceVersion")
-  optimizationDrafts  TemplateOptimization[] @relation("OptimizationDraftVersion")
+  optimizationSources TemplateOptimization[]    @relation("OptimizationSourceVersion")
+  optimizationDrafts  TemplateOptimization[]    @relation("OptimizationDraftVersion")
   manualEditSources   ManualTemplateEditAudit[] @relation("ManualEditSourceVersion")
   manualEditResults   ManualTemplateEditAudit[] @relation("ManualEditNewVersion")
 
@@ -985,18 +1161,18 @@ model ManualTemplateEditAudit {
   id String @id @default(cuid())
 
   userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   sourceVersionId String
   sourceVersion   TemplateVersion @relation("ManualEditSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Cascade)
 
-  newVersionId String @unique
+  newVersionId String          @unique
   newVersion   TemplateVersion @relation("ManualEditNewVersion", fields: [newVersionId], references: [id], onDelete: Cascade)
 
-  changeType   String
+  changeType    String
   changedFields Json
-  reason       String?
-  createdAt    DateTime @default(now())
+  reason        String?
+  createdAt     DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([sourceVersionId, createdAt])
