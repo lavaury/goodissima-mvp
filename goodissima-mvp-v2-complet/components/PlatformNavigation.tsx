@@ -15,6 +15,7 @@ const items = [
 
 // Progressive migration: every former destination still has a direct access.
 const secondaryItems = [
+  { label: "Alertes", href: "/alertes" },
   { label: "Lien simple", href: "/links/simple" },
   { label: "Salle de pilotage", href: "/gouvernance/pilotage" },
   { label: "Portfolios", href: "/gouvernance/portfolios" },

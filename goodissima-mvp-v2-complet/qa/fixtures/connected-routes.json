@@ -12,6 +12,7 @@
     "/dashboard",
     "/recherche",
     "/favoris",
+    "/alertes",
     "/experience",
     "/gouvernance",
     "/gouvernance/nouveau",

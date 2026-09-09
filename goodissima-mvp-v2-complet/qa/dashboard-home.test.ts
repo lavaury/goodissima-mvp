@@ -8,15 +8,17 @@ import { dashboardRuntimeContext, dashboardSequences } from "../lib/boussole-das
 import { getBoussoleJourneyVersion } from "../lib/boussole/registry.ts";
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const view = loadTestModule("components/DashboardHome.tsx", { "react/jsx-runtime": jsx, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }) });
+const common = { "react/jsx-runtime": jsx, "next/link": ({ children, prefetch: _, ...props }: any) => jsx.jsx("a", { ...props, children }) };
+const attentionView = loadTestModule("components/FactualAttentionList.tsx", common);
+const view = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": attentionView });
 const event = { id: "link-1", label: "Lien créé", context: "Contexte <test>", date: new Date("2026-09-01T12:00:00Z"), href: "/links/1" };
-const render = (activity: any[] = []) => renderToStaticMarkup(jsx.jsx(view.DashboardHome, { activity }));
+const render = (activity: any[] = []) => renderToStaticMarkup(jsx.jsx(view.DashboardHome, { activity, attention: { items: [], hasMore: false } }));
 
 test("same three canonical doors without removed business blocks, in both states", () => {
   for (const html of [render(), render([event])]) {
     assert.match(html, />Accueil<\/h1>/);
     for (const href of ["/boussole/decouverte", "/annuaire", "/gouvernance"]) assert.ok(html.includes(`href="${href}"`));
-    for (const title of ["Boussole", "Annuaire", "Mes espaces"]) assert.ok(html.includes(title));
+    for (const title of ["Bien démarrer", "Annuaire", "Mes espaces"]) assert.ok(html.includes(title));
     assert.doesNotMatch(html, /Mes opportunités et relations|dashboard-indicators|dashboard-links-list|Champagne|Vue exécutive|Créer un|Nouveau|live|Publié|vous n’avez|overflow-y|placeholder|aria-pressed/);
     assert.match(html, /focus-visible:outline/);
   }
@@ -63,6 +65,7 @@ test("page authenticates before the activity repository and calls no historical 
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "A" }; } },
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async (owner: string) => { assert.equal(owner,"A"); reads++; return []; } },
     "@/components/DashboardHome": view,
+    "@/lib/factual-attention": { getFactualAttention: async () => ({ items: [], hasMore: false }) },
   }).default();
   await assert.rejects(load(false), /LOGIN/); assert.equal(reads, 0);
   await load(true); assert.equal(reads, 1);
