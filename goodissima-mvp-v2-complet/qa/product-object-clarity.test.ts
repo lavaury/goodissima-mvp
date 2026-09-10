@@ -35,7 +35,7 @@ test("separates announcement, journey and relation actions", () => {
   assert.match(journey, /Optimiser le parcours/);
   assert.match(source("components/TemplateLifecycleActions.tsx"), /Dupliquer le parcours/);
   const relation = source("components/RelationCaseWorkspace.tsx");
-  for (const label of ["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"]) assert.match(relation, new RegExp(label));
+  for (const label of ["Conversation", "Documents", "Demandes", "case-details"]) assert.match(relation, new RegExp(label));
 });
 
 test("provides cross navigation between product objects", () => {
@@ -43,7 +43,7 @@ test("provides cross navigation between product objects", () => {
   assert.match(source("app/(connected)/opportunities/page.tsx"), /sourceJourneyHref/);
   assert.match(source("components/LinkCard.tsx"), /Voir le parcours/);
   assert.match(source("app/(connected)/relations/page.tsx"), /Voir l'annonce/);
-  assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l'annonce/);
+  assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l&apos;origine/);
 });
 
 test("adds dashboard business-object counts", () => {

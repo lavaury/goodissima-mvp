@@ -2,14 +2,12 @@ import { CandidateAccessControls } from "@/components/CandidateAccessControls";
 import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 import { AIWorkspace } from "@/components/AIWorkspace";
 import { ChatBox } from "@/components/ChatBox";
-import { DashboardBackLink } from "@/components/DashboardBackLink";
-import { ProductContextBanner, ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
-import { RelationGovernanceBadge, RelationGovernanceControls } from "@/components/RelationGovernanceControls";
+import { RelationGovernanceControls } from "@/components/RelationGovernanceControls";
 import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
 import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
 import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
@@ -23,11 +21,11 @@ import {
   getRelationActionStatusLabel,
   getRelationActionTypeLabel,
 } from "@/lib/relation-actions";
-import { candidateIdentityRecommendation, resolveCandidateIdentityState } from "@/lib/candidate-identity";
+import { resolveCandidateIdentityState } from "@/lib/candidate-identity";
 import { buildDossierSituation } from "@/lib/dossier-situation";
 import { humanizeAIEvent, humanizeRelationEvent } from "@/lib/events/humanize";
 import Link from "next/link";
-import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage, getRelationGovernanceStatusLabel } from "@/lib/relation-governance";
 import type {
   CommunicationChannelType,
   CommunicationProvider,
@@ -619,14 +617,12 @@ export function RelationCaseWorkspace({
         </div>
       ) : null}
       {!isCandidateView ? (
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <DashboardBackLink />
+        <div className="mb-5 flex justify-end">
           <ActiveOrganizationBadge organizationName={organizationName} className="border-[#d6e7e8] bg-[#fffcf8]" />
         </div>
       ) : null}
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#247f88]">Espace relationnel Goodissima</p>
       <h1 className="mt-2 text-2xl font-bold leading-tight text-[#2f3437] sm:text-3xl">{item.gLink.title}</h1>
-      <ProductObjectDefinition object="workspace" />
       <p className="mt-1 text-sm leading-relaxed text-[#766f68] sm:text-base">
         Dossier avec {candidateIdentityState.displayName}
       </p>
@@ -634,21 +630,18 @@ export function RelationCaseWorkspace({
         <span className="rounded-full bg-[#e8f8f9] px-3 py-1 font-semibold text-[#247f88] ring-1 ring-[#d6e7e8]">
           {candidateIdentityState.status}
         </span>
-        <span className="rounded-full bg-white px-3 py-1 font-medium text-[#766f68] ring-1 ring-[#e7e0d6]">
-          {candidateIdentityState.displayEmail}
-        </span>
-        {candidateIdentityState.recommendation ? (
-          <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-800 ring-1 ring-amber-200">
-            {candidateIdentityRecommendation}
-          </span>
-        ) : null}
+        <span className="rounded-full bg-white px-3 py-1 font-medium text-[#766f68] ring-1 ring-[#e7e0d6]">Relation {getRelationGovernanceStatusLabel(item.governanceStatus).toLowerCase()}</span>
+        <span className="rounded-full bg-white px-3 py-1 font-medium text-[#766f68] ring-1 ring-[#e7e0d6]">Dossier {item.status.toLowerCase().replaceAll("_", " ")}</span>
+        {item.priority !== "NORMAL" ? <span className="rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-800 ring-1 ring-amber-200">Priorit&eacute; {item.priority.toLowerCase()}</span> : null}
       </div>
-      <div className="mt-4 max-w-xl">
-        <RelationGovernanceBadge status={item.governanceStatus} reason={item.governanceReason} />
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-[#d6e7e8] bg-white p-4 text-sm">
+        <span>Issu de : <strong>{item.gLink.title}</strong></span>
+        <Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">Voir l&apos;origine</Link>
       </div>
-      <div className="mt-6"><ProductLifecycle current="workspace" compact /><ProductContextBanner object="relation" /><div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 text-sm"><span>Annonce d'origine : <strong>{item.gLink.title}</strong></span><Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">Voir l'annonce</Link></div></div>
       {!isCandidateView ? (
-        <section className="mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+        <details className="group mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+          <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">Organisation du dossier</summary>
+          <div className="mt-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-[#247f88]">Workspace du dossier</p>
@@ -697,9 +690,13 @@ export function RelationCaseWorkspace({
               <p className="text-xs font-semibold text-[#766f68]">Aucun Workspace actif disponible.</p>
             )}
           </div>
-        </section>
+          </div>
+        </details>
       ) : null}
-      <nav data-boussole-id="case-relational-navigation" className="mt-4 flex flex-wrap gap-2 rounded-2xl border bg-white p-3" aria-label="Actions de la relation">{["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"].map((label) => <span key={label} className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{label}</span>)}</nav>
+      <nav data-boussole-id="case-relational-navigation" className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border bg-white p-3 sm:flex sm:flex-wrap" aria-label="Espaces du dossier">
+        {[{ label: "Conversation", href: "#case-conversation" }, { label: "Documents", href: "#case-documents" }, { label: "Demandes", href: "#case-requests" }, { label: "D\u00e9tails", href: "#case-details" }].map((item) => <a key={item.href} href={item.href} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">{item.label}</a>)}
+      </nav>
+      {senderType === "OWNER" ? <div className="mt-4"><AIWorkspace caseId={item.id} matchingEnabled={item.matchingEnabled} situation={dossierSituation} debugMode={debugMode} /></div> : null}
       {debugMode && senderType === "OWNER" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
@@ -717,12 +714,14 @@ export function RelationCaseWorkspace({
           </div>
         </section>
       ) : null}
-      <RelationCaseFields
+      <details id="case-advanced" className="group mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm">
+        <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">{"D\u00e9tails et fonctions avanc\u00e9es"}</summary>
+      <div className="mt-4"><RelationCaseFields
         caseId={item.id}
         priority={item.priority}
         status={item.status}
         editable={senderType === "OWNER"}
-      />
+      /></div>
       <div className="mt-6">
         <RelationLiveKitMediaRoom
           caseId={item.id}
@@ -771,9 +770,10 @@ export function RelationCaseWorkspace({
           </details>
         ) : null}
       </section>
+      </details>
       <div
         data-case-layout="conversation-ai-sidebar"
-        className="mt-6 grid gap-5 lg:mt-8 xl:grid-cols-[minmax(420px,1.2fr)_minmax(390px,0.98fr)_280px] xl:gap-5"
+        className="mt-6 grid min-w-0 gap-5 lg:mt-8"
       >
         <section data-conversation-zone="true" data-boussole-id="case-conversation" className="min-w-0 space-y-4">
           <ChatBox
@@ -786,7 +786,9 @@ export function RelationCaseWorkspace({
             readOnlyReason={governanceBlockedMessage}
             senderType={senderType}
           />
-          <div data-boussole-id="case-documents" className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)] transition hover:shadow-[0_18px_40px_rgba(47,52,55,0.08)]">
+          <details id="case-documents" data-boussole-id="case-documents" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+            <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">Documents ({item.documents.length})</summary>
+          <div className="mt-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="font-semibold text-[#2f3437]">Documents</h2>
@@ -810,11 +812,22 @@ export function RelationCaseWorkspace({
             disabled={!relationWritable}
             disabledReason={governanceBlockedMessage}
           />
+          </details>
         </section>
-        {senderType === "OWNER" ? (
-          <AIWorkspace caseId={item.id} matchingEnabled={item.matchingEnabled} situation={dossierSituation} debugMode={debugMode} />
-        ) : null}
-        <aside data-metadata-sidebar="true" className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1">
+        <section id="case-requests" className="min-w-0">
+          <RelationActionsPanel
+            caseId={item.id}
+            actions={item.relationActions}
+            editable={senderType === "OWNER"}
+            identityRequestRecommended={candidateIdentityState.isMissingIdentity}
+            candidateAccessToken={candidateAccessToken}
+            disabled={!relationWritable}
+            disabledReason={governanceBlockedMessage}
+          />
+        </section>
+        <details id="case-details" data-metadata-sidebar="true" className="group min-w-0 rounded-2xl border border-[#d6e7e8] bg-white p-4">
+          <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">{"Informations d\u00e9taill\u00e9es"}</summary>
+          <aside className="mt-4 min-w-0 space-y-4">
           <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
               Identité candidat
@@ -932,15 +945,6 @@ export function RelationCaseWorkspace({
               </div>
             </details>
           ) : null}
-          <RelationActionsPanel
-            caseId={item.id}
-            actions={item.relationActions}
-            editable={senderType === "OWNER"}
-            identityRequestRecommended={candidateIdentityState.isMissingIdentity}
-            candidateAccessToken={candidateAccessToken}
-            disabled={!relationWritable}
-            disabledReason={governanceBlockedMessage}
-          />
           {senderType === "OWNER" ? (
             <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
@@ -1053,7 +1057,8 @@ export function RelationCaseWorkspace({
               </div>
             </details>
           </div>
-        </aside>
+          </aside>
+        </details>
       </div>
     </main>
   );
