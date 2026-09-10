@@ -13,10 +13,10 @@ test("AI workspace exposes one compact dossier situation before the analysis", (
   assert.match(workspace, /useState<WorkspaceTab>\("details"\)/);
   assert.match(workspace, /useState\(false\)/);
   assert.match(workspace, /hidden=\{!analysisOpen\}/);
-  assert.equal((orchestrator.match(/Situation du dossier/g) ?? []).length, 1);
-  assert.match(orchestrator, /Que dois-je comprendre et faire maintenant \?/);
-  assert.match(orchestrator, /situation\.recommendedAction/);
-  assert.match(orchestrator, /Repères importants/);
+  assert.equal((orchestrator.match(/À faire maintenant/g) ?? []).length, 1);
+  assert.match(orchestrator, /situation\.primary\.title/);
+  assert.match(orchestrator, /situation\.followUps/);
+  assert.doesNotMatch(orchestrator, /Repères importants/);
 });
 
 test("end-user AI workspace labels do not expose orchestration vocabulary", () => {
@@ -27,8 +27,7 @@ test("end-user AI workspace labels do not expose orchestration vocabulary", () =
   assert.doesNotMatch(visibleSources, /Chef d'orchestre IA/);
   assert.doesNotMatch(visibleSources, /Chef d'orchestre"/);
   assert.doesNotMatch(visibleSources, /Orchestrateur/i);
-  assert.match(orchestrator, /Situation du dossier/);
-  assert.match(orchestrator, /Que dois-je comprendre et faire maintenant \?/);
+  assert.match(orchestrator, /À faire maintenant/);
 });
 
 test("orchestrator opens existing AI modules instead of duplicating feature logic", () => {
@@ -87,14 +86,12 @@ test("analysis is closed by default and opening an accordion does not call AI", 
   assert.doesNotMatch(workspace, /onClick=\{\(\) => (?:void )?(?:fetch|generate|analy)/);
 });
 
-test("recommended action button uses the real action label", () => {
+test("primary action button uses the deterministic action label", () => {
   const orchestrator = source("components/AIOrchestratorPanel.tsx");
-  assert.match(orchestrator, /recommendedActionLabel\(situation\.recommendedActionType\)/);
-  for (const label of ["Préparer le résumé", "Préparer la demande", "Préparer une relance", "Voir les signaux", "Voir la timeline"]) {
-    assert.match(orchestrator, new RegExp(label));
-  }
+  assert.match(orchestrator, /situation\.primary\.actionLabel/);
+  assert.match(orchestrator, /situation\.primary\.actionType/);
   assert.doesNotMatch(orchestrator, /Préparer cette action/);
-  assert.match(orchestrator, /Prépare un brouillon sans l’envoyer automatiquement\./);
+  assert.match(orchestrator, /Résumer le dossier/);
 });
 
 test("orchestrator keeps human validation and governance constraints explicit", () => {

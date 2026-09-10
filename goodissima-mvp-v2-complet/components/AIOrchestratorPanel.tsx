@@ -5,14 +5,6 @@ import type { DossierSituation } from "@/lib/dossier-situation";
 
 export type AIOrchestratorModule = "summary" | "timeline" | "signals" | "matching" | "drafts";
 
-function recommendedActionLabel(actionType: DossierSituation["recommendedActionType"]) {
-  if (actionType === "IDENTITY_REQUEST" || actionType === "DOCUMENT_REQUEST") return "Préparer la demande";
-  if (actionType === "FOLLOW_UP") return "Préparer une relance";
-  if (actionType === "SIGNALS") return "Voir les signaux";
-  if (actionType === "TIMELINE") return "Voir la timeline";
-  return "Préparer le résumé";
-}
-
 export function AIOrchestratorPanel({
   situation,
   onOpenModule,
@@ -28,59 +20,55 @@ export function AIOrchestratorPanel({
   onShowAnalysis: () => void;
   analysisOpen: boolean;
 }) {
-  function runRecommendedAction() {
-    if (situation.recommendedActionType === "IDENTITY_REQUEST") {
+  function runPrimaryAction() {
+    if (situation.primary.actionType === "IDENTITY_REQUEST") {
       onRequestCoordinates?.();
       return;
     }
-    if (situation.recommendedActionType === "DOCUMENT_REQUEST") {
+    if (situation.primary.actionType === "DOCUMENT_REQUEST") {
       onPrepareDraft("DOCUMENT_REQUEST", situation.recommendedDraftInstruction);
       return;
     }
-    if (situation.recommendedActionType === "FOLLOW_UP") {
+    if (situation.primary.actionType === "FOLLOW_UP") {
       onPrepareDraft("FOLLOW_UP", situation.recommendedDraftInstruction);
       return;
     }
-    if (situation.recommendedActionType === "SIGNALS") {
-      onOpenModule("signals");
-      return;
-    }
-    if (situation.recommendedActionType === "TIMELINE") {
-      onOpenModule("timeline");
-      return;
-    }
-    onOpenModule("summary");
+    window.dispatchEvent(new CustomEvent("goodissima:open-dossier-section", {
+      detail: situation.primary.actionType === "GOVERNANCE" ? { section: "governance" } : {},
+    }));
   }
 
   return (
-    <section data-ai-orchestrator="true" data-dossier-situation="true" className="rounded-2xl border border-[#d6e7e8] bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#247f88]">Situation du dossier</p>
-          <h2 className="mt-1 text-lg font-semibold text-[#2f3437]">Que dois-je comprendre et faire maintenant ?</h2>
-        </div>
-        <OperationalStatusBadge situation={situation} />
-      </div>
+    <section data-ai-orchestrator="true" data-dossier-situation="true" data-boussole-id="case-next-action" className="rounded-2xl border border-[#d6e7e8] bg-white p-4 shadow-sm sm:p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#247f88]">À faire maintenant</p>
+      <h2 className="mt-2 text-lg font-semibold text-[#2f3437]">{situation.primary.title}</h2>
+      <p className="mt-2 text-sm text-[#746d66]">{situation.primary.description}</p>
 
-      <div className="mt-4 rounded-2xl border border-[#e7e0d6] bg-[#f6f0e8] p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#766f68]">Action recommandée</p>
-        <p className="mt-2 font-semibold text-[#2f3437]">{situation.recommendedAction}</p>
-        <p className="mt-2 text-sm text-[#746d66]">{situation.operationalStatus.description}</p>
-      </div>
-
-      <div className="mt-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#766f68]">Repères importants</p>
-        <dl className="mt-2 grid gap-2 sm:grid-cols-3">
-          <SituationMetric label="Dernière activité" value={situation.lastActivityLabel} />
-          <SituationMetric label="Documents manquants" value={String(situation.missingDocumentsCount)} />
-          <SituationMetric label="Blocages détectés" value={String(situation.detectedBlockersCount)} />
-        </dl>
-      </div>
+      <details data-boussole-id="case-next-action-why" className="mt-3 text-sm text-[#746d66]">
+        <summary className="cursor-pointer font-semibold text-[#2f3437]">Pourquoi ?</summary>
+        <p className="mt-2">{situation.primary.reason}</p>
+      </details>
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <button type="button" onClick={runRecommendedAction} className="rounded-xl bg-[#263846] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/40">
-          {recommendedActionLabel(situation.recommendedActionType)}
-        </button>
+        {situation.primary.actionType ? (
+          <button type="button" onClick={runPrimaryAction} className="rounded-xl bg-[#263846] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/40">
+            {situation.primary.actionLabel}
+          </button>
+        ) : null}
+      </div>
+
+      <div data-boussole-id="case-next-action-follow-ups" className="mt-4 border-t border-[#e7e0d6] pt-4">
+        {situation.followUps.length > 0 ? (<>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#766f68]">À suivre</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#746d66]">
+            {situation.followUps.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </>) : <p className="text-sm text-[#746d66]">Aucun autre point à suivre.</p>}
+      </div>
+
+      <div data-boussole-id="case-next-action-assistance" className="mt-4 border-t border-[#e7e0d6] pt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#766f68]">Assistance</p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={onShowAnalysis}
@@ -90,8 +78,11 @@ export function AIOrchestratorPanel({
         >
           {analysisOpen ? "Masquer l’analyse" : "Voir l’analyse"}
         </button>
+        <button type="button" onClick={() => onOpenModule("summary")} className="rounded-xl border border-[#d6e7e8] bg-white px-4 py-2 text-xs font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/40">
+          Résumer le dossier
+        </button>
+        </div>
       </div>
-      <p className="mt-3 text-xs text-[#746d66]">Prépare un brouillon sans l’envoyer automatiquement.</p>
     </section>
   );
 }

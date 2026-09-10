@@ -33,6 +33,7 @@ const journeyVersions: Record<string, number> = {
   "use-journey-assistant": 2,
   "create-manually": 2,
   "verify-create": 2,
+  "understand-secure-case": 2,
 };
 
 export function getBoussoleJourneyVersion(journeyId: string) {

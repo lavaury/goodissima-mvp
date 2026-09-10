@@ -34,8 +34,8 @@ const fullCandidateIdentity = {
 test("renders one compact dossier situation before the detailed analysis", () => {
   const orchestrator = source("components/AIOrchestratorPanel.tsx");
   const workspace = source("components/AIWorkspace.tsx");
-  assert.equal((orchestrator.match(/Situation du dossier/g) ?? []).length, 1);
-  assert.match(orchestrator, /Que dois-je comprendre et faire maintenant \?/);
+  assert.equal((orchestrator.match(/À faire maintenant/g) ?? []).length, 1);
+  assert.match(orchestrator, /situation\.primary\.title/);
   assert.match(orchestrator, /data-dossier-situation/);
   assert.match(workspace, /hidden=\{!analysisOpen\}/);
 });
@@ -178,8 +178,8 @@ test("renders recommended action and explainable evidence", () => {
   assert.equal(situation.recommendedActionType, "DOCUMENT_REQUEST");
 
   const orchestrator = source("components/AIOrchestratorPanel.tsx");
-  assert.match(orchestrator, /Action recommandée/);
-  assert.match(orchestrator, /Pourquoi cette recommandation \?/);
+  assert.match(orchestrator, /À faire maintenant/);
+  assert.match(orchestrator, /Pourquoi \?/);
   assert.match(orchestrator, /Dernier événement/);
   assert.match(orchestrator, /Document manquant/);
   assert.match(orchestrator, /Demande ouverte/);
