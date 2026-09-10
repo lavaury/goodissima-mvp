@@ -13,8 +13,8 @@ const kinds = [["PROFESSION", "Métier"], ["SKILL", "Compétence"], ["LANGUAGE",
 const statusLabels = { DRAFT: "Brouillon", PUBLISHED: "Publié", WITHDRAWN: "Retiré" } as const;
 type Kind = (typeof kinds)[number][0];
 type FilterField = (typeof filters)[number][0];
-type SearchForm = Record<FilterField, string> & { text: string; actorType: string; verifiedKind: string };
-const emptySearch: SearchForm = { text: "", actorType: "", professions: "", skills: "", languages: "", locations: "", qualifications: "", certifications: "", verifiedKind: "" };
+type SearchForm = Record<FilterField, string> & { text: string; actorType: string; verifiedKinds: DirectorySearchFilterKind[] };
+const emptySearch: SearchForm = { text: "", actorType: "", professions: "", skills: "", languages: "", locations: "", qualifications: "", certifications: "", verifiedKinds: [] };
 const inputClass = "mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200";
 
 function splitValues(value: string) { return value.split(",").map((item) => item.trim()).filter(Boolean); }
@@ -23,7 +23,7 @@ function makeCriteria(form: SearchForm, cursor?: string): DirectorySearchCriteri
   if (form.text.trim()) criteria.text = form.text.trim();
   if (form.actorType) criteria.actorType = form.actorType as "PERSON" | "ORGANIZATION";
   for (const [field] of filters) if (splitValues(form[field]).length) criteria[field] = splitValues(form[field]);
-  if (form.verifiedKind) criteria.verificationRequirements = [{ kind: form.verifiedKind as DirectorySearchFilterKind, level: "VERIFIED" }];
+  if (form.verifiedKinds.length) criteria.verificationRequirements = form.verifiedKinds.map((kind) => ({ kind, level: "VERIFIED" }));
   if (cursor) criteria.cursor = cursor;
   return criteria;
 }
@@ -36,9 +36,27 @@ export function DirectoryExperience({ initialProfiles }: { initialProfiles: Mana
 
 function DirectorySearch() {
   const [form, setForm] = useState(emptySearch);
+  const [naturalQuery, setNaturalQuery] = useState("");
+  const [unsupported, setUnsupported] = useState<Array<{ label: string; reason?: string }>>([]);
+  const [interpretError, setInterpretError] = useState("");
+  const [interpreting, setInterpreting] = useState(false);
   const [page, setPage] = useState<DirectorySearchPageDto | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  async function interpret() {
+    if (!naturalQuery.trim()) return;
+    setInterpreting(true); setInterpretError(""); setUnsupported([]);
+    try {
+      const response = await fetch("/api/directory/interpret-search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: naturalQuery }) });
+      const body = await response.json() as { criteria?: DirectorySearchCriteria | null; unsupportedCriteria?: Array<{ label: string; reason?: string }>; error?: string };
+      if (!response.ok) throw new Error(body.error);
+      const criteria = body.criteria;
+      setUnsupported(body.unsupportedCriteria ?? []);
+      if (!criteria) { setInterpretError("Aucun critère utilisable n’a été identifié. Vous pouvez utiliser les filtres ci-dessous."); return; }
+      setForm({ text: criteria.text ?? "", actorType: criteria.actorType ?? "", professions: criteria.professions?.join(", ") ?? "", skills: criteria.skills?.join(", ") ?? "", languages: criteria.languages?.join(", ") ?? "", locations: criteria.locations?.join(", ") ?? "", qualifications: criteria.qualifications?.join(", ") ?? "", certifications: criteria.certifications?.join(", ") ?? "", verifiedKinds: criteria.verificationRequirements?.map((item) => item.kind) ?? [] });
+    } catch { setInterpretError("Nous n’avons pas pu interpréter cette demande automatiquement. Vous pouvez utiliser les filtres ci-dessous."); }
+    finally { setInterpreting(false); }
+  }
   async function search(cursor?: string) {
     setLoading(true); setError("");
     try {
@@ -49,18 +67,23 @@ function DirectorySearch() {
     } catch { setError("La recherche n’a pas pu aboutir. Réessayez."); }
     finally { setLoading(false); }
   }
+  const understood = Boolean(form.actorType || form.text || filters.some(([field]) => form[field]) || form.verifiedKinds.length);
   return <section data-boussole-id="directory-search" aria-labelledby="directory-search-title" className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
     <h2 id="directory-search-title" className="text-2xl font-bold text-slate-950">Rechercher dans l’Annuaire</h2>
     <p className="mt-2 text-sm leading-6 text-slate-600">Recherchez uniquement des acteurs ayant choisi de publier leur profil.</p>
+    <div data-boussole-id="directory-natural-search" className="mt-6 rounded-2xl bg-emerald-50 p-4 sm:p-5"><label htmlFor="directory-natural-query" className="text-sm font-semibold text-slate-900">Décrivez qui vous recherchez</label><textarea id="directory-natural-query" value={naturalQuery} maxLength={500} onChange={(event) => { setNaturalQuery(event.target.value); setUnsupported([]); }} placeholder="Je cherche un expert cybersécurité parlant allemand." className="mt-2 min-h-24 w-full resize-y rounded-xl border border-emerald-200 bg-white px-3 py-2 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700" /><button type="button" disabled={interpreting || !naturalQuery.trim()} onClick={() => void interpret()} className="mt-3 min-h-11 rounded-xl bg-emerald-700 px-5 py-2 font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-60">{interpreting ? "Interprétation…" : "Comprendre ma recherche"}</button><span className="sr-only" aria-live="polite">{interpreting ? "Interprétation de la demande en cours" : ""}</span></div>
+    {interpretError ? <p role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">{interpretError}</p> : null}
+    {understood ? <div data-boussole-id="directory-interpreted-criteria" className="mt-4 rounded-2xl border border-emerald-200 p-4" aria-live="polite"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-bold text-slate-950">Nous avons compris</h3><button type="button" onClick={() => { setForm(emptySearch); setUnsupported([]); setNaturalQuery(""); setPage(null); }} className="min-h-11 rounded-lg px-3 py-2 text-sm font-semibold text-emerald-800 underline focus-visible:outline focus-visible:outline-2">Réinitialiser</button></div><p className="mt-2 text-sm text-slate-600">Vérifiez et corrigez ces critères dans les filtres avant de rechercher.</p><ul className="mt-3 flex flex-wrap gap-2 text-sm">{form.actorType ? <li className="rounded-full bg-slate-100 px-3 py-2">Type : {form.actorType === "PERSON" ? "Personne" : "Organisation"}</li> : null}{form.text ? <li className="rounded-full bg-slate-100 px-3 py-2">Texte : {form.text}</li> : null}{filters.flatMap(([field, label]) => splitValues(form[field]).map((value) => <li key={`${field}-${value}`} className="rounded-full bg-slate-100 px-3 py-2">{label} : {value}</li>))}{form.verifiedKinds.map((kind) => <li key={kind} className="rounded-full bg-emerald-100 px-3 py-2">{kinds.find(([value]) => value === kind)?.[1]} : vérification exigée</li>)}</ul></div> : null}
+    {unsupported.length ? <div role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><p className="font-semibold">Critères non pris en charge</p><ul className="mt-2 list-disc space-y-1 pl-5">{unsupported.map((item, index) => <li key={`${item.label}-${index}`}>Ce critère n’est pas encore pris en charge : {item.label}{item.reason ? ` — ${item.reason}` : ""}</li>)}</ul></div> : null}
     <form className="mt-6 space-y-4" onSubmit={(event) => { event.preventDefault(); void search(); }}>
       <div className="grid gap-4 md:grid-cols-[1fr_14rem_auto] md:items-end">
         <label className="text-sm font-semibold text-slate-800">Nom, métier ou compétence<input value={form.text} minLength={2} maxLength={80} onChange={(event) => setForm({ ...form, text: event.target.value })} placeholder="Nom, métier, compétence…" className={inputClass} /></label>
         <label className="text-sm font-semibold text-slate-800">Type d’acteur<select value={form.actorType} onChange={(event) => setForm({ ...form, actorType: event.target.value })} className={inputClass}><option value="">Tous</option><option value="PERSON">Personnes</option><option value="ORGANIZATION">Organisations</option></select></label>
         <button disabled={loading} className="min-h-11 rounded-xl bg-emerald-700 px-5 py-2 font-semibold text-white hover:bg-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-60">{loading ? "Recherche…" : "Rechercher"}</button>
       </div>
-      <details className="rounded-xl border border-slate-200 bg-slate-50 p-4"><summary className="cursor-pointer font-semibold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600">Affiner avec des filtres</summary>
+      <details data-boussole-id="directory-filters" open={understood || undefined} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><summary className="cursor-pointer font-semibold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600">Affiner avec des filtres</summary>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{filters.map(([field, label]) => <label key={field} className="text-sm font-semibold text-slate-700">{label}<input value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} placeholder="Valeur(s) séparée(s) par une virgule" className={inputClass} /></label>)}</div>
-        <label className="mt-4 block max-w-sm text-sm font-semibold text-slate-700">Exiger un attribut vérifié<select value={form.verifiedKind} onChange={(event) => setForm({ ...form, verifiedKind: event.target.value })} className={inputClass}><option value="">Aucune exigence</option>{kinds.map(([kind, label]) => <option key={kind} value={kind}>{label} vérifié</option>)}</select></label>
+        <fieldset className="mt-4"><legend className="text-sm font-semibold text-slate-700">Exiger une information vérifiée</legend><div className="mt-2 flex flex-wrap gap-3">{kinds.map(([kind, label]) => <label key={kind} className="flex min-h-11 items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm"><input type="checkbox" checked={form.verifiedKinds.includes(kind)} onChange={(event) => setForm({ ...form, verifiedKinds: event.target.checked ? [...form.verifiedKinds, kind] : form.verifiedKinds.filter((value) => value !== kind) })} />{label}</label>)}</div></fieldset>
       </details>
     </form>
     <div aria-live="polite" className="mt-6">

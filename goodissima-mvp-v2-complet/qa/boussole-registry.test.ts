@@ -6,6 +6,7 @@ import test from "node:test";
 import { governanceSequences } from "../lib/boussole-governance.ts";
 import { governedJourneySequences } from "../lib/boussole-governed-journey.ts";
 import { newGovernedJourneySequences } from "../lib/boussole-new-governed-journey.ts";
+import { directorySequences } from "../lib/boussole-directory.ts";
 import {
   boussoleRegistry,
   formatBoussoleIntegrityIssue,
@@ -25,7 +26,7 @@ test("validates the central Boussole registry", () => {
 });
 
 test("registers the real sources without duplicating their steps", () => {
-  const expected = [governanceSequences, newGovernedJourneySequences, governedJourneySequences, portfolioSequences, portfolioDetailSequences, portfolioPilotageSequences, dashboardSequences];
+  const expected = [governanceSequences, newGovernedJourneySequences, governedJourneySequences, portfolioSequences, portfolioDetailSequences, portfolioPilotageSequences, dashboardSequences, directorySequences];
   assert.equal(boussoleRegistry.length, expected.length);
   for (const [pageIndex, entry] of boussoleRegistry.entries()) {
     assert.deepEqual(entry.manifest.journeyIds, expected[pageIndex].map((journey) => journey.id));

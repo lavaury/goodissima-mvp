@@ -6,6 +6,7 @@ import { newGovernedJourneySequences } from "../boussole-new-governed-journey.ts
 import { boussoleGlossary } from "./glossary.ts";
 import { portfolioSequences } from "../boussole-portfolios.ts";
 import { portfolioDetailSequences, portfolioPilotageSequences } from "../boussole-portfolio-detail.ts";
+import { directorySequences } from "../boussole-directory.ts";
 import type {
   BoussoleJourneyDefinition,
   BoussolePageManifest,
@@ -77,6 +78,7 @@ export const boussoleRegistry: BoussoleRegistryEntry[] = [
   registerPage("portfolio-detail", ["/gouvernance/portfolios/:id"], portfolioDetailSequences),
   registerPage("portfolio-pilotage", ["/gouvernance/portfolios/:id/pilotage"], portfolioPilotageSequences),
   registerPage("dashboard", ["/dashboard"], dashboardSequences, ["EMPTY", "POPULATED"]),
+  registerPage("directory", ["/annuaire", "/annuaire/:publicId"], directorySequences),
 ];
 
 export type BoussoleIntegrityIssue = {

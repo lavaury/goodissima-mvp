@@ -13,6 +13,7 @@ import { portfolioSequences } from "@/lib/boussole-portfolios";
 import { newGovernedJourneySequences } from "@/lib/boussole-new-governed-journey";
 import { governedJourneySequences } from "@/lib/boussole-governed-journey";
 import { dossierSequences } from "@/lib/boussole-dossiers";
+import { directoryRuntimeContext, directorySequences } from "@/lib/boussole-directory";
 import { boussoleGlossary, getGlossaryTerm, searchGlossary, type GlossaryTerm } from "@/lib/boussole/glossary";
 import { resolveNextTargetInSequence } from "@/lib/boussole/target-resolver";
 import { isInClosedPortfolio, revealPortfolio } from "@/lib/boussole/portfolio-disclosure";
@@ -81,6 +82,7 @@ export function ContextualBoussole() {
       visibleObjectCount,
       ...portfolioRuntimeContext(context?.id, pathname, availableTargetIds),
       ...dashboardRuntimeContext(context?.id, availableTargetIds),
+      ...directoryRuntimeContext(context?.id, pathname, availableTargetIds),
       availableTargetIds,
       functionalStates: [...new Set(targets.map((element) => element.dataset.boussoleState).filter((state): state is string => Boolean(state)))],
     };
@@ -102,7 +104,7 @@ export function ContextualBoussole() {
       return available;
     });
   }, [context, domRevision]);
-  const allSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "portfolio-detail" ? portfolioDetailSequences : context?.id === "portfolio-pilotage" ? portfolioPilotageSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : [];
+  const allSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "portfolio-detail" ? portfolioDetailSequences : context?.id === "portfolio-pilotage" ? portfolioPilotageSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : context?.id === "directory" ? directorySequences : [];
   const availableSequences = allSequences.filter((item) => !item.applicableStates || item.applicableStates.includes(runtimeContext.pageState));
   const sequence = sequenceId === "all" ? null : availableSequences.find((item) => item.id === sequenceId);
   const selectedSteps = sequence ? visibleSteps.filter((item) => sequence.steps.some((candidate) => candidate.id === item.id)) : visibleSteps;
@@ -136,7 +138,7 @@ export function ContextualBoussole() {
     setCompact(false);
     clearHighlight();
     stopSpeech();
-    setSequenceId(context?.id === "dashboard" ? "repères" : context?.id === "simple-link" ? "start" : context?.id === "opportunities" || context?.id === "archives" ? "discover-opportunities" : context?.id === "governance" ? runtimeContext.pageState === "EMPTY" ? "governance-summary" : "understand-governance" : context?.id === "portfolio" ? "portfolio-landmarks" : context?.id === "new-governed-journey" ? "choose-governed-format" : context?.id === "governed-journey" ? "discover-governed-journey" : context?.id === "dossiers" ? "understand-secure-case" : "all");
+    setSequenceId(context?.id === "dashboard" ? "repères" : context?.id === "simple-link" ? "start" : context?.id === "opportunities" || context?.id === "archives" ? "discover-opportunities" : context?.id === "governance" ? runtimeContext.pageState === "EMPTY" ? "governance-summary" : "understand-governance" : context?.id === "portfolio" ? "portfolio-landmarks" : context?.id === "new-governed-journey" ? "choose-governed-format" : context?.id === "governed-journey" ? "discover-governed-journey" : context?.id === "dossiers" ? "understand-secure-case" : context?.id === "directory" ? runtimeContext.pageState === "FOCUSED" ? "understand-directory-result" : "discover-directory" : "all");
   }, [context?.id, runtimeContext.pageState]);
 
   function openBoussole() {

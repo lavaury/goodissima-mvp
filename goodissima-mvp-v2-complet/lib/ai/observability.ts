@@ -10,7 +10,8 @@ export type AIObservabilityFeature =
   | "template_designer"
   | "semantic_embedding"
   | "template_critic"
-  | "template_optimizer";
+  | "template_optimizer"
+  | "directory_search_interpretation";
 
 export function toAIEventUsageData(usage: AIProviderUsage | null | undefined) {
   return {
