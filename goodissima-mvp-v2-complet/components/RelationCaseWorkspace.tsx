@@ -5,6 +5,7 @@ import { ChatBox } from "@/components/ChatBox";
 import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
+import { DossierWorkspaceTabs } from "@/components/DossierWorkspaceTabs";
 import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
 import { RelationCaseFields } from "@/components/RelationCaseFields";
 import { RelationGovernanceControls } from "@/components/RelationGovernanceControls";
@@ -639,9 +640,7 @@ export function RelationCaseWorkspace({
         <Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">Voir l&apos;origine</Link>
       </div>
       {!isCandidateView ? (
-        <details className="group mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
-          <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">Organisation du dossier</summary>
-          <div className="mt-4">
+        <section hidden data-dossier-tab-content="details" className="mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-[#247f88]">Workspace du dossier</p>
@@ -690,13 +689,10 @@ export function RelationCaseWorkspace({
               <p className="text-xs font-semibold text-[#766f68]">Aucun Workspace actif disponible.</p>
             )}
           </div>
-          </div>
-        </details>
+        </section>
       ) : null}
-      <nav data-boussole-id="case-relational-navigation" className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border bg-white p-3 sm:flex sm:flex-wrap" aria-label="Espaces du dossier">
-        {[{ label: "Conversation", href: "#case-conversation" }, { label: "Documents", href: "#case-documents" }, { label: "Demandes", href: "#case-requests" }, { label: "D\u00e9tails", href: "#case-details" }].map((item) => <a key={item.href} href={item.href} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">{item.label}</a>)}
-      </nav>
       {senderType === "OWNER" ? <div className="mt-4"><AIWorkspace caseId={item.id} matchingEnabled={item.matchingEnabled} situation={dossierSituation} debugMode={debugMode} /></div> : null}
+      <DossierWorkspaceTabs />
       {debugMode && senderType === "OWNER" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <p className="font-semibold uppercase tracking-wide text-amber-800">Debug</p>
@@ -714,8 +710,7 @@ export function RelationCaseWorkspace({
           </div>
         </section>
       ) : null}
-      <details id="case-advanced" className="group mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm">
-        <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">{"D\u00e9tails et fonctions avanc\u00e9es"}</summary>
+      <section hidden data-dossier-tab-content="details" className="mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm">
       <div className="mt-4"><RelationCaseFields
         caseId={item.id}
         priority={item.priority}
@@ -770,12 +765,12 @@ export function RelationCaseWorkspace({
           </details>
         ) : null}
       </section>
-      </details>
+      </section>
       <div
         data-case-layout="conversation-ai-sidebar"
         className="mt-6 grid min-w-0 gap-5 lg:mt-8"
       >
-        <section data-conversation-zone="true" data-boussole-id="case-conversation" className="min-w-0 space-y-4">
+        <section id="dossier-panel-conversation" role="tabpanel" aria-labelledby="dossier-tab-conversation" data-dossier-tab-content="conversation" data-conversation-zone="true" data-boussole-id="case-conversation" className="min-w-0 space-y-4">
           <ChatBox
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}
@@ -786,8 +781,8 @@ export function RelationCaseWorkspace({
             readOnlyReason={governanceBlockedMessage}
             senderType={senderType}
           />
-          <details id="case-documents" data-boussole-id="case-documents" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
-            <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">Documents ({item.documents.length})</summary>
+        </section>
+          <section hidden id="dossier-panel-documents" role="tabpanel" aria-labelledby="dossier-tab-documents" data-dossier-tab-content="documents" data-boussole-id="case-documents" className="rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
           <div className="mt-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -812,9 +807,8 @@ export function RelationCaseWorkspace({
             disabled={!relationWritable}
             disabledReason={governanceBlockedMessage}
           />
-          </details>
-        </section>
-        <section id="case-requests" className="min-w-0">
+          </section>
+        <section hidden id="dossier-panel-requests" role="tabpanel" aria-labelledby="dossier-tab-requests" data-dossier-tab-content="requests" className="min-w-0">
           <RelationActionsPanel
             caseId={item.id}
             actions={item.relationActions}
@@ -825,8 +819,7 @@ export function RelationCaseWorkspace({
             disabledReason={governanceBlockedMessage}
           />
         </section>
-        <details id="case-details" data-metadata-sidebar="true" className="group min-w-0 rounded-2xl border border-[#d6e7e8] bg-white p-4">
-          <summary className="cursor-pointer list-none font-semibold text-[#2f3437] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#247f88]">{"Informations d\u00e9taill\u00e9es"}</summary>
+        <section hidden id="dossier-panel-details" role="tabpanel" aria-labelledby="dossier-tab-details" data-dossier-tab-content="details" data-metadata-sidebar="true" className="min-w-0 rounded-2xl border border-[#d6e7e8] bg-white p-4">
           <aside className="mt-4 min-w-0 space-y-4">
           <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
@@ -1058,7 +1051,7 @@ export function RelationCaseWorkspace({
             </details>
           </div>
           </aside>
-        </details>
+        </section>
       </div>
     </main>
   );

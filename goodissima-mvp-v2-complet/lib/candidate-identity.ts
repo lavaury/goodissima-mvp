@@ -41,7 +41,7 @@ export function resolveCandidateIdentityState(input: {
 }): CandidateIdentityState {
   const name = input.candidateName?.trim() ?? "";
   const email = input.candidateEmail?.trim() ?? "";
-  const hasName = Boolean(name) && !isSyntheticCandidateName(name);
+  const hasName = Boolean(name) && !isSyntheticCandidateName(name) && !isSyntheticCandidateEmail(name);
   const hasEmail = Boolean(email) && !isSyntheticCandidateEmail(email);
   const shortId = shortCandidateId(input.id);
   const displayName = hasName ? name : shortId ? `Candidat #${shortId}` : "Candidat non identifié";

@@ -60,6 +60,16 @@ test("full identity is identified", () => {
   assert.equal(state.recommendation, undefined);
 });
 
+test("never exposes a private technical alias as a name or contact", () => {
+  const alias = "private-example@goodissima.local";
+  const state = resolveCandidateIdentityState({ id: "case-private123456", candidateName: alias, candidateEmail: alias });
+
+  assert.equal(state.displayName, "Candidat #123456");
+  assert.match(state.displayEmail, /^Contact non renseign/);
+  assert.match(state.status, /^Non identifi/);
+  assert.doesNotMatch(`${state.displayName} ${state.displayEmail}`, /private-.*@goodissima\.local/i);
+});
+
 test("orchestrator recommends candidate identification when identity is missing", () => {
   const situation = buildDossierSituation(baseInput({
     candidateIdentity: resolveCandidateIdentityState({ id: "case-abcdef", candidateName: "", candidateEmail: "" }),

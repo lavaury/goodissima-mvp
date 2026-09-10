@@ -34,8 +34,8 @@ test("separates announcement, journey and relation actions", () => {
   assert.match(journey, /Analyser le parcours/);
   assert.match(journey, /Optimiser le parcours/);
   assert.match(source("components/TemplateLifecycleActions.tsx"), /Dupliquer le parcours/);
-  const relation = source("components/RelationCaseWorkspace.tsx");
-  for (const label of ["Conversation", "Documents", "Demandes", "case-details"]) assert.match(relation, new RegExp(label));
+  const relation = [source("components/RelationCaseWorkspace.tsx"), source("components/DossierWorkspaceTabs.tsx")].join("\n");
+  for (const label of ["Conversation", "Documents", "Demandes", "dossier-panel-details"]) assert.match(relation, new RegExp(label));
 });
 
 test("provides cross navigation between product objects", () => {

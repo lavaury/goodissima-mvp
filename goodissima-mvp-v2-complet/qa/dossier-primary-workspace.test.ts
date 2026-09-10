@@ -4,6 +4,7 @@ import test from "node:test";
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const workspace = source("components/RelationCaseWorkspace.tsx");
+const tabs = source("components/DossierWorkspaceTabs.tsx");
 
 test("renders a minimal business header without the legacy dashboard return", () => {
   assert.match(workspace, /Dossier avec \{candidateIdentityState\.displayName\}/);
@@ -21,25 +22,38 @@ test("uses the real GLink as the concise origin", () => {
 });
 
 test("provides four accessible primary dossier destinations", () => {
-  for (const target of ["#case-conversation", "#case-documents", "#case-requests", "#case-details"]) {
-    assert.ok(workspace.includes(`href: "${target}"`), `missing primary destination ${target}`);
+  for (const tab of ["conversation", "documents", "requests", "details"]) {
+    assert.ok(tabs.includes(`id: "${tab}"`), `missing primary tab ${tab}`);
   }
-  assert.match(workspace, /aria-label="Espaces du dossier"/);
-  assert.match(workspace, /min-h-11/);
-  assert.match(workspace, /grid-cols-2[\s\S]*sm:flex/);
+  assert.match(tabs, /role="tablist"/);
+  assert.match(tabs, /role="tab"/);
+  assert.match(tabs, /aria-selected/);
+  assert.match(tabs, /aria-controls/);
+  assert.match(tabs, /min-h-11/);
+  assert.match(tabs, /ArrowRight|ArrowLeft/);
 });
 
 test("keeps the existing business components reachable in focused surfaces", () => {
   for (const component of ["ChatBox", "DocumentList", "DocumentUpload", "RelationActionsPanel", "RelationGovernanceControls", "CandidateAccessControls", "MatchingOptInPanel", "AIWorkspace", "RelationLiveKitMediaRoom"]) {
     assert.match(workspace, new RegExp(`<${component}`), `missing retained component ${component}`);
   }
-  assert.match(workspace, /id="case-documents"/);
-  assert.match(workspace, /id="case-requests"/);
-  assert.match(workspace, /id="case-details"/);
+  for (const tab of ["conversation", "documents", "requests", "details"]) {
+    assert.match(workspace, new RegExp(`id="dossier-panel-${tab}"[\\s\\S]{0,100}role="tabpanel"`));
+  }
+  assert.match(tabs, /useState<DossierWorkspaceTab>\("conversation"\)/);
+  assert.match(tabs, /panel\.hidden = panel\.dataset\.dossierTabContent !== tab/);
 });
 
 test("keeps Boussole targets on real dossier objects", () => {
-  for (const target of ["case-relational-overview", "case-relational-navigation", "case-conversation", "case-documents", "case-communication-history", "candidate-access-controls-section"]) {
+  for (const target of ["case-relational-overview", "case-conversation", "case-documents", "case-communication-history", "candidate-access-controls-section"]) {
     assert.ok(workspace.includes(target), `missing Boussole target ${target}`);
   }
+  assert.match(tabs, /case-relational-navigation/);
+});
+
+test("keeps secondary capabilities exclusively in the details workspace", () => {
+  assert.match(workspace, /data-dossier-tab-content="details"[\s\S]*Workspace du dossier/);
+  assert.match(workspace, /data-dossier-tab-content="details"[\s\S]*RelationLiveKitMediaRoom/);
+  assert.match(workspace, /data-dossier-tab-content="details"[\s\S]*MatchingOptInPanel/);
+  assert.doesNotMatch(workspace, />Organisation du dossier<|Détails et fonctions avancées|Informations détaillées/);
 });

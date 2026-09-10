@@ -70,7 +70,7 @@ export function ContextualBoussole() {
   const runtimeContext = useMemo<BoussoleRuntimeContext>(() => {
     if (typeof document === "undefined") return { pageState: "EMPTY", visibleObjectCount: 0 };
     const targets = Array.from(document.querySelectorAll<HTMLElement>("[data-boussole-id]"));
-    const availableTargetIds = [...new Set(targets.filter((element) => element.getClientRects().length > 0 || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element))).map((element) => element.dataset.boussoleId).filter((id): id is string => Boolean(id)))];
+    const availableTargetIds = [...new Set(targets.filter((element) => element.getClientRects().length > 0 || element.closest("[data-dossier-tab-content]") || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element))).map((element) => element.dataset.boussoleId).filter((id): id is string => Boolean(id)))];
     const focusedObjectId = context?.id === "governed-journey" && availableTargetIds.includes("governed-journey-overview") ? pathname.match(/^\/gouvernance\/parcours\/([^/]+)/)?.[1] : undefined;
     const visibleObjectCount = context?.id === "governance"
       ? ["governance-first-workspace", "governance-first-journey", "governance-first-portfolio", "first-unassigned-governed-journey", "first-unassigned-relational-case"].filter((id) => availableTargetIds.includes(id)).length
@@ -95,7 +95,7 @@ export function ContextualBoussole() {
         if (!(element instanceof HTMLElement)) return false;
         const style = window.getComputedStyle(element);
         const stateMatches = !candidate.targetStates?.length || candidate.targetStates.includes(element.dataset.boussoleState ?? "");
-        return stateMatches && ((element.getClientRects().length > 0 && style.display !== "none" && style.visibility !== "hidden" && element.getAttribute("aria-hidden") !== "true") || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element)));
+        return stateMatches && ((element.getClientRects().length > 0 && style.display !== "none" && style.visibility !== "hidden" && element.getAttribute("aria-hidden") !== "true") || element.closest("[data-dossier-tab-content]") || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element)));
       });
       if (!available && candidate.targetId === "simple-link-final-check-section" && process.env.NODE_ENV !== "production" && !missingTargetWarnings.current.has(candidate.targetId)) {
         missingTargetWarnings.current.add(candidate.targetId);
@@ -289,6 +289,7 @@ export function ContextualBoussole() {
       return;
     }
     if (step.targetId === "governed-journey-educational-preview") window.dispatchEvent(new Event("goodissima:open-governed-journey-preview"));
+    window.dispatchEvent(new CustomEvent("goodissima:reveal-dossier-target", { detail: { targetId: step.targetId } }));
     const candidates = Array.from(document.querySelectorAll(`[data-boussole-id="${step.targetId}"]`));
     const target = candidates.find((candidate) => !candidate.closest('[data-boussole-navigation="global"]')) ?? candidates[0];
     if (!(target instanceof HTMLElement)) {
