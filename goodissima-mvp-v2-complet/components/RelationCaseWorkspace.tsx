@@ -7,10 +7,9 @@ import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { DossierWorkspaceTabs } from "@/components/DossierWorkspaceTabs";
 import { DossierActionMenu } from "@/components/DossierActionMenu";
+import { DossierCommunicationLauncher } from "@/components/DossierCommunicationLauncher";
 import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
 import { RelationGovernanceBadge } from "@/components/RelationGovernanceControls";
-import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
-import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
 import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
 import { RelationActionsPanel } from "@/components/RelationActionsPanel";
 import {
@@ -717,30 +716,8 @@ export function RelationCaseWorkspace({
           </div>
         </section>
       ) : null}
-      <details hidden data-dossier-tab-content="details" data-dossier-section="communication" data-boussole-disclosure="navigation" className="group mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between font-semibold">Communication avancée <span className="text-[#247f88] transition group-open:rotate-180">⌄</span></summary>
-      <div className="mt-6">
-        <RelationLiveKitMediaRoom
-          caseId={item.id}
-          actorKind={senderType === "OWNER" ? "owner" : "candidate"}
-          available={liveKitConfigured}
-          candidateAccessToken={candidateAccessToken}
-        />
-      </div>
-      {!liveKitConfigured ? (
-        <details className="group mt-6 rounded-2xl border border-[#e7e0d6] bg-[#fffcf8] p-4 shadow-sm">
-          <summary className="cursor-pointer list-none font-semibold text-[#2f3437]">Mode de secours</summary>
-          <p className="mt-2 text-sm text-[#766f68]">La salle securisee n&apos;est pas disponible pour le moment.</p>
-          <p className="mt-1 text-xs text-[#766f68]">Mode de secours limite a une communication directe.</p>
-          <div className="mt-4">
-            <RelationSecureMediaRoom
-              caseId={item.id}
-              role={senderType}
-              candidateAccessToken={candidateAccessToken}
-            />
-          </div>
-        </details>
-      ) : null}
+      <details hidden data-dossier-tab-content="conversation" data-boussole-disclosure="navigation" className="group mt-4 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between font-semibold">Historique des communications <span className="text-[#247f88] transition group-open:rotate-180">⌄</span></summary>
       <section data-boussole-id="case-communication-history" className="mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -773,6 +750,7 @@ export function RelationCaseWorkspace({
         className="mt-6 grid min-w-0 gap-5 lg:mt-8"
       >
         <section id="dossier-panel-conversation" role="tabpanel" aria-labelledby="dossier-tab-conversation" data-dossier-tab-content="conversation" data-conversation-zone="true" data-boussole-id="case-conversation" className="min-w-0 space-y-4">
+          <DossierCommunicationLauncher caseId={item.id} actorKind={senderType === "OWNER" ? "owner" : "candidate"} candidateAccessToken={candidateAccessToken} liveKitConfigured={liveKitConfigured} enabled={relationWritable} disabledReason={governanceBlockedMessage} />
           <ChatBox
             caseId={candidateAccessToken ? undefined : item.id}
             candidateAccessToken={candidateAccessToken}

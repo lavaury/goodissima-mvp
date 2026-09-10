@@ -32,6 +32,7 @@ export function DossierWorkspaceTabs() {
     const revealTarget = (event: Event) => {
       const targetId = (event as CustomEvent<{ targetId?: string }>).detail?.targetId;
       if (!targetId) return;
+      if (["case-secure-media-room", "join-secure-communication", "case-secure-media-controls", "case-communication-history"].includes(targetId)) selectTab("conversation");
       const target = document.querySelector<HTMLElement>(`[data-boussole-id="${CSS.escape(targetId)}"]`);
       const panel = target?.closest<HTMLElement>("[data-dossier-tab-content]");
       const tab = panel?.dataset.dossierTabContent as DossierWorkspaceTab | undefined;

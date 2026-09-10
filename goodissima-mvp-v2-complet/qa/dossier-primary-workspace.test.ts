@@ -34,7 +34,7 @@ test("provides four accessible primary dossier destinations", () => {
 });
 
 test("keeps the existing business components reachable in focused surfaces", () => {
-  for (const component of ["ChatBox", "DocumentList", "DocumentUpload", "RelationActionsPanel", "RelationGovernanceBadge", "CandidateAccessControls", "MatchingOptInPanel", "AIWorkspace", "RelationLiveKitMediaRoom"]) {
+  for (const component of ["ChatBox", "DocumentList", "DocumentUpload", "RelationActionsPanel", "RelationGovernanceBadge", "CandidateAccessControls", "MatchingOptInPanel", "AIWorkspace", "DossierCommunicationLauncher"]) {
     assert.match(workspace, new RegExp(`<${component}`), `missing retained component ${component}`);
   }
   for (const tab of ["conversation", "documents", "requests", "details"]) {
@@ -53,7 +53,7 @@ test("keeps Boussole targets on real dossier objects", () => {
 
 test("keeps secondary capabilities exclusively in the details workspace", () => {
   assert.match(workspace, /data-dossier-tab-content="details"[\s\S]*Workspace du dossier/);
-  assert.match(workspace, /data-dossier-tab-content="details"[\s\S]*RelationLiveKitMediaRoom/);
+  assert.match(workspace, /data-dossier-tab-content="conversation"[\s\S]*case-communication-history/);
   assert.match(workspace, /data-dossier-tab-content="details"[\s\S]*MatchingOptInPanel/);
   assert.doesNotMatch(workspace, />Organisation du dossier<|Détails et fonctions avancées|Informations détaillées/);
 });

@@ -281,7 +281,7 @@ export function ContextualBoussole() {
 
   if (!context || !step) return null;
 
-  function showStep() {
+  async function showStep() {
     if (!context || !step) return;
     clearHighlight();
     if (!step?.targetId) {
@@ -290,6 +290,7 @@ export function ContextualBoussole() {
     }
     if (step.targetId === "governed-journey-educational-preview") window.dispatchEvent(new Event("goodissima:open-governed-journey-preview"));
     window.dispatchEvent(new CustomEvent("goodissima:reveal-dossier-target", { detail: { targetId: step.targetId } }));
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
     const candidates = Array.from(document.querySelectorAll(`[data-boussole-id="${step.targetId}"]`));
     const target = candidates.find((candidate) => !candidate.closest('[data-boussole-navigation="global"]')) ?? candidates[0];
     if (!(target instanceof HTMLElement)) {
