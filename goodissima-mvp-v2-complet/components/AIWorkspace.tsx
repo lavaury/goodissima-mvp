@@ -63,7 +63,7 @@ export function AIWorkspace({
   }
 
   function prepareIdentityRequest() {
-    prepareDraft("CLARIFICATION_REQUEST", situation.recommendedDraftInstruction);
+    window.dispatchEvent(new CustomEvent("goodissima:prepare-relation-request", { detail: { kind: "identity" } }));
   }
 
   return (

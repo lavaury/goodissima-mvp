@@ -85,10 +85,11 @@ test("orchestrator recommends candidate identification when identity is missing"
   assert.match(orchestrator, /onRequestCoordinates/);
 
   const workspace = source("components/AIWorkspace.tsx");
-  assert.match(workspace, /prepareDraft\("CLARIFICATION_REQUEST"/);
+  assert.match(workspace, /goodissima:prepare-relation-request/);
   assert.doesNotMatch(workspace, /fetch\(/);
 
   const actions = source("components/RelationActionsPanel.tsx");
   assert.match(actions, /candidateIdentityRequestTitle/);
-  assert.match(actions, /draftOnly/);
+  assert.match(actions, /prepareIdentityRequest/);
+  assert.match(actions, /createOpen/);
 });

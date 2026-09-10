@@ -50,9 +50,12 @@ export function DossierWorkspaceTabs() {
       disclosure.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
     };
     window.addEventListener("goodissima:open-dossier-section", openSection);
+    const openRequestComposer = () => selectTab("requests");
+    window.addEventListener("goodissima:prepare-relation-request", openRequestComposer);
     return () => {
       window.removeEventListener("goodissima:reveal-dossier-target", revealTarget);
       window.removeEventListener("goodissima:open-dossier-section", openSection);
+      window.removeEventListener("goodissima:prepare-relation-request", openRequestComposer);
     };
   }, []);
 
