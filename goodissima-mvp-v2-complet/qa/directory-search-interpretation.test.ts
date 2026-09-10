@@ -3,10 +3,10 @@ import test from "node:test";
 import type { AIProvider } from "../lib/ai/types.ts";
 import type { DirectorySearchCriteria } from "../lib/directory/directory-search-contracts.ts";
 import { directorySearchIntentToCriteria, parseDirectorySearchIntent, DirectorySearchIntentError } from "../lib/directory/directory-search-intent.ts";
-import { DIRECTORY_SEARCH_INTERPRETER_SYSTEM_PROMPT, interpretDirectorySearch, sanitizeDirectorySearchQuery } from "../lib/directory/directory-search-interpreter.ts";
+import { DIRECTORY_SEARCH_INTERPRETER_SYSTEM_PROMPT, DIRECTORY_SEARCH_INTENT_RESPONSE_FORMAT, interpretDirectorySearch, sanitizeDirectorySearchQuery } from "../lib/directory/directory-search-interpreter.ts";
 
 function provider(output: unknown): AIProvider {
-  return { name: "mock", model: "intent-test", async chat(request) { assert.deepEqual(Object.keys(JSON.parse(request.prompt)), ["query"]); assert.deepEqual(request.responseFormat, { type: "json_object" }); return { provider: "mock", model: "intent-test", output: JSON.stringify(output), latencyMs: 4 }; }, async summarize() { throw new Error("unused"); }, async analyzeTimeline() { throw new Error("unused"); }, async generateDraft() { throw new Error("unused"); }, async analyzeRiskSignals() { throw new Error("unused"); }, async classify() { throw new Error("unused"); } };
+  return { name: "mock", model: "intent-test", async chat(request) { assert.deepEqual(Object.keys(JSON.parse(request.prompt)), ["query"]); assert.strictEqual(request.responseFormat, DIRECTORY_SEARCH_INTENT_RESPONSE_FORMAT); return { provider: "mock", model: "intent-test", output: JSON.stringify(output), latencyMs: 4 }; }, async summarize() { throw new Error("unused"); }, async analyzeTimeline() { throw new Error("unused"); }, async generateDraft() { throw new Error("unused"); }, async analyzeRiskSignals() { throw new Error("unused"); }, async classify() { throw new Error("unused"); } };
 }
 const noRecord = async () => ({}) as never;
 
@@ -18,7 +18,7 @@ test("maps cautious AI intent to the existing deterministic criteria", async () 
 
 test("accepts a JSON object wrapped in whitespace and markdown fences", async () => {
   const wrapped = provider({ actorType: "PERSON", skills: ["cybersécurité"], languages: ["allemand"] });
-  wrapped.chat = async (request) => { assert.deepEqual(request.responseFormat, { type: "json_object" }); return { provider: "mock", model: "intent-test", output: "  \n```json\n{\"actorType\":\"PERSON\",\"skills\":[\"cybersécurité\"],\"languages\":[\"allemand\"]}\n```\n  " }; };
+  wrapped.chat = async (request) => { assert.strictEqual(request.responseFormat, DIRECTORY_SEARCH_INTENT_RESPONSE_FORMAT); return { provider: "mock", model: "intent-test", output: "  \n```json\n{\"actorType\":\"PERSON\",\"skills\":[\"cybersécurité\"],\"languages\":[\"allemand\"]}\n```\n  " }; };
   const result = await interpretDirectorySearch("Expert cybersécurité parlant allemand", { provider: wrapped, recordEvent: noRecord });
   assert.deepEqual(result.criteria, { actorType: "PERSON", skills: ["cybersécurité"], languages: ["allemand"] });
 });
@@ -27,6 +27,14 @@ test("keeps Paris executable without inventing verification", () => {
   const criteria: DirectorySearchCriteria | null = directorySearchIntentToCriteria(parseDirectorySearchIntent({ professions: ["médecin"], locations: [{ value: "Paris", granularity: "CITY" }] }));
   assert.equal(criteria?.verificationRequirements, undefined);
   assert.deepEqual(criteria, { professions: ["médecin"], locations: ["Paris"] });
+});
+
+test("schema closes the contract and constrains actorType to the domain enum", () => {
+  const schema = DIRECTORY_SEARCH_INTENT_RESPONSE_FORMAT.json_schema.schema as { additionalProperties: boolean; properties: { actorType: { enum: string[] } } };
+  assert.equal(schema.additionalProperties, false);
+  assert.deepEqual(schema.properties.actorType.enum, ["PERSON", "ORGANIZATION"]);
+  assert.match(DIRECTORY_SEARCH_INTERPRETER_SYSTEM_PROMPT, /Ne recopie jamais la phrase utilisateur entière dans text/);
+  assert.match(DIRECTORY_SEARCH_INTERPRETER_SYSTEM_PROMPT, /professions ou skills \[cybersécurité\].*languages \[allemand\].*aucune location/);
 });
 
 test("represents only an explicit verified certification requirement", () => {

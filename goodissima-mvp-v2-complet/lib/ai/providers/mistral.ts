@@ -240,7 +240,7 @@ async function callMistral({
   apiKey: string;
   model: string;
   request: AIProviderRequest;
-  responseFormat?: { type: "json_object" };
+  responseFormat?: AIProviderRequest["responseFormat"];
 }): Promise<MistralCallResult> {
   const startedAt = Date.now();
   const res = await fetch(mistralEndpoint, {

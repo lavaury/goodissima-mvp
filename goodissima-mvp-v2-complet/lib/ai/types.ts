@@ -6,7 +6,9 @@ export type AIProviderRequest = {
   system?: string;
   prompt: string;
   metadata?: Record<string, string | number | boolean | null>;
-  responseFormat?: { type: "json_object" };
+  responseFormat?:
+    | { type: "json_object" }
+    | { type: "json_schema"; json_schema: { name: string; strict: boolean; schema: Record<string, unknown> } };
 };
 
 export type AISummary = {
