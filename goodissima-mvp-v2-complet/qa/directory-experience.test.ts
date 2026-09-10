@@ -12,6 +12,7 @@ const publicPage = read("app/(connected)/annuaire/[publicId]/page.tsx");
 test("directory is positioned around search and voluntary enrollment", () => {
   assert.match(page, /Annuaire Goodissima/);
   assert.match(page, /Trouvez des personnes et des organisations/);
+  assert.doesNotMatch(page, /DashboardBackLink|Retour au Dashboard/);
   assert.match(experience, /Rechercher dans l’Annuaire/);
   assert.match(experience, /Mon inscription dans l’Annuaire/);
   assert.doesNotMatch(`${page}\n${experience}`, /brique transversale|non activée comme annuaire|\bLLM\b|embedding|\bmatching\b/i);
@@ -36,7 +37,7 @@ test("results render only the public directory DTO vocabulary", () => {
 });
 
 test("all person enrollment states and server commands are wired", () => {
-  for (const copy of ["Vous n’êtes pas actuellement visible", "Votre inscription est en préparation", "Vous êtes visible", "Votre inscription n’est actuellement plus visible"]) assert.match(experience, new RegExp(copy));
+  for (const copy of ["Vous n’avez pas encore configuré votre inscription", "Votre inscription est en préparation", "Vous êtes visible", "Votre inscription n’est actuellement plus visible"]) assert.match(experience, new RegExp(copy));
   for (const command of ["createDirectoryDraftAction", "addDirectoryAttributeAction", "updateDirectoryAttributeAction", "publishDirectoryAttributeAction", "withdrawDirectoryAttributeAction", "publishDirectoryProfileAction", "disableDirectoryProfileAction", "republishDirectoryProfileAction"]) assert.match(experience, new RegExp(command));
   assert.match(experience, /window\.confirm/);
   assert.match(experience, /créée en brouillon/);
