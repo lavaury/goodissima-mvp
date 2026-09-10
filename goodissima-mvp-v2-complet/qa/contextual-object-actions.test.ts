@@ -40,6 +40,10 @@ test("unassigned surfaces retain owner destinations, attachment mode and warning
     },
   });
   const html = renderToStaticMarkup(await component.SpacesExistingAttachments({ ownerId: "fixture" }));
+  for (const group of ["unassigned-journeys-title", "unassigned-links-title", "unassigned-cases-title"]) assert.match(html, new RegExp(`aria-labelledby="${group}"`));
+  for (const symbol of ["🧭", "🔗", "📁"]) assert.match(html, new RegExp(`<span aria-hidden="true">${symbol}</span>`));
+  assert.match(html, /ml-2 min-w-0 border-l-2 border-slate-200 pl-2 sm:ml-6 sm:pl-4/);
+  assert.ok(html.indexOf("Parcours gouvernés") < html.indexOf("Liens et opportunités") && html.indexOf("Liens et opportunités") < html.indexOf("Dossiers"));
   assert.equal((html.match(/aria-haspopup="menu"/g) ?? []).length, 4);
   assert.equal((html.match(/name="attachmentMode" value="unassigned"/g) ?? []).length, 4);
   assert.ok(html.indexOf("Le lien parent") < html.indexOf('id="attach-case-one"'));

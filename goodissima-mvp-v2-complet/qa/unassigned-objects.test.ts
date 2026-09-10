@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as pagination from "../lib/unassigned-pagination.ts";
 import * as creation from "../lib/object-creation.ts";
+import * as candidateIdentity from "../lib/candidate-identity.ts";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 
 function setup(user: string | null = "A") {
@@ -47,7 +48,7 @@ function setup(user: string | null = "A") {
     },
     $transaction: async (fn: any) => fn(prisma),
   };
-  const deps: any = { "@/lib/prisma": { prisma }, "@/lib/object-creation": creation, "@/lib/unassigned-pagination": pagination,
+  const deps: any = { "@/lib/prisma": { prisma }, "@/lib/object-creation": creation, "@/lib/candidate-identity": candidateIdentity, "@/lib/unassigned-pagination": pagination,
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!user) throw Error("LOGIN"); return { id: user }; } },
     "next/server": { NextResponse: { json: Response.json } }, "next/cache": { revalidatePath: (p: string) => invalidated.push(p) },
     "next/navigation": { redirect: (p: string) => { throw Error(`REDIRECT:${p}`); } }, "@/lib/workspace-portfolio-context": {},
@@ -75,6 +76,16 @@ test("visibility is owner scoped, unassigned only, and positively classified", a
   assert.deepEqual((await s.repository.getUnassignedGovernedJourneySummaries("A")).items.map((r: any) => r.relationTemplateId), ["manual", "generated"]);
   assert.deepEqual((await s.repository.getGovernanceWorkspaceOptions("A", 0)).map((w: any) => w.id), ["WA"]);
   assert.equal(s.reads.length, 4);
+});
+test("unassigned dossier titles hide technical aliases and preserve real names", async () => {
+  const hidden = setup();
+  hidden.cases[0].candidateName = "";
+  hidden.cases[0].candidateEmail = "private-case-simple@goodissima.local";
+  assert.equal((await hidden.repository.getUnassignedRelationCaseSummaries("A")).items[0].title, "Candidat non identifié");
+  const named = setup();
+  named.cases[0].candidateName = "Hector";
+  named.cases[0].candidateEmail = "private-case-simple@goodissima.local";
+  assert.equal((await named.repository.getUnassignedRelationCaseSummaries("A")).items[0].title, "Hector");
 });
 for (const kind of ["link", "case", "journey"]) {
   const own = kind === "link" ? "simple" : kind === "case" ? "case-simple" : "form-manual";

@@ -1,4 +1,5 @@
 import { linkObjectLabel } from "@/lib/object-creation";
+import { resolveCandidateIdentityState } from "@/lib/candidate-identity";
 import { prisma } from "@/lib/prisma";
 import { getTemplateCreationProofWhere, resolveTemplateAccess, templateAccessSelect } from "@/lib/relation-template-access";
 import { organizeWindow, organizeResults } from "@/lib/unassigned-pagination";
@@ -391,7 +392,7 @@ export async function getUnassignedRelationCaseSummaries(ownerId: string, page =
     select: { id: true, candidateName: true, candidateEmail: true, createdAt: true,
       gLink: { select: { id: true, title: true } } },
   });
-  return organizeResults(rows.map(row => ({ id: row.id, title: row.candidateName || row.candidateEmail,
+  return organizeResults(rows.map(row => ({ id: row.id, title: resolveCandidateIdentityState(row).displayName,
     gLinkTitle: row.gLink.title, createdAt: row.createdAt, href: `/cases/${encodeURIComponent(row.id)}` })));
 }
 
