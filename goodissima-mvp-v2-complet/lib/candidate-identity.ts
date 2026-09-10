@@ -28,11 +28,6 @@ export function isSyntheticCandidateName(value: string | null | undefined) {
   return Boolean(value?.trim() && syntheticNamePattern.test(value.trim()));
 }
 
-function shortCandidateId(id: string | null | undefined) {
-  const normalized = id?.replace(/[^a-z0-9]/gi, "").slice(-6);
-  return normalized ? normalized.toUpperCase() : null;
-}
-
 export function resolveCandidateIdentityState(input: {
   id?: string | null;
   candidateName?: string | null;
@@ -43,8 +38,7 @@ export function resolveCandidateIdentityState(input: {
   const email = input.candidateEmail?.trim() ?? "";
   const hasName = Boolean(name) && !isSyntheticCandidateName(name) && !isSyntheticCandidateEmail(name);
   const hasEmail = Boolean(email) && !isSyntheticCandidateEmail(email);
-  const shortId = shortCandidateId(input.id);
-  const displayName = hasName ? name : shortId ? `Candidat #${shortId}` : "Candidat non identifié";
+  const displayName = hasName ? name : "Candidat non identifié";
   const displayEmail = hasEmail ? email : "Contact non renseigné";
 
   let status: CandidateIdentityStatus;

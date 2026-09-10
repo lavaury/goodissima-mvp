@@ -6,9 +6,9 @@ import { DebugDeleteCaseButton } from "@/components/DebugDeleteCaseButton";
 import { DocumentList } from "@/components/DocumentList";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { DossierWorkspaceTabs } from "@/components/DossierWorkspaceTabs";
+import { DossierActionMenu } from "@/components/DossierActionMenu";
 import { MatchingOptInPanel } from "@/components/MatchingOptInPanel";
-import { RelationCaseFields } from "@/components/RelationCaseFields";
-import { RelationGovernanceControls } from "@/components/RelationGovernanceControls";
+import { RelationGovernanceBadge } from "@/components/RelationGovernanceControls";
 import { RelationSecureMediaRoom } from "@/components/RelationSecureMediaRoom";
 import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
 import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
@@ -69,7 +69,7 @@ type RelationCaseWorkspaceItem = {
       };
     }>;
   } | null;
-  gLink: { id: string; title: string; slug?: string | null; rules?: Prisma.JsonValue | null };
+  gLink: { id: string; title: string; slug?: string | null; rules?: Prisma.JsonValue | null; workspaceId?: string | null };
   workspace?: {
     id: string;
     name: string;
@@ -600,7 +600,7 @@ export function RelationCaseWorkspace({
   });
 
   return (
-    <main data-boussole-id="case-relational-overview" className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
+    <main data-boussole-id="case-relational-overview" data-dossier-context-surface="true" className="mx-auto max-w-[92rem] bg-[#fbf7f1] px-4 pb-8 pt-6 text-[#2f3437] sm:px-6 sm:py-10">
       {isCandidateView ? (
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Image
@@ -622,8 +622,13 @@ export function RelationCaseWorkspace({
           <ActiveOrganizationBadge organizationName={organizationName} className="border-[#d6e7e8] bg-[#fffcf8]" />
         </div>
       ) : null}
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#247f88]">Espace relationnel Goodissima</p>
-      <h1 className="mt-2 text-2xl font-bold leading-tight text-[#2f3437] sm:text-3xl">{item.gLink.title}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#247f88]">Espace relationnel Goodissima</p>
+          <h1 className="mt-2 break-words text-2xl font-bold leading-tight text-[#2f3437] sm:text-3xl">{item.gLink.title}</h1>
+        </div>
+        {!isCandidateView ? <DossierActionMenu caseId={item.id} status={item.status} priority={item.priority} governanceStatus={item.governanceStatus} /> : null}
+      </div>
       <p className="mt-1 text-sm leading-relaxed text-[#766f68] sm:text-base">
         Dossier avec {candidateIdentityState.displayName}
       </p>
@@ -640,7 +645,8 @@ export function RelationCaseWorkspace({
         <Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">Voir l&apos;origine</Link>
       </div>
       {!isCandidateView ? (
-        <section hidden data-dossier-tab-content="details" className="mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+        <details hidden data-dossier-tab-content="details" data-dossier-section="origin" data-boussole-disclosure="navigation" className="group mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between font-semibold">Origine et organisation <span className="text-[#247f88] transition group-open:rotate-180">⌄</span></summary>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-[#247f88]">Workspace du dossier</p>
@@ -654,6 +660,7 @@ export function RelationCaseWorkspace({
               <p className="mt-1 text-xs text-[#766f68]">
                 Ce rattachement organise le dossier existant sans modifier l'acces candidat, sans notification et sans nouveau lien.
               </p>
+              {!item.gLink.workspaceId ? <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">Le lien d&apos;origine, actuellement non rattaché, sera également rattaché au Workspace choisi.</p> : null}
             </div>
             {workspaceOptions.length > 0 ? (
               <div className="flex flex-col gap-2">
@@ -689,7 +696,7 @@ export function RelationCaseWorkspace({
               <p className="text-xs font-semibold text-[#766f68]">Aucun Workspace actif disponible.</p>
             )}
           </div>
-        </section>
+        </details>
       ) : null}
       {senderType === "OWNER" ? <div className="mt-4"><AIWorkspace caseId={item.id} matchingEnabled={item.matchingEnabled} situation={dossierSituation} debugMode={debugMode} /></div> : null}
       <DossierWorkspaceTabs />
@@ -710,13 +717,8 @@ export function RelationCaseWorkspace({
           </div>
         </section>
       ) : null}
-      <section hidden data-dossier-tab-content="details" className="mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm">
-      <div className="mt-4"><RelationCaseFields
-        caseId={item.id}
-        priority={item.priority}
-        status={item.status}
-        editable={senderType === "OWNER"}
-      /></div>
+      <details hidden data-dossier-tab-content="details" data-dossier-section="communication" data-boussole-disclosure="navigation" className="group mt-6 rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between font-semibold">Communication avancée <span className="text-[#247f88] transition group-open:rotate-180">⌄</span></summary>
       <div className="mt-6">
         <RelationLiveKitMediaRoom
           caseId={item.id}
@@ -765,7 +767,7 @@ export function RelationCaseWorkspace({
           </details>
         ) : null}
       </section>
-      </section>
+      </details>
       <div
         data-case-layout="conversation-ai-sidebar"
         className="mt-6 grid min-w-0 gap-5 lg:mt-8"
@@ -821,9 +823,9 @@ export function RelationCaseWorkspace({
         </section>
         <section hidden id="dossier-panel-details" role="tabpanel" aria-labelledby="dossier-tab-details" data-dossier-tab-content="details" data-metadata-sidebar="true" className="min-w-0 rounded-2xl border border-[#d6e7e8] bg-white p-4">
           <aside className="mt-4 min-w-0 space-y-4">
-          <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+          <details data-dossier-section="identity" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
-              Identité candidat
+              Identité et confiance
               <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
             </summary>
             <div className="mt-3 space-y-2 text-xs">
@@ -846,7 +848,7 @@ export function RelationCaseWorkspace({
               ) : null}
             </div>
           </details>
-          <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+          <details data-dossier-section="matching" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
               Matching
               <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
@@ -862,15 +864,9 @@ export function RelationCaseWorkspace({
               />
             </div>
           </details>
+          {senderType === "OWNER" ? <details data-dossier-section="governance" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-sm"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between font-semibold">Gouvernance <span className="text-[#247f88] transition group-open:rotate-180">⌄</span></summary><div className="mt-3"><RelationGovernanceBadge status={item.governanceStatus} reason={item.governanceReason} /></div></details> : null}
           {senderType === "OWNER" ? (
-            <RelationGovernanceControls
-              caseId={item.id}
-              status={item.governanceStatus}
-              reason={item.governanceReason}
-            />
-          ) : null}
-          {senderType === "OWNER" ? (
-            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+            <details data-dossier-section="trust" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
                 Confiance
                 <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
@@ -939,7 +935,7 @@ export function RelationCaseWorkspace({
             </details>
           ) : null}
           {senderType === "OWNER" ? (
-            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+            <details data-dossier-section="responses" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
                 Réponses candidat
                 <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
@@ -988,7 +984,7 @@ export function RelationCaseWorkspace({
             </details>
           ) : null}
           {senderType === "OWNER" ? (
-            <details data-boussole-id="candidate-access-controls-section" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+            <details data-boussole-id="candidate-access-controls-section" data-dossier-section="access" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
                 Acces
                 <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
@@ -1003,7 +999,7 @@ export function RelationCaseWorkspace({
               </div>
             </details>
           ) : null}
-          <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]" open>
+          <details data-dossier-section="timeline" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
               Chronologie
               <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>
@@ -1023,7 +1019,7 @@ export function RelationCaseWorkspace({
             </div>
           </details>
           <div className={isCandidateView ? "hidden lg:block" : ""}>
-            <details className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
+            <details data-dossier-section="audit" data-boussole-disclosure="navigation" className="group rounded-2xl border border-[#d6e7e8] bg-[#fffcf8] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-[#2f3437] focus:outline-none focus:ring-2 focus:ring-[#2fb8c4]/30">
                 Audit
                 <span className="text-xs font-medium text-[#247f88] transition group-open:rotate-180">v</span>

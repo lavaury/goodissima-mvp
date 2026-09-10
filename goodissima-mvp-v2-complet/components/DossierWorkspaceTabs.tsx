@@ -38,7 +38,22 @@ export function DossierWorkspaceTabs() {
       if (tab && tabs.some((item) => item.id === tab)) selectTab(tab);
     };
     window.addEventListener("goodissima:reveal-dossier-target", revealTarget);
-    return () => window.removeEventListener("goodissima:reveal-dossier-target", revealTarget);
+    const openSection = (event: Event) => {
+      const section = (event as CustomEvent<{ section?: string }>).detail?.section;
+      selectTab("details");
+      if (!section) { tabRefs.current[3]?.focus(); return; }
+      const disclosure = document.querySelector<HTMLDetailsElement>(`[data-dossier-section="${CSS.escape(section)}"]`);
+      if (!disclosure) return;
+      document.querySelectorAll<HTMLDetailsElement>("[data-dossier-section][open]").forEach((item) => { if (item !== disclosure) item.open = false; });
+      disclosure.open = true;
+      disclosure.scrollIntoView({ block: "center" });
+      disclosure.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+    };
+    window.addEventListener("goodissima:open-dossier-section", openSection);
+    return () => {
+      window.removeEventListener("goodissima:reveal-dossier-target", revealTarget);
+      window.removeEventListener("goodissima:open-dossier-section", openSection);
+    };
   }, []);
 
   function moveFocus(currentIndex: number, key: string) {

@@ -34,7 +34,7 @@ test("provides four accessible primary dossier destinations", () => {
 });
 
 test("keeps the existing business components reachable in focused surfaces", () => {
-  for (const component of ["ChatBox", "DocumentList", "DocumentUpload", "RelationActionsPanel", "RelationGovernanceControls", "CandidateAccessControls", "MatchingOptInPanel", "AIWorkspace", "RelationLiveKitMediaRoom"]) {
+  for (const component of ["ChatBox", "DocumentList", "DocumentUpload", "RelationActionsPanel", "RelationGovernanceBadge", "CandidateAccessControls", "MatchingOptInPanel", "AIWorkspace", "RelationLiveKitMediaRoom"]) {
     assert.match(workspace, new RegExp(`<${component}`), `missing retained component ${component}`);
   }
   for (const tab of ["conversation", "documents", "requests", "details"]) {

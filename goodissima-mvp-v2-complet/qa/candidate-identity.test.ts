@@ -29,7 +29,7 @@ function baseInput(overrides: Partial<DossierSituationInput> = {}): DossierSitua
 test("no name/no email is explicitly non identified", () => {
   const state = resolveCandidateIdentityState({ id: "case-abcdef123456", candidateName: "", candidateEmail: "" });
 
-  assert.equal(state.displayName, "Candidat #123456");
+  assert.equal(state.displayName, "Candidat non identifié");
   assert.equal(state.displayEmail, "Contact non renseigné");
   assert.equal(state.status, "Non identifié");
   assert.equal(state.recommendation, candidateIdentityRecommendation);
@@ -46,7 +46,7 @@ test("name only is partially identified", () => {
 test("email only is partially identified without inventing a name", () => {
   const state = resolveCandidateIdentityState({ id: "case-abcdef", candidateName: "", candidateEmail: "ana@example.test" });
 
-  assert.equal(state.displayName, "Candidat #ABCDEF");
+  assert.equal(state.displayName, "Candidat non identifié");
   assert.equal(state.displayEmail, "ana@example.test");
   assert.equal(state.status, "Partiellement identifié");
 });
@@ -64,7 +64,7 @@ test("never exposes a private technical alias as a name or contact", () => {
   const alias = "private-example@goodissima.local";
   const state = resolveCandidateIdentityState({ id: "case-private123456", candidateName: alias, candidateEmail: alias });
 
-  assert.equal(state.displayName, "Candidat #123456");
+  assert.equal(state.displayName, "Candidat non identifié");
   assert.match(state.displayEmail, /^Contact non renseign/);
   assert.match(state.status, /^Non identifi/);
   assert.doesNotMatch(`${state.displayName} ${state.displayEmail}`, /private-.*@goodissima\.local/i);
