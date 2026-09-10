@@ -309,7 +309,7 @@ export function createMistralProvider({
     name: "mistral",
     model,
     async chat(request: AIProviderRequest): Promise<AIProviderResult<string>> {
-      const result = await callMistral({ apiKey, model, request });
+      const result = await callMistral({ apiKey, model, request, responseFormat: request.responseFormat });
       return buildProviderResult(model, result.content, result);
     },
     async summarize(request: AIProviderRequest): Promise<AIProviderResult<AISummary>> {

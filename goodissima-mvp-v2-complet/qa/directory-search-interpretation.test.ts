@@ -6,7 +6,7 @@ import { directorySearchIntentToCriteria, parseDirectorySearchIntent, DirectoryS
 import { DIRECTORY_SEARCH_INTERPRETER_SYSTEM_PROMPT, interpretDirectorySearch, sanitizeDirectorySearchQuery } from "../lib/directory/directory-search-interpreter.ts";
 
 function provider(output: unknown): AIProvider {
-  return { name: "mock", model: "intent-test", async chat(request) { assert.deepEqual(Object.keys(JSON.parse(request.prompt)), ["query"]); return { provider: "mock", model: "intent-test", output: JSON.stringify(output), latencyMs: 4 }; }, async summarize() { throw new Error("unused"); }, async analyzeTimeline() { throw new Error("unused"); }, async generateDraft() { throw new Error("unused"); }, async analyzeRiskSignals() { throw new Error("unused"); }, async classify() { throw new Error("unused"); } };
+  return { name: "mock", model: "intent-test", async chat(request) { assert.deepEqual(Object.keys(JSON.parse(request.prompt)), ["query"]); assert.deepEqual(request.responseFormat, { type: "json_object" }); return { provider: "mock", model: "intent-test", output: JSON.stringify(output), latencyMs: 4 }; }, async summarize() { throw new Error("unused"); }, async analyzeTimeline() { throw new Error("unused"); }, async generateDraft() { throw new Error("unused"); }, async analyzeRiskSignals() { throw new Error("unused"); }, async classify() { throw new Error("unused"); } };
 }
 const noRecord = async () => ({}) as never;
 
@@ -14,6 +14,13 @@ test("maps cautious AI intent to the existing deterministic criteria", async () 
   const result = await interpretDirectorySearch("expert cybersécurité parlant allemand", { provider: provider({ actorType: "PERSON", skills: ["cybersécurité"], languages: ["allemand"] }), recordEvent: noRecord });
   assert.deepEqual(result.criteria, { actorType: "PERSON", skills: ["cybersécurité"], languages: ["allemand"] });
   assert.equal(result.criteria?.locations, undefined);
+});
+
+test("accepts a JSON object wrapped in whitespace and markdown fences", async () => {
+  const wrapped = provider({ actorType: "PERSON", skills: ["cybersécurité"], languages: ["allemand"] });
+  wrapped.chat = async (request) => { assert.deepEqual(request.responseFormat, { type: "json_object" }); return { provider: "mock", model: "intent-test", output: "  \n```json\n{\"actorType\":\"PERSON\",\"skills\":[\"cybersécurité\"],\"languages\":[\"allemand\"]}\n```\n  " }; };
+  const result = await interpretDirectorySearch("Expert cybersécurité parlant allemand", { provider: wrapped, recordEvent: noRecord });
+  assert.deepEqual(result.criteria, { actorType: "PERSON", skills: ["cybersécurité"], languages: ["allemand"] });
 });
 
 test("keeps Paris executable without inventing verification", () => {

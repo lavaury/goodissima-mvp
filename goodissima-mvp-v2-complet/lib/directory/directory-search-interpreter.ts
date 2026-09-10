@@ -27,10 +27,11 @@ export async function interpretDirectorySearch(query: string, options: { provide
   const provider = options.provider;
   const saveEvent = options.recordEvent;
   try {
-    const call = provider.chat({ system: DIRECTORY_SEARCH_INTERPRETER_SYSTEM_PROMPT, prompt: JSON.stringify({ query: cleanQuery }), metadata: { feature: "directory_search_interpretation", promptVersion: DIRECTORY_SEARCH_INTERPRETER_PROMPT_VERSION } });
+    const call = provider.chat({ system: DIRECTORY_SEARCH_INTERPRETER_SYSTEM_PROMPT, prompt: JSON.stringify({ query: cleanQuery }), metadata: { feature: "directory_search_interpretation", promptVersion: DIRECTORY_SEARCH_INTERPRETER_PROMPT_VERSION }, responseFormat: { type: "json_object" } });
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const result = await Promise.race([call, new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error("DIRECTORY_SEARCH_INTERPRETER_TIMEOUT")), options.timeoutMs ?? 8000); })]).finally(() => { if (timeout) clearTimeout(timeout); });
-    const intent = parseDirectorySearchIntent(JSON.parse(result.output.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim()));
+    const trimmedOutput = result.output.trim();
+    const intent = parseDirectorySearchIntent(JSON.parse(trimmedOutput.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "")));
     const criteria = directorySearchIntentToCriteria(intent);
     await saveEvent({ featureName: "directory_search_interpretation", provider: result.provider, model: result.model, action: "interpret_search", status: "success", promptVersion: DIRECTORY_SEARCH_INTERPRETER_PROMPT_VERSION, outputSummary: `criteria:${countDirectorySearchCriteria(criteria)};unsupported:${intent.unsupportedCriteria?.length ?? 0}`, usage: result });
     return { intent, criteria, unsupportedCriteria: intent.unsupportedCriteria ?? [] };
