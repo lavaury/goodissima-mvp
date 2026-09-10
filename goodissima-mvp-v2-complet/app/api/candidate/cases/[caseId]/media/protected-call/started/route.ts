@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { CommunicationChannelType } from "@prisma/client";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
+import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import {
   markRelationMediaSessionStarted,
   relationMediaChannelTypes,
@@ -33,12 +34,14 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       select: {
         id: true,
         candidateAccessToken: true,
+        governanceStatus: true,
       },
     });
 
     if (!relationCase) {
       return NextResponse.json({ error: "Relation introuvable ou acces candidat invalide." }, { status: 404 });
     }
+    if (!canCandidateWriteInRelation(relationCase.governanceStatus)) return NextResponse.json({ error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) }, { status: 409 });
 
     const session = await markRelationMediaSessionStarted({
       sessionId,

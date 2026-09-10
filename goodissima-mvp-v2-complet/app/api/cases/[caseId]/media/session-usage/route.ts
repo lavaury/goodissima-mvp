@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { markLiveKitSessionMediaUsage } from "@/lib/relation-media-sessions";
 import { prisma } from "@/lib/prisma";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 const usages = new Set(["audio", "video", "screen"] as const);
 
@@ -14,8 +15,9 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
     if (!communicationSessionId || !usages.has(usage as "audio" | "video" | "screen")) {
       return NextResponse.json({ error: "Usage media invalide." }, { status: 400 });
     }
-    const relationCase = await prisma.relationCase.findFirst({ where: { id: params.caseId, ownerId: owner.id }, select: { id: true } });
+    const relationCase = await prisma.relationCase.findFirst({ where: { id: params.caseId, ownerId: owner.id }, select: { id: true, governanceStatus: true } });
     if (!relationCase) return NextResponse.json({ error: "Relation introuvable." }, { status: 404 });
+    if (!canWriteInRelation(relationCase.governanceStatus)) return NextResponse.json({ error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) }, { status: 409 });
     const session = await markLiveKitSessionMediaUsage({
       communicationSessionId,
       relationCaseId: relationCase.id,

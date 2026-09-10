@@ -6,6 +6,7 @@ import {
   cancelExpiredRelationMediaSession,
   getRelationMediaSessionBlockedReason,
 } from "@/lib/relation-media-sessions";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 function normalizeBody(value: unknown): {
   sessionId?: unknown;
@@ -35,6 +36,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
     const peerId = typeof body.peerId === "string" ? body.peerId : "";
     const cursor = typeof body.cursor === "number" ? body.cursor : 0;
+    const outgoing = normalizeOutgoing(body.messages);
 
     if (!sessionId || !peerId.startsWith("owner:")) {
       return NextResponse.json({ error: "Signalisation invalide." }, { status: 400 });
@@ -50,11 +52,17 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
         id: true,
         status: true,
         expiresAt: true,
+        relationCase: { select: { governanceStatus: true } },
       },
     });
 
     if (!session) {
       return NextResponse.json({ error: "Session media introuvable." }, { status: 404 });
+    }
+    if (!session.relationCase) return NextResponse.json({ error: "Relation introuvable." }, { status: 404 });
+
+    if (!canWriteInRelation(session.relationCase.governanceStatus) && (outgoing.length === 0 || outgoing.some((message) => message.type !== "leave"))) {
+      return NextResponse.json({ error: getRelationGovernanceBlockedMessage(session.relationCase.governanceStatus) }, { status: 409 });
     }
 
     const checkedSession = await cancelExpiredRelationMediaSession(session);
@@ -79,7 +87,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       peerId,
       role: "OWNER",
       cursor,
-      outgoing: normalizeOutgoing(body.messages),
+      outgoing,
     });
 
     return NextResponse.json(exchange);

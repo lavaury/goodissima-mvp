@@ -4,15 +4,17 @@ import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
 import { createLiveKitParticipantToken } from "@/lib/media/livekit-token-service";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateLiveKitRelationMediaSession } from "@/lib/relation-media-sessions";
+import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 export async function POST(_req: Request, { params }: { params: { caseId: string } }) {
   try {
     const owner = await getCurrentPrismaUser();
     const relationCase = await prisma.relationCase.findFirst({
       where: { id: params.caseId, ownerId: owner.id },
-      select: { id: true, workspaceId: true, templateId: true, gLink: { select: { workspaceId: true } } },
+      select: { id: true, workspaceId: true, templateId: true, governanceStatus: true, gLink: { select: { workspaceId: true } } },
     });
     if (!relationCase) return NextResponse.json({ error: "Relation introuvable pour cet utilisateur." }, { status: 404 });
+    if (!canWriteInRelation(relationCase.governanceStatus)) return NextResponse.json({ error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) }, { status: 409 });
     if (!getLiveKitConfigStatus().configured) {
       return NextResponse.json({ error: "La salle securisee n'est pas disponible pour le moment." }, { status: 503 });
     }
