@@ -22,6 +22,7 @@ import { buildHumanReadableFormMessage, createFormSubmission, getFormFields } fr
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
+import { canSubmitToGLink } from "@/lib/secure-link-submission";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import { parseTemplateSnapshot } from "@/lib/template-snapshots";
 import { evaluateTrustAdmission } from "@/lib/trust-admission";
@@ -309,6 +310,20 @@ export async function POST(req: Request) {
       code: "GLINK_NOT_FOUND",
       gLinkId,
       reasons: ["gLink_not_found"],
+    });
+
+    return NextResponse.json(
+      { error: "Link not found", code: "GLINK_NOT_FOUND", reasons: ["gLink_not_found"] },
+      { status: 404 },
+    );
+  }
+
+  const submissionNow = new Date();
+  if (!canSubmitToGLink(gLink, submissionNow)) {
+    warnBadRequest({
+      code: "GLINK_NOT_FOUND",
+      gLinkId,
+      reasons: ["gLink_unavailable"],
     });
 
     return NextResponse.json(
