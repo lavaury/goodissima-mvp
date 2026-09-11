@@ -145,20 +145,17 @@ function nodes(node: any): any[] {
   return node && typeof node === "object" ? [node, ...nodes(node.props?.children)] : [];
 }
 
-test("opportunity choice carries the same context to manual and assisted branches",async()=>{
+test("opportunity creation is global and no longer branches through a governed journey",async()=>{
   const s=setup(); const file="app/(connected)/opportunities/new/page.tsx";
   const page=loadTestModule<any>(file,{
     ...s.dependencies, "react/jsx-runtime":jsx, "next/link":"a",
-    "next/navigation":{notFound(){throw Error("404");}},
-    "@/components/AITemplateDesigner":{AITemplateDesigner:"designer"},
-    "@/components/DashboardBackLink":{DashboardBackLink:"back"},
+    "@/components/OpportunityDraftCreator":{OpportunityDraftCreator:"creator"},
   });
-  for(const workspaceId of [undefined,"WA"]) {
-    const tree=nodes(await page.default({searchParams:{workspaceId}}));
-    assert.ok(tree.some(n=>n.props?.href===creation.withCreationWorkspace("/links/new",workspaceId)));
-    assert.equal(tree.find(n=>n.type==="designer").props.workspaceId,workspaceId);
-  }
-  for(const workspaceId of ["WB","archived","missing","",["WA","WB"]]) await assert.rejects(page.default({searchParams:{workspaceId}}),/404/);
+  const tree=nodes(await page.default());
+  assert.ok(tree.some(n=>n.type==="creator"));
+  assert.ok(tree.some(n=>n.props?.href==="/opportunities"));
+  assert.ok(tree.some(n=>n.props?.href==="/gouvernance"));
+  assert.ok(!tree.some(n=>n.props?.href==="/links/new" || n.type==="designer"));
 });
 
 test("an explicit unavailable template on the final form gets 404, never a replacement",async()=>{

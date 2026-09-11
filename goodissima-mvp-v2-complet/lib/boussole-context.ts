@@ -8,6 +8,7 @@ import { newGovernedJourneySteps } from "./boussole-new-governed-journey.ts";
 import { governedJourneySteps } from "./boussole-governed-journey.ts";
 import { dossierSteps } from "./boussole-dossiers.ts";
 import { directorySteps } from "./boussole-directory.ts";
+import { newOpportunitySteps } from "./boussole-new-opportunity.ts";
 
 export type CompassStep = { id?: string; title: string; body: string; detailedBody?: string; targetId?: string; targetStates?: string[]; glossaryTermIds?: string[]; optional?: boolean; fallbackTargetId?: string; targetStrategy?: import("./boussole/contracts.ts").BoussoleTargetStrategy; animation?: { focus: string; movement: string; narration: string; subtitles: string; duration: number; transition: string; tryNow: boolean } };
 export type CompassContext = { id: string; pageName: string; summary: string; caution: string; steps: CompassStep[] };
@@ -41,6 +42,7 @@ const contexts: CompassContext[] = [
   { id: "dashboard", pageName: "Accueil", summary: "L’Accueil aide à choisir entre Boussole, Annuaire et Mes espaces.", caution: "Les événements récents ne représentent pas toute l’activité ni une mémoire gouvernée.", steps: dashboardSteps },
   { id: "archives", pageName: "Archives des opportunités", summary: "Vous consultez les opportunités retirées de la vue active. Elles restent disponibles dans l’historique sans être présentées comme supprimées.", caution: "Consulter une archive ne la republie pas et ne relance aucune relation.", steps: opportunitySteps },
   { id: "opportunities", pageName: "Gérer les opportunités", summary: "Vous êtes dans l’espace qui rassemble les besoins, offres et annonces susceptibles de donner lieu à une relation. Retrouvez, examinez et gérez ici les opportunités créées dans Goodissima.", caution: "Recherchez une opportunité dans la liste ou utilisez les vues disponibles pour afficher celles qui demandent votre attention. Aucune publication, relation ou action n’est automatique.", steps: opportunitySteps },
+  { id: "new-opportunity", pageName: "Créer une opportunité", summary: "Décrivez un besoin ou une offre, vérifiez la compréhension proposée puis créez explicitement un brouillon.", caution: "L’interprétation ne crée rien. Vous choisissez l’intention et validez vous-même la création du brouillon.", steps: newOpportunitySteps },
   { id: "dossiers", pageName: "Dossier relationnel sécurisé", summary: "Ce dossier rassemble la conversation, les documents et les communications d’une relation autorisée créée après une réponse ou une mise en relation acceptée.", caution: "Chaque message, document et connexion à la salle exige une action humaine explicite. La Boussole ne transmet rien automatiquement.", steps: dossierSteps },
   { id: "directory", pageName: "Annuaire", summary: "L’Annuaire permet de trouver des acteurs volontairement publiés et de gérer sa propre inscription.", caution: "L’assistant interprète des critères ; seul le moteur déterministe recherche les profils publiés. Aucune relation n’est créée.", steps: directorySteps },
   { id: "settings", pageName: "Paramètres et IA", summary: "Les paramètres regroupent les réglages disponibles et les contrôles applicables à votre compte.", caution: "L’IA assiste et propose ; elle ne publie, ne contacte et ne décide jamais seule.", steps: [
@@ -77,6 +79,7 @@ export function getCompassContext(pathname: string, search = "") {
   if (pathname.startsWith("/gouvernance/pilotage")) return contexts.find((item) => item.id === "pilotage")!;
   if (pathname.startsWith("/gouvernance")) return contexts.find((item) => item.id === "governance")!;
   if (pathname.startsWith("/dashboard")) return contexts.find((item) => item.id === "dashboard")!;
+  if (pathname === "/opportunities/new") return contexts.find((item) => item.id === "new-opportunity")!;
   if (pathname.startsWith("/opportunities") && search.includes("view=archived")) return contexts.find((item) => item.id === "archives")!;
   if (pathname.startsWith("/opportunities") || pathname.startsWith("/links")) return contexts.find((item) => item.id === "opportunities")!;
   if (pathname.startsWith("/cases")) return contexts.find((item) => item.id === "dossiers")!;

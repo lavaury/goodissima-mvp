@@ -1,42 +1,14 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { AITemplateDesigner } from "@/components/AITemplateDesigner";
-import { DashboardBackLink } from "@/components/DashboardBackLink";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { notFound } from "next/navigation";
-import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
-import { withCreationWorkspace } from "@/lib/object-creation";
+import { OpportunityDraftCreator } from "@/components/OpportunityDraftCreator";
 
-export default async function NewOpportunityPage({ searchParams }: { searchParams?: { workspaceId?: string } }) {
-  const owner = await getCurrentPrismaUser();
-  const workspace = searchParams?.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, searchParams.workspaceId) : null;
-  if (searchParams?.workspaceId !== undefined && !workspace) notFound();
-  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
-
-  return <main className="mx-auto max-w-6xl px-6 py-10">
-    <DashboardBackLink className="mb-4" />
-
-    <section id="creation-options" className="scroll-mt-6 rounded-3xl border border-cyan-200 bg-cyan-50 p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800">Créer une opportunité</p>
-      <h1 className="mt-2 text-3xl font-bold text-cyan-950">Choisir le mode de création</h1>
-      <p className="mt-2 max-w-3xl text-cyan-900">Décrivez le besoin au clavier ou à la voix, ou partez d'un parcours déjà publié pour créer manuellement une annonce. Rien n'est publié, validé ou envoyé automatiquement.</p>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <a href="#ai-assisted" className="rounded-2xl bg-white p-5 ring-1 ring-cyan-200">
-          <span className="rounded-full bg-violet-700 px-3 py-1 text-xs font-semibold text-white">Assisté par IA</span>
-          <h2 className="mt-3 font-semibold text-cyan-950">Structurer avec l'IA et la voix</h2>
-          <p className="mt-1 text-sm text-cyan-900">Créer une proposition de parcours et d'annonce en brouillon, puis relire et valider humainement.</p>
-        </a>
-        <Link href={withCreationWorkspace("/links/new", workspace?.id)} className="rounded-2xl bg-white p-5 ring-1 ring-cyan-200">
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">Manuel</span>
-          <h2 className="mt-3 font-semibold text-cyan-950">Créer depuis un parcours publié</h2>
-          <p className="mt-1 text-sm text-cyan-900">Créer un lien sécurisé dans le contexte d'une annonce prête à être partagée.</p>
-        </Link>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link href="/opportunities" className="rounded-xl border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-900">Voir mes opportunités</Link>
-      </div>
-    </section>
-    <div id="ai-assisted" className="scroll-mt-6"><AITemplateDesigner workspaceId={workspace?.id} /></div>
+export default async function NewOpportunityPage() {
+  await getCurrentPrismaUser();
+  return <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+    <nav aria-label="Fil d’Ariane" className="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-600"><Link href="/opportunities" className="rounded-lg px-2 py-1 font-semibold hover:bg-slate-100">← Retour</Link><span aria-hidden="true">›</span><Link href="/" className="hover:underline">Accueil</Link><span aria-hidden="true">›</span><span aria-current="page">Créer une opportunité</span></nav>
+    <OpportunityDraftCreator />
+    <p className="mt-6 text-center text-sm"><Link href="/gouvernance" className="font-semibold text-cyan-800 underline">Voir dans Mes espaces</Link></p>
   </main>;
 }
