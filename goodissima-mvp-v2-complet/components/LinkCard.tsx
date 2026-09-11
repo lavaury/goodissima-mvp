@@ -48,6 +48,7 @@ export function LinkCard({
   const caseCount = item.receivedRequestCount ?? item.cases?.length ?? 0;
   const [shared, setShared] = useState(false);
   const [status, setStatus] = useState<AnnouncementStatus>(item.status ?? "ACTIVE");
+  const isDraft = status === "DRAFT";
   const [archiving, setArchiving] = useState(false);
   const toast = useToast();
   const router = useRouter();
@@ -127,14 +128,14 @@ export function LinkCard({
       {!debugMode && item.templateName ? <p className="mt-2 text-xs text-slate-500">Parcours source : <strong>{item.templateName}</strong>{item.sourceJourneyHref ? <> · <Link href={item.sourceJourneyHref} className="font-semibold text-[#247f88] underline">Voir le parcours</Link></> : null}</p> : null}
       <p data-boussole-id={boussoleOpportunityExample ? "opportunity-card-case-count" : "dashboard-link-case-count"} className="mt-1 text-xs text-slate-500">{caseCount === 0 ? "Aucun dossier" : `${caseCount} dossier${caseCount > 1 ? "s" : ""}`}</p>
 
-      <div data-boussole-id={boussoleOpportunityExample ? "opportunity-card-public-link" : "dashboard-link-public-url"} className="mt-4 rounded-xl bg-slate-50 p-3">
+      {!isDraft ? <div data-boussole-id={boussoleOpportunityExample ? "opportunity-card-public-link" : "dashboard-link-public-url"} className="mt-4 rounded-xl bg-slate-50 p-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
           Lien sécurisé vers l'annonce
         </p>
         <input value={publicUrl} readOnly className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
-      </div>
+      </div> : <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">Brouillon — non publié</p>}
 
-      {item.matchingStatus && item.matchingStatus !== "DISABLED" ? (
+      {!isDraft && item.matchingStatus && item.matchingStatus !== "DISABLED" ? (
         <div data-boussole-id={boussoleOpportunityExample ? "opportunity-matching-status" : "dashboard-link-matching-status"} data-boussole-state={item.matchingStatus} className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50 p-3"><span data-boussole-id="dashboard-link-matching-indicator" className="sr-only">État du matching</span>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-bold uppercase tracking-wide text-cyan-900">Matching relationnel</p>
@@ -160,16 +161,16 @@ export function LinkCard({
             </Link>
           ) : null}
         </div>
-      ) : <div data-boussole-id={boussoleOpportunityExample ? "opportunity-matching-status" : "dashboard-link-matching-status"} data-boussole-state="DISABLED" className="mt-4 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600"><strong>Matching relationnel :</strong> désactivé pour ce lien.</div>}
+      ) : !isDraft ? <div data-boussole-id={boussoleOpportunityExample ? "opportunity-matching-status" : "dashboard-link-matching-status"} data-boussole-state="DISABLED" className="mt-4 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600"><strong>Matching relationnel :</strong> désactivé pour ce lien.</div> : null}
 
       <div data-boussole-id="dashboard-link-actions" className="mt-4 flex flex-wrap gap-2">
-        <span data-boussole-id={boussoleOpportunityExample ? "copy-opportunity-link" : "dashboard-link-copy"}><CopyLinkButton value={publicUrl} /></span>
+        {!isDraft ? <><span data-boussole-id={boussoleOpportunityExample ? "copy-opportunity-link" : "dashboard-link-copy"}><CopyLinkButton value={publicUrl} /></span>
         <button data-boussole-id={boussoleOpportunityExample ? "share-opportunity" : "dashboard-link-share"} type="button" onClick={shareLink} className="rounded-xl border px-4 py-2 text-sm">
           {shared ? "Lien copie" : "Partager"}
         </button>
         <Link data-boussole-id={boussoleOpportunityExample ? "view-public-opportunity" : "dashboard-link-public-view"} className="rounded-xl border px-4 py-2 text-sm" href={publicPath}>
           Voir l'annonce publique
-        </Link>
+        </Link></> : null}
         <Link data-boussole-id={boussoleOpportunityExample ? "manage-opportunity" : "dashboard-link-manage"} className="rounded-xl border px-4 py-2 text-sm font-semibold" href={linkCasesPath}>
           Gérer l'annonce
         </Link>
@@ -177,7 +178,7 @@ export function LinkCard({
           <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">
             Annonce archivée
           </span>
-        ) : status === "ACTIVE" ? (
+        ) : status === "ACTIVE" || status === "DRAFT" ? (
           <button
             type="button"
             data-boussole-id={boussoleOpportunityExample ? "archive-announcement" : "dashboard-link-archive"}
@@ -213,9 +214,9 @@ export function LinkCard({
         ) : null}
       </div>
 
-      <div data-boussole-id={boussoleOpportunityExample ? "opportunity-admission" : "dashboard-link-admission"}><LinkAdmissionPanel linkId={item.id} initialMode={item.admissionMode ?? "OPEN"} /></div>
+      {!isDraft ? <div data-boussole-id={boussoleOpportunityExample ? "opportunity-admission" : "dashboard-link-admission"}><LinkAdmissionPanel linkId={item.id} initialMode={item.admissionMode ?? "OPEN"} /></div> : null}
 
-      {debugMode ? (
+      {debugMode && !isDraft ? (
         <div className="mt-5 space-y-4 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold uppercase tracking-wide text-amber-800">Debug GLink</span>
@@ -262,9 +263,9 @@ export function LinkCard({
         </div>
       ) : null}
 
-      <div data-boussole-id="dashboard-link-qr" className="mt-5">
+      {!isDraft ? <div data-boussole-id="dashboard-link-qr" className="mt-5">
         <QRCodeBox value={publicUrl} fileName={`goodissima-${item.slug}.png`} />
-      </div>
+      </div> : null}
     </div>
   );
 }

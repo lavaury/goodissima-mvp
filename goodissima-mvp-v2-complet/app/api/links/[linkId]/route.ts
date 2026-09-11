@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { mergeGLinkRules } from "@/lib/glink-matching";
+import { canPublishLink, canTransitionLinkStatus, type LinkLifecycleStatus } from "@/lib/link-lifecycle";
 
 export async function PATCH(req: Request, { params }: { params: { linkId: string } }) {
   const owner = await getCurrentPrismaUser();
-  const link = await prisma.gLink.findFirst({ where: { id: params.linkId, ownerId: owner.id }, select: { id: true, rules: true, templateId: true } });
+  const link = await prisma.gLink.findFirst({ where: { id: params.linkId, ownerId: owner.id }, select: { id: true, rules: true, templateId: true, status: true, expiresAt: true } });
   if (!link) return NextResponse.json({ error: "Annonce introuvable." }, { status: 404 });
   const body = await req.json();
   const action = typeof body.action === "string" ? body.action : "update";
@@ -38,6 +39,9 @@ export async function PATCH(req: Request, { params }: { params: { linkId: string
     return NextResponse.json({ matchingEnabled, matchingStatus: matchingEnabled ? "TO_ANALYZE" : "DISABLED", automaticActions: false });
   }
   if (action === "archive") {
+    if (!canTransitionLinkStatus(link.status as LinkLifecycleStatus, "ARCHIVED")) {
+      return NextResponse.json({ error: "Cette annonce ne peut pas être archivée dans son état actuel." }, { status: 409 });
+    }
     await prisma.gLink.update({ where: { id: link.id }, data: { status: "ARCHIVED" } });
     revalidatePath(`/links/${link.id}`);
     revalidatePath("/opportunities", "page");
@@ -45,6 +49,9 @@ export async function PATCH(req: Request, { params }: { params: { linkId: string
     return NextResponse.json({ status: "ARCHIVED", archived: true, deleted: false, relationshipsModified: false });
   }
   if (action === "publish") {
+    if (!canPublishLink({ status: link.status as LinkLifecycleStatus, expiresAt: link.expiresAt }, new Date())) {
+      return NextResponse.json({ error: "Cette annonce ne peut pas être publiée dans son état actuel ou sa date d’expiration est dépassée." }, { status: 409 });
+    }
     await prisma.gLink.update({ where: { id: link.id }, data: { status: "ACTIVE" } });
     revalidatePath(`/links/${link.id}`);
     revalidatePath("/opportunities", "page");

@@ -217,6 +217,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     }));
   const publicPath = `/l/${link.slug}`;
   const publicUrl = buildPublicAppUrl(publicPath);
+  const isDraft = link.status === "DRAFT";
   const templateName = link.template
     ? localizeTemplateName(link.template.key, link.template.name, locale)
     : t("studio.noActiveVersion");
@@ -259,7 +260,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
       <section className="mt-6 rounded-2xl border bg-white p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">Annonce : {link.title}</h2><ProductObjectDefinition object="announcement" /><p className="mt-2 text-sm text-slate-600">Parcours source : <strong>{templateName}</strong></p></div>{sourceJourneyHref ? <Link href={sourceJourneyHref} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-900">Voir le parcours</Link> : null}</div></section>
       <AnnouncementActions linkId={link.id} publicUrl={publicUrl} initialTitle={link.title} initialCity={link.city ?? ""} initialDescription={link.description ?? ""} initialStatus={link.status} />
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      {!isDraft ? <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-2xl border bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-slate-700">{t("links.created.publicCandidateLink")}</p>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
@@ -282,18 +283,18 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
             <p className="mt-1 text-sm text-slate-500">{t("links.created.noActiveConversationHelp")}</p>
           </div>
         </div>
-      </section>
+      </section> : <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 font-semibold text-amber-900">Brouillon — non publié. Aucun lien public, partage ou accès candidat n’est disponible.</p>}
 
-      <div data-boussole-id="explain-link-admission">
+      {!isDraft ? <><div data-boussole-id="explain-link-admission">
         <LinkAdmissionPanel linkId={link.id} initialMode={link.admissionMode} />
       </div>
       <GLinkMatchingPanel
         linkId={link.id}
         criteriaSufficient={hasUsefulGLinkMatchingCriteria(matchingSource)}
         initialEnabled={gLinkMatchingState.enabled}
-      />
+      /></> : null}
 
-      {debugMode ? (
+      {debugMode && !isDraft ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">Debug</p>
           <div className="mt-3 space-y-2 text-sm text-amber-950">
@@ -443,14 +444,14 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
       </section>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <Link
+        {!isDraft ? <Link
           href={publicPath}
           data-boussole-id="open-public-link"
           prefetch={false}
           className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-sm font-medium text-white"
         >
           {t("links.created.testCandidate")}
-        </Link>
+        </Link> : null}
         <Link
           href={`/dashboard?refresh=${encodeURIComponent(link.id)}`}
           prefetch={false}

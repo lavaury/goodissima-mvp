@@ -400,8 +400,8 @@ export async function getUnassignedGLinkSummaries(ownerId: string, page = 0) {
   const rows = await prisma.gLink.findMany({
     where: { ownerId, workspaceId: null }, ...organizeWindow(page),
     orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-    select: { id: true, title: true, rules: true, createdAt: true },
+    select: { id: true, title: true, rules: true, status: true, createdAt: true },
   });
-  return organizeResults(rows.map(row => ({ id: row.id, title: row.title, createdAt: row.createdAt,
+  return organizeResults(rows.map(row => ({ id: row.id, title: row.title, status: row.status, createdAt: row.createdAt,
     objectLabel: linkObjectLabel(row.rules), href: `/links/${encodeURIComponent(row.id)}` })));
 }

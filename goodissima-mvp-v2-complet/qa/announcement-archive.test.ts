@@ -34,6 +34,7 @@ test("archive action targets the announcement secure link and persists ARCHIVED"
 });
 
 test("archived status is distinct from suspension and has French-first copy", () => {
+  assert.equal(announcementStatusLabel("DRAFT"), "Brouillon");
   assert.equal(announcementStatusLabel("ARCHIVED"), "Archivée");
   assert.equal(announcementStatusLabel("DISABLED"), "Suspendue");
 

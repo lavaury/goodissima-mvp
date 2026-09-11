@@ -11,6 +11,7 @@ const row = "min-w-0 border-b border-slate-200 py-4";
 const children = "ml-2 min-w-0 border-l-2 border-slate-200 pl-2 sm:ml-6 sm:pl-4";
 const formClass = "mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end";
 function formatDate(value: Date) { return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(value); }
+function linkStatusLabel(status: string) { return status === "DRAFT" ? "Brouillon" : status === "ACTIVE" ? "Publiée" : status === "DISABLED" ? "Suspendue" : status === "EXPIRED" ? "Clôturée" : "Archivée"; }
 function Pages({ name, label, params, hasMore }: { name: string; label: string; params: Params; hasMore: boolean }) {
   const page = organizePage(params[name]);
   function href(next: number) {
@@ -74,7 +75,7 @@ export async function SpacesExistingAttachments({ ownerId, params = {} }: { owne
       <h3 id="unassigned-links-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">🔗</span>Liens et opportunités</h3>
       <div className={children}>
       {!links.items.length ? <p className="py-3 text-sm text-slate-600">Aucun lien ou opportunité à organiser sur cette page.</p> : links.items.map(link => <ObjectActionRow as="article" favorite={{ objectKind: "GLINK", objectId: link.id }} name={link.title} href={link.href} attachmentTargetId={workspaces.items.length ? `attach-link-${link.id}` : "organize-no-destination"} key={link.id} className={row}>
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 pr-16"><div className="min-w-0 flex-1"><h4 className="break-words font-semibold">{link.title}</h4><p className="text-sm text-slate-600">{link.objectLabel} · Créé le {formatDate(link.createdAt)}</p></div>
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 pr-16"><div className="min-w-0 flex-1"><h4 className="break-words font-semibold">{link.title}</h4><p className="text-sm text-slate-600">{link.objectLabel} · {linkStatusLabel(link.status)} · Créé le {formatDate(link.createdAt)}</p></div>
           <Link href={link.href} aria-label={`Ouvrir : ${link.title}`} className={control}>Ouvrir</Link></div>
         <OrganizationPanel><p className="mt-2 text-sm text-slate-600">Seul ce lien sera rattaché. Ses dossiers restent à leur emplacement.</p>
         {workspaces.items.length ? <form id={`attach-link-${link.id}`} action={attachGLinkToWorkspaceAction} className={formClass}>

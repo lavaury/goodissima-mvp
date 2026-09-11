@@ -40,8 +40,19 @@ export default async function OpportunitiesPage({
   const archivedOpportunitySummary = await getArchivedOpportunitySummaryForOwner(owner.id, searchParams?.templateId);
   const archivedJourneys = archivedOpportunitySummary.journeys;
   const totalArchivedCount = archivedOpportunitySummary.count;
+  const accessibleTemplateIds = await getAccessibleRelationTemplateIds(owner.id);
+  const [draftLinkCount, historicalDraftCount] = await Promise.all([
+    prisma.gLink.count({ where: { ownerId: owner.id, status: "DRAFT" } }),
+    prisma.relationTemplate.count({
+      where: {
+        status: "DRAFT",
+        id: { in: accessibleTemplateIds },
+        links: { none: { ownerId: owner.id, status: "DRAFT" } },
+      },
+    }),
+  ]);
   const statusCards = [
-    { label: "Brouillons", value: await prisma.relationTemplate.count({ where: { status: "DRAFT", id: { in: await getAccessibleRelationTemplateIds(owner.id) } } }), href: "/parcours" },
+    { label: "Brouillons", value: draftLinkCount + historicalDraftCount, href: "/opportunities" },
     { label: "Publiées", value: announcements.filter((item) => item.status === "ACTIVE").length, href: "/opportunities" },
     { label: "Suspendues", value: announcements.filter((item) => item.status === "DISABLED").length, href: "/opportunities" },
     { label: "Clôturées", value: announcements.filter((item) => item.status === "EXPIRED").length, href: "/opportunities" },
