@@ -12,8 +12,11 @@ function subjectComparison(a: StructuredOpportunityMatchInput, b: StructuredOppo
 function termsComparison(a: StructuredOpportunityMatchInput, b: StructuredOpportunityMatchInput): OpportunityComparison { const left = a.projection!.terms; const right = b.projection!.terms; if (!left?.length || !right?.length) return { criterion: "terms", outcome: "UNKNOWN", label: "Critères complémentaires non comparables" }; const values = new Set(right.map(normalizeMatchText)); return { criterion: "terms", outcome: left.some((value) => values.has(normalizeMatchText(value))) ? "COMPATIBLE" : "UNKNOWN", label: "Critères complémentaires à examiner" }; }
 export function opportunityMatchBand(score: number): OpportunityMatchBand { return score >= 80 ? "VERY_GOOD" : score >= 50 ? "GOOD" : "POSSIBLE"; }
 
-export function matchStructuredOpportunity(source: StructuredOpportunityMatchInput, candidate: StructuredOpportunityMatchInput): StructuredOpportunityMatch | null {
-  if (!isStructuredOpportunityAdmissible(source) || !isStructuredOpportunityAdmissible(candidate) || source.id === candidate.id || source.ownerId !== candidate.ownerId || source.projection!.opportunityType === candidate.projection!.opportunityType) return null;
+export type StructuredOpportunityMatchScope = "OWNER_ONLY" | "CROSS_OWNER_V1";
+
+export function matchStructuredOpportunity(source: StructuredOpportunityMatchInput, candidate: StructuredOpportunityMatchInput, scope: StructuredOpportunityMatchScope = "OWNER_ONLY"): StructuredOpportunityMatch | null {
+  const ownerPolicySatisfied = scope === "OWNER_ONLY" ? source.ownerId === candidate.ownerId : source.ownerId !== candidate.ownerId;
+  if (!isStructuredOpportunityAdmissible(source) || !isStructuredOpportunityAdmissible(candidate) || source.id === candidate.id || !ownerPolicySatisfied || source.projection!.opportunityType === candidate.projection!.opportunityType) return null;
   const similarity = semanticSimilarity(source, candidate);
   const left = source.projection!; const right = candidate.projection!;
   const comparisons = [subjectComparison(source, candidate, similarity), compareCategory(left.category, right.category), compareLocation(left.locations, right.locations), compareDays(left.availability, right.availability), compareTime(left.availability, right.availability), compareDate(left.dateWindow, right.dateWindow), comparePrice(left.priceRange, right.priceRange), termsComparison(source, candidate)];
@@ -23,4 +26,4 @@ export function matchStructuredOpportunity(source: StructuredOpportunityMatchInp
   const qualitativeBand = opportunityMatchBand(internalScore);
   return { targetGLinkId: candidate.id, internalScore, band: qualitativeBand, explanation: { engine: OPPORTUNITY_STRUCTURED_ENGINE_VERSION, band: qualitativeBand, comparisons, semanticSignals: similarity >= 0.45 ? [`Similarité subject/category/terms : ${similarity.toFixed(3)}`] : [] } };
 }
-export function rankStructuredOpportunityMatches(source: StructuredOpportunityMatchInput, candidates: StructuredOpportunityMatchInput[]) { return candidates.map((candidate) => matchStructuredOpportunity(source, candidate)).filter((value): value is StructuredOpportunityMatch => value !== null).sort((a, b) => b.internalScore - a.internalScore || a.targetGLinkId.localeCompare(b.targetGLinkId)); }
+export function rankStructuredOpportunityMatches(source: StructuredOpportunityMatchInput, candidates: StructuredOpportunityMatchInput[], scope: StructuredOpportunityMatchScope = "OWNER_ONLY") { return candidates.map((candidate) => matchStructuredOpportunity(source, candidate, scope)).filter((value): value is StructuredOpportunityMatch => value !== null).sort((a, b) => b.internalScore - a.internalScore || a.targetGLinkId.localeCompare(b.targetGLinkId)); }
