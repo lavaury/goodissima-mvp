@@ -11,6 +11,9 @@ import {
   type MatchingRunRecord,
 } from "../matching-contracts.ts";
 import { MatchingLifecycleService } from "./matching-lifecycle-service.ts";
+import { projectOpportunity } from "../opportunities/opportunity-projection.ts";
+import { OPPORTUNITY_COMPARATOR_POLICY_VERSION, OPPORTUNITY_STRUCTURED_ENGINE_VERSION, rankStructuredOpportunityMatches } from "../opportunities/matching/structured-matcher.ts";
+import type { StructuredOpportunityMatchInput } from "../opportunities/matching/types.ts";
 
 export const GLINK_MATCHING_ENGINE_VERSION = "glink-v1";
 export const GLINK_MATCHING_CANDIDATE_LIMIT = 80;
@@ -38,6 +41,12 @@ export type GLinkMatchingSourceStore = {
     excludedGLinkId: string,
     limit: number,
   ): Promise<GLinkSource[]>;
+  listStructuredCandidatesForOwner?(
+    ownerId: string,
+    excludedGLinkId: string,
+    oppositeType: "OFFER" | "NEED",
+    limit: number,
+  ): Promise<ExecutableGLinkMatchingSource[]>;
 };
 
 export type PersistableMatchingExplanation = {
@@ -82,6 +91,12 @@ export type MatchingExecutionAudit = (input: {
 
 function boundedText(value: string, maximum: number) {
   return value.trim().slice(0, maximum);
+}
+
+function structuredInput(source: ExecutableGLinkMatchingSource): StructuredOpportunityMatchInput | null {
+  const projection = projectOpportunity(source);
+  if (!projection || projection.hasGovernedJourney) return null;
+  return { id: source.sourceId, ownerId: source.ownerId, status: source.status, legacy: projection.legacy, structuredMetadataInvalid: projection.structuredMetadataInvalid, type: projection.type, criteria: projection.structuredCriteria };
 }
 
 function uniqueBounded(values: string[], maximumItems: number) {
@@ -145,15 +160,23 @@ export class MatchingExecutionService {
     if (!source) throw new MatchingDomainError("MATCHING_SOURCE_NOT_FOUND");
     if (source.status !== "ACTIVE") throw new MatchingDomainError("MATCHING_SOURCE_INACTIVE");
     if (!parseGLinkMatchingState(source.rules).enabled) throw new MatchingDomainError("MATCHING_DISABLED");
-    if (!source.templateId || !hasUsefulGLinkMatchingCriteria(source)) {
+    const structuredSource = structuredInput(source);
+    if (!structuredSource && (!source.templateId || !hasUsefulGLinkMatchingCriteria(source))) {
       throw new MatchingDomainError("MATCHING_CRITERIA_INSUFFICIENT");
     }
 
-    const sourceProfile = matchingProfileFromSource(source);
-    const criteriaSnapshot = {
+    const sourceProfile = structuredSource ? null : matchingProfileFromSource(source);
+    const engineVersion = structuredSource ? OPPORTUNITY_STRUCTURED_ENGINE_VERSION : GLINK_MATCHING_ENGINE_VERSION;
+    const criteriaSnapshot = structuredSource ? {
+      engineVersion,
+      scope: "OWNER_ONLY",
+      sourceType: structuredSource.type,
+      criteria: structuredSource.criteria,
+      comparatorPolicyVersion: OPPORTUNITY_COMPARATOR_POLICY_VERSION,
+    } : {
       sourceId: source.sourceId,
-      profile: matchingProfileSnapshot(sourceProfile),
-      engineVersion: GLINK_MATCHING_ENGINE_VERSION,
+      profile: matchingProfileSnapshot(sourceProfile!),
+      engineVersion,
       searchScope: {
         ownerOnly: true,
         activeOnly: true,
@@ -166,7 +189,7 @@ export class MatchingExecutionService {
     const prepared = await this.lifecycle.prepareMatchingRun({
       ownerId: input.ownerId,
       gLinkId: input.gLinkId,
-      engineVersion: GLINK_MATCHING_ENGINE_VERSION,
+      engineVersion,
       criteriaSnapshot,
       idempotencyKey: input.idempotencyKey,
     });
@@ -184,30 +207,28 @@ export class MatchingExecutionService {
     const running = await this.lifecycle.startMatchingRun({ ownerId: input.ownerId, runId: prepared.id });
     let loadedCandidateCount = 0;
     try {
-      const candidateSources = await this.sources.listActiveCandidatesForOwner(
-        input.ownerId,
-        input.gLinkId,
-        GLINK_MATCHING_CANDIDATE_LIMIT,
-      );
-      loadedCandidateCount = candidateSources.length;
-      const candidates: AIMatchCandidate[] = candidateSources.map((candidate, index) => ({
-        id: candidate.sourceId,
-        pseudonym: `Opportunité compatible ${index + 1}`,
-        templateKey: null,
-        profile: matchingProfileFromSource(candidate),
-      }));
-      const lexical = this.engines.lexical(sourceProfile, candidates);
-      const semantic = this.engines.semantic(sourceProfile, candidates);
-      const selectedEngine = semantic.length ? "semantic-v2" : "lexical-v1";
-      const matches = (semantic.length ? semantic : lexical).slice(0, GLINK_MATCHING_RESULT_LIMIT);
+      let resultInputs: Array<{ targetGLinkId: string; explanation: unknown; internalRank: number }>;
+      if (structuredSource) {
+        if (!this.sources.listStructuredCandidatesForOwner) throw new MatchingDomainError("MATCHING_CRITERIA_INSUFFICIENT");
+        const candidateSources = await this.sources.listStructuredCandidatesForOwner(input.ownerId, input.gLinkId, structuredSource.type === "NEED" ? "OFFER" : "NEED", GLINK_MATCHING_CANDIDATE_LIMIT);
+        loadedCandidateCount = candidateSources.length;
+        const matches = rankStructuredOpportunityMatches(structuredSource, candidateSources.map(structuredInput).filter((value): value is StructuredOpportunityMatchInput => value !== null)).slice(0, GLINK_MATCHING_RESULT_LIMIT);
+        resultInputs = matches.map((match, index) => ({ targetGLinkId: match.targetGLinkId, explanation: match.explanation, internalRank: index }));
+      } else {
+        const candidateSources = await this.sources.listActiveCandidatesForOwner(input.ownerId, input.gLinkId, GLINK_MATCHING_CANDIDATE_LIMIT);
+        loadedCandidateCount = candidateSources.length;
+        const candidates: AIMatchCandidate[] = candidateSources.map((candidate, index) => ({ id: candidate.sourceId, pseudonym: `Opportunité compatible ${index + 1}`, templateKey: null, profile: matchingProfileFromSource(candidate) }));
+        const lexical = this.engines.lexical(sourceProfile!, candidates);
+        const semantic = this.engines.semantic(sourceProfile!, candidates);
+        const selectedEngine = semantic.length ? "semantic-v2" : "lexical-v1";
+        resultInputs = (semantic.length ? semantic : lexical).slice(0, GLINK_MATCHING_RESULT_LIMIT).map((match, index) => ({ targetGLinkId: match.relationId, explanation: persistableExplanation(match, selectedEngine), internalRank: index }));
+      }
+      const refreshedSource = await this.sources.findSourceForOwner(input.ownerId, input.gLinkId);
+      if (!refreshedSource || refreshedSource.status !== "ACTIVE") throw new MatchingDomainError("MATCHING_SOURCE_INACTIVE");
       await this.lifecycle.createMatchingResults({
         ownerId: input.ownerId,
         runId: running.id,
-        results: matches.map((match, index) => ({
-          targetGLinkId: match.relationId,
-          internalRank: index,
-          explanation: persistableExplanation(match, selectedEngine),
-        })),
+        results: resultInputs,
       });
       await this.lifecycle.markMatchingResultsAvailable({ ownerId: input.ownerId, runId: running.id });
       const persisted = await this.requireRunWithResults(input.ownerId, running.id);
@@ -215,16 +236,16 @@ export class MatchingExecutionService {
       await this.auditSafely({
         runId: running.id,
         gLinkId: input.gLinkId,
-        engineVersion: GLINK_MATCHING_ENGINE_VERSION,
+        engineVersion,
         durationMs,
-        candidateCount: candidates.length,
+        candidateCount: loadedCandidateCount,
         resultCount: persisted.results.length,
       });
       return {
         run: persisted.run,
         results: persisted.results,
         executed: true,
-        candidateCount: candidates.length,
+        candidateCount: loadedCandidateCount,
         durationMs,
       };
     } catch (error) {
@@ -246,7 +267,7 @@ export class MatchingExecutionService {
       await this.auditSafely({
         runId: running.id,
         gLinkId: input.gLinkId,
-        engineVersion: GLINK_MATCHING_ENGINE_VERSION,
+        engineVersion,
         durationMs: Math.max(0, this.now() - startedAt),
         candidateCount: loadedCandidateCount,
         resultCount: 0,

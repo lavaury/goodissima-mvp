@@ -87,4 +87,13 @@ export class PrismaGLinkMatchingSourceStore implements GLinkMatchingSourceStore 
       fields: link.template?.formTemplates[0]?.fields ?? [],
     }));
   }
+
+  async listStructuredCandidatesForOwner(ownerId: string, excludedGLinkId: string, oppositeType: "OFFER" | "NEED", limit: number) {
+    const links = await this.client.gLink.findMany({
+      where: { ownerId, status: "ACTIVE", id: { not: excludedGLinkId }, rules: { path: ["opportunity", "type"], equals: oppositeType } },
+      orderBy: { id: "asc" }, take: limit,
+      select: { id: true, ownerId: true, title: true, description: true, status: true, templateId: true, rules: true },
+    });
+    return links.map((link) => ({ sourceType: "GLINK" as const, sourceId: link.id, ownerId: link.ownerId, title: link.title, description: link.description, fields: [], status: link.status, rules: link.rules, templateId: link.templateId }));
+  }
 }

@@ -17,6 +17,7 @@ import {
   type GLinkMatchingSourceStore,
 } from "../lib/matching/matching-execution-service.ts";
 import type { MatchingLifecycleService } from "../lib/matching/matching-lifecycle-service.ts";
+import { buildOpportunityRulesV1 } from "../lib/opportunities/opportunity-projection.ts";
 
 const sourceCode = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -55,6 +56,13 @@ class FakeSourceStore implements GLinkMatchingSourceStore {
     return this.candidates
       .filter((candidate) => candidate.ownerId === ownerId && candidate.sourceId !== excludedGLinkId)
       .slice(0, limit);
+  }
+
+  async listStructuredCandidatesForOwner(ownerId: string, excludedGLinkId: string, oppositeType: "OFFER" | "NEED", limit: number) {
+    return this.candidates.filter((candidate) => {
+      const opportunity = (candidate.rules as any)?.opportunity;
+      return candidate.ownerId === ownerId && candidate.sourceId !== excludedGLinkId && candidate.status === "ACTIVE" && opportunity?.type === oppositeType;
+    }).slice(0, limit);
   }
 }
 
@@ -208,6 +216,23 @@ test("an execution with no match still persists a completed empty run", async ()
   const response = await execution.execute({ ownerId: "owner-1", gLinkId: "source" });
   assert.equal(response.run.status, "RESULTS_AVAILABLE");
   assert.deepEqual(response.results, []);
+});
+
+test("structured autonomous opportunities use OWNER_ONLY opportunity-structured-v1 without legacy engines", async () => {
+  const value = fixture();
+  const criteria = { subject: "baby-sitter", locations: ["Beauvais"], availability: { days: ["TUESDAY" as const], timeFrom: "18:00", timeTo: "20:00" } };
+  value.sources.current = source({ templateId: null, rules: { ...buildOpportunityRulesV1({}, { type: "NEED", criteria }), matchingEnabled: true } });
+  value.sources.candidates = [
+    source({ sourceId: "offer-a", status: "ACTIVE", templateId: null, rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria: { ...criteria, subject: "garde d’enfants", availability: { ...criteria.availability, timeFrom: "17:00", timeTo: "21:00" } } }) }),
+    source({ sourceId: "need-b", status: "ACTIVE", templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria }) }),
+    source({ sourceId: "foreign", ownerId: "owner-2", status: "ACTIVE", templateId: null, rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria }) }),
+  ];
+  const response = await value.execution.execute({ ownerId: "owner-1", gLinkId: "source" });
+  assert.equal(response.run.engineVersion, "opportunity-structured-v1");
+  assert.equal((response.run.criteriaSnapshot as any).scope, "OWNER_ONLY");
+  assert.deepEqual(response.results.map((result) => result.targetGLinkId), ["offer-a"]);
+  assert.equal((response.results[0]?.explanation as any).engine, "opportunity-structured-v1");
+  assert.deepEqual(value.calls(), { lexicalCalls: 0, semanticCalls: 0 });
 });
 
 test("idempotent available and running runs never execute twice", async () => {

@@ -173,6 +173,7 @@ function fixture() {
   repository.links.set("source", { id: "source", ownerId: "owner-1", status: "ACTIVE" });
   repository.links.set("target-a", { id: "target-a", ownerId: "owner-1", status: "ACTIVE" });
   repository.links.set("target-b", { id: "target-b", ownerId: "owner-1", status: "ACTIVE" });
+  repository.links.set("target-c", { id: "target-c", ownerId: "owner-1", status: "ACTIVE" });
   repository.links.set("foreign", { id: "foreign", ownerId: "owner-2", status: "ACTIVE" });
   const service = new MatchingLifecycleService(repository, () => new Date("2026-07-23T12:00:00.000Z"));
   return { repository, service };
@@ -434,4 +435,15 @@ test("result decisions are persistent-result scoped and LINKED is not exposed", 
   await expectCode(service.transitionMatchingResult({
     ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "DISMISSED",
   }), "MATCHING_RUN_PAUSED");
+});
+
+test("three matching results can all be selected without creating a single winner", async () => {
+  const { service } = fixture();
+  const run = await service.prepareMatchingRun({ ownerId: "owner-1", gLinkId: "source", engineVersion: "opportunity-structured-v1", criteriaSnapshot: {} });
+  await service.startMatchingRun({ ownerId: "owner-1", runId: run.id });
+  const results = await service.createMatchingResults({ ownerId: "owner-1", runId: run.id, results: ["target-a", "target-b", "target-c"].map((targetGLinkId) => ({ targetGLinkId, explanation: {} })) });
+  await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: run.id });
+  const selected = await Promise.all(results.map((result) => service.transitionMatchingResult({ ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "SELECTED" })));
+  assert.deepEqual(selected.map((result) => result.status), ["SELECTED", "SELECTED", "SELECTED"]);
+  assert.ok(selected.every((result) => result.relationCaseId === null));
 });
