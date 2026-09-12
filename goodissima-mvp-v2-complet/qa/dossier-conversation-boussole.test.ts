@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { dossierSequences, dossierSteps } from "../lib/boussole-dossiers.ts";
-import { opportunitySequences } from "../lib/boussole-opportunities.ts";
 import { getCompassContext } from "../lib/boussole-context.ts";
 import { validateGlossaryReferences } from "../lib/boussole/glossary.ts";
 
@@ -17,14 +16,6 @@ test("provides five micro-journeys for the real secured dossier", () => {
 
 test("targets every real conversation, document and media zone", () => {
   for (const target of new Set(dossierSteps.map((step) => step.targetId))) assert.ok(target && rendered.includes(target), `missing dossier target ${target}`);
-});
-
-test("explains the lifecycle from opportunity link to secured conversation", () => {
-  const sequence = opportunitySequences.find((item) => item.id === "secure-link-to-conversation");
-  assert.ok(sequence);
-  const text = sequence.steps.map((step) => step.body).join("\n");
-  assert.match(text, /réponse est admise, un dossier relationnel sécurisé est créé/);
-  assert.match(text, /conversation, les documents, les demandes, la gouvernance et la salle sécurisée/);
 });
 
 test("keeps message sending, file selection and room joining explicitly human", () => {

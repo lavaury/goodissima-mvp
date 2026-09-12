@@ -72,7 +72,7 @@ export async function SpacesExistingAttachments({ ownerId, params = {} }: { owne
     </section>
     <div data-boussole-id="relational-cases-workspace-attachment">
     <section aria-labelledby="unassigned-links-title" className="mt-5">
-      <h3 id="unassigned-links-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">🔗</span>Liens et opportunités</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="unassigned-links-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">🔗</span>Liens et opportunités</h3><Link href="/opportunities" className="text-sm font-semibold text-slate-600 underline-offset-4 hover:underline">Voir toutes les opportunités</Link></div>
       <div className={children}>
       {!links.items.length ? <p className="py-3 text-sm text-slate-600">Aucun lien ou opportunité à organiser sur cette page.</p> : links.items.map(link => <ObjectActionRow as="article" favorite={{ objectKind: "GLINK", objectId: link.id }} name={link.title} href={link.href} attachmentTargetId={workspaces.items.length ? `attach-link-${link.id}` : "organize-no-destination"} key={link.id} className={row}>
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 pr-16"><div className="min-w-0 flex-1"><h4 className="break-words font-semibold">{link.title}</h4><p className="text-sm text-slate-600">{link.objectLabel} · {linkStatusLabel(link.status)} · Créé le {formatDate(link.createdAt)}</p></div>

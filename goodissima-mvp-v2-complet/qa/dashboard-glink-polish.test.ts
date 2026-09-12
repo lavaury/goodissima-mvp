@@ -8,11 +8,11 @@ import {
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("business collection and pilotage retain GLink matching state derivation", () => {
-  const dashboard = source("app/(connected)/opportunities/page.tsx");
+test("pilotage retains GLink matching while the opportunity collection stays focused", () => {
+  const collection = source("app/(connected)/opportunities/page.tsx");
   const pilotage = source("lib/governance-pilotage-repository.ts");
   const card = source("components/LinkCard.tsx");
-  assert.match(dashboard, /deriveGLinkMatchingDisplayState/);
+  assert.doesNotMatch(collection, /deriveGLinkMatchingDisplayState|Matching relationnel/);
   assert.match(pilotage, /deriveGLinkMatchingDisplayState/);
   assert.match(card, /Matching relationnel/);
   assert.match(card, /À analyser/);

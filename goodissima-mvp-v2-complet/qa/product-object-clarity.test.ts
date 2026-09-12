@@ -40,7 +40,7 @@ test("separates announcement, journey and relation actions", () => {
 
 test("provides cross navigation between product objects", () => {
   assert.match(source("app/(connected)/templates/page.tsx"), /Voir les annonces/);
-  assert.match(source("app/(connected)/opportunities/page.tsx"), /sourceJourneyHref/);
+  assert.doesNotMatch(source("app/(connected)/opportunities/page.tsx"), /sourceJourneyHref|ProductLifecycle/);
   assert.match(source("components/LinkCard.tsx"), /Voir le parcours/);
   assert.match(source("app/(connected)/relations/page.tsx"), /Voir l'annonce/);
   assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l&apos;origine/);

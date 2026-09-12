@@ -70,10 +70,10 @@ test("active and archived announcement views are mutually exclusive", () => {
   const archiveDefinition = source("lib/archived-opportunity.ts");
   assert.match(opportunities, /view === "archived" \? "ARCHIVED" : \{ not: "ARCHIVED" \}/);
   assert.match(opportunities, /\/opportunities\?view=archived/);
-  assert.match(opportunities, /Les annonces archivées resteront disponibles ici/);
+  assert.match(opportunities, /Les opportunités archivées resteront disponibles ici/);
   assert.match(archiveDefinition, /status:\s*"ARCHIVED"/);
   assert.match(opportunities, /archivedJourneys/);
-  assert.match(opportunities, /Parcours d'annonce archivé/);
+  assert.match(opportunities, /Opportunité historique archivée/);
   assert.match(opportunities, /totalArchivedCount/);
   assert.match(opportunities, /getArchivedOpportunitySummaryForOwner\(owner\.id, searchParams\?\.templateId\)/);
   assert.match(dashboard, /getArchivedOpportunitySummaryForOwner\(owner\.id\)/);

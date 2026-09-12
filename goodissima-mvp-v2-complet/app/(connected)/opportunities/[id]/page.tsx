@@ -9,6 +9,7 @@ import type { OpportunityDay } from "@/lib/opportunities/contracts";
 import { AutonomousOpportunityManager } from "@/components/AutonomousOpportunityManager";
 import { getPublicAppUrl } from "@/lib/public-app-url";
 import { announcementStatusLabel } from "@/lib/announcement-archive";
+import { HistoryBackButton } from "@/components/HistoryBackButton";
 
 const dayLabels: Record<OpportunityDay, string> = {
   MONDAY: "Lundi", TUESDAY: "Mardi", WEDNESDAY: "Mercredi", THURSDAY: "Jeudi",
@@ -41,7 +42,7 @@ export default async function AutonomousOpportunityPage({ params }: { params: { 
     <nav aria-label="Fil d’Ariane" className="text-sm text-slate-600">
       <Link href="/">Accueil</Link> <span aria-hidden="true">›</span> <Link href="/opportunities">Opportunités</Link> <span aria-hidden="true">›</span> <span aria-current="page">{item.title}</span>
     </nav>
-    <Link href="/opportunities" className="mt-6 inline-flex min-h-11 items-center font-semibold text-[#247f88]">← Retour</Link>
+    <div className="mt-6"><HistoryBackButton /></div>
 
     <header className="mt-4 flex flex-wrap items-start justify-between gap-4">
       <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#247f88]">Opportunité</p><h1 className="mt-2 text-3xl font-bold text-slate-950">{item.title}</h1></div>

@@ -24,13 +24,11 @@ test("dashboard includes executive overview cards and action entry points", () =
   assert.doesNotMatch(page, /href="\/links\/new" className="rounded-2xl bg-slate-900/);
 });
 
-test("opportunities page provides native opportunity creation and lifecycle sections", () => {
+test("opportunities page provides the focused collection and lifecycle statuses", () => {
   const page = source("app/(connected)/opportunities/page.tsx");
-  for (const label of ["Créer une opportunité", "Brouillons", "Publiées", "Suspendues", "Clôturées", "Candidats détectés", "Demandes de mise en relation"]) {
-    assert.match(page, new RegExp(label));
-  }
-  assert.match(page, /Créer une opportunité/);
-  assert.doesNotMatch(page, /<Link href="\/links\/new" className="rounded-xl border border-cyan-200/);
+  const collection = source("components/OpportunityCollection.tsx");
+  for (const label of ["Créer une opportunité", "Brouillons", "Publiées", "Suspendues", "Clôturées"]) assert.match(`${page}\n${collection}`, new RegExp(label));
+  assert.doesNotMatch(page, /Candidats détectés|Demandes de mise en relation|ProductLifecycle|LinkCard/);
 });
 
 test("opportunity creation entry point reuses the governed AI and voice designer", () => {

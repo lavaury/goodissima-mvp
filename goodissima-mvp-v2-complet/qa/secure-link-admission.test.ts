@@ -28,7 +28,7 @@ test("shows the Admission block consistently on every secure link card", () => {
   assert.match(card, /<LinkAdmissionPanel/);
   assert.doesNotMatch(card, /isTrustAdmissionPilot|showAdmissionPanel/);
   assert.match(linkPage, /<LinkAdmissionPanel linkId=\{link\.id\} initialMode=\{link\.admissionMode\}/);
-  assert.match(opportunities, /admissionMode:\s*item\.admissionMode/);
+  assert.doesNotMatch(opportunities, /admissionMode|LinkAdmissionPanel/);
   assert.doesNotMatch(dashboard, /TRUST_ADMISSION_PILOT_GLINK_IDS|TRUST_ADMISSION_VERIFIED_LINK_UI_ENABLED/);
 });
 

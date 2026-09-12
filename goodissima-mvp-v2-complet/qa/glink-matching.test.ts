@@ -101,7 +101,7 @@ test("persistent matching summary classifies every result state without automati
 test("application matching reads are persistent and owner-scoped while analysis remains audit-only", () => {
   const matching = source("lib/glink-matching.ts");
   const repository = source("lib/matching/glink-matching-summary-repository.ts");
-  const surfaces = [source("app/(connected)/dashboard/page.tsx"), source("app/(connected)/opportunities/page.tsx"), source("lib/governance-pilotage-repository.ts")].join("\n");
+  const surfaces = [source("app/(connected)/dashboard/page.tsx"), source("lib/governance-pilotage-repository.ts")].join("\n");
   assert.match(repository, /where: \{ ownerId, gLinkId: \{ in: gLinkIds \} \}/);
   assert.match(repository, /distinct: \["gLinkId"\]/);
   assert.match(repository, /orderBy: \[\{ gLinkId: "asc" \}, \{ createdAt: "desc" \}, \{ id: "desc" \}\]/);

@@ -48,6 +48,8 @@ test("unassigned surfaces retain owner destinations, attachment mode and warning
   assert.equal((html.match(/name="attachmentMode" value="unassigned"/g) ?? []).length, 4);
   assert.ok(html.indexOf("Le lien parent") < html.indexOf('id="attach-case-one"'));
   assert.match(html, /href="\/cases\/one"/); assert.match(html, /href="\/links\/two"/);
+  assert.equal((html.match(/href="\/opportunities"/g) ?? []).length, 1);
+  assert.match(html, /Voir toutes les opportunités/);
   assert.doesNotMatch(html, /attachUnassignedCases|\/secure\//);
 });
 test("Workspace detail keeps object attachments absent; explorer uses explicit Portfolio semantics", () => {

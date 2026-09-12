@@ -8,6 +8,7 @@ import { portfolioSequences } from "../boussole-portfolios.ts";
 import { portfolioDetailSequences, portfolioPilotageSequences } from "../boussole-portfolio-detail.ts";
 import { directorySequences } from "../boussole-directory.ts";
 import { newOpportunitySequences } from "../boussole-new-opportunity.ts";
+import { opportunitySequences } from "../boussole-opportunities.ts";
 import type {
   BoussoleJourneyDefinition,
   BoussolePageManifest,
@@ -36,6 +37,9 @@ const journeyVersions: Record<string, number> = {
   "verify-create": 2,
   "understand-secure-case": 2,
   "create-opportunity-draft": 2,
+  "discover-opportunities": 2,
+  "filter-opportunities": 2,
+  "read-opportunity": 2,
 };
 
 export function getBoussoleJourneyVersion(journeyId: string) {
@@ -83,6 +87,7 @@ export const boussoleRegistry: BoussoleRegistryEntry[] = [
   registerPage("dashboard", ["/dashboard"], dashboardSequences, ["EMPTY", "POPULATED"]),
   registerPage("directory", ["/annuaire", "/annuaire/:publicId"], directorySequences),
   registerPage("new-opportunity", ["/opportunities/new"], newOpportunitySequences, ["EMPTY", "POPULATED"]),
+  registerPage("opportunities", ["/opportunities"], opportunitySequences),
 ];
 
 export type BoussoleIntegrityIssue = {
