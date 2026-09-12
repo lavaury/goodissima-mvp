@@ -79,7 +79,7 @@ export function suggestOpportunityTitle(intent: Pick<OpportunityIntent, "type" |
   return intent.subject;
 }
 
-export const OPPORTUNITY_INTENT_PROMPT_VERSION = "opportunity-intent-fr-v1";
+export const OPPORTUNITY_INTENT_PROMPT_VERSION = "opportunity-intent-fr-v2";
 export const OPPORTUNITY_INTENT_SYSTEM_PROMPT = [
   "Tu interprètes uniquement une opportunité Goodissima, sans répondre à la demande.",
   "Extrais exclusivement ce qui est explicitement exprimé. N’invente aucune information.",
@@ -95,7 +95,7 @@ export const OPPORTUNITY_INTENT_RESPONSE_FORMAT = { type: "json_schema" as const
   type: "object", additionalProperties: false, required: ["type", "subject"], properties: {
     type: { anyOf: [{ type: "string", enum: OPPORTUNITY_TYPES }, { type: "null" }] }, subject: { type: "string", minLength: 1, maxLength: 160 },
     category: { type: "string", minLength: 1, maxLength: 80 }, locations: stringArray,
-    days: { type: "array", maxItems: 7, uniqueItems: true, items: { type: "string", enum: OPPORTUNITY_DAYS } },
+    days: { type: "array", maxItems: 7, items: { type: "string", enum: OPPORTUNITY_DAYS } },
     timeFrom: { type: "string", pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }, timeTo: { type: "string", pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
     dateFrom: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, dateTo: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
     priceMin: { type: "number", minimum: 0 }, priceMax: { type: "number", minimum: 0 }, currency: { type: "string", pattern: "^[A-Z]{3}$" },

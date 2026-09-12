@@ -12,6 +12,7 @@ import { isDemoSurfaceEnabled } from "@/lib/debug";
 import { deriveGLinkMatchingDisplayState } from "@/lib/glink-matching";
 import { getGLinkMatchingSummariesForOwner } from "@/lib/matching/glink-matching-summary-repository";
 import { getArchivedOpportunitySummaryForOwner } from "@/lib/archived-opportunity-repository";
+import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection";
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -111,6 +112,7 @@ export default async function OpportunitiesPage({
                 templateStatus: item.template?.status,
                 templateVersion: item.templateVersion?.version,
                 sourceJourneyHref: item.template?.formTemplates[0] ? `/templates/${item.template.formTemplates[0].id}` : undefined,
+                ownerHref: opportunityOwnerHref(item),
                 matchingStatus: matching.status,
                 matchingCount: matching.count,
                 matchingLastRunAt: matchingSummaries.get(item.id)?.lastRunAt?.toISOString() ?? null,

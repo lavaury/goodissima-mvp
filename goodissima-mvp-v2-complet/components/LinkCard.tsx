@@ -34,6 +34,7 @@ export function LinkCard({
     matchingCount?: number;
     matchingLastRunAt?: string | null;
     sourceJourneyHref?: string;
+    ownerHref?: string;
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
   debugMode?: boolean;
@@ -44,7 +45,7 @@ export function LinkCard({
   const publicUrl = `${publicAppUrl}${publicPath}`;
   const latestCase = item.cases?.[0];
   const latestCasePath = latestCase ? `/cases/${latestCase.id}?refresh=1` : null;
-  const linkCasesPath = `/links/${item.id}`;
+  const linkCasesPath = item.ownerHref ?? `/links/${item.id}`;
   const caseCount = item.receivedRequestCount ?? item.cases?.length ?? 0;
   const [shared, setShared] = useState(false);
   const [status, setStatus] = useState<AnnouncementStatus>(item.status ?? "ACTIVE");
@@ -172,7 +173,7 @@ export function LinkCard({
           Voir l'annonce publique
         </Link></> : null}
         <Link data-boussole-id={boussoleOpportunityExample ? "manage-opportunity" : "dashboard-link-manage"} className="rounded-xl border px-4 py-2 text-sm font-semibold" href={linkCasesPath}>
-          Gérer l'annonce
+          Ouvrir
         </Link>
         {status === "ARCHIVED" ? (
           <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">

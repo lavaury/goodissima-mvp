@@ -60,7 +60,7 @@ export function OpportunityDraftCreator() {
       const response = await fetch("/api/opportunities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: intent.type, criteria, title, description }) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || typeof body.id !== "string") throw new Error("CREATE_FAILED");
-      router.push(`/links/${encodeURIComponent(body.id)}`); router.refresh();
+      router.push(`/opportunities/${encodeURIComponent(body.id)}`); router.refresh();
     } catch { setError("Le brouillon n’a pas pu être créé. Vérifiez les informations et réessayez."); setCreating(false); }
   }
 

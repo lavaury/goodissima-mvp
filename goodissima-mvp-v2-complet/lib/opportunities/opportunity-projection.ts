@@ -38,6 +38,13 @@ export function projectOpportunity(link: OpportunityGLinkInput): OpportunityProj
   };
 }
 
+export function opportunityOwnerHref(link: OpportunityGLinkInput & { id: string }): string {
+  const projection = projectOpportunity(link);
+  return projection && !projection.legacy && !projection.hasGovernedJourney
+    ? `/opportunities/${encodeURIComponent(link.id)}`
+    : `/links/${encodeURIComponent(link.id)}`;
+}
+
 export function buildOpportunityRulesV1(baseRules: unknown, intent: Omit<OpportunityRulesV1, "schemaVersion">): Record<string, unknown> {
   const base = asGLinkRules(baseRules);
   if (base.simpleLink === true) throw new Error("A simple link cannot be reclassified as an opportunity.");

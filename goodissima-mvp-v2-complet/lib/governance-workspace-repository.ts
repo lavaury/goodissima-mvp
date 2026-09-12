@@ -12,6 +12,7 @@ import type {
   WorkspaceCategory,
   WorkspaceKind,
 } from "@prisma/client";
+import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection";
 
 export const workspaceCategoryLabels: Record<WorkspaceCategory, string> = {
   PROFESSIONAL: "Professionnel",
@@ -284,7 +285,7 @@ export async function getRealGovernanceWorkspaceSummaries(ownerId: string): Prom
       slug: link.slug,
       status: link.status,
       createdAt: link.createdAt,
-      href: `/links/${link.id}`,
+      href: opportunityOwnerHref(link),
       relationCaseCount: link._count.cases,
     }));
     const relationCommunicationCount = relationCases.reduce(
@@ -400,8 +401,8 @@ export async function getUnassignedGLinkSummaries(ownerId: string, page = 0) {
   const rows = await prisma.gLink.findMany({
     where: { ownerId, workspaceId: null }, ...organizeWindow(page),
     orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-    select: { id: true, title: true, rules: true, status: true, createdAt: true },
+    select: { id: true, title: true, rules: true, templateId: true, status: true, createdAt: true },
   });
   return organizeResults(rows.map(row => ({ id: row.id, title: row.title, status: row.status, createdAt: row.createdAt,
-    objectLabel: linkObjectLabel(row.rules), href: `/links/${encodeURIComponent(row.id)}` })));
+    objectLabel: linkObjectLabel(row.rules), href: opportunityOwnerHref(row) })));
 }

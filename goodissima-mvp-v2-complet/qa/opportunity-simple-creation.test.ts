@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { interpretOpportunityPhrase, parseOpportunityIntent, suggestOpportunityTitle } from "../lib/opportunities/opportunity-intent.ts";
-import { buildOpportunityRulesV1 } from "../lib/opportunities/opportunity-projection.ts";
+import { interpretOpportunityPhrase, OPPORTUNITY_INTENT_RESPONSE_FORMAT, parseOpportunityIntent, suggestOpportunityTitle } from "../lib/opportunities/opportunity-intent.ts";
+import { buildOpportunityRulesV1, opportunityOwnerHref } from "../lib/opportunities/opportunity-projection.ts";
 import { parseOpportunityCriteriaV1 } from "../lib/opportunities/contracts.ts";
 import { slugify } from "../lib/slug.ts";
 import { loadTestModule } from "./helpers/load-test-module.ts";
@@ -11,9 +11,10 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 const result = (output: string) => ({ output, provider: "mock" as const, model: "test", tokensInput: 1, tokensOutput: 1, estimatedCostEur: 0, latencyMs: 1 });
 const options = (output: string) => ({ provider: { name: "mock" as const, model: "test", chat: async () => result(output) } as never, recordEvent: async () => undefined });
 
-test("interprets the baby-sitter NEED without inventing criteria", async () => {
-  const intent = await interpretOpportunityPhrase("je recherche une baby sitter le mardi et jeudi à partir de 18h à Beauvais", options(JSON.stringify({ type: "NEED", subject: "baby-sitter", locations: ["Beauvais"], days: ["TUESDAY", "THURSDAY"], timeFrom: "18:00" })));
-  assert.deepEqual(intent, { type: "NEED", subject: "baby-sitter", locations: ["Beauvais"], days: ["TUESDAY", "THURSDAY"], timeFrom: "18:00" });
+test("interprets the exact baby-sitter NEED without inventing criteria", async () => {
+  const phrase = "je recherche une baby sitter pour les mardis et jeudis à partir de 18h et jusqu'à 20h dans le secteur de beauvais.";
+  const intent = await interpretOpportunityPhrase(phrase, options(JSON.stringify({ type: "NEED", subject: "baby-sitter", locations: ["Beauvais"], days: ["TUESDAY", "THURSDAY"], timeFrom: "18:00", timeTo: "20:00" })));
+  assert.deepEqual(intent, { type: "NEED", subject: "baby-sitter", locations: ["Beauvais"], days: ["TUESDAY", "THURSDAY"], timeFrom: "18:00", timeTo: "20:00" });
   assert.equal(suggestOpportunityTitle(intent), "Recherche de baby-sitter à Beauvais");
 });
 
@@ -29,6 +30,12 @@ test("keeps ambiguity explicit and rejects invalid or unknown provider fields", 
   assert.throws(() => parseOpportunityIntent({ type: "NEED", subject: "aide", invented: true }));
   await assert.rejects(() => interpretOpportunityPhrase("Une aide", options("not json")));
   await assert.rejects(() => interpretOpportunityPhrase("Une aide", { provider: { name: "mock", model: "test", chat: async () => { throw new Error("offline"); } } as never, recordEvent: async () => undefined }));
+});
+
+test("uses Mistral-compatible strict schema and keeps uniqueness in application validation", () => {
+  const schema = OPPORTUNITY_INTENT_RESPONSE_FORMAT.json_schema.schema as any;
+  assert.equal(schema.additionalProperties, false); assert.equal(schema.properties.days.uniqueItems, undefined);
+  assert.throws(() => parseOpportunityIntent({ type: "NEED", subject: "aide", days: ["TUESDAY", "TUESDAY"] }));
 });
 
 function createRoute(owner: { id: string } | null, calls: Array<{ model: string; data: unknown }>) {
@@ -77,7 +84,17 @@ test("the new UI has one editor, a manual fallback and no governed-journey vocab
   assert.match(creator, /Que recherchez-vous ou proposez-vous/);
   assert.match(creator, /Comprendre ma demande/); assert.match(creator, /Saisir manuellement/); assert.match(creator, /Nous avons compris/); assert.match(creator, /Créer le brouillon/);
   assert.match(creator, /role="status"/); assert.match(creator, /type="radio"/); assert.match(creator, /sm:grid-cols/);
+  assert.match(creator, /router\.push\(`\/opportunities\/\$\{encodeURIComponent\(body\.id\)\}`\)/);
+  assert.match(creator, /Nous n’avons pas pu interpréter automatiquement votre demande\. Vous pouvez continuer manuellement\./);
   assert.doesNotMatch(`${page}\n${creator}`, /AITemplateDesigner|TemplateVersion|FormTemplate|RelationTemplate|KPI|OBJECTIF|BESOIN|MODALITÉS/);
+});
+
+test("owner destinations separate autonomous structured opportunities from legacy links", () => {
+  const autonomous = { id: "new", templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria: { subject: "aide" } }) };
+  assert.equal(opportunityOwnerHref(autonomous), "/opportunities/new");
+  assert.equal(opportunityOwnerHref({ ...autonomous, id: "historic", templateId: "journey" }), "/links/historic");
+  assert.equal(opportunityOwnerHref({ id: "legacy", templateId: "journey", rules: { creationSource: "opportunity" } }), "/links/legacy");
+  assert.equal(opportunityOwnerHref({ id: "simple", templateId: null, rules: { simpleLink: true } }), "/links/simple");
 });
 
 test("the dedicated API never creates a governed technical object", () => {
