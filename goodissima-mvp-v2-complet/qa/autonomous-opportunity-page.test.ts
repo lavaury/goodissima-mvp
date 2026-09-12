@@ -17,11 +17,14 @@ function page(ownerId: string, row: any) {
     "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: ownerId }) },
     "@/lib/prisma": { prisma: { gLink: { findFirst: async ({ where }: any) => row && row.id === where.id && row.ownerId === where.ownerId ? row : null } } },
     "@/lib/opportunities/opportunity-projection": projection,
+    "@/components/AutonomousOpportunityManager": { AutonomousOpportunityManager: () => null },
+    "@/lib/public-app-url": { getPublicAppUrl: () => "https://preview.example" },
+    "@/lib/announcement-archive": { announcementStatusLabel: (status: string) => status === "DRAFT" ? "Brouillon" : status },
   }).default;
 }
 
 test("the autonomous DRAFT page is owner-scoped, calm and complete", async () => {
-  const row = { id: "draft", ownerId: "owner", title: "Recherche de baby-sitter à Beauvais", description: "Besoin régulier.", status: "DRAFT", templateId: null, rules };
+  const row = { id: "draft", slug: "baby-sitter", expiresAt: null, ownerId: "owner", title: "Recherche de baby-sitter à Beauvais", description: "Besoin régulier.", status: "DRAFT", templateId: null, rules };
   const html = renderToStaticMarkup(await page("owner", row)({ params: { id: "draft" } }));
   for (const text of ["Brouillon", "Je recherche", "baby-sitter", "Beauvais", "Mardi, Jeudi", "18:00", "20:00", "Description", "Voir dans Mes espaces"]) assert.ok(html.includes(text), text);
   for (const forbidden of ["QR", "lien public", "Partager", "matching", "Parcours", "Dashboard", "Relation Studio"]) assert.ok(!html.includes(forbidden), forbidden);
@@ -31,7 +34,7 @@ test("the autonomous DRAFT page is owner-scoped, calm and complete", async () =>
 
 test("OFFER renders its wording, empty properties stay absent and legacy redirects", async () => {
   const offerRules = projection.buildOpportunityRulesV1({}, { type: "OFFER", criteria: { subject: "cours d’anglais" } });
-  const offer = { id: "offer", ownerId: "owner", title: "Cours d’anglais", description: "", status: "DRAFT", templateId: null, rules: offerRules };
+  const offer = { id: "offer", slug: "cours", expiresAt: null, ownerId: "owner", title: "Cours d’anglais", description: "", status: "DRAFT", templateId: null, rules: offerRules };
   const html = renderToStaticMarkup(await page("owner", offer)({ params: { id: "offer" } }));
   assert.ok(html.includes("Je propose")); assert.ok(!html.includes("Lieu") && !html.includes("Horaires") && !html.includes("Description"));
   await assert.rejects(page("owner", { ...offer, id: "legacy", templateId: "journey", rules: { creationSource: "opportunity" } })({ params: { id: "legacy" } }), /REDIRECT \/links\/legacy/);

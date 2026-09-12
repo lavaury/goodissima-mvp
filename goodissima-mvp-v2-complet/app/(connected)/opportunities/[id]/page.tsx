@@ -6,6 +6,9 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { projectOpportunity } from "@/lib/opportunities/opportunity-projection";
 import type { OpportunityDay } from "@/lib/opportunities/contracts";
+import { AutonomousOpportunityManager } from "@/components/AutonomousOpportunityManager";
+import { getPublicAppUrl } from "@/lib/public-app-url";
+import { announcementStatusLabel } from "@/lib/announcement-archive";
 
 const dayLabels: Record<OpportunityDay, string> = {
   MONDAY: "Lundi", TUESDAY: "Mardi", WEDNESDAY: "Mercredi", THURSDAY: "Jeudi",
@@ -20,7 +23,7 @@ export default async function AutonomousOpportunityPage({ params }: { params: { 
   const owner = await getCurrentPrismaUser();
   const item = await prisma.gLink.findFirst({
     where: { id: params.id, ownerId: owner.id },
-    select: { id: true, title: true, description: true, status: true, rules: true, templateId: true },
+    select: { id: true, slug: true, title: true, description: true, status: true, expiresAt: true, rules: true, templateId: true },
   });
   if (!item) notFound();
 
@@ -42,7 +45,7 @@ export default async function AutonomousOpportunityPage({ params }: { params: { 
 
     <header className="mt-4 flex flex-wrap items-start justify-between gap-4">
       <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#247f88]">Opportunité</p><h1 className="mt-2 text-3xl font-bold text-slate-950">{item.title}</h1></div>
-      <span className="rounded-full bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">{item.status === "DRAFT" ? "Brouillon" : item.status}</span>
+      <span className="rounded-full bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">{announcementStatusLabel(item.status)}</span>
     </header>
 
     {item.status === "DRAFT" ? <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">Brouillon — cette opportunité n’est pas encore publiée.</p> : null}
@@ -59,6 +62,7 @@ export default async function AutonomousOpportunityPage({ params }: { params: { 
     </dl>
 
     {item.description ? <section className="mt-6 rounded-2xl border bg-white p-5"><h2 className="font-bold text-slate-950">Description</h2><p className="mt-2 whitespace-pre-wrap text-slate-700">{item.description}</p></section> : null}
+    <AutonomousOpportunityManager id={item.id} initialStatus={item.status} publicUrl={`${getPublicAppUrl()}/l/${item.slug}`} initialTitle={item.title} initialDescription={item.description ?? ""} initialType={projection.type} initialCriteria={criteria} initialExpiresAt={item.expiresAt ? item.expiresAt.toISOString().slice(0, 10) : ""} />
     <div className="mt-8 flex flex-wrap gap-3"><Link href="/gouvernance" className="rounded-xl border px-4 py-2.5 text-sm font-semibold text-slate-700">Voir dans Mes espaces</Link></div>
   </main>;
 }

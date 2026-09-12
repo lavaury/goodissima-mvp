@@ -35,6 +35,7 @@ export function LinkCard({
     matchingLastRunAt?: string | null;
     sourceJourneyHref?: string;
     ownerHref?: string;
+    autonomousOpportunity?: boolean;
     cases?: Array<{ id: string; candidateEmail?: string; lastActivityAt?: number }>;
   };
   debugMode?: boolean;
@@ -136,7 +137,7 @@ export function LinkCard({
         <input value={publicUrl} readOnly className="w-full rounded-lg border bg-white px-3 py-2 text-sm" />
       </div> : <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">Brouillon — non publié</p>}
 
-      {!isDraft && item.matchingStatus && item.matchingStatus !== "DISABLED" ? (
+      {!isDraft && !item.autonomousOpportunity && item.matchingStatus && item.matchingStatus !== "DISABLED" ? (
         <div data-boussole-id={boussoleOpportunityExample ? "opportunity-matching-status" : "dashboard-link-matching-status"} data-boussole-state={item.matchingStatus} className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50 p-3"><span data-boussole-id="dashboard-link-matching-indicator" className="sr-only">État du matching</span>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-bold uppercase tracking-wide text-cyan-900">Matching relationnel</p>
@@ -162,7 +163,7 @@ export function LinkCard({
             </Link>
           ) : null}
         </div>
-      ) : !isDraft ? <div data-boussole-id={boussoleOpportunityExample ? "opportunity-matching-status" : "dashboard-link-matching-status"} data-boussole-state="DISABLED" className="mt-4 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600"><strong>Matching relationnel :</strong> désactivé pour ce lien.</div> : null}
+      ) : !isDraft && !item.autonomousOpportunity ? <div data-boussole-id={boussoleOpportunityExample ? "opportunity-matching-status" : "dashboard-link-matching-status"} data-boussole-state="DISABLED" className="mt-4 rounded-xl border bg-slate-50 p-3 text-xs text-slate-600"><strong>Matching relationnel :</strong> désactivé pour ce lien.</div> : null}
 
       <div data-boussole-id="dashboard-link-actions" className="mt-4 flex flex-wrap gap-2">
         {!isDraft ? <><span data-boussole-id={boussoleOpportunityExample ? "copy-opportunity-link" : "dashboard-link-copy"}><CopyLinkButton value={publicUrl} /></span>
@@ -215,7 +216,7 @@ export function LinkCard({
         ) : null}
       </div>
 
-      {!isDraft ? <div data-boussole-id={boussoleOpportunityExample ? "opportunity-admission" : "dashboard-link-admission"}><LinkAdmissionPanel linkId={item.id} initialMode={item.admissionMode ?? "OPEN"} /></div> : null}
+      {!isDraft && !item.autonomousOpportunity ? <div data-boussole-id={boussoleOpportunityExample ? "opportunity-admission" : "dashboard-link-admission"}><LinkAdmissionPanel linkId={item.id} initialMode={item.admissionMode ?? "OPEN"} /></div> : null}
 
       {debugMode && !isDraft ? (
         <div className="mt-5 space-y-4 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200">

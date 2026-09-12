@@ -20,6 +20,8 @@ import { PublicOpportunityCard } from "@/components/PublicOpportunityCard";
 import { PublicSimpleLinkCard } from "@/components/PublicSimpleLinkCard";
 import { normalizePublicFormField } from "@/lib/candidate-form-safety";
 import { isSimpleLinkRelationalEmailField } from "@/lib/simple-link-fields";
+import { projectOpportunity } from "@/lib/opportunities/opportunity-projection";
+import { PublicAutonomousOpportunity } from "@/components/PublicAutonomousOpportunity";
 
 type FieldOption = {
   label: string;
@@ -127,6 +129,16 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
     }
   }
 
+  const linkRules = link.rules && typeof link.rules === "object" && !Array.isArray(link.rules)
+    ? link.rules as Record<string, unknown>
+    : {};
+  const autonomousOpportunity = projectOpportunity(link);
+  if (autonomousOpportunity && !autonomousOpportunity.legacy && !autonomousOpportunity.hasGovernedJourney) {
+    return <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <PublicAutonomousOpportunity title={link.title} description={link.description} projection={autonomousOpportunity} />
+    </main>;
+  }
+
   const relationTemplate = link.template ?? (await getRelationTemplateForLink(null));
   const activeFallbackVersion =
     !link.templateVersion && relationTemplate ? await getActiveTemplateVersion(relationTemplate.id) : null;
@@ -162,9 +174,6 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           validationRules: field.validationRules,
         }))
       : defaultFields;
-  const linkRules = link.rules && typeof link.rules === "object" && !Array.isArray(link.rules)
-    ? link.rules as Record<string, unknown>
-    : {};
   const isSimpleLink = linkRules.simpleLink === true;
   const candidateFields = localizeTemplateFields(templateKey, candidateFieldsSource, locale)
     .map((field) => normalizePublicFormField(field))

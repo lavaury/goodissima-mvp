@@ -101,6 +101,7 @@ export default async function OpportunitiesPage({
           <div className="grid gap-5 lg:grid-cols-2">
             {announcements.map((item, index) => {
               const matching = item.status === "ARCHIVED" ? { status: "DISABLED" as const, count: 0 } : deriveGLinkMatchingDisplayState({ rules: item.rules, summary: matchingSummaries.get(item.id) });
+              const ownerHref = opportunityOwnerHref(item);
               return <LinkCard key={item.id} publicAppUrl={publicAppUrl} boussoleOpportunityExample={index === 0} item={{
                 id: item.id,
                 slug: item.slug,
@@ -112,7 +113,8 @@ export default async function OpportunitiesPage({
                 templateStatus: item.template?.status,
                 templateVersion: item.templateVersion?.version,
                 sourceJourneyHref: item.template?.formTemplates[0] ? `/templates/${item.template.formTemplates[0].id}` : undefined,
-                ownerHref: opportunityOwnerHref(item),
+                ownerHref,
+                autonomousOpportunity: ownerHref.startsWith("/opportunities/"),
                 matchingStatus: matching.status,
                 matchingCount: matching.count,
                 matchingLastRunAt: matchingSummaries.get(item.id)?.lastRunAt?.toISOString() ?? null,
