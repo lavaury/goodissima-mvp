@@ -10,6 +10,8 @@ import { AutonomousOpportunityManager } from "@/components/AutonomousOpportunity
 import { getPublicAppUrl } from "@/lib/public-app-url";
 import { announcementStatusLabel } from "@/lib/announcement-archive";
 import { HistoryBackButton } from "@/components/HistoryBackButton";
+import { isStructuredOpportunityMatchingEnabled } from "@/lib/opportunities/matching/matchable-projection";
+import { OpportunityMatchingControls } from "@/components/OpportunityMatchingControls";
 
 const dayLabels: Record<OpportunityDay, string> = {
   MONDAY: "Lundi", TUESDAY: "Mardi", WEDNESDAY: "Mercredi", THURSDAY: "Jeudi",
@@ -64,6 +66,7 @@ export default async function AutonomousOpportunityPage({ params }: { params: { 
 
     {item.description ? <section className="mt-6 rounded-2xl border bg-white p-5"><h2 className="font-bold text-slate-950">Description</h2><p className="mt-2 whitespace-pre-wrap text-slate-700">{item.description}</p></section> : null}
     <AutonomousOpportunityManager id={item.id} initialStatus={item.status} publicUrl={`${getPublicAppUrl()}/l/${item.slug}`} initialTitle={item.title} initialDescription={item.description ?? ""} initialType={projection.type} initialCriteria={criteria} initialExpiresAt={item.expiresAt ? item.expiresAt.toISOString().slice(0, 10) : ""} />
+    <OpportunityMatchingControls id={item.id} status={item.status} initialEnabled={isStructuredOpportunityMatchingEnabled(item.rules)} />
     <div className="mt-8 flex flex-wrap gap-3"><Link href="/gouvernance" className="rounded-xl border px-4 py-2.5 text-sm font-semibold text-slate-700">Voir dans Mes espaces</Link></div>
   </main>;
 }

@@ -33,6 +33,16 @@ test("refuses expired and terminal publication and supports suspend, resume and 
   for (const [status, action, target] of [["ACTIVE", "suspend", "DISABLED"], ["DISABLED", "resume", "ACTIVE"], ["DRAFT", "archive", "ARCHIVED"]] as const) { const s = setup(row(status)); assert.equal((await s.route.PATCH(request({ action }), { params: { id: "opp" } })).status, 200); assert.equal(s.writes[0].data.status, target); }
 });
 
+test("suspending and resuming publication preserve explicit matching consent", async () => {
+  const enabledRules = projection.buildOpportunityRulesV1({}, { type: "NEED", criteria: { subject: "Service" }, matchingEnabled: true });
+  const suspended = setup(row("ACTIVE", { rules: enabledRules }));
+  assert.equal((await suspended.route.PATCH(request({ action: "suspend" }), { params: { id: "opp" } })).status, 200);
+  assert.deepEqual(suspended.writes[0].data, { status: "DISABLED" });
+  const resumed = setup(row("DISABLED", { rules: enabledRules }));
+  assert.equal((await resumed.route.PATCH(request({ action: "resume" }), { params: { id: "opp" } })).status, 200);
+  assert.deepEqual(resumed.writes[0].data, { status: "ACTIVE" });
+});
+
 test("draft editing validates structured metadata and active editing stays textual", async () => {
   const s = setup(row()); const response = await s.route.PATCH(request({ action: "update", title: "Nouveau", description: "Texte", type: "NEED", criteria: { subject: "garde", locations: ["Beauvais"] }, expiresAt: "2030-01-01" }), { params: { id: "opp" } });
   assert.equal(response.status, 200); assert.equal(s.writes[0].data.city, "Beauvais"); assert.equal(s.writes[0].data.rules.opportunity.criteria.subject, "garde");
