@@ -28,3 +28,13 @@ test("owner diffusion exposes one canonical URL to copy, QR and native sharing o
   assert.match(source, /<CopyLinkButton value=\{publicUrl\}/); assert.match(source, /<QRCodeBox value=\{publicUrl\}/); assert.match(source, /navigator\.share/);
   assert.doesNotMatch(source, /matching|MatchingRun|MatchingResult/);
 });
+
+test("autonomous confirmations use the accessible Goodissima dialog and QR wording stays factual", () => {
+  const manager = readFileSync(new URL("../components/AutonomousOpportunityManager.tsx", import.meta.url), "utf8");
+  const qr = readFileSync(new URL("../components/QRCodeBox.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(manager, /window\.confirm|\bconfirm\s*\(/);
+  for (const text of ["Publier cette opportunité ?", "Suspendre la publication ?", "Reprendre la publication ?", "Archiver cette opportunité ?", "aria-modal=\"true\"", "Escape", "requestAnimationFrame", "max-w-lg", "max-h-[calc(100dvh-1.5rem)]"]) assert.ok(manager.includes(text), text);
+  assert.match(manager, /document\.activeElement === first/); assert.match(manager, /confirmationTrigger\.current\?\.focus/);
+  assert.match(qr, /Partagez ce QR Code pour permettre d’ouvrir directement cette opportunité\./);
+  assert.doesNotMatch(qr, /contact sécurisé|téléphone|mise en relation|candidature/);
+});

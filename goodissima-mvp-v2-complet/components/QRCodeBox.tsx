@@ -36,7 +36,7 @@ export function QRCodeBox({
         </div>
         <div>
           <p className="text-sm text-slate-500">
-            À imprimer ou afficher pour permettre un contact sécurisé sans donner votre téléphone.
+            Partagez ce QR Code pour permettre d’ouvrir directement cette opportunité.
           </p>
           <button
             data-boussole-id="dashboard-link-qr-download"
