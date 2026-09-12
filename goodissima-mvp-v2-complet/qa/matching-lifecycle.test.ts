@@ -447,3 +447,18 @@ test("three matching results can all be selected without creating a single winne
   assert.deepEqual(selected.map((result) => result.status), ["SELECTED", "SELECTED", "SELECTED"]);
   assert.ok(selected.every((result) => result.relationCaseId === null));
 });
+
+test("result decisions reject foreign runs and results from another owned run uniformly", async () => {
+  const { service } = fixture();
+  const firstRun = await service.prepareMatchingRun({ ownerId: "owner-1", gLinkId: "source", engineVersion: "opportunity-structured-v1", criteriaSnapshot: {} });
+  await service.startMatchingRun({ ownerId: "owner-1", runId: firstRun.id });
+  const [firstResult] = await service.createMatchingResults({ ownerId: "owner-1", runId: firstRun.id, results: [{ targetGLinkId: "target-a", explanation: {} }] });
+  await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: firstRun.id });
+
+  const secondRun = await service.prepareMatchingRun({ ownerId: "owner-1", gLinkId: "source", engineVersion: "opportunity-structured-v1", criteriaSnapshot: {}, idempotencyKey: "second-run" });
+  await service.startMatchingRun({ ownerId: "owner-1", runId: secondRun.id });
+  await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: secondRun.id });
+
+  await expectCode(service.transitionMatchingResult({ ownerId: "owner-1", runId: secondRun.id, resultId: firstResult.id, nextStatus: "SELECTED" }), "MATCHING_RESULT_NOT_FOUND");
+  await expectCode(service.transitionMatchingResult({ ownerId: "owner-2", runId: firstRun.id, resultId: firstResult.id, nextStatus: "SELECTED" }), "MATCHING_RUN_NOT_FOUND");
+});

@@ -13,7 +13,7 @@ test("GET reads the latest owner-scoped persistent run without executing matchin
   assert.match(route, /export async function GET/);
   assert.match(route, /findSourceForOwner\(owner\.id, linkId\)/);
   assert.match(route, /getLatestMatchingRunWithResultsForGLink/);
-  assert.match(route, /results: persisted\?\.results\.map\(publicResult\) \?\? \[\]/);
+  assert.match(route, /results: persisted \? publicResults\(persisted\.run, persisted\.results\) : \[\]/);
   const getBody = route.slice(route.indexOf("export async function GET"), route.indexOf("export async function PATCH"));
   assert.doesNotMatch(getBody, /MatchingExecutionService|aIEvent|rankMatches|semanticMatchV2/);
   const serialization = route.slice(route.indexOf("function publicRun"), route.indexOf("function matchingHttpStatus"));
@@ -25,7 +25,7 @@ test("GET reads the latest owner-scoped persistent run without executing matchin
 test("GET returns a serializable empty state and masks technical failures", () => {
   const getBody = route.slice(route.indexOf("export async function GET"), route.indexOf("export async function PATCH"));
   assert.match(getBody, /run: persisted \? publicDetailedRun\(persisted\.run\) : null/);
-  assert.match(getBody, /results: persisted\?\.results\.map\(publicResult\) \?\? \[\]/);
+  assert.match(getBody, /results: persisted \? publicResults\(persisted\.run, persisted\.results\) : \[\]/);
   assert.match(getBody, /return NextResponse\.json\(\{ error: "MATCHING_READ_FAILED" \}, \{ status: 500 \}\)/);
   assert.doesNotMatch(getBody, /error\.stack|PrismaClient|P20\d\d/);
 });
@@ -34,7 +34,7 @@ test("POST serializes complete run dates without the obsolete legacy matches pay
   const postBody = route.slice(route.indexOf("export async function POST"), route.indexOf("export async function GET"));
   const serialization = route.slice(route.indexOf("function publicRun"), route.indexOf("function matchingHttpStatus"));
   assert.match(postBody, /run: publicRun\(response\.run\)/);
-  assert.match(postBody, /results: response\.results\.map\(publicResult\)/);
+  assert.match(postBody, /results: publicResults\(response\.run, response\.results\)/);
   assert.doesNotMatch(postBody, /matches:|legacyMatch/);
   assert.match(postBody, /warnings: \[\]/);
   assert.match(serialization, /startedAt: run\.startedAt\?\.toISOString\(\) \?\? null/);
@@ -104,7 +104,7 @@ test("PATCH persists an owner-scoped decision through the lifecycle service", ()
   assert.match(patch, /decisionRun\.gLinkId !== source\.id/);
   assert.match(patch, /transitionMatchingResult\(\{/);
   assert.match(patch, /ownerId: owner\.id[^]*runId[^]*resultId[^]*nextStatus: decision/);
-  assert.match(patch, /NextResponse\.json\(\{ result: publicResult\(result\) \}\)/);
+  assert.match(patch, /projectMatchingResultView\(\{ result, sourceType:/);
   assert.doesNotMatch(patch, /aIEvent|AIEvent|INTERESTING|IGNORED|glink_matching_interested|glink_matching_ignored/);
 });
 

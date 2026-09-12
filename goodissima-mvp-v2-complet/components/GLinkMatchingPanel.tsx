@@ -36,16 +36,34 @@ type MatchingResultView = {
   dismissedAt: string | null;
 };
 
+type StructuredMatchingResultView = {
+  id: string;
+  status: Exclude<MatchingResultStatus, "LINKED">;
+  label: "OFFER_MATCH" | "NEED_MATCH";
+  ordinal: number;
+  band: "VERY_GOOD" | "GOOD" | "POSSIBLE";
+  comparisons: Array<{
+    criterion: "SUBJECT" | "CATEGORY" | "LOCATION" | "DAYS" | "TIME" | "DATE_WINDOW" | "PRICE" | "TERMS";
+    outcome: "COMPATIBLE" | "UNKNOWN";
+  }>;
+  semanticSummary: "RELATED" | "NO_SAFE_SEMANTIC_DETAIL";
+  selectedAt: string | null;
+  dismissedAt: string | null;
+  createdAt: string;
+};
+
+type PublicMatchingResultView = MatchingResultView | StructuredMatchingResultView;
+
 type MatchingViewPayload = {
   enabled?: boolean;
   run: MatchingRunView;
-  results: MatchingResultView[];
+  results: PublicMatchingResultView[];
 };
 
 type MatchingReadPayload = {
   enabled: boolean;
   run: MatchingRunView | null;
-  results: MatchingResultView[];
+  results: PublicMatchingResultView[];
 };
 
 const MAX_POLL_ATTEMPTS = 5;
@@ -66,7 +84,7 @@ export function GLinkMatchingPanel({
   const [initialLoading, setInitialLoading] = useState(true);
   const [enabled, setEnabled] = useState(initialEnabled);
   const [run, setRun] = useState<MatchingRunView | null>(null);
-  const [results, setResults] = useState<MatchingResultView[]>([]);
+  const [results, setResults] = useState<PublicMatchingResultView[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [decidingResults, setDecidingResults] = useState<Record<string, boolean>>({});
   const [lifecycleAction, setLifecycleAction] = useState<MatchingRunAction | null>(null);
@@ -210,7 +228,7 @@ export function GLinkMatchingPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ runId: run.id, resultId, decision }),
       });
-      const payload = await response.json() as { result?: MatchingResultView };
+      const payload = await response.json() as { result?: PublicMatchingResultView };
       if (!response.ok) {
         if (response.status === 409) {
           try { await readPersistentState(); } catch { /* The decision error remains the primary feedback. */ }
@@ -328,7 +346,7 @@ export function GLinkMatchingPanel({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h3 className="font-bold text-slate-950">{resultPseudonym(result)}</h3>
-                  <p className="mt-1 text-sm text-slate-700">{result.explanation.summary}</p>
+                  <p className="mt-1 text-sm text-slate-700">{resultSummary(result)}</p>
                   <p className="mt-1 text-xs text-slate-500">Aucune identité révélée · aucun score présenté comme vérité</p>
                   {result.status === "SELECTED" ? <p className="mt-2 text-xs font-bold text-emerald-800">Retenu</p> : null}
                   {result.status === "DISMISSED" ? <p className="mt-2 text-xs font-bold text-slate-700">Écarté</p> : null}
@@ -343,8 +361,8 @@ export function GLinkMatchingPanel({
                 ) : null}
               </div>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <ResultList title="Signaux favorables" items={result.explanation.signals} />
-                <ResultList title="Éléments à vérifier" items={result.explanation.cautions ?? []} />
+                <ResultList title="Signaux favorables" items={resultSignals(result)} />
+                <ResultList title="Éléments à vérifier" items={resultCautions(result)} />
               </div>
             </article>
           ))}
@@ -383,13 +401,37 @@ function ResultList({ title, items }: { title: string; items: string[] }) {
   ) : null;
 }
 
-function resultPseudonym(result: MatchingResultView) {
+function resultPseudonym(result: PublicMatchingResultView) {
+  if ("label" in result) return `${result.label === "OFFER_MATCH" ? "Offre compatible" : "Besoin compatible"} ${result.ordinal}`;
   if (Number.isInteger(result.internalRank) && (result.internalRank ?? -1) >= 0) {
     return `Opportunité compatible ${(result.internalRank ?? 0) + 1}`;
   }
   let hash = 0;
   for (const character of result.targetGLinkId) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
   return `Opportunité compatible ${100 + (hash % 900)}`;
+}
+
+const criterionLabels: Record<StructuredMatchingResultView["comparisons"][number]["criterion"], string> = {
+  SUBJECT: "Sujet compatible", CATEGORY: "Catégorie compatible", LOCATION: "Zone compatible",
+  DAYS: "Jours compatibles", TIME: "Horaires compatibles", DATE_WINDOW: "Période compatible",
+  PRICE: "Budget compatible", TERMS: "Critères complémentaires compatibles",
+};
+
+function resultSummary(result: PublicMatchingResultView) {
+  if (!("label" in result)) return result.explanation.summary;
+  return result.band === "VERY_GOOD" ? "Très bonne compatibilité potentielle" : result.band === "GOOD" ? "Bonne compatibilité potentielle" : "Compatibilité potentielle";
+}
+
+function resultSignals(result: PublicMatchingResultView) {
+  if (!("label" in result)) return result.explanation.signals;
+  const signals = result.comparisons.filter((item) => item.outcome === "COMPATIBLE").map((item) => criterionLabels[item.criterion]);
+  if (result.semanticSummary === "RELATED") signals.unshift("Sujets liés");
+  return signals;
+}
+
+function resultCautions(result: PublicMatchingResultView) {
+  if (!("label" in result)) return result.explanation.cautions ?? [];
+  return result.comparisons.filter((item) => item.outcome === "UNKNOWN").map((item) => `${criterionLabels[item.criterion].replace("compatible", "à vérifier")}`);
 }
 
 function createAttemptKey() {

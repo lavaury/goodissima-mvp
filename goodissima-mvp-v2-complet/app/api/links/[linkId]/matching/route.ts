@@ -12,6 +12,7 @@ import {
 import { createPrismaMatchingRepository } from "@/lib/matching/matching-repository";
 import { PrismaGLinkMatchingSourceStore } from "@/lib/matching/glink-matching-source-store";
 import { glinkMatchingEngines } from "@/lib/matching/glink-matching-engine-adapter";
+import { projectMatchingResultView } from "@/lib/matching/matching-result-view";
 
 async function linkSource(linkId: string, ownerId: string) {
   const link = await prisma.gLink.findFirst({
@@ -61,7 +62,7 @@ export async function POST(request: Request, { params }: { params: { linkId: str
     });
     return NextResponse.json({
       run: publicRun(response.run),
-      results: response.results.map(publicResult),
+      results: publicResults(response.run, response.results),
       warnings: [],
     });
   } catch (error) {
@@ -91,7 +92,7 @@ export async function GET(_request: Request, { params }: { params: { linkId: str
     return NextResponse.json({
       enabled: parseGLinkMatchingState(source.rules).enabled,
       run: persisted ? publicDetailedRun(persisted.run) : null,
-      results: persisted?.results.map(publicResult) ?? [],
+      results: persisted ? publicResults(persisted.run, persisted.results) : [],
     });
   } catch (error) {
     console.error("[matching-read] Unexpected route failure", {
@@ -149,7 +150,12 @@ export async function PATCH(request: Request, { params }: { params: { linkId: st
       resultId,
       nextStatus: decision,
     });
-    return NextResponse.json({ result: publicResult(result) });
+    if (structuredSourceType(decisionRun)) {
+      const persisted = await lifecycle.getMatchingRunWithResultsForOwner({ ownerId: owner.id, runId });
+      const ordinal = Math.max(1, (persisted?.results.findIndex((item) => item.id === result.id) ?? 0) + 1);
+      return NextResponse.json({ result: projectMatchingResultView({ result, sourceType: structuredSourceType(decisionRun)!, ordinal }) });
+    }
+    return NextResponse.json({ result: publicLegacyResult(result) });
   } catch (error) {
     if (error instanceof MatchingDomainError) {
       return NextResponse.json({ error: error.code }, { status: matchingDecisionHttpStatus(error.code) });
@@ -213,7 +219,21 @@ function publicDetailedRun(run: Awaited<ReturnType<MatchingLifecycleService["pre
   };
 }
 
-function publicResult(result: MatchingResultRecord) {
+function publicResults(run: { criteriaSnapshot: unknown }, results: MatchingResultRecord[]) {
+  const sourceType = structuredSourceType(run);
+  return sourceType
+    ? results.map((result, index) => projectMatchingResultView({ result, sourceType, ordinal: index + 1 }))
+    : results.map(publicLegacyResult);
+}
+
+function structuredSourceType(run: { criteriaSnapshot: unknown }): "OFFER" | "NEED" | null {
+  const snapshot = run.criteriaSnapshot;
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
+  const sourceType = (snapshot as Record<string, unknown>).sourceType;
+  return sourceType === "OFFER" || sourceType === "NEED" ? sourceType : null;
+}
+
+function publicLegacyResult(result: MatchingResultRecord) {
   return {
     id: result.id,
     targetGLinkId: result.targetGLinkId,
