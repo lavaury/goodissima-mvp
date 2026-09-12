@@ -58,6 +58,15 @@ export async function PATCH(req: Request, { params }: { params: { linkId: string
     revalidatePath("/dashboard");
     return NextResponse.json({ status: "ACTIVE", published: true, relationshipsModified: false });
   }
+  if (action === "disable") {
+    if (!canTransitionLinkStatus(link.status as LinkLifecycleStatus, "DISABLED")) {
+      return NextResponse.json({ error: "Ce lien ne peut pas être suspendu dans son état actuel." }, { status: 409 });
+    }
+    await prisma.gLink.update({ where: { id: link.id }, data: { status: "DISABLED" } });
+    revalidatePath(`/links/${link.id}`);
+    revalidatePath("/opportunities", "page");
+    return NextResponse.json({ status: "DISABLED", relationshipsModified: false });
+  }
   const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
   if (!title) return NextResponse.json({ error: "Le titre de l'annonce est requis." }, { status: 400 });
   const updated = await prisma.gLink.update({ where: { id: link.id }, data: { title, city: typeof body.city === "string" && body.city.trim() ? body.city.trim().slice(0, 120) : null, description: typeof body.description === "string" && body.description.trim() ? body.description.trim().slice(0, 3000) : null } });

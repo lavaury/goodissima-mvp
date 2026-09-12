@@ -2,17 +2,16 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { PageNavigationContext } from "@/components/SpatialNavigationContext";
-import { navigationWorkspaceSelect, objectBreadcrumb } from "@/lib/spatial-navigation";
+import { navigationWorkspaceSelect } from "@/lib/spatial-navigation";
 import { notFound } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
-import { DashboardBackLink } from "@/components/DashboardBackLink";
+import { HistoryBackButton } from "@/components/HistoryBackButton";
 import { DebugCreateTestCaseButton } from "@/components/DebugCreateTestCaseButton";
 import { LinkAdmissionPanel } from "@/components/LinkAdmissionPanel";
-import { ProductContextBanner, ProductLifecycle, ProductObjectDefinition } from "@/components/ProductObjectClarity";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AnnouncementActions } from "@/components/AnnouncementActions";
 import { GLinkMatchingPanel } from "@/components/GLinkMatchingPanel";
+import { SimpleLinkOwnerControls } from "@/components/SimpleLinkOwnerControls";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { isGoodissimaDebugMode } from "@/lib/debug";
 import type { ConditionalRule } from "@/lib/form-rules";
@@ -30,7 +29,6 @@ import {
 } from "@/lib/template-snapshots";
 import { prisma } from "@/lib/prisma";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
-import { hasUsefulGLinkMatchingCriteria } from "@/lib/ai/relational-matching-source";
 import { parseGLinkMatchingState } from "@/lib/glink-matching";
 
 type FieldOption = {
@@ -222,79 +220,30 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     ? localizeTemplateName(link.template.key, link.template.name, locale)
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
-  const sourceJourneyHref = snapshot?.formTemplate.id ? `/templates/${snapshot.formTemplate.id}` : formTemplate?.id ? `/templates/${formTemplate.id}` : null;
   const gLinkMatchingState = parseGLinkMatchingState(link.rules);
-  const matchingSource = {
-    sourceType: "GLINK" as const,
-    sourceId: link.id,
-    ownerId: owner.id,
-    title: link.title,
-    description: link.description,
-    fields: rawFields.map((field) => ({
-      label: field.label,
-      type: field.type,
-      options: field.options,
-      validationRules: "validationRules" in field ? field.validationRules : undefined,
-    })),
-  };
+  const status = link.status === "ACTIVE" ? { label: "Actif", style: "bg-emerald-100 text-emerald-800" } : link.status === "DISABLED" ? { label: "Suspendu", style: "bg-amber-100 text-amber-900" } : link.status === "EXPIRED" ? { label: "Expiré", style: "bg-slate-200 text-slate-700" } : { label: "Archivé", style: "bg-slate-200 text-slate-700" };
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <PageNavigationContext pathname={`/links/${encodeURIComponent(link.id)}`} items={objectBreadcrumb({ name: link.title, fallback: "Lien", objectId: link.id, ownerId: owner.id, workspace: link.workspace })} />
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <DashboardBackLink className="mb-4" />
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
-            {t("links.created.eyebrow")}
-          </p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">{t("links.created.title")}</h1>
-          <p className="mt-2 max-w-2xl text-slate-500">{t("links.created.subtitle")}</p>
-        </div>
+    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <PageNavigationContext pathname={`/links/${encodeURIComponent(link.id)}`} items={[{ label: "Accueil", href: "/dashboard" }, { label: "Mes espaces", href: "/spaces" }, { label: link.title }]} />
+      <HistoryBackButton />
+      <header className="mt-4">
+        <p className="text-sm font-bold uppercase tracking-wider text-[#247f88]">Lien simple</p>
+        <div className="mt-2 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold text-slate-950">{link.title}</h1><span className={`rounded-full px-3 py-1 text-sm font-semibold ${status.style}`}>{status.label}</span></div>
+        {link.description ? <p className="mt-3 max-w-2xl text-slate-600">{link.description}</p> : null}
+      </header>
 
-      </div>
+      {isDraft ? <p className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 font-semibold text-amber-900">Brouillon — non publié. Aucun lien public, partage ou accès candidat n’est disponible.</p> : <><section data-boussole-id="simple-link-sharing" className="mt-8 rounded-2xl border bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold">Partage</h2>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row"><input value={publicUrl} readOnly aria-label="Adresse publique" className="min-h-11 w-full rounded-xl border bg-slate-50 px-3 text-sm" /><span data-boussole-id="copy-public-link"><CopyLinkButton value={publicUrl} /></span></div>
+        <div className="mt-4"><SimpleLinkOwnerControls linkId={link.id} publicUrl={publicUrl} status={link.status} /></div>
+      </section>
 
+      <details data-boussole-id="simple-link-access" className="mt-5 rounded-2xl border bg-white p-5 shadow-sm"><summary className="cursor-pointer font-semibold">Accès · {link.admissionMode === "OPEN" ? "Ouvert à tous" : "Identité vérifiée requise"}</summary><div data-boussole-id="explain-link-admission"><LinkAdmissionPanel linkId={link.id} initialMode={link.admissionMode} /></div></details>
 
-      <ProductLifecycle current="announcement" />
-      <ProductContextBanner object="announcement" />
+      {gLinkMatchingState.enabled ? <details className="mt-5 rounded-2xl border bg-white p-5"><summary className="cursor-pointer font-semibold text-slate-700">Fonctions historiques</summary><GLinkMatchingPanel linkId={link.id} criteriaSufficient initialEnabled /></details> : null}</>}
 
-      <section className="mt-6 rounded-2xl border bg-white p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">Annonce : {link.title}</h2><ProductObjectDefinition object="announcement" /><p className="mt-2 text-sm text-slate-600">Parcours source : <strong>{templateName}</strong></p></div>{sourceJourneyHref ? <Link href={sourceJourneyHref} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-900">Voir le parcours</Link> : null}</div></section>
-      <AnnouncementActions linkId={link.id} publicUrl={publicUrl} initialTitle={link.title} initialCity={link.city ?? ""} initialDescription={link.description ?? ""} initialStatus={link.status} />
-
-      {!isDraft ? <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-700">{t("links.created.publicCandidateLink")}</p>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <input
-              value={publicUrl}
-              readOnly
-              className="min-h-11 w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm text-slate-800"
-            />
-            <span data-boussole-id="copy-public-link"><CopyLinkButton value={publicUrl} /></span>
-          </div>
-          <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900 ring-1 ring-emerald-200">
-            {t("links.created.education")}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-slate-700">{t("links.created.conversationStatus")}</p>
-          <div className="mt-3 rounded-xl bg-slate-50 p-4">
-            <p className="font-semibold text-slate-950">{t("links.created.noActiveConversation")}</p>
-            <p className="mt-1 text-sm text-slate-500">{t("links.created.noActiveConversationHelp")}</p>
-          </div>
-        </div>
-      </section> : <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 font-semibold text-amber-900">Brouillon — non publié. Aucun lien public, partage ou accès candidat n’est disponible.</p>}
-
-      {!isDraft ? <><div data-boussole-id="explain-link-admission">
-        <LinkAdmissionPanel linkId={link.id} initialMode={link.admissionMode} />
-      </div>
-      <GLinkMatchingPanel
-        linkId={link.id}
-        criteriaSufficient={hasUsefulGLinkMatchingCriteria(matchingSource)}
-        initialEnabled={gLinkMatchingState.enabled}
-      /></> : null}
-
-      {debugMode && !isDraft ? (
+      {debugMode && link.status !== "ARCHIVED" ? (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">Debug</p>
           <div className="mt-3 space-y-2 text-sm text-amber-950">
@@ -312,20 +261,19 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+      <section data-boussole-id="simple-link-responses" className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-wide text-slate-500">Reponses recues</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Dossiers issus de ce lien</h2>
-            <p className="mt-1 text-sm text-slate-500">Chaque candidat dispose de son propre dossier.</p>
+            <h2 className="text-xl font-semibold text-slate-950">Réponses</h2>
+            <p className="mt-1 text-sm text-slate-500">Consultez les réponses envoyées depuis ce formulaire.</p>
           </div>
           <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-            {link.cases.length} dossier{link.cases.length > 1 ? "s" : ""}
+            {link.cases.length} réponse{link.cases.length > 1 ? "s" : ""}
           </span>
         </div>
 
         {link.cases.length === 0 ? (
-          <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucun dossier pour ce lien.</p>
+          <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucune réponse pour le moment.</p>
         ) : (
           <div className="mt-5 overflow-hidden rounded-xl border">
             <div className="hidden grid-cols-[1.35fr_1.4fr_0.95fr_0.9fr_1fr_1fr_1.1fr_auto] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid">
@@ -394,7 +342,8 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
         )}
       </section>
 
-      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+      <details data-boussole-id="simple-link-form" className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+        <summary className="cursor-pointer text-xl font-semibold text-slate-950">Détail du formulaire · {fields.length} champ{fields.length > 1 ? "s" : ""}</summary>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
@@ -441,25 +390,16 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
             ))}
           </div>
         )}
-      </section>
+      </details>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        {!isDraft ? <Link
+      {!isDraft ? <div className="mt-6"><Link
           href={publicPath}
           data-boussole-id="open-public-link"
           prefetch={false}
           className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-sm font-medium text-white"
         >
           {t("links.created.testCandidate")}
-        </Link> : null}
-        <Link
-          href={`/dashboard?refresh=${encodeURIComponent(link.id)}`}
-          prefetch={false}
-          className="rounded-2xl border px-5 py-3 text-center text-sm font-medium text-slate-700"
-        >
-          ← Retour au Dashboard
-        </Link>
-      </div>
+        </Link></div> : null}
     </main>
   );
 }

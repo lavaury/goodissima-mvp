@@ -4,10 +4,14 @@ import { QRCodeCanvas } from "qrcode.react";
 
 export function QRCodeBox({
   value,
-  fileName = "goodissima-qr-code.png"
+  fileName = "goodissima-qr-code.png",
+  description = "Partagez ce QR Code pour permettre d’ouvrir directement cette opportunité.",
+  boussoleId = "dashboard-link-qr-download",
 }: {
   value: string;
   fileName?: string;
+  description?: string;
+  boussoleId?: string;
 }) {
   function downloadQRCode() {
     const canvas = document.getElementById(`qr-${fileName}`) as HTMLCanvasElement | null;
@@ -36,10 +40,10 @@ export function QRCodeBox({
         </div>
         <div>
           <p className="text-sm text-slate-500">
-            Partagez ce QR Code pour permettre d’ouvrir directement cette opportunité.
+            {description}
           </p>
           <button
-            data-boussole-id="dashboard-link-qr-download"
+            data-boussole-id={boussoleId}
             type="button"
             onClick={downloadQRCode}
             className="mt-3 rounded-xl border px-4 py-2 text-sm font-medium hover:bg-slate-50"

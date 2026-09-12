@@ -14,8 +14,7 @@ test("simple link builder stays independent from governed journeys and automatio
   assert.match(builder, /Aucune diffusion ne sera faite automatiquement/);
   assert.match(builder, /Dernière vérification/);
   assert.match(builder, /J’ai vérifié les champs et je confirme la création du lien/);
-  assert.match(builder, /Rechercher des correspondances pour ce lien/);
-  assert.match(builder, /Aucun contact, email ou dossier ne sera créé automatiquement/);
+  assert.doesNotMatch(builder, /matching|correspondances/i);
   assert.match(builder, /disabled=\{loading \|\| !validated/);
   assert.match(builder, /Aperçu live/);
   assert.match(builder, /Proposer des champs avec l’IA/);
@@ -114,8 +113,8 @@ test("simple-link submission keeps notification data outside functional answers 
 
 test("every retained Simple link Boussole step targets a real builder zone", () => {
   const builder = source("app/(connected)/links/simple/simple-link-builder.tsx");
-  assert.equal(simpleLinkSequences.length, 7);
-  assert.equal(simpleLinkSteps.length, 36);
+  assert.equal(simpleLinkSequences.length, 6);
+  assert.equal(simpleLinkSteps.length, 31);
   for (const step of simpleLinkSteps) {
     assert.ok(step.targetId && builder.includes(step.targetId), `missing builder target ${step.targetId}`);
   }

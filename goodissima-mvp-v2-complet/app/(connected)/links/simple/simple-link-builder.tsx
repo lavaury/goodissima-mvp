@@ -67,8 +67,6 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateCategory, setTemplateCategory] = useState<SimpleLinkTemplateCategory | "Toutes">("Toutes");
   const [importedTemplateTitle, setImportedTemplateTitle] = useState("");
-  const [matchingRecommended, setMatchingRecommended] = useState(false);
-  const [matchingEnabled, setMatchingEnabled] = useState(false);
 
   const validFields = useMemo(() => fields.filter((field) => field.label.trim()), [fields]);
   const filteredTemplates = useMemo(() => {
@@ -114,7 +112,6 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
       validationRules: field.validationRules ? { ...field.validationRules } : undefined,
     })));
     setImportedTemplateTitle(selected.title);
-    setMatchingRecommended(selected.matchingRecommended === true);
     setValidated(false);
     setPublicUrl("");
     setShowTemplates(false);
@@ -127,7 +124,6 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
         body: JSON.stringify({
           title, description, welcomeMessage, fields: validFields, humanValidated: validated,
           expiresAt, admissionMode, allowDocument, requireMessage, enhancedSecurity,
-          matchingEnabled,
           ...(workspaceId ? { workspaceId } : {}),
         }),
       });
@@ -142,7 +138,7 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
   }
 
   return (
-    <div data-boussole-id="simple-link-builder" data-boussole-state={publicUrl ? matchingEnabled ? "created-matching" : "created" : importedTemplateTitle ? "template-imported" : "editing"}>
+    <div data-boussole-id="simple-link-builder" data-boussole-state={publicUrl ? "created" : importedTemplateTitle ? "template-imported" : "editing"}>
       <header className="rounded-3xl bg-gradient-to-br from-[#0f5960] via-[#247f88] to-[#48a7a2] p-7 text-white shadow-lg">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -168,7 +164,7 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
             {showTemplates ? "Fermer la bibliothèque" : "Choisir un modèle"}
           </button><button type="button" data-boussole-id="create-without-template" data-boussole-state={importedTemplateTitle ? "imported" : "not-imported"} onClick={() => document.querySelector('[data-boussole-id="simple-link-title"]')?.scrollIntoView({ behavior: "smooth", block: "center" })} className="rounded-xl border px-4 py-2.5 text-sm font-bold text-slate-700">Créer sans modèle</button></div>
         </div>
-        {importedTemplateTitle ? <div className="mt-4 space-y-2"><p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">Modèle « {importedTemplateTitle} » importé, vous pouvez le modifier.</p>{matchingRecommended ? <p data-boussole-id="simple-link-matching-recommendation" data-boussole-state="recommended" className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">Matching recommandé pour ce modèle. Il reste désactivé tant que vous ne l’activez pas explicitement.</p> : null}</div> : null}
+        {importedTemplateTitle ? <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">Modèle « {importedTemplateTitle} » importé, vous pouvez le modifier.</p> : null}
         {showTemplates ? <div className="mt-6 border-t pt-6">
           <div className="grid gap-3 md:grid-cols-[1fr_280px]">
             <input data-boussole-id="search-simple-link-template" value={templateSearch} onChange={(event) => setTemplateSearch(event.target.value)} placeholder="Rechercher : baby-sitter, voiture, document…" className="rounded-xl border px-4 py-3 text-sm" />
@@ -297,13 +293,6 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
               <button type="button" disabled className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">Envoyer ma réponse</button>
             </div>
           </section>
-          <section data-boussole-id="enable-link-matching" data-boussole-state={matchingEnabled ? "enabled" : "disabled"} className="rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm">
-            <h2 className="font-bold text-cyan-950">Matching relationnel</h2>
-            <label className="mt-4 flex items-start gap-3 text-sm text-cyan-950">
-              <input type="checkbox" checked={matchingEnabled} onChange={(event) => { setMatchingEnabled(event.target.checked); setValidated(false); }} className="mt-0.5 h-5 w-5 accent-[#247f88]" />
-              <span><strong>Rechercher des correspondances pour ce lien</strong><span data-boussole-id="simple-link-matching-help" className="mt-1 block text-xs leading-relaxed text-cyan-800">Goodissima comparera les critères de ce lien avec les opportunités existantes. Aucun contact, email ou dossier ne sera créé automatiquement.</span></span>
-            </label>
-          </section>
           <section id="simple-link-publication" data-boussole-id="simple-link-final-check-section" data-boussole-state={validated ? "confirmed" : "unconfirmed"} className="scroll-mt-6 rounded-3xl border bg-white p-5 shadow-sm">
             <h2 className="font-bold">Dernière vérification</h2>
             <label data-boussole-id="confirm-simple-link" data-boussole-state={validated ? "confirmed" : "unconfirmed"} className="mt-4 flex items-start gap-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950"><input type="checkbox" checked={validated} onChange={(e) => setValidated(e.target.checked)} className="mt-0.5 h-4 w-4" /><span><strong>J’ai vérifié les champs et je confirme la création du lien.</strong><br />Aucune diffusion ne sera faite automatiquement.</span></label>
@@ -312,9 +301,7 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
             {publicUrl && <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-sm font-bold text-emerald-950">Votre lien est prêt</p><p className="mt-2 break-all text-xs text-emerald-800">{publicUrl}</p><div className="mt-3 flex gap-2"><button type="button" data-boussole-id="copy-public-link" onClick={async () => { await navigator.clipboard.writeText(publicUrl); setCopied(true); }} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-bold text-white">{copied ? "Copié !" : "Copier le lien"}</button><a data-boussole-id="open-public-link" href={publicUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-900">Ouvrir</a></div></div>}
           </section>
           {createdLinkId && workspaceId ? <p className="rounded-xl border bg-white p-4"><Link href={`/links/${encodeURIComponent(createdLinkId)}`} className="font-semibold underline">Consulter le lien créé</Link></p> : null}
-          {createdLinkId && matchingEnabled ? <section className="flex flex-wrap gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 p-4"><Link data-boussole-id="open-link-matching" data-boussole-state="created-matching" href={`/links/${createdLinkId}#matching`} className="rounded-lg bg-cyan-900 px-3 py-2 text-xs font-bold text-white">Ouvrir le matching</Link><Link data-boussole-id="open-pilotage-matching-signal" href="/gouvernance/pilotage" className="rounded-lg border border-cyan-300 bg-white px-3 py-2 text-xs font-bold text-cyan-900">Salle de pilotage</Link></section> : null}
           <section data-boussole-id="simple-link-governance-reminder" className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Besoin d’un processus structuré avec pilotage, invitations ou revues ? <Link href="/gouvernance/nouveau" className="font-bold text-[#247f88]">Utilisez Gouvernance → Créer un parcours gouverné.</Link></section>
-          <section className="rounded-2xl border border-dashed p-4"><p className="text-sm font-bold text-slate-700">Correspondances potentielles à examiner</p><p className="mt-1 text-xs text-slate-500">Emplacement prévu pour le pré-matching. Aucun contact automatique.</p></section>
         </aside>
       </div>
     </div>

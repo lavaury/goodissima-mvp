@@ -42,13 +42,6 @@ export const simpleLinkSequences: BoussoleSequence[] = [
     s("simple-link-rule-summary", "simple-link-rule-summary", "Lire la règle", "Relisez la reformulation avant de poursuivre.", { glossary: ["regle", "ecart-a-examiner"] }),
     s("simple-link-rule-preview", "simple-link-live-preview", "Vérifier l’aperçu", "Contrôlez la façon dont le critère apparaît dans le formulaire.", { glossary: ["apercu", "regle"] }),
   ]},
-  { id: "matching", title: "Matching relationnel", description: "Comprendre l’option et ses limites humaines.", steps: [
-    s("simple-link-matching-location", "enable-link-matching", "Localiser le matching", "Cette option rend le besoin candidat au matching relationnel.", { glossary: ["matching-relationnel", "matching-du-lien"] }),
-    s("simple-link-matching-disabled", "enable-link-matching", "Comprendre le matching du lien", "Le matching est désactivé. Une activation explicite est nécessaire.", { glossary: ["matching-du-lien", "correspondance-potentielle"], states: ["disabled"] }),
-    s("simple-link-matching-enabled", "enable-link-matching", "Matching activé", "Le matching est activé pour ce lien. L’analyse restera humaine.", { glossary: ["matching-du-lien", "validation-humaine"], states: ["enabled"] }),
-    s("simple-link-matching-limit", "simple-link-matching-help", "Limite humaine", "Aucun contact, email, dossier ou relation ne sera créé automatiquement.", { glossary: ["validation-humaine"] }),
-    s("simple-link-matching-recommended", "simple-link-matching-recommendation", "Modèle recommandant le matching", "Le modèle le recommande, mais son activation reste votre décision.", { glossary: ["modele", "matching-relationnel"], states: ["recommended"] }),
-  ]},
   { id: "configure-more", title: "Configurer davantage", description: "Ouvrir seulement les réglages complémentaires utiles.", steps: [
     s("simple-link-advanced", "simple-link-advanced-options", "Options avancées", "Vous êtes dans les réglages complémentaires du lien. Cette zone n’est pas nécessaire dans la majorité des créations simples. Ouvrez-la uniquement si vous devez ajuster un paramètre complémentaire ; sinon poursuivez vers la vérification."),
   ]},

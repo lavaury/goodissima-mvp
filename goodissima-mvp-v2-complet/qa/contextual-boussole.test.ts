@@ -77,8 +77,8 @@ test("provides orientation and factual activity dashboard journeys", () => {
 });
 
 test("provides the complete state-aware Simple link journey", () => {
-  assert.equal(simpleLinkSequences.length, 7);
-  assert.equal(simpleLinkSteps.length, 36);
+  assert.equal(simpleLinkSequences.length, 6);
+  assert.equal(simpleLinkSteps.length, 31);
   assert.equal(getCompassContext("/links/simple")?.steps, simpleLinkSteps);
   for (const step of simpleLinkSteps) {
     assert.ok(step.targetId);
@@ -89,7 +89,7 @@ test("provides the complete state-aware Simple link journey", () => {
     assert.ok(Array.isArray(step.glossaryTermIds));
   }
   assert.ok(simpleLinkSteps.some((step) => step.targetStates?.includes("disabled")));
-  assert.ok(simpleLinkSteps.some((step) => step.targetStates?.includes("enabled")));
+  assert.ok(!simpleLinkSteps.some((step) => step.targetId === "enable-link-matching"));
   assert.ok(!simpleLinkSteps.some((step) => step.targetStates?.includes("created-matching")));
   assert.ok(getCompassContext("/links/real-link")?.steps.some(step => step.targetId === "copy-public-link"));
   const verify = simpleLinkSequences.find((sequence) => sequence.id === "verify-create")!;
@@ -143,7 +143,7 @@ test("keeps glossary ids, labels, related terms and Guide references coherent", 
   const glossaryTermIds = getAllCompassContexts().flatMap((context) => context.steps.flatMap((step) => step.glossaryTermIds ?? []));
   assert.deepEqual(validateGlossaryReferences(glossaryTermIds), []);
   assert.equal(getGlossaryTerm("admission")?.label, "Admission");
-  assert.ok(getCompassContext("/links/simple")!.steps.some((step) => step.glossaryTermIds?.includes("matching-relationnel")));
+  assert.ok(!getCompassContext("/links/simple")!.steps.some((step) => step.glossaryTermIds?.includes("matching-relationnel")));
 });
 
 test("offers contextual targeting or concerned pages without business actions", () => {
