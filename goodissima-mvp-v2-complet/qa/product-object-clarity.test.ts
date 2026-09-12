@@ -46,11 +46,14 @@ test("provides cross navigation between product objects", () => {
   assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l&apos;origine/);
 });
 
-test("adds dashboard business-object counts", () => {
+test("keeps the dashboard focused on destinations and factual activity", () => {
   const dashboard = source("app/(connected)/dashboard/page.tsx");
-  assert.match(dashboard, /Parcours actifs/);
-  assert.match(dashboard, /Annonces publiées/);
-  assert.match(dashboard, /Relations en cours/);
+  const home = source("components/DashboardHome.tsx");
+  assert.match(dashboard, /getDashboardActivity\(owner\.id\)/);
+  assert.match(dashboard, /<DashboardHome activity=\{activity\}/);
+  assert.match(home, /Mes espaces/);
+  assert.match(home, /Activité récente/);
+  assert.doesNotMatch(dashboard, /Parcours actifs|Annonces publiées|Relations en cours/);
 });
 
 test("uses unambiguous voice-compatible vocabulary", () => {

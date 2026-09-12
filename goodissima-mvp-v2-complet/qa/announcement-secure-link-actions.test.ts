@@ -8,36 +8,30 @@ function source(path: string) {
 
 test("an announcement without a secure link keeps the explicit creation flow", () => {
   const previewActions = source("components/OpportunityPreviewActions.tsx");
-
   assert.match(previewActions, /Créer un lien sécurisé/);
-  assert.match(previewActions, /href={`\/links\/new\?templateId=/);
+  assert.match(previewActions, /withCreationWorkspace\(`\/links\/new\?templateId=\$\{encodeURIComponent\(relationTemplateId\)\}`/);
+  assert.match(previewActions, /workspaceId/);
 });
 
-test("an existing secure link is opened instead of being created or copied again", () => {
-  const actions = source("components/AnnouncementActions.tsx");
+test("an existing simple link exposes its canonical sharing surface", () => {
   const managementPage = source("app/(connected)/links/[linkId]/page.tsx");
-
-  assert.doesNotMatch(actions, /Créer un lien sécurisé/);
-  assert.match(actions, /<a href={publicUrl}/);
-  assert.match(actions, /Voir l'annonce publique/);
-  assert.doesNotMatch(actions, /navigator\.clipboard|copySecureLink|method:\s*"POST"/);
   assert.match(managementPage, /const publicPath = `\/l\/\$\{link\.slug\}`/);
-  assert.match(managementPage, /<AnnouncementActions linkId={link\.id} publicUrl={publicUrl}/);
-  assert.match(managementPage, /Lien public candidat/);
+  assert.match(managementPage, /<SimpleLinkOwnerControls linkId={link\.id} publicUrl={publicUrl}/);
+  assert.match(managementPage, /data-boussole-id="simple-link-sharing"/);
+  assert.match(managementPage, />Partage</);
+  assert.doesNotMatch(managementPage, /import \{ AnnouncementActions \}|DashboardBackLink|ProductLifecycle/);
 });
 
 test("management and mutation routes remain owner-scoped", () => {
   const managementPage = source("app/(connected)/links/[linkId]/page.tsx");
   const mutationRoute = source("app/api/links/[linkId]/route.ts");
-
   assert.match(managementPage, /where: \{ id: params\.linkId, ownerId: owner\.id \}/);
   assert.match(managementPage, /if \(!link\) notFound\(\)/);
   assert.match(mutationRoute, /where: \{ id: params\.linkId, ownerId: owner\.id \}/);
 });
 
-test("opening an existing link cannot create duplicates or mutate business resources", () => {
+test("opening an existing legacy announcement link cannot create duplicates", () => {
   const actions = source("components/AnnouncementActions.tsx");
-
   assert.doesNotMatch(actions, /fetch\([^\n]+method:\s*"POST"/s);
   assert.doesNotMatch(actions, /prisma|relationCase|conversation|message|notification|dossier/i);
   assert.doesNotMatch(actions, /window\.location|router\.push/);

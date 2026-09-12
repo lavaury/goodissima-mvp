@@ -76,9 +76,8 @@ test("active and archived announcement views are mutually exclusive", () => {
   assert.match(opportunities, /Opportunité historique archivée/);
   assert.match(opportunities, /totalArchivedCount/);
   assert.match(opportunities, /getArchivedOpportunitySummaryForOwner\(owner\.id, searchParams\?\.templateId\)/);
-  assert.match(dashboard, /getArchivedOpportunitySummaryForOwner\(owner\.id\)/);
-  assert.match(dashboard, /value: archivedOpportunitySummary\.count/);
-  assert.match(dashboard, /where:\s*\{ ownerId: owner\.id \}/);
+  assert.match(dashboard, /<DashboardHome activity=\{activity\}/);
+  assert.doesNotMatch(dashboard, /getArchivedOpportunitySummaryForOwner|archivedOpportunitySummary/);
   assert.match(dashboardFilters, /item\.status === "ARCHIVED"/);
   assert.match(dashboardFilters, /item\.status !== "ARCHIVED"/);
   assert.match(dashboardFilters, /Aucune annonce archivée\./);
