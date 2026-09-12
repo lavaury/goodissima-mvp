@@ -8,6 +8,7 @@ import {
 import { MatchingLifecycleService } from "../lib/matching/matching-lifecycle-service.ts";
 import type {
   MatchingGLinkRecord,
+  MatchingEligibilityGLinkRecord,
   MatchingRepository,
   MatchingResultCreate,
   MatchingResultUpdate,
@@ -16,9 +17,12 @@ import type {
   MatchingRunUpdate,
 } from "../lib/matching/matching-repository.ts";
 import { MatchingRunIdempotencyUniqueError } from "../lib/matching/matching-repository.ts";
+import { buildOpportunityRulesV1 } from "../lib/opportunities/opportunity-projection.ts";
+import { buildMatchableOpportunityProjection } from "../lib/opportunities/matching/matchable-projection.ts";
+import { projectMatchingResultView } from "../lib/matching/matching-result-view.ts";
 
 class MemoryMatchingRepository implements MatchingRepository {
-  links = new Map<string, MatchingGLinkRecord>();
+  links = new Map<string, MatchingGLinkRecord | MatchingEligibilityGLinkRecord>();
   runs = new Map<string, MatchingRunRecord>();
   results = new Map<string, MatchingResultRecord>();
   writes = 0;
@@ -38,6 +42,12 @@ class MemoryMatchingRepository implements MatchingRepository {
       .map((id) => this.links.get(id))
       .filter((link): link is MatchingGLinkRecord => link?.ownerId === ownerId && link.status === "ACTIVE")
       .sort((left, right) => left.id.localeCompare(right.id));
+  }
+
+  async findGLinksForMatchingEligibility(gLinkIds: string[]) {
+    return gLinkIds
+      .map((id) => this.links.get(id))
+      .filter((link): link is MatchingEligibilityGLinkRecord => Boolean(link && "rules" in link));
   }
 
   async findRunForOwner(ownerId: string, runId: string) {
@@ -461,4 +471,105 @@ test("result decisions reject foreign runs and results from another owned run un
 
   await expectCode(service.transitionMatchingResult({ ownerId: "owner-1", runId: secondRun.id, resultId: firstResult.id, nextStatus: "SELECTED" }), "MATCHING_RESULT_NOT_FOUND");
   await expectCode(service.transitionMatchingResult({ ownerId: "owner-2", runId: firstRun.id, resultId: firstResult.id, nextStatus: "SELECTED" }), "MATCHING_RUN_NOT_FOUND");
+});
+
+function opportunityRules(type: "OFFER" | "NEED", subject: string, matchingEnabled = true) {
+  return buildOpportunityRulesV1({}, { type, matchingEnabled, criteria: { subject, locations: ["Beauvais"], terms: ["Disponible"] } });
+}
+
+async function crossOwnerFixture() {
+  const { repository, service } = fixture();
+  repository.links.set("source", { id: "source", ownerId: "owner-1", status: "ACTIVE", rules: opportunityRules("NEED", "Recherche garde") });
+  repository.links.set("bob", { id: "bob", ownerId: "owner-2", status: "ACTIVE", rules: opportunityRules("OFFER", "Propose garde") });
+  repository.links.set("charlie", { id: "charlie", ownerId: "owner-3", status: "ACTIVE", rules: opportunityRules("OFFER", "Autre garde") });
+  const run = await service.prepareMatchingRun({ ownerId: "owner-1", gLinkId: "source", engineVersion: "opportunity-structured-v1", criteriaSnapshot: { scope: "CROSS_OWNER_V1" } });
+  await service.startMatchingRun({ ownerId: "owner-1", runId: run.id });
+  const projection = (id: string) => buildMatchableOpportunityProjection({ rules: (repository.links.get(id) as MatchingEligibilityGLinkRecord).rules })!;
+  return { repository, service, run, projection };
+}
+
+test("CROSS_OWNER_V1 revalidates both sides and persists only still-eligible targets", async () => {
+  const { repository, service, run, projection } = await crossOwnerFixture();
+  const sourceProjection = projection("source");
+  const bobProjection = projection("bob");
+  const charlieProjection = projection("charlie");
+  repository.links.set("charlie", { id: "charlie", ownerId: "owner-3", status: "ACTIVE", rules: opportunityRules("OFFER", "Autre garde", false) });
+  const beforeBob = repository.links.get("bob");
+  const persisted = await service.createCrossOwnerMatchingResults({
+    ownerId: "owner-1", runId: run.id, expectedSourceProjection: sourceProjection,
+    results: [
+      { internalTargetRef: "bob", expectedProjection: bobProjection, explanation: { band: "GOOD" } },
+      { internalTargetRef: "charlie", expectedProjection: charlieProjection, explanation: { band: "GOOD" } },
+      { internalTargetRef: "missing", expectedProjection: charlieProjection, explanation: {} },
+    ],
+  });
+  assert.deepEqual(persisted.map((result) => result.targetGLinkId), ["bob"]);
+  assert.deepEqual(repository.links.get("bob"), beforeBob);
+  assert.equal([...repository.results.values()].length, 1);
+});
+
+test("CROSS_OWNER_V1 rejects target consent, status, type, schema and fingerprint changes", async () => {
+  const { repository, service, run, projection } = await crossOwnerFixture();
+  const sourceProjection = projection("source");
+  const originalTargetProjection = projection("bob");
+  const invalidStates = [
+    { id: "bob", ownerId: "owner-2", status: "ACTIVE", rules: opportunityRules("OFFER", "Propose garde", false) },
+    { id: "bob", ownerId: "owner-2", status: "DISABLED", rules: opportunityRules("OFFER", "Propose garde") },
+    { id: "bob", ownerId: "owner-2", status: "ACTIVE", rules: opportunityRules("NEED", "Propose garde") },
+    { id: "bob", ownerId: "owner-2", status: "ACTIVE", rules: opportunityRules("OFFER", "Critères modifiés") },
+    { id: "bob", ownerId: "owner-2", status: "ACTIVE", rules: { creationSource: "opportunity", opportunity: { schemaVersion: 2, type: "OFFER", matchingEnabled: true, criteria: { subject: "Future" } } } },
+  ];
+  for (const state of invalidStates) {
+    repository.links.set("bob", state);
+    const persisted = await service.createCrossOwnerMatchingResults({ ownerId: "owner-1", runId: run.id, expectedSourceProjection: sourceProjection, results: [{ internalTargetRef: "bob", expectedProjection: originalTargetProjection, explanation: {} }] });
+    assert.deepEqual(persisted, []);
+  }
+});
+
+test("CROSS_OWNER_V1 rejects source changes and same-owner targets without weakening OWNER_ONLY", async () => {
+  const { repository, service, run, projection } = await crossOwnerFixture();
+  const sourceProjection = projection("source");
+  const bobProjection = projection("bob");
+  repository.links.set("same-owner", { id: "same-owner", ownerId: "owner-1", status: "ACTIVE", rules: opportunityRules("OFFER", "Interne") });
+  assert.deepEqual(await service.createCrossOwnerMatchingResults({ ownerId: "owner-1", runId: run.id, expectedSourceProjection: sourceProjection, results: [{ internalTargetRef: "same-owner", expectedProjection: projection("same-owner"), explanation: {} }] }), []);
+  await expectCode(service.createMatchingResults({ ownerId: "owner-1", runId: run.id, results: [{ targetGLinkId: "bob", explanation: {} }] }), "MATCHING_TARGET_NOT_FOUND");
+
+  repository.links.set("source", { id: "source", ownerId: "owner-1", status: "ACTIVE", rules: opportunityRules("NEED", "Source modifiée") });
+  await expectCode(service.createCrossOwnerMatchingResults({ ownerId: "owner-1", runId: run.id, expectedSourceProjection: sourceProjection, results: [{ internalTargetRef: "bob", expectedProjection: bobProjection, explanation: {} }] }), "MATCHING_CRITERIA_CHANGED");
+});
+
+test("a persisted cross-owner target remains private in MatchingResultViewV1", async () => {
+  const { service, run, projection } = await crossOwnerFixture();
+  const [persisted] = await service.createCrossOwnerMatchingResults({ ownerId: "owner-1", runId: run.id, expectedSourceProjection: projection("source"), results: [{ internalTargetRef: "bob", expectedProjection: projection("bob"), explanation: { band: "GOOD", comparisons: [{ criterion: "location", outcome: "COMPATIBLE", label: "PRIVATE_LOCATION" }] } }] });
+  const json = JSON.stringify(projectMatchingResultView({ result: persisted, sourceType: "NEED", ordinal: 1 }));
+  assert.equal(json.includes("bob"), false);
+  assert.equal(json.includes("owner-2"), false);
+  assert.equal(json.includes("PRIVATE_LOCATION"), false);
+});
+
+test("cross-owner persistence requires an explicit CROSS_OWNER_V1 run scope", async () => {
+  const { repository, service, run, projection } = await crossOwnerFixture();
+  repository.runs.set(run.id, { ...run, status: "RUNNING", criteriaSnapshot: { scope: "OWNER_ONLY" } });
+  await expectCode(service.createCrossOwnerMatchingResults({
+    ownerId: "owner-1", runId: run.id, expectedSourceProjection: projection("source"),
+    results: [{ internalTargetRef: "bob", expectedProjection: projection("bob"), explanation: {} }],
+  }), "MATCHING_INVALID_RUN_TRANSITION");
+  assert.equal(repository.results.size, 0);
+});
+
+test("cross-owner persistence rejects a source that revokes consent or leaves ACTIVE", async () => {
+  for (const sourceState of [
+    { id: "source", ownerId: "owner-1", status: "ACTIVE", rules: opportunityRules("NEED", "Recherche garde", false) },
+    { id: "source", ownerId: "owner-1", status: "DISABLED", rules: opportunityRules("NEED", "Recherche garde") },
+  ]) {
+    const { repository, service, run, projection } = await crossOwnerFixture();
+    const expectedSourceProjection = projection("source");
+    const expectedTargetProjection = projection("bob");
+    repository.links.set("source", sourceState);
+    await expectCode(service.createCrossOwnerMatchingResults({
+      ownerId: "owner-1", runId: run.id, expectedSourceProjection,
+      results: [{ internalTargetRef: "bob", expectedProjection: expectedTargetProjection, explanation: {} }],
+    }), sourceState.status === "ACTIVE" ? "MATCHING_DISABLED" : "MATCHING_SOURCE_INACTIVE");
+    assert.equal(repository.results.size, 0);
+  }
 });

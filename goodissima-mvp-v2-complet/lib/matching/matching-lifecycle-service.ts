@@ -15,9 +15,15 @@ import type {
   MatchingRunUpdate,
 } from "./matching-repository.ts";
 import { isMatchingRunIdempotencyUniqueError } from "./matching-repository.ts";
+import type { MatchableOpportunityProjectionV1 } from "../opportunities/matching/matchable-projection.ts";
+import {
+  buildMatchableOpportunityProjection,
+  structuredOpportunityMatchingConsent,
+} from "../opportunities/matching/matchable-projection.ts";
 
 const MAX_LIST_LIMIT = 100;
 const MAX_FAILURE_CODE_LENGTH = 120;
+const MAX_CROSS_OWNER_RESULTS = 100;
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -49,6 +55,11 @@ export function canonicalMatchingJson(value: unknown): string {
   return JSON.stringify(normalizeJson(value));
 }
 
+/** Server-only freshness token over the whitelisted projection. Never expose it to clients. */
+export function matchingProjectionFingerprint(projection: MatchableOpportunityProjectionV1): string {
+  return canonicalMatchingJson(projection);
+}
+
 function sameJson(left: unknown, right: unknown): boolean {
   return canonicalMatchingJson(left) === canonicalMatchingJson(right);
 }
@@ -56,6 +67,11 @@ function sameJson(left: unknown, right: unknown): boolean {
 function requireRun(run: MatchingRunRecord | null): MatchingRunRecord {
   if (!run) throw new MatchingDomainError("MATCHING_RUN_NOT_FOUND");
   return run;
+}
+
+function isCrossOwnerV1Snapshot(snapshot: unknown): boolean {
+  return Boolean(snapshot) && typeof snapshot === "object" && !Array.isArray(snapshot)
+    && (snapshot as Record<string, unknown>).scope === "CROSS_OWNER_V1";
 }
 
 function assertMutableRun(run: MatchingRunRecord) {
@@ -253,6 +269,69 @@ export class MatchingLifecycleService {
       this.assertCompatibleResults(existing, normalized);
       await repository.createMissingResults(input.ownerId, input.runId, normalized);
       const persisted = await repository.findResultsForTargets(input.ownerId, input.runId, targetIds);
+      this.assertCompatibleResults(persisted, normalized);
+      if (persisted.length !== normalized.length) throw new MatchingDomainError("MATCHING_DUPLICATE_RESULT");
+      return persisted;
+    });
+  }
+
+  async createCrossOwnerMatchingResults(input: {
+    ownerId: string;
+    runId: string;
+    expectedSourceProjection: MatchableOpportunityProjectionV1;
+    results: Array<{
+      internalTargetRef: string;
+      expectedProjection: MatchableOpportunityProjectionV1;
+      explanation: unknown;
+      internalRank?: number;
+    }>;
+  }): Promise<MatchingResultRecord[]> {
+    if (input.results.length > MAX_CROSS_OWNER_RESULTS) throw new RangeError("CROSS_OWNER_RESULT_LIMIT_EXCEEDED");
+    return this.repository.transaction(async (repository) => {
+      const run = requireRun(await repository.findRunForOwner(input.ownerId, input.runId));
+      assertMutableRun(run);
+      if (run.status !== "RUNNING") throw new MatchingDomainError("MATCHING_INVALID_RUN_TRANSITION");
+      if (!isCrossOwnerV1Snapshot(run.criteriaSnapshot)) throw new MatchingDomainError("MATCHING_INVALID_RUN_TRANSITION");
+
+      const targetIds = input.results.map((result) => result.internalTargetRef);
+      if (new Set(targetIds).size !== targetIds.length) throw new MatchingDomainError("MATCHING_DUPLICATE_RESULT");
+      if (targetIds.includes(run.gLinkId)) throw new MatchingDomainError("MATCHING_SELF_TARGET");
+
+      const links = await repository.findGLinksForMatchingEligibility([run.gLinkId, ...targetIds]);
+      const byId = new Map(links.map((link) => [link.id, link]));
+      const source = byId.get(run.gLinkId);
+      const currentSourceProjection = source ? buildMatchableOpportunityProjection({ rules: source.rules }) : null;
+      if (!source || source.ownerId !== run.ownerId || source.ownerId !== input.ownerId) {
+        throw new MatchingDomainError("MATCHING_SOURCE_NOT_FOUND");
+      }
+      if (source.status !== "ACTIVE") throw new MatchingDomainError("MATCHING_SOURCE_INACTIVE");
+      if (structuredOpportunityMatchingConsent(source.rules) !== "ENABLED") throw new MatchingDomainError("MATCHING_DISABLED");
+      if (!currentSourceProjection
+        || matchingProjectionFingerprint(currentSourceProjection) !== matchingProjectionFingerprint(input.expectedSourceProjection)) {
+        throw new MatchingDomainError("MATCHING_CRITERIA_CHANGED");
+      }
+      const complementaryType = currentSourceProjection.opportunityType === "NEED" ? "OFFER" : "NEED";
+
+      const eligible = input.results.filter((result) => {
+        const target = byId.get(result.internalTargetRef);
+        if (!target || target.ownerId === source.ownerId || target.status !== "ACTIVE") return false;
+        if (structuredOpportunityMatchingConsent(target.rules) !== "ENABLED") return false;
+        const projection = buildMatchableOpportunityProjection({ rules: target.rules });
+        return Boolean(projection
+          && projection.opportunityType === complementaryType
+          && matchingProjectionFingerprint(projection) === matchingProjectionFingerprint(result.expectedProjection));
+      });
+
+      const normalized: MatchingResultCreate[] = eligible.map((result, index) => ({
+        targetGLinkId: result.internalTargetRef,
+        explanation: normalizeJson(result.explanation),
+        internalRank: result.internalRank ?? index,
+      }));
+      const eligibleIds = normalized.map((result) => result.targetGLinkId);
+      const existing = await repository.findResultsForTargets(input.ownerId, input.runId, eligibleIds);
+      this.assertCompatibleResults(existing, normalized);
+      await repository.createMissingResults(input.ownerId, input.runId, normalized);
+      const persisted = await repository.findResultsForTargets(input.ownerId, input.runId, eligibleIds);
       this.assertCompatibleResults(persisted, normalized);
       if (persisted.length !== normalized.length) throw new MatchingDomainError("MATCHING_DUPLICATE_RESULT");
       return persisted;

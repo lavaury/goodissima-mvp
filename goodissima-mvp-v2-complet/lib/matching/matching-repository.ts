@@ -12,6 +12,10 @@ export type MatchingGLinkRecord = {
   status: string;
 };
 
+export type MatchingEligibilityGLinkRecord = MatchingGLinkRecord & {
+  rules: unknown;
+};
+
 export type MatchingRunListPage = {
   items: MatchingRunRecord[];
   nextCursor: string | null;
@@ -45,6 +49,7 @@ export type MatchingRepository = {
   transaction<T>(operation: (repository: MatchingRepository) => Promise<T>): Promise<T>;
   findGLinkForOwner(ownerId: string, gLinkId: string): Promise<MatchingGLinkRecord | null>;
   findActiveGLinksForOwner(ownerId: string, gLinkIds: string[]): Promise<MatchingGLinkRecord[]>;
+  findGLinksForMatchingEligibility(gLinkIds: string[]): Promise<MatchingEligibilityGLinkRecord[]>;
   findRunForOwner(ownerId: string, runId: string): Promise<MatchingRunRecord | null>;
   findRunByIdempotencyKey(ownerId: string, idempotencyKey: string): Promise<MatchingRunRecord | null>;
   findRunWithResultsForOwner(ownerId: string, runId: string): Promise<{ run: MatchingRunRecord; results: MatchingResultRecord[] } | null>;
@@ -146,6 +151,14 @@ export class PrismaMatchingRepository implements MatchingRepository {
     return this.client.gLink.findMany({
       where: { id: { in: gLinkIds }, ownerId, status: "ACTIVE" },
       select: { id: true, ownerId: true, status: true },
+      orderBy: { id: "asc" },
+    });
+  }
+
+  async findGLinksForMatchingEligibility(gLinkIds: string[]) {
+    return this.client.gLink.findMany({
+      where: { id: { in: gLinkIds } },
+      select: { id: true, ownerId: true, status: true, rules: true },
       orderBy: { id: "asc" },
     });
   }
