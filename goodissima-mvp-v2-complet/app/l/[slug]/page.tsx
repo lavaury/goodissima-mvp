@@ -135,7 +135,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
   const autonomousOpportunity = projectOpportunity(link);
   if (autonomousOpportunity && !autonomousOpportunity.legacy && !autonomousOpportunity.hasGovernedJourney) {
     return <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
-      <PublicAutonomousOpportunity title={link.title} description={link.description} projection={autonomousOpportunity} />
+      <PublicAutonomousOpportunity gLinkId={link.id} title={link.title} description={link.description} projection={autonomousOpportunity} />
     </main>;
   }
 

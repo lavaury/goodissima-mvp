@@ -6,12 +6,16 @@ import { projectOpportunity, buildOpportunityRulesV1 } from "../lib/opportunitie
 import { readFileSync } from "node:fs";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 
-const { PublicAutonomousOpportunity } = loadTestModule<any>("components/PublicAutonomousOpportunity.tsx", { "react/jsx-runtime": jsx });
+const { PublicAutonomousOpportunity } = loadTestModule<any>("components/PublicAutonomousOpportunity.tsx", {
+  "react/jsx-runtime": jsx,
+  "@/components/PublicOpportunitySecureExchange": { PublicOpportunitySecureExchange: ({ gLinkId }: { gLinkId: string }) => jsx.jsx("button", { children: `secure:${gLinkId}` }) },
+});
 
 test("public autonomous opportunity renders structured non-empty criteria without journey vocabulary", () => {
   const projection = projectOpportunity({ templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria: { subject: "baby-sitter", locations: ["Beauvais"], availability: { days: ["TUESDAY", "THURSDAY"], timeFrom: "18:00", timeTo: "20:00" } } }) })!;
-  const html = renderToStaticMarkup(jsx.jsx(PublicAutonomousOpportunity, { title: "Recherche de baby-sitter à Beauvais", description: "Besoin régulier", projection }));
+  const html = renderToStaticMarkup(jsx.jsx(PublicAutonomousOpportunity, { gLinkId: "opportunity", title: "Recherche de baby-sitter à Beauvais", description: "Besoin régulier", projection }));
   for (const text of ["Je recherche", "baby-sitter", "Beauvais", "Mardi, Jeudi", "18:00", "20:00", "Besoin régulier"]) assert.ok(html.includes(text), text);
+  assert.ok(html.includes("secure:opportunity"));
   for (const text of ["Parcours", "TemplateVersion", "KPI", "gouvernance"]) assert.ok(!html.includes(text), text);
 });
 
