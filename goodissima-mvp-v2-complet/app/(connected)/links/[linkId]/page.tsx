@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { PageNavigationContext } from "@/components/SpatialNavigationContext";
 import { navigationWorkspaceSelect } from "@/lib/spatial-navigation";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { HistoryBackButton } from "@/components/HistoryBackButton";
@@ -30,6 +30,8 @@ import {
 import { prisma } from "@/lib/prisma";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
 import { parseGLinkMatchingState } from "@/lib/glink-matching";
+import { linkObjectLabel } from "@/lib/object-creation";
+import { isAutonomousModernOpportunity } from "@/lib/opportunities/opportunity-projection";
 
 type FieldOption = {
   label: string;
@@ -171,6 +173,9 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
   });
 
   if (!link) notFound();
+  if (isAutonomousModernOpportunity(link)) {
+    redirect(`/opportunities/${encodeURIComponent(link.id)}`);
+  }
 
   const activeFallbackVersion =
     !link.templateVersion && link.templateId ? await getActiveTemplateVersion(link.templateId) : null;
@@ -221,6 +226,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     : t("studio.noActiveVersion");
   const debugMode = isGoodissimaDebugMode();
   const gLinkMatchingState = parseGLinkMatchingState(link.rules);
+  const objectLabel = linkObjectLabel(link.rules);
   const status = link.status === "ACTIVE" ? { label: "Actif", style: "bg-emerald-100 text-emerald-800" } : link.status === "DISABLED" ? { label: "Suspendu", style: "bg-amber-100 text-amber-900" } : link.status === "EXPIRED" ? { label: "Expiré", style: "bg-slate-200 text-slate-700" } : { label: "Archivé", style: "bg-slate-200 text-slate-700" };
 
   return (
@@ -228,7 +234,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
       <PageNavigationContext pathname={`/links/${encodeURIComponent(link.id)}`} items={[{ label: "Accueil", href: "/dashboard" }, { label: "Mes espaces", href: "/spaces" }, { label: link.title }]} />
       <HistoryBackButton />
       <header className="mt-4">
-        <p className="text-sm font-bold uppercase tracking-wider text-[#247f88]">Lien simple</p>
+        <p className="text-sm font-bold uppercase tracking-wider text-[#247f88]">{objectLabel}</p>
         <div className="mt-2 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold text-slate-950">{link.title}</h1><span className={`rounded-full px-3 py-1 text-sm font-semibold ${status.style}`}>{status.label}</span></div>
         {link.description ? <p className="mt-3 max-w-2xl text-slate-600">{link.description}</p> : null}
       </header>

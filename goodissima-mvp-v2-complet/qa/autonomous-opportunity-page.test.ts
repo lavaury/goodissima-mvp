@@ -20,6 +20,10 @@ function page(ownerId: string, row: any) {
     "@/components/AutonomousOpportunityManager": { AutonomousOpportunityManager: () => null },
     "@/lib/public-app-url": { getPublicAppUrl: () => "https://preview.example" },
     "@/lib/announcement-archive": { announcementStatusLabel: (status: string) => status === "DRAFT" ? "Brouillon" : status },
+    "@/components/HistoryBackButton": { HistoryBackButton: () => null },
+    "@/components/SpatialNavigationContext": { PageNavigationContext: () => null },
+    "@/lib/opportunities/matching/matchable-projection": { isStructuredOpportunityMatchingEnabled: () => false },
+    "@/components/OpportunityMatchingControls": { OpportunityMatchingControls: () => null },
   }).default;
 }
 

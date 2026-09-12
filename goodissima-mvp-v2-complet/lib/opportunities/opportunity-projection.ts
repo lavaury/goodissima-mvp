@@ -38,9 +38,13 @@ export function projectOpportunity(link: OpportunityGLinkInput): OpportunityProj
   };
 }
 
-export function opportunityOwnerHref(link: OpportunityGLinkInput & { id: string }): string {
+export function isAutonomousModernOpportunity(link: OpportunityGLinkInput): boolean {
   const projection = projectOpportunity(link);
-  return projection && !projection.legacy && !projection.hasGovernedJourney
+  return projection !== null && !projection.legacy && !projection.hasGovernedJourney;
+}
+
+export function opportunityOwnerHref(link: OpportunityGLinkInput & { id: string }): string {
+  return isAutonomousModernOpportunity(link)
     ? `/opportunities/${encodeURIComponent(link.id)}`
     : `/links/${encodeURIComponent(link.id)}`;
 }
