@@ -22,6 +22,7 @@ export type OpportunityRulesV1 = {
   schemaVersion: typeof OPPORTUNITY_SCHEMA_VERSION;
   type: OpportunityType;
   criteria: OpportunityCriteriaV1;
+  matchingEnabled?: boolean;
 };
 
 type ParseSuccess<T> = { success: true; data: T };
@@ -32,7 +33,7 @@ const criteriaKeys = new Set(["subject", "category", "locations", "availability"
 const availabilityKeys = new Set(["days", "timeFrom", "timeTo", "timezone"]);
 const dateWindowKeys = new Set(["from", "to"]);
 const priceRangeKeys = new Set(["min", "max", "currency", "unit"]);
-const opportunityKeys = new Set(["schemaVersion", "type", "criteria"]);
+const opportunityKeys = new Set(["schemaVersion", "type", "criteria", "matchingEnabled"]);
 const dayValues = new Set<string>(OPPORTUNITY_DAYS);
 const typeValues = new Set<string>(OPPORTUNITY_TYPES);
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
@@ -133,7 +134,8 @@ export function parseOpportunityRulesV1(value: unknown): OpportunityRulesV1 {
   strictKeys(input, opportunityKeys, "opportunity");
   if (input.schemaVersion !== OPPORTUNITY_SCHEMA_VERSION) throw new Error("Unsupported opportunity schemaVersion.");
   if (typeof input.type !== "string" || !typeValues.has(input.type)) throw new Error("Unsupported opportunity type.");
-  return { schemaVersion: OPPORTUNITY_SCHEMA_VERSION, type: input.type as OpportunityType, criteria: parseOpportunityCriteriaV1(input.criteria) };
+  if (input.matchingEnabled !== undefined && typeof input.matchingEnabled !== "boolean") throw new Error("opportunity.matchingEnabled must be a boolean.");
+  return { schemaVersion: OPPORTUNITY_SCHEMA_VERSION, type: input.type as OpportunityType, criteria: parseOpportunityCriteriaV1(input.criteria), ...(input.matchingEnabled !== undefined ? { matchingEnabled: input.matchingEnabled } : {}) };
 }
 
 export function safeParseOpportunityRulesV1(value: unknown): OpportunityParseResult<OpportunityRulesV1> {

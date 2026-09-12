@@ -11,7 +11,7 @@ import {
   type MatchingRunRecord,
 } from "../matching-contracts.ts";
 import { MatchingLifecycleService } from "./matching-lifecycle-service.ts";
-import { projectOpportunity } from "../opportunities/opportunity-projection.ts";
+import { buildMatchableOpportunityProjection, isStructuredOpportunityMatchingEnabled } from "../opportunities/matching/matchable-projection.ts";
 import { OPPORTUNITY_COMPARATOR_POLICY_VERSION, OPPORTUNITY_STRUCTURED_ENGINE_VERSION, rankStructuredOpportunityMatches } from "../opportunities/matching/structured-matcher.ts";
 import type { StructuredOpportunityMatchInput } from "../opportunities/matching/types.ts";
 
@@ -94,9 +94,9 @@ function boundedText(value: string, maximum: number) {
 }
 
 function structuredInput(source: ExecutableGLinkMatchingSource): StructuredOpportunityMatchInput | null {
-  const projection = projectOpportunity(source);
-  if (!projection || projection.hasGovernedJourney) return null;
-  return { id: source.sourceId, ownerId: source.ownerId, status: source.status, legacy: projection.legacy, structuredMetadataInvalid: projection.structuredMetadataInvalid, type: projection.type, criteria: projection.structuredCriteria };
+  const projection = buildMatchableOpportunityProjection(source);
+  if (!projection) return null;
+  return { id: source.sourceId, ownerId: source.ownerId, status: source.status, matchingConsent: isStructuredOpportunityMatchingEnabled(source.rules) ? "EXPLICIT" : "DISABLED", projection };
 }
 
 function uniqueBounded(values: string[], maximumItems: number) {
@@ -159,8 +159,8 @@ export class MatchingExecutionService {
     const source = await this.sources.findSourceForOwner(input.ownerId, input.gLinkId);
     if (!source) throw new MatchingDomainError("MATCHING_SOURCE_NOT_FOUND");
     if (source.status !== "ACTIVE") throw new MatchingDomainError("MATCHING_SOURCE_INACTIVE");
-    if (!parseGLinkMatchingState(source.rules).enabled) throw new MatchingDomainError("MATCHING_DISABLED");
     const structuredSource = structuredInput(source);
+    if (structuredSource ? structuredSource.matchingConsent !== "EXPLICIT" : !parseGLinkMatchingState(source.rules).enabled) throw new MatchingDomainError("MATCHING_DISABLED");
     if (!structuredSource && (!source.templateId || !hasUsefulGLinkMatchingCriteria(source))) {
       throw new MatchingDomainError("MATCHING_CRITERIA_INSUFFICIENT");
     }
@@ -170,8 +170,10 @@ export class MatchingExecutionService {
     const criteriaSnapshot = structuredSource ? {
       engineVersion,
       scope: "OWNER_ONLY",
-      sourceType: structuredSource.type,
-      criteria: structuredSource.criteria,
+      matchingConsent: "EXPLICIT",
+      projectionVersion: structuredSource.projection!.schemaVersion,
+      sourceType: structuredSource.projection!.opportunityType,
+      criteria: structuredSource.projection,
       comparatorPolicyVersion: OPPORTUNITY_COMPARATOR_POLICY_VERSION,
     } : {
       sourceId: source.sourceId,
@@ -210,7 +212,7 @@ export class MatchingExecutionService {
       let resultInputs: Array<{ targetGLinkId: string; explanation: unknown; internalRank: number }>;
       if (structuredSource) {
         if (!this.sources.listStructuredCandidatesForOwner) throw new MatchingDomainError("MATCHING_CRITERIA_INSUFFICIENT");
-        const candidateSources = await this.sources.listStructuredCandidatesForOwner(input.ownerId, input.gLinkId, structuredSource.type === "NEED" ? "OFFER" : "NEED", GLINK_MATCHING_CANDIDATE_LIMIT);
+        const candidateSources = await this.sources.listStructuredCandidatesForOwner(input.ownerId, input.gLinkId, structuredSource.projection!.opportunityType === "NEED" ? "OFFER" : "NEED", GLINK_MATCHING_CANDIDATE_LIMIT);
         loadedCandidateCount = candidateSources.length;
         const matches = rankStructuredOpportunityMatches(structuredSource, candidateSources.map(structuredInput).filter((value): value is StructuredOpportunityMatchInput => value !== null)).slice(0, GLINK_MATCHING_RESULT_LIMIT);
         resultInputs = matches.map((match, index) => ({ targetGLinkId: match.targetGLinkId, explanation: match.explanation, internalRank: index }));
@@ -225,6 +227,7 @@ export class MatchingExecutionService {
       }
       const refreshedSource = await this.sources.findSourceForOwner(input.ownerId, input.gLinkId);
       if (!refreshedSource || refreshedSource.status !== "ACTIVE") throw new MatchingDomainError("MATCHING_SOURCE_INACTIVE");
+      if (structuredSource && !isStructuredOpportunityMatchingEnabled(refreshedSource.rules)) throw new MatchingDomainError("MATCHING_DISABLED");
       await this.lifecycle.createMatchingResults({
         ownerId: input.ownerId,
         runId: running.id,

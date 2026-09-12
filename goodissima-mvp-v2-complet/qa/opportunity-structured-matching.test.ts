@@ -7,7 +7,7 @@ import { isStructuredOpportunityAdmissible, matchStructuredOpportunity, opportun
 import type { OpportunityCriteriaV1, OpportunityType } from "../lib/opportunities/contracts.ts";
 
 function input(id: string, type: OpportunityType, criteria: OpportunityCriteriaV1, extra: Record<string, unknown> = {}) {
-  return { id, ownerId: "owner-1", status: "ACTIVE", legacy: false, structuredMetadataInvalid: false, type, criteria, ...extra } as any;
+  return { id, ownerId: "owner-1", status: "ACTIVE", matchingConsent: "EXPLICIT", projection: { schemaVersion: 1, opportunityType: type, ...criteria }, ...extra } as any;
 }
 const need = input("need", "NEED", { subject: "baby-sitter", locations: ["Beauvais"], availability: { days: ["TUESDAY", "THURSDAY"], timeFrom: "18:00", timeTo: "20:00" } });
 const strong = input("offer", "OFFER", { subject: "garde d’enfants", locations: ["beauvais"], availability: { days: ["TUESDAY", "THURSDAY"], timeFrom: "17:00", timeTo: "21:00" } });
@@ -20,16 +20,15 @@ test("A: complementary childcare opportunities produce a very good structured ma
 });
 test("B and L: a hard day/time incompatibility cannot be rescued by semantic similarity", () => {
   const incompatible = input("lille", "OFFER", { subject: "garde d’enfants", locations: ["Lille"], availability: { days: ["MONDAY"], timeFrom: "08:00", timeTo: "12:00" } });
-  assert.equal(compareDays(need.criteria.availability, incompatible.criteria.availability).outcome, "INCOMPATIBLE");
+  assert.equal(compareDays(need.projection.availability, incompatible.projection.availability).outcome, "INCOMPATIBLE");
   assert.equal(matchStructuredOpportunity(need, incompatible), null);
 });
 test("C to H: admissibility rejects same type, non-opportunities and every inactive status", () => {
-  assert.equal(matchStructuredOpportunity(need, input("same", "NEED", need.criteria)), null);
-  assert.equal(matchStructuredOpportunity(input("offer-source", "OFFER", strong.criteria), strong), null);
+  assert.equal(matchStructuredOpportunity(need, input("same", "NEED", need.projection)), null);
+  assert.equal(matchStructuredOpportunity(input("offer-source", "OFFER", strong.projection), strong), null);
   for (const value of [
-    { ...need, criteria: null, type: null },
-    { ...need, legacy: true },
-    { ...need, structuredMetadataInvalid: true },
+    { ...need, projection: null },
+    { ...need, matchingConsent: "DISABLED" },
     ...["DRAFT", "DISABLED", "EXPIRED", "ARCHIVED"].map((status) => ({ ...need, status })),
   ]) assert.equal(isStructuredOpportunityAdmissible(value as any), false);
   assert.equal(matchStructuredOpportunity(need, { ...strong, ownerId: "owner-2" }), null);

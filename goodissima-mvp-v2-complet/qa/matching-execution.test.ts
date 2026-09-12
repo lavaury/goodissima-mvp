@@ -61,7 +61,7 @@ class FakeSourceStore implements GLinkMatchingSourceStore {
   async listStructuredCandidatesForOwner(ownerId: string, excludedGLinkId: string, oppositeType: "OFFER" | "NEED", limit: number) {
     return this.candidates.filter((candidate) => {
       const opportunity = (candidate.rules as any)?.opportunity;
-      return candidate.ownerId === ownerId && candidate.sourceId !== excludedGLinkId && candidate.status === "ACTIVE" && opportunity?.type === oppositeType;
+      return candidate.ownerId === ownerId && candidate.sourceId !== excludedGLinkId && candidate.status === "ACTIVE" && opportunity?.type === oppositeType && opportunity?.matchingEnabled === true;
     }).slice(0, limit);
   }
 }
@@ -221,9 +221,9 @@ test("an execution with no match still persists a completed empty run", async ()
 test("structured autonomous opportunities use OWNER_ONLY opportunity-structured-v1 without legacy engines", async () => {
   const value = fixture();
   const criteria = { subject: "baby-sitter", locations: ["Beauvais"], availability: { days: ["TUESDAY" as const], timeFrom: "18:00", timeTo: "20:00" } };
-  value.sources.current = source({ templateId: null, rules: { ...buildOpportunityRulesV1({}, { type: "NEED", criteria }), matchingEnabled: true } });
+  value.sources.current = source({ templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria, matchingEnabled: true }) });
   value.sources.candidates = [
-    source({ sourceId: "offer-a", status: "ACTIVE", templateId: null, rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria: { ...criteria, subject: "garde d’enfants", availability: { ...criteria.availability, timeFrom: "17:00", timeTo: "21:00" } } }) }),
+    source({ sourceId: "offer-a", status: "ACTIVE", templateId: null, rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria: { ...criteria, subject: "garde d’enfants", availability: { ...criteria.availability, timeFrom: "17:00", timeTo: "21:00" } }, matchingEnabled: true }) }),
     source({ sourceId: "need-b", status: "ACTIVE", templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria }) }),
     source({ sourceId: "foreign", ownerId: "owner-2", status: "ACTIVE", templateId: null, rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria }) }),
   ];
@@ -300,6 +300,40 @@ test("source validation is owner-safe and explicit", async () => {
   const insufficient = fixture();
   insufficient.sources.current = source({ fields: [] });
   await expectCode(insufficient.execution.execute({ ownerId: "owner-1", gLinkId: "source" }), "MATCHING_CRITERIA_INSUFFICIENT");
+});
+
+test("structured matching requires explicit consent before creating a run", async () => {
+  const value = fixture();
+  const criteria = { subject: "Service" };
+  value.sources.current = source({ templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria }) });
+  await expectCode(value.execution.execute({ ownerId: "owner-1", gLinkId: "source" }), "MATCHING_DISABLED");
+  assert.equal(value.lifecycle.run, null);
+  value.sources.current = source({ templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria, matchingEnabled: false }) });
+  await expectCode(value.execution.execute({ ownerId: "owner-1", gLinkId: "source" }), "MATCHING_DISABLED");
+  assert.equal(value.lifecycle.run, null);
+});
+
+test("publish-for-testing and later archive never imply structured matching", async () => {
+  const value = fixture();
+  const rules = buildOpportunityRulesV1({}, { type: "NEED", criteria: { subject: "Test visible" } });
+  value.sources.current = source({ status: "ACTIVE", templateId: null, rules });
+  await expectCode(value.execution.execute({ ownerId: "owner-1", gLinkId: "source" }), "MATCHING_DISABLED");
+  value.sources.current = source({ status: "ARCHIVED", templateId: null, rules });
+  await expectCode(value.execution.execute({ ownerId: "owner-1", gLinkId: "source" }), "MATCHING_SOURCE_INACTIVE");
+  assert.equal(value.lifecycle.run, null);
+});
+
+test("structured snapshots and explanations serialize no private source fields", async () => {
+  const value = fixture();
+  const markers = ["PRIVATE_OWNER_NAME", "PRIVATE_EMAIL", "PRIVATE_PHONE", "PRIVATE_SLUG", "PRIVATE_URL"];
+  const criteria = { subject: "Garde d’enfants", locations: ["Beauvais"] };
+  value.sources.current = source({ title: markers[0], description: `${markers[1]} ${markers[2]} ${markers[3]} ${markers[4]}`, templateId: null, rules: buildOpportunityRulesV1({}, { type: "NEED", criteria, matchingEnabled: true }) });
+  value.sources.candidates = [source({ sourceId: "offer", title: "PRIVATE_TARGET", description: "PRIVATE_TARGET_EMAIL", templateId: null, rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria, matchingEnabled: true }) })];
+  const response = await value.execution.execute({ ownerId: "owner-1", gLinkId: "source" });
+  const serialized = JSON.stringify({ snapshot: response.run.criteriaSnapshot, explanations: response.results.map((item) => item.explanation) });
+  for (const marker of [...markers, "PRIVATE_TARGET", "PRIVATE_TARGET_EMAIL"]) assert.equal(serialized.includes(marker), false);
+  assert.equal((response.run.criteriaSnapshot as any).matchingConsent, "EXPLICIT");
+  assert.equal((response.run.criteriaSnapshot as any).projectionVersion, 1);
 });
 
 test("engine failures mark the run FAILED while audit failures stay non-blocking", async () => {
