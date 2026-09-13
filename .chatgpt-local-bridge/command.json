@@ -1,8 +1,8 @@
 {
   "protocol": "chatgpt-local-bridge-v14.3",
-  "id": "pc-status-20260913T222650Z",
-  "action": "pc-status",
+  "id": "list-workspaces-20260913T222735Z",
+  "action": "list-workspaces",
   "sessionId": "a4c82491c10ec5196b3a4e9ea4331715",
-  "issuedAt": "2026-09-13T22:26:50Z",
-  "expiresAt": "2026-09-13T22:29:50Z"
+  "issuedAt": "2026-09-13T22:27:35Z",
+  "expiresAt": "2026-09-13T22:30:35Z"
 }
