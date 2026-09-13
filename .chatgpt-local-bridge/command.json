@@ -1,8 +1,11 @@
 {
   "protocol": "chatgpt-local-bridge-v15",
-  "id": "list-windows-20260913T231515Z",
-  "action": "list-windows",
+  "id": "mouse-move-test-20260913T231545Z",
+  "action": "mouse-move",
   "sessionId": "9892a5c402a68ca4623fd9698a040af7",
-  "issuedAt": "2026-09-13T23:15:15Z",
-  "expiresAt": "2026-09-13T23:18:15Z"
+  "issuedAt": "2026-09-13T23:15:45Z",
+  "expiresAt": "2026-09-13T23:18:45Z",
+  "x": -1200,
+  "y": 600,
+  "durationMs": 350
 }
