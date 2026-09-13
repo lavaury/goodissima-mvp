@@ -4,6 +4,8 @@ import { ObjectActionRow } from "@/components/ObjectActionRow";
 import { attachGLinkToWorkspaceAction, attachGovernedJourneyToWorkspaceAction, attachRelationCaseToWorkspaceAction } from "@/lib/governance-workspace-actions";
 import { getGovernanceWorkspaceOptions, getUnassignedGLinkSummaries, getUnassignedGovernedJourneySummaries, getUnassignedRelationCaseSummaries, type GovernanceWorkspaceOption } from "@/lib/governance-workspace-repository";
 import { organizePage, organizeResults } from "@/lib/unassigned-pagination";
+import { AttentionCount, NotificationAttentionBadge } from "@/components/AttentionBadge";
+import type { UnreadCaseAttention } from "@/lib/notification-projection";
 
 type Params = Record<string, string | string[] | undefined>;
 const control = "min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700";
@@ -39,7 +41,7 @@ function Destination({ options, title, selectTarget, buttonTarget }: { options: 
     <button type="submit" data-boussole-id={buttonTarget} className={`${control} shrink-0 self-start bg-slate-900 text-white sm:self-end`}>Rattacher au Workspace</button>
   </>;
 }
-export async function SpacesExistingAttachments({ ownerId, params = {} }: { ownerId: string; params?: Params }) {
+export async function SpacesExistingAttachments({ ownerId, params = {}, unreadAttention = [] }: { ownerId: string; params?: Params; unreadAttention?: UnreadCaseAttention[] }) {
   const [options, journeys, cases, links] = await Promise.all([
     getGovernanceWorkspaceOptions(ownerId, organizePage(params.workspacesPage)),
     getUnassignedGovernedJourneySummaries(ownerId, organizePage(params.journeysPage)),
@@ -87,9 +89,9 @@ export async function SpacesExistingAttachments({ ownerId, params = {} }: { owne
       <Pages name="linksPage" label="Liens et opportunités" params={params} hasMore={links.hasMore} />
     </section>
     <section aria-labelledby="unassigned-cases-title" className="mt-5">
-      <h3 id="unassigned-cases-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">📁</span>Dossiers</h3>
+      <h3 id="unassigned-cases-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">📁</span>Dossiers <AttentionCount count={unreadAttention.reduce((sum, item) => sum + item.count, 0)} /></h3>
       {!cases.items.length ? <p data-boussole-id="no-unassigned-relational-cases" className={`${children} py-3 text-sm text-slate-600`}>Aucun dossier à organiser sur cette page.</p> : <div data-boussole-id="relational-cases-without-workspace" className={children}>{cases.items.map((relationCase, index) => <ObjectActionRow as="article" favorite={{ objectKind: "RELATION_CASE", objectId: relationCase.id }} name={relationCase.title} href={relationCase.href} attachmentTargetId={workspaces.items.length ? `attach-case-${relationCase.id}` : "organize-no-destination"} key={relationCase.id} data-boussole-id={index === 0 ? "first-unassigned-relational-case" : undefined} className={row}>
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 pr-16"><div className="min-w-0 flex-1"><h4 className="break-words font-semibold">{relationCase.title}</h4><p className="text-sm text-slate-600">Dossier · Créé le {formatDate(relationCase.createdAt)}</p></div>
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 pr-16"><div className="min-w-0 flex-1"><h4 className="flex flex-wrap items-center gap-2 break-words font-semibold">{relationCase.title}{unreadAttention.find(item => item.relationCaseId === relationCase.id) ? (() => { const item = unreadAttention.find(value => value.relationCaseId === relationCase.id)!; return <NotificationAttentionBadge notificationId={item.newestNotificationId} href={relationCase.href} count={item.count} isNew={item.newestType === "NEW_RELATION_CASE"} />; })() : null}</h4><p className="text-sm text-slate-600">Dossier · Créé le {formatDate(relationCase.createdAt)}</p></div>
           <Link href={relationCase.href} aria-label={`Ouvrir le dossier : ${relationCase.title}`} className={control}>Ouvrir</Link></div>
         <OrganizationPanel><p className="mt-2 break-words text-sm text-slate-600">Le lien parent « {relationCase.gLinkTitle} » sera aussi rattaché s’il vous appartient et n’a aucun Workspace au moment de la confirmation. Les autres dossiers restent à leur emplacement.</p>
         {workspaces.items.length ? <form id={`attach-case-${relationCase.id}`} action={attachRelationCaseToWorkspaceAction} className={formClass}>

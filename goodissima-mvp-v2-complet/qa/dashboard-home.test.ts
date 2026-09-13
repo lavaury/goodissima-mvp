@@ -9,7 +9,7 @@ import { getBoussoleJourneyVersion } from "../lib/boussole/registry.ts";
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, prefetch: _, ...props }: any) => jsx.jsx("a", { ...props, children }) };
-const attentionView = loadTestModule("components/FactualAttentionList.tsx", common);
+const attentionView = loadTestModule("components/FactualAttentionList.tsx", { ...common, "@/components/NotificationLink": { NotificationLink: ({ children, ...props }: any) => jsx.jsx("button", { ...props, children }) } });
 const view = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": attentionView });
 const event = { id: "link-1", label: "Lien créé", context: "Contexte <test>", date: new Date("2026-09-01T12:00:00Z"), href: "/links/1" };
 const render = (activity: any[] = []) => renderToStaticMarkup(jsx.jsx(view.DashboardHome, { activity, attention: { items: [], hasMore: false } }));
@@ -67,6 +67,8 @@ test("page authenticates before the activity repository and calls no historical 
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async (owner: string) => { assert.equal(owner,"A"); reads++; return []; } },
     "@/components/DashboardHome": view,
     "@/lib/factual-attention": { getFactualAttention: async () => ({ items: [], hasMore: false }) },
+    "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
+    "@/lib/unified-attention": { mergeAttention: (_notifications: any[], factual: any[]) => factual },
   }).default();
   await assert.rejects(load(false), /LOGIN/); assert.equal(reads, 0);
   await load(true); assert.equal(reads, 1);

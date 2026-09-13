@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { FactualAttentionList } from "@/components/FactualAttentionList";
+import { FactualAttentionList, type UnifiedAttentionItem } from "@/components/FactualAttentionList";
 import type { ResolvedFavorite } from "@/lib/personal-favorites-repository";
-import type { FactualAttention } from "@/lib/factual-attention";
 import type { DashboardActivity } from "@/lib/dashboard-activity-repository";
+import type { FactualAttention } from "@/lib/factual-attention";
 
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-700";
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
 
-export function DashboardHome({ activity, attention, favorites = [] }: { activity: DashboardActivity[]; attention: FactualAttention; favorites?: ResolvedFavorite[] }) {
+export function DashboardHome({ activity, attention, favorites = [] }: { activity: DashboardActivity[]; attention: UnifiedAttentionItem[] | FactualAttention; favorites?: ResolvedFavorite[] }) {
+  const attentionItems = Array.isArray(attention) ? attention : attention.items;
   return <main className="mx-auto w-full min-w-0 max-w-3xl px-4 py-8 sm:px-6">
     <h1 className="text-3xl font-bold text-slate-950">Accueil</h1>
     <nav aria-label="Choisir une destination" className="mt-6">
@@ -29,8 +30,8 @@ export function DashboardHome({ activity, attention, favorites = [] }: { activit
     </nav>
     <section aria-labelledby="dashboard-attention-title" className="mt-8">
       <h2 id="dashboard-attention-title" className="text-lg font-semibold text-slate-900">À votre attention</h2>
-      <FactualAttentionList items={attention.items} />
-      {attention.items.length > 0 && <Link href="/alertes" className={`mt-2 inline-flex min-h-11 items-center rounded-lg text-sm underline ${focus}`}>Voir toutes</Link>}
+      <FactualAttentionList items={attentionItems} />
+      {attentionItems.length > 0 && <Link href="/alertes" className={`mt-2 inline-flex min-h-11 items-center rounded-lg text-sm underline ${focus}`}>Voir toutes</Link>}
     </section>
     <section aria-labelledby="dashboard-favorites-title" className="mt-8">
       <h2 id="dashboard-favorites-title" className="text-lg font-semibold text-slate-900"><span aria-hidden="true">★ </span>Favoris</h2>

@@ -4,11 +4,13 @@ import { getSpacesTree } from "@/lib/spaces-repository";
 import { SpacesTreeView } from "@/components/SpacesTreeView";
 import { SpacesCreateActions } from "@/components/SpacesCreateActions";
 import { SpacesExistingAttachments } from "@/components/SpacesExistingAttachments";
+import { getUnreadCaseAttentionForUser } from "@/lib/notification-projection";
 
 export default async function GovernanceWorkspacePage({ searchParams = {} }: { searchParams?: Record<string, string | string[] | undefined> }) {
   noStore();
   const owner = await getCurrentPrismaUser();
-  const data = await getSpacesTree(owner.id);
+  const unreadAttention = await getUnreadCaseAttentionForUser(owner.id);
+  const data = await getSpacesTree(owner.id, unreadAttention);
   return <main className="mx-auto min-w-0 max-w-6xl px-4 py-8 sm:px-6">
     <header data-boussole-id="governance-overview">
       <h1 className="text-3xl font-bold">Mes espaces</h1>
@@ -17,6 +19,6 @@ export default async function GovernanceWorkspacePage({ searchParams = {} }: { s
     </header>
     <SpacesTreeView data={data} />
     <p data-boussole-id="governance-human-control-notice" className="mt-6 text-sm text-slate-600">Créer ou ouvrir un espace ne contacte personne. Les décisions, invitations et revues restent humaines.</p>
-    <SpacesExistingAttachments ownerId={owner.id} params={searchParams} />
+    <SpacesExistingAttachments ownerId={owner.id} params={searchParams} unreadAttention={unreadAttention.filter(item => item.workspaceId === null)} />
   </main>;
 }

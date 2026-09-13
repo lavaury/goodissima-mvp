@@ -9,7 +9,7 @@ import * as classification from "../lib/object-creation.ts";
 import * as spatial from "../lib/spatial-navigation.ts";
 
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, prefetch: _, ...props }: any) => jsx.jsx("a", { ...props, children }) };
-const list = loadTestModule("components/FactualAttentionList.tsx", common);
+const list = loadTestModule("components/FactualAttentionList.tsx", { ...common, "@/components/NotificationLink": { NotificationLink: ({ children, ...props }: any) => jsx.jsx("button", { ...props, children }) } });
 const home = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": list });
 test("compact commands have explicit accessible names, titles and keyboard focus", () => {
   const html = renderShellFixture();
@@ -65,6 +65,8 @@ test("home uses the existing bounded resolver with session scope before showing 
       return { items: [], hasMore: false };
     } },
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async () => [] },
+    "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
+    "@/lib/unified-attention": { mergeAttention: (_notifications: any[], factual: any[]) => factual },
     "@/components/DashboardHome": home,
   });
   const element = await page.default();

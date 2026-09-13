@@ -17,8 +17,10 @@ export function shellModules(pathname: string, connected = true) {
     "@/lib/i18n-core": { supportedLocales: ["fr", "en"] } });
   const logout = loadTestModule("components/LogoutButton.tsx", { ...common, "@/components/I18nProvider": i18n,
     "@/lib/supabase/client": { createClient: () => { throw new Error("No auth mutations in render tests"); } } });
+  const notificationLink = loadTestModule("components/NotificationLink.tsx", common);
+  const notificationCenter = loadTestModule("components/NotificationCenter.tsx", { ...common, "@/components/NotificationLink": notificationLink });
   const platform = loadTestModule("components/PlatformNavigation.tsx", { ...common, "@/components/ActiveOrganizationBadge": badge,
-    "@/components/LanguageSwitcher": language, "@/components/LogoutButton": logout });
+    "@/components/LanguageSwitcher": language, "@/components/LogoutButton": logout, "@/components/NotificationCenter": notificationCenter });
   const spatial = loadTestModule("lib/spatial-navigation.ts", {});
   const history = loadTestModule("lib/connected-history.ts", {});
   const spatialContext = loadTestModule("components/SpatialNavigationContext.tsx", { ...common, "@/lib/spatial-navigation": spatial });

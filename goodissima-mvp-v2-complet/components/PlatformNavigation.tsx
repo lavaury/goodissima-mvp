@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { LogoutButton } from "@/components/LogoutButton";
+import { NotificationCenter } from "@/components/NotificationCenter";
 
 const items = [
   { label: "Boussole", href: "/boussole/decouverte", icon: "🧭" },
@@ -75,6 +76,7 @@ export function PlatformNavigation({ organizationName, aiValueAllowed = false }:
         ))}
       </nav>
       <div className="flex min-w-0 items-center justify-self-end gap-1">
+        <NotificationCenter />
         {[{ href: "/favoris", label: "Favoris", icon: "⭐" }, { href: "/recherche", label: "Recherche Goodissima", icon: "🔎" }].map(item =>
           <Link key={item.href} href={item.href} aria-label={item.label} title={item.label} aria-current={matches(item.href) ? "page" : undefined}
             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg hover:bg-slate-100 ${focus}`}>

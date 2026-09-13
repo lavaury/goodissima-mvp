@@ -21,7 +21,7 @@ function repository(rows = workspaces) {
   } } });
   return { read: getSpacesTree, calls };
 }
-const common = { react: React, "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel, "react-dom": { flushSync: (fn: () => void) => fn() }, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial };
+const common = { react: React, "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel, "@/components/AttentionBadge": { AttentionCount: ({ count }: any) => count ? jsx.jsx("span", { children: count }) : null, NotificationAttentionBadge: ({ count }: any) => jsx.jsx("button", { children: count }) }, "react-dom": { flushSync: (fn: () => void) => fn() }, "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial };
 const row = loadTestModule("components/WorkspaceRow.tsx", { ...common, "@/lib/governance-portfolio-actions": { attachWorkspaceToPortfolioAction: "/fixture-attach" } });
 const { SpacesTreeView } = loadTestModule("components/SpacesTreeView.tsx", { ...common, "@/components/WorkspaceRow": row });
 test("real owner-scoped repository groups by foreign key exactly once; inaccessible parents are never roots", async () => {
@@ -65,6 +65,7 @@ test("page authenticates before loading, removes old cards and preserves existin
   let reads = 0;
   const page = (authenticated: boolean) => loadTestModule("app/(connected)/gouvernance/page.tsx", { "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel,
     "next/cache": { unstable_noStore() {} }, "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "a" }; } },
+    "@/lib/notification-projection": { getUnreadCaseAttentionForUser: async () => [] },
     "@/lib/spaces-repository": { getSpacesTree: async (id: string) => { assert.equal(id, "a"); reads++; return { portfolios: [], roots: [], unavailableParentCount: 0 }; } },
     "@/components/SpacesTreeView": { SpacesTreeView }, "@/components/SpacesCreateActions": { SpacesCreateActions: () => null },
     "@/components/SpacesExistingAttachments": { SpacesExistingAttachments: () => null },

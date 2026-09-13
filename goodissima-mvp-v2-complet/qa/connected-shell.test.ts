@@ -24,13 +24,13 @@ const layoutRoleDependencies = {
 const appFiles = files("app");
 const routeOf = (file: string) => normalizeAppPath("/" + file.slice(4).replace(/\.(tsx?|js)$/, ""));
 
-test("all 50 page URLs and all 84 handlers match the inventory including Alerts, without duplicates", () => {
+test("all 52 page URLs and all 92 handlers match the inventory including Alerts, without duplicates", () => {
   const pages = appFiles.filter(f => f.endsWith("/page.tsx"));
   const actual = pages.map(routeOf).sort();
   assert.deepEqual(actual, [...expected.connected, ...expected.excluded].sort());
-  assert.equal(new Set(actual).size, 50);
+  assert.equal(new Set(actual).size, 52);
   assert.deepEqual(appFiles.filter(f => f.endsWith("/route.ts")).map(routeOf).sort(), expected.handlers);
-  assert.equal(expected.handlers.length, 84);
+  assert.equal(expected.handlers.length, 92);
   assert.ok(appFiles.filter(f => f.endsWith("/route.ts")).every(f => !f.includes("(connected)")));
 });
 
@@ -39,7 +39,7 @@ for (const route of expected.connected) {
     const file = `app/(connected)${route}/page.tsx`;
     const source = read(file);
     assert.doesNotMatch(source, /<PlatformNavigation|<ConnectedShell|<LogoutButton/);
-    if (route !== "/parcours" && route !== "/ia-valeur") assert.match(source, /await (?:getCurrentPrismaUser|requireCurrentUser|listFavorites)\(/);
+    if (!["/parcours", "/ia-valeur", "/annuaire/[publicId]"].includes(route)) assert.match(source, /await (?:getCurrentPrismaUser|requireCurrentUser|listFavorites)\(/);
     const { ConnectedShell } = shellModules(route);
     let reads = 0;
     const layout = loadTestModule("app/(connected)/layout.tsx", { ...layoutRoleDependencies, "react/jsx-runtime": jsx,

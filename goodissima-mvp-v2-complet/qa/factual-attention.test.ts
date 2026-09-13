@@ -8,7 +8,7 @@ import { renderShellFixture } from "./helpers/render-connected-shell.ts";
 import * as spatial from "../lib/spatial-navigation.ts";
 
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, prefetch: _, ...props }: any) => jsx.jsx("a", { ...props, children }) };
-const list = loadTestModule("components/FactualAttentionList.tsx", common);
+const list = loadTestModule("components/FactualAttentionList.tsx", { ...common, "@/components/NotificationLink": { NotificationLink: ({ children, ...props }: any) => jsx.jsx("button", { ...props, children }) } });
 const home = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": list });
 function repository(rows: any[] = []) {
   const calls: any[] = [];
@@ -72,6 +72,8 @@ test("both pages authenticate before the same projection, never using request ow
     "@/components/FactualAttentionList": list, "@/components/DashboardHome": home,
     "@/lib/personal-favorites-repository": { readFavoritePage: async () => ({ items: [] }) },
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async () => [] },
+    "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
+    "@/lib/unified-attention": { mergeAttention: (_notifications: any[], factual: any[]) => factual, notificationAttention: (item: any) => item, factualAttention: (item: any) => item },
   };
   const alerts = loadTestModule("app/(connected)/alertes/page.tsx", dependencies).default;
   const dashboard = loadTestModule("app/(connected)/dashboard/page.tsx", dependencies).default;
@@ -99,6 +101,8 @@ test("alerts page renders factual reasons, safe links and pagination without a g
   const page = loadTestModule("app/(connected)/alertes/page.tsx", { ...common,
     "next/cache": { unstable_noStore() {} }, "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: "A" }) },
     "@/lib/factual-attention": r, "@/components/FactualAttentionList": list,
+    "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
+    "@/lib/unified-attention": { notificationAttention: (item: any) => item, factualAttention: (item: any) => item },
   });
   const first = renderToStaticMarkup(await page.default({ searchParams: {} }));
   assert.match(first, /Alertes Goodissima/); assert.match(first, /En attente propriétaire/);

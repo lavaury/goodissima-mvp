@@ -95,14 +95,14 @@ test("API derives ownership from the authenticated session and exposes only safe
     "next/server": { NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } },
     "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: "session-user" }) },
     "@/lib/notification-repository": {
-      listNotificationsForUser: async (id: string) => { assert.equal(id, "session-user"); return [safe]; },
       countUnreadNotificationsForUser: async (id: string) => { assert.equal(id, "session-user"); return 1; },
       markNotificationRead: async (_id: string, userId: string) => { assert.equal(userId, "session-user"); return safe; },
     },
+    "@/lib/notification-projection": { getNotificationViewsForUser: async (id: string) => { assert.equal(id, "session-user"); return { items: [safe], hasMore: false }; } },
   };
   const list = loadTestModule<any>("app/api/notifications/route.ts", dependencies);
   const payload = await (await list.GET(new Request("https://goodissima.test/api/notifications?limit=999"))).json();
-  assert.deepEqual(payload, { notifications: [{ ...safe, createdAt: safe.createdAt.toISOString() }], unreadCount: 1 });
+  assert.deepEqual(payload, { notifications: [{ ...safe, createdAt: safe.createdAt.toISOString() }], hasMore: false, unreadCount: 1 });
   const patch = loadTestModule<any>("app/api/notifications/[id]/route.ts", dependencies);
   assert.equal((await patch.PATCH(new Request("https://goodissima.test", { method: "PATCH", body: JSON.stringify({ read: false }) }), { params: { id: "n1" } })).status, 400);
   const response = await patch.PATCH(new Request("https://goodissima.test", { method: "PATCH", body: JSON.stringify({ read: true }) }), { params: { id: "n1" } });
@@ -122,6 +122,5 @@ test("business routes emit exactly the two scoped notification types without cha
   assert.equal((messages.match(/type: "NEW_MESSAGE"/g) ?? []).length, 1);
   assert.match(messages, /prisma\.\$transaction/);
   assert.match(cases, /sendNewRelationCaseEmail/); assert.match(messages, /sendNewMessageEmail/);
-  assert.doesNotMatch(read("components/PlatformNavigation.tsx"), /Notification/);
   assert.doesNotMatch(read("components/DashboardHome.tsx"), /notification-repository/);
 });

@@ -6,6 +6,7 @@ import { flushSync } from "react-dom";
 import { WorkspaceRow } from "@/components/WorkspaceRow";
 import type { SpacesTree } from "@/lib/spaces-repository";
 import { businessLabel } from "@/lib/spatial-navigation";
+import { AttentionCount } from "@/components/AttentionBadge";
 
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700";
 const openLink = `inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-semibold ${focus}`;
@@ -23,7 +24,7 @@ function PortfolioBranch({ portfolio, initialOpen, first, firstWorkspaceId, port
   return <li className="min-w-0"><div ref={root} data-boussole-portfolio="true" data-boussole-id={first ? "governance-first-portfolio" : undefined} className="rounded-xl border bg-slate-50 p-2 sm:p-4">
     <ObjectActionRow favorite={{ objectKind: "PORTFOLIO", objectId: portfolio.id }} name={name} href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} className="flex flex-wrap items-start gap-2 pr-16">
       <button type="button" aria-expanded={open} aria-controls={id} aria-label={`${open ? "Réduire" : "Développer"} le Portfolio : ${name}`} onClick={() => setOpen(value => !value)} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border bg-white ${focus}`}><span aria-hidden="true">{open ? "▾" : "▸"}</span></button>
-      <div className="min-w-0 flex-1"><h3 className="break-words font-bold"><span aria-hidden="true">🗂 </span>{name}</h3><p className="mt-1 text-sm text-slate-600">Portfolio · {portfolio.status === "ACTIVE" ? "Actif" : "Archivé"} · {portfolio.workspaces.length} Workspaces</p></div>
+      <div className="min-w-0 flex-1"><h3 className="flex flex-wrap items-center gap-2 break-words font-bold"><span><span aria-hidden="true">🗂 </span>{name}</span><AttentionCount count={portfolio.unreadCount} /></h3><p className="mt-1 text-sm text-slate-600">Portfolio · {portfolio.status === "ACTIVE" ? "Actif" : "Archivé"} · {portfolio.workspaces.length} Workspaces</p></div>
       <Link href={`/gouvernance/portfolios/${encodeURIComponent(portfolio.id)}`} aria-label={`Ouvrir le Portfolio : ${name}`} className={openLink}>Ouvrir</Link>
     </ObjectActionRow>
     <div id={id} hidden={!open} data-boussole-portfolio-content="true" className="ml-2 mt-3 border-l-2 border-slate-300 pl-2 sm:ml-5 sm:pl-4">
