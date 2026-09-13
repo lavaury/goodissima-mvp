@@ -22,6 +22,7 @@ test("source HMAC is deterministic, bounded and never contains the raw IP", () =
   assert.equal(first, pseudonymizePublicRequestSource("203.0.113.4", secret));
   assert.equal(first.length, 32);
   assert.ok(!first.includes("203.0.113.4"));
+  assert.throws(() => pseudonymizePublicRequestSource("unknown", ""), /SECRET_UNAVAILABLE/);
   assert.throws(() => pseudonymizePublicRequestSource("unknown", "short"), /SECRET_UNAVAILABLE/);
 });
 
@@ -113,5 +114,14 @@ test("route returns uniform 429 and fail-closed 503 before reading a GLink", asy
   const response503 = await unavailable.POST(request);
   assert.equal(response503.status, 503);
   assert.equal(response503.headers.get("Retry-After"), "60");
+
+  const missingSecret = loadTestModule<any>(file, {
+    ...base,
+    "@/lib/public-request-source": { ...base["@/lib/public-request-source"], pseudonymizePublicRequestSource: () => { throw new Error("RATE_LIMIT_SECRET_UNAVAILABLE"); } },
+    "@/lib/public-case-rate-limit": { ...base["@/lib/public-case-rate-limit"], checkPublicCaseCreationLimit: async () => ({ allowed: true }) },
+  }, { console: { warn() {}, error() {}, info() {} } });
+  const responseMissingSecret = await missingSecret.POST(request);
+  assert.equal(responseMissingSecret.status, 503);
+  assert.deepEqual(await responseMissingSecret.json(), { error: "Service temporairement indisponible.", code: "RATE_LIMIT_UNAVAILABLE" });
   assert.equal(gLinkReads, 0);
 });

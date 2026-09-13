@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 
-export const PUBLIC_RATE_LIMIT_SECRET_ENV = "PUBLIC_RATE_LIMIT_HMAC_SECRET";
+export const RATE_LIMIT_SECRET_ENV = "RATE_LIMIT_HMAC_SECRET";
 const SOURCE_KEY_VERSION = "v1";
 
 function singleHeaderValue(value: string | null) {
@@ -37,12 +37,12 @@ export function getPublicRequestSource(headers: Headers) {
   return normalizePublicRequestSource(vercel ?? forwarded ?? "") ?? "unknown";
 }
 
-export function pseudonymizePublicRequestSource(source: string, secret = process.env[PUBLIC_RATE_LIMIT_SECRET_ENV]) {
-  if (!secret || secret.length < 32) throw new Error("PUBLIC_RATE_LIMIT_SECRET_UNAVAILABLE");
+export function pseudonymizePublicRequestSource(source: string, secret = process.env[RATE_LIMIT_SECRET_ENV]) {
+  if (!secret || secret.length < 32) throw new Error("RATE_LIMIT_SECRET_UNAVAILABLE");
   return createHmac("sha256", secret).update(`${SOURCE_KEY_VERSION}:${source}`).digest("hex").slice(0, 32);
 }
 
-export function pseudonymizePublicRateLimitKey(namespace: "glink" | "owner", value: string, secret = process.env[PUBLIC_RATE_LIMIT_SECRET_ENV]) {
-  if (!secret || secret.length < 32) throw new Error("PUBLIC_RATE_LIMIT_SECRET_UNAVAILABLE");
+export function pseudonymizePublicRateLimitKey(namespace: "glink" | "owner", value: string, secret = process.env[RATE_LIMIT_SECRET_ENV]) {
+  if (!secret || secret.length < 32) throw new Error("RATE_LIMIT_SECRET_UNAVAILABLE");
   return createHmac("sha256", secret).update(`${SOURCE_KEY_VERSION}:${namespace}:${value}`).digest("hex").slice(0, 32);
 }
