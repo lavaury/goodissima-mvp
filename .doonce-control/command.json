@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "id": "bootstrap-v12.5",
+  "id": "status-probe-20260913T2222Z",
   "action": "status",
-  "requestedAt": "2026-09-13T21:33:00Z",
-  "note": "Initialise le canal de commandes DoOnce V12.5. Aucune commande shell arbitraire n'est autorisee."
+  "requestedAt": "2026-09-13T22:22:00Z",
+  "note": "Harmless status probe only."
 }
