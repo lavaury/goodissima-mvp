@@ -1333,6 +1333,21 @@ model Notification {
   @@index([sourceEventId])
 }
 
+model PublicRateLimitBucket {
+  id            String   @id @default(cuid())
+  dimension     String
+  keyHash       String
+  windowStart   DateTime
+  windowSeconds Int
+  count         Int      @default(1)
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([dimension, keyHash, windowStart, windowSeconds])
+  @@index([expiresAt])
+}
+
 model RelationAction {
   id String @id @default(cuid())
 

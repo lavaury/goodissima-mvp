@@ -44,6 +44,9 @@ test("the real route refuses unavailable links before every persistence or exter
     const route = loadTestModule<any>(file, {
       ...imports,
       "@/lib/prisma": { prisma },
+      "@/lib/public-case-contract": { readPublicCaseRequest: async (req: { json: () => Promise<Record<string, unknown>> }) => ({ ok: true, body: await req.json() }), validateExpectedAnswerCount: () => true },
+      "@/lib/public-case-rate-limit": { checkPublicCaseCreationLimit: async () => ({ allowed: true }), publicCaseSourceRateLimitEntries: () => [], publicCaseTargetRateLimitEntries: () => [] },
+      "@/lib/public-request-source": { getPublicRequestSource: () => "unknown", pseudonymizePublicRequestSource: () => "source-hash", pseudonymizePublicRateLimitKey: () => "target-hash" },
       "@/lib/secure-link-submission": { canSubmitToGLink },
       "next/server": { NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } },
     }, {

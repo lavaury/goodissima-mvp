@@ -38,6 +38,13 @@ import type { FormValues } from "@/lib/form-rules";
 import { canSubmitToSecureLink } from "@/lib/secure-link-admission";
 import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
 import { isSimpleLink, isSimpleLinkRelationalEmailField } from "@/lib/simple-link-fields";
+import { readPublicCaseRequest, validateExpectedAnswerCount } from "@/lib/public-case-contract";
+import {
+  checkPublicCaseCreationLimit,
+  publicCaseSourceRateLimitEntries,
+  publicCaseTargetRateLimitEntries,
+} from "@/lib/public-case-rate-limit";
+import { getPublicRequestSource, pseudonymizePublicRateLimitKey, pseudonymizePublicRequestSource } from "@/lib/public-request-source";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -246,26 +253,32 @@ async function observeTrustAdmissionToken(
 }
 
 export async function POST(req: Request) {
-  let body: Record<string, unknown>;
+  const parsedRequest = await readPublicCaseRequest(req);
+  if (!parsedRequest.ok) {
+    return NextResponse.json(
+      { error: parsedRequest.error, code: parsedRequest.code, reasons: parsedRequest.reasons },
+      { status: parsedRequest.status },
+    );
+  }
+  const body = parsedRequest.body;
 
+  let sourceKeyHash: string;
   try {
-    const parsedBody = await req.json();
-
-    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
-      return badRequest({
-        code: "INVALID_REQUEST_BODY",
-        error: "Invalid request body",
-        reasons: ["body_must_be_object"],
-      });
+    sourceKeyHash = pseudonymizePublicRequestSource(getPublicRequestSource(req.headers ?? new Headers()));
+    const sourceLimit = await checkPublicCaseCreationLimit(publicCaseSourceRateLimitEntries(sourceKeyHash));
+    if (!sourceLimit.allowed) {
+      console.warn("public_case_limit_throttled", { dimension: sourceLimit.dimension, key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+      return NextResponse.json(
+        { error: "Trop de tentatives ont été effectuées. Réessayez dans quelques instants.", code: "TOO_MANY_REQUESTS" },
+        { status: 429, headers: { "Retry-After": String(sourceLimit.retryAfterSeconds) } },
+      );
     }
-
-    body = parsedBody as Record<string, unknown>;
   } catch {
-    return badRequest({
-      code: "INVALID_REQUEST_BODY",
-      error: "Invalid request body",
-      reasons: ["invalid_json"],
-    });
+    console.error("public_case_limit_unavailable", { stage: "source", timestamp: new Date().toISOString() });
+    return NextResponse.json(
+      { error: "Service temporairement indisponible.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503, headers: { "Retry-After": "60" } },
+    );
   }
 
   const submittedCandidateEmail =
@@ -334,8 +347,37 @@ export async function POST(req: Request) {
     );
   }
 
+  try {
+    const targetLimit = await checkPublicCaseCreationLimit(publicCaseTargetRateLimitEntries(
+      pseudonymizePublicRateLimitKey("glink", gLink.id),
+      pseudonymizePublicRateLimitKey("owner", gLink.ownerId),
+    ));
+    if (!targetLimit.allowed) {
+      console.warn("public_case_limit_throttled", { dimension: targetLimit.dimension, key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+      return NextResponse.json(
+        { error: "Trop de tentatives ont été effectuées. Réessayez dans quelques instants.", code: "TOO_MANY_REQUESTS" },
+        { status: 429, headers: { "Retry-After": String(targetLimit.retryAfterSeconds) } },
+      );
+    }
+    console.info("public_case_limit_allowed", { key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+  } catch {
+    console.error("public_case_limit_unavailable", { stage: "target", key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+    return NextResponse.json(
+      { error: "Service temporairement indisponible.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503, headers: { "Retry-After": "60" } },
+    );
+  }
+
   const simpleLinkSubmission = isSimpleLink(gLink.rules);
   const allSubmittedFormFields = await getSubmittedCandidateFormFields(formSubmission, body);
+  if (formSubmission && !validateExpectedAnswerCount(body, allSubmittedFormFields.length)) {
+    return badRequest({
+      code: "INVALID_REQUEST_BODY",
+      error: "Invalid request body",
+      gLinkId,
+      reasons: ["answers_exceed_template_fields"],
+    });
+  }
   const submittedFormFields = simpleLinkSubmission
     ? allSubmittedFormFields.filter((field) => !isSimpleLinkRelationalEmailField(field))
     : allSubmittedFormFields;
