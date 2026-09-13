@@ -1,0 +1,166 @@
+name: doonce-temp-windows-release
+
+on:
+  push:
+    branches:
+      - doonce-ci-final-20260913
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      STRIPE_PRICE_MONTHLY: ${{ secrets.STRIPE_PRICE_MONTHLY }}
+      STRIPE_PRICE_ANNUAL: ${{ secrets.STRIPE_PRICE_ANNUAL }}
+      ACTIVATION_HMAC_SECRET: ${{ secrets.ACTIVATION_HMAC_SECRET }}
+      PUBLIC_APP_URL: ${{ secrets.PUBLIC_APP_URL }}
+      STRIPE_VERIFY_REPORT: apps/desktop/release/stripe-verification.json
+      CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE_PFX }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      DOONCE_REQUIRE_SIGNING: '0'
+
+    steps:
+      - name: Checkout temporary CI branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct DoOnce source archive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(
+            'ci/doonce-src/part00.b64',
+            'ci/doonce-src/part01.b64',
+            'ci/doonce-src/part02.b64',
+            'ci/doonce-src/part03.b64',
+            'ci/doonce-src/part04.b64',
+            'ci/doonce-rem/seg00.b64',
+            'ci/doonce-rem/seg01.b64',
+            'ci/doonce-rem/seg02.b64',
+            'ci/doonce-rem/seg03.b64',
+            'ci/doonce-rem/seg04.b64',
+            'ci/doonce-tail/chunk00.b64',
+            'ci/doonce-tail/chunk01.b64',
+            'ci/doonce-tail/chunk02.b64',
+            'ci/doonce-tail/chunk03.b64',
+            'ci/doonce-tail/chunk04.b64'
+          )
+          $parts = foreach ($file in $files) {
+            if (-not (Test-Path $file)) { throw "Missing archive segment: $file" }
+            (Get-Content $file -Raw).Trim()
+          }
+          $b64 = $parts -join ''
+          if ($b64.Length -ne 162044) { throw "Unexpected source base64 length: $($b64.Length), expected 162044" }
+          $zip = Join-Path $env:RUNNER_TEMP 'doonce-source.zip'
+          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          if ($hash -ne '25160fe2ceb186b866faa8fe71c89cb27536b64bde50e4a6dfe4e23218a12290') {
+            throw "Source archive hash mismatch: $hash"
+          }
+          $target = Join-Path $env:GITHUB_WORKSPACE 'doonce'
+          New-Item -ItemType Directory -Force $target | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $target -Force
+          if (-not (Test-Path (Join-Path $target 'package.json'))) { throw 'DoOnce package.json missing after extraction.' }
+          "SOURCE_ARCHIVE_SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "DoOnce source archive verified: $hash"
+
+      - name: Setup Node.js 22.12
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: npm
+          cache-dependency-path: doonce/package.json
+
+      - name: Install real npm dependencies
+        working-directory: doonce
+        shell: pwsh
+        run: npm install --no-fund --no-audit
+
+      - name: Run full project check
+        working-directory: doonce
+        shell: pwsh
+        run: npm run check
+
+      - name: Build and validate Windows installer
+        working-directory: doonce
+        shell: pwsh
+        run: npm run release:win -- -SkipInstall
+
+      - name: Verify Stripe against real test API
+        working-directory: doonce
+        shell: pwsh
+        run: |
+          $required = @(
+            'STRIPE_SECRET_KEY',
+            'STRIPE_WEBHOOK_SECRET',
+            'STRIPE_PRICE_MONTHLY',
+            'STRIPE_PRICE_ANNUAL',
+            'ACTIVATION_HMAC_SECRET',
+            'PUBLIC_APP_URL'
+          )
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing required GitHub Actions secret: $name"
+            }
+          }
+          if (-not $env:STRIPE_SECRET_KEY.StartsWith('sk_test_')) { throw 'STRIPE_SECRET_KEY must be a Stripe test key (sk_test_).' }
+          npm run verify:stripe
+
+      - name: Validate final release evidence
+        working-directory: doonce
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = Join-Path (Get-Location) 'apps/desktop/release'
+          $reportPath = Join-Path $release 'release-report.json'
+          $stripePath = Join-Path $release 'stripe-verification.json'
+          if (-not (Test-Path $reportPath)) { throw 'release-report.json missing.' }
+          if (-not (Test-Path $stripePath)) { throw 'stripe-verification.json missing.' }
+          $report = Get-Content $reportPath -Raw | ConvertFrom-Json
+          $stripe = Get-Content $stripePath -Raw | ConvertFrom-Json
+          $installer = Get-ChildItem $release -Filter 'DoOnce-*-x64-Setup.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Final NSIS installer missing.' }
+          $actualHash = (Get-FileHash -Algorithm SHA256 $installer.FullName).Hash.ToLowerInvariant()
+          if ([string]$report.installerSha256 -ne $actualHash) { throw "Installer hash/report mismatch: $actualHash vs $($report.installerSha256)" }
+          if ([string]$report.unpackedSmoke -ne 'passed') { throw "Unpacked smoke test did not pass: $($report.unpackedSmoke)" }
+          if ([string]$report.installedSmoke -ne 'passed') { throw "Installed smoke test did not pass: $($report.installedSmoke)" }
+          if ([string]$stripe.mode -ne 'test') { throw "Stripe verification was not in test mode: $($stripe.mode)" }
+          if ([string]$stripe.checkoutFinalStatus -ne 'expired') { throw "Stripe checkout session was not expired after verification: $($stripe.checkoutFinalStatus)" }
+          Write-Host "Installer: $($installer.Name)"
+          Write-Host "SHA-256: $actualHash"
+          Write-Host "Windows unpacked smoke: $($report.unpackedSmoke)"
+          Write-Host "Windows installed smoke: $($report.installedSmoke)"
+          Write-Host "Stripe mode: $($stripe.mode)"
+          Write-Host "Stripe checkout final status: $($stripe.checkoutFinalStatus)"
+
+      - name: Upload diagnostic Windows evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doonce-windows-evidence-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            doonce/apps/desktop/release/*.exe
+            doonce/apps/desktop/release/*.exe.sha256
+            doonce/apps/desktop/release/*.zip
+            doonce/apps/desktop/release/*.zip.sha256
+            doonce/apps/desktop/release/release-report.json
+            doonce/apps/desktop/release/stripe-verification.json
+
+      - name: Upload final validated DoOnce release
+        uses: actions/upload-artifact@v4
+        with:
+          name: doonce-windows-final
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            doonce/apps/desktop/release/DoOnce-*-x64-Setup.exe
+            doonce/apps/desktop/release/DoOnce-*-x64-Setup.exe.sha256
+            doonce/apps/desktop/release/release-report.json
+            doonce/apps/desktop/release/stripe-verification.json
