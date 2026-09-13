@@ -1,12 +1,6 @@
 name: doonce-temp-windows-release
 
 on:
-  push:
-    branches:
-      - doonce-ci-final-20260913
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
