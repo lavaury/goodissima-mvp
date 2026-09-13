@@ -1,8 +1,8 @@
 {
   "protocol": "chatgpt-local-bridge-v14.3",
-  "id": "transport-probe-pc-status-expired",
-  "action": "pc-status",
+  "id": "bootstrap-v14.3-generic",
+  "action": "status",
   "sessionId": "",
-  "issuedAt": "2026-09-13T00:00:00Z",
-  "expiresAt": "2026-09-13T00:00:01Z"
+  "issuedAt": "",
+  "expiresAt": ""
 }
