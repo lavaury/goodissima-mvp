@@ -1,0 +1,6 @@
+{
+  "commandId": "bootstrap-placeholder",
+  "action": "status",
+  "issuedAt": "2000-01-01T00:00:00Z",
+  "expiresAt": "2000-01-01T00:05:00Z"
+}
