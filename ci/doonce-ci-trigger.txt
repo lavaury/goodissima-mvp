@@ -1,0 +1,2 @@
+trigger=2026-09-13T19:15:00+02:00
+branch=doonce-ci-final-20260913
