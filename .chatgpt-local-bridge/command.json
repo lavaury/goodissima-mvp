@@ -1,6 +1,6 @@
 {
   "protocol": "chatgpt-local-bridge-v14.3",
-  "id": "bootstrap-v14.3-generic",
+  "id": "connectivity-check-20260914",
   "action": "status",
   "sessionId": "",
   "issuedAt": "",
