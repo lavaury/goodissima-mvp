@@ -1,10 +1,9 @@
 {
   "protocol": "chatgpt-local-bridge-v15",
-  "id": "paint-select-all-20260913T234315Z",
+  "id": "paint-clear-20260913T234330Z",
   "action": "key-press",
   "sessionId": "9892a5c402a68ca4623fd9698a040af7",
-  "issuedAt": "2026-09-13T23:43:15Z",
-  "expiresAt": "2026-09-13T23:46:15Z",
-  "key": "A",
-  "ctrl": true
+  "issuedAt": "2026-09-13T23:43:30Z",
+  "expiresAt": "2026-09-13T23:46:30Z",
+  "key": "Delete"
 }
