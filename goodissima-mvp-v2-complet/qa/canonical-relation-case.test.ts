@@ -35,6 +35,6 @@ test("owner routing and notification use the message RelationCase", () => {
   const email = readFileSync(new URL("../lib/email.ts", import.meta.url), "utf8");
   assert.match(page, /resolveCanonicalOwnerRelationCaseId\(params\.caseId, owner\.id\)/);
   assert.match(page, /redirect\(`\/cases\/\$\{encodeURIComponent\(canonicalCaseId\)\}/);
-  assert.match(messages, /sendNewMessageEmail\(\{[\s\S]*caseId: relationCase\.id,/);
+  assert.match(messages, /maybeSendNotificationEmail\(ownerNotification\.notification\.id\)/);
   assert.match(email, /`\/cases\/\$\{encodeURIComponent\(caseId\)\}\?refresh=1#conversation`/);
 });

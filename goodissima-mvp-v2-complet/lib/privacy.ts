@@ -17,7 +17,12 @@ type NotificationPreferences = {
   newRequestsEnabled: boolean;
   newDocumentsEnabled: boolean;
   validationsEnabled: boolean;
+  frequency?: string;
 } | null | undefined;
+
+export function resolveNotificationPreferences(preferences: NotificationPreferences) {
+  return preferences ?? defaultNotificationPreferences;
+}
 
 export function getRelationIdentity(params: {
   name?: string | null;
@@ -41,12 +46,13 @@ export function isNotificationEnabled(
   preferences: NotificationPreferences,
   kind: NotificationKind,
 ) {
-  if (!preferences?.emailNotificationsEnabled) return false;
+  const resolved = resolveNotificationPreferences(preferences);
+  if (!resolved.emailNotificationsEnabled) return false;
 
-  if (kind === "messages") return preferences.newMessagesEnabled;
-  if (kind === "requests") return preferences.newRequestsEnabled;
-  if (kind === "documents") return preferences.newDocumentsEnabled;
-  if (kind === "validations") return preferences.validationsEnabled;
+  if (kind === "messages") return resolved.newMessagesEnabled;
+  if (kind === "requests") return resolved.newRequestsEnabled;
+  if (kind === "documents") return resolved.newDocumentsEnabled;
+  if (kind === "validations") return resolved.validationsEnabled;
 
   return false;
 }

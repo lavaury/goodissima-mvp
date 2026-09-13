@@ -3,11 +3,11 @@ import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { resolveCandidateSecureAccess } from "@/lib/candidate-access";
-import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
+import { sendOwnerMessageToCandidateEmail } from "@/lib/email";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
 import { createNotificationOnce, messageNotificationKey } from "@/lib/notification-repository";
-import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
+import { maybeSendNotificationEmail } from "@/lib/notification-email";
 import { prisma } from "@/lib/prisma";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
@@ -135,7 +135,7 @@ export async function POST(req: Request) {
       ? relationCase.owner.email
       : relationCase.candidateEmail || `candidate-access:${relationCase.id}`;
 
-  const message = await prisma.$transaction(async (tx) => {
+  const { message, ownerNotification } = await prisma.$transaction(async (tx) => {
     const createdMessage = await tx.message.create({
       data: {
         caseId: relationCase.id,
@@ -153,17 +153,15 @@ export async function POST(req: Request) {
       payload: { messageId: createdMessage.id },
     }, tx);
 
-    if (body.senderType === "CANDIDATE") {
-      await createNotificationOnce({
+    const ownerNotification = body.senderType === "CANDIDATE" ? await createNotificationOnce({
         recipientUserId: relationCase.ownerId,
         type: "NEW_MESSAGE",
         relationCaseId: relationCase.id,
         sourceEventId: messageEvent?.id,
         idempotencyKey: messageNotificationKey(createdMessage.id, relationCase.ownerId),
-      }, tx);
-    }
+      }, tx) : null;
 
-    return createdMessage;
+    return { message: createdMessage, ownerNotification };
   });
 
   await auditLog({
@@ -181,26 +179,7 @@ export async function POST(req: Request) {
   }
 
   if (body.senderType === "CANDIDATE") {
-    if (isNotificationEnabled(relationCase.owner.notificationPreferences, "messages")) {
-      console.info("[owner-email] New candidate message email trigger", {
-        caseId: relationCase.id,
-        hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
-      });
-
-      await sendNewMessageEmail({
-        ownerEmail: relationCase.owner.email,
-        candidateEmail: relationCase.candidateEmail,
-        caseId: relationCase.id,
-        caseTitle: relationCase.gLink.title,
-        candidateName: relationCase.candidateName,
-        messageBody: message.body,
-      });
-    } else {
-      logNotificationSkipped(relationCase.owner.notificationPreferences, "messages", {
-        caseId: relationCase.id,
-        event: "candidate_message",
-      });
-    }
+    if (ownerNotification?.created) await maybeSendNotificationEmail(ownerNotification.notification.id);
   }
 
   const candidateAccessIsActive =

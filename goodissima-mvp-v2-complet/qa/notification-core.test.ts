@@ -15,11 +15,17 @@ function fixture() {
       saved.set(data.idempotencyKey, row);
       return row;
     },
-    async upsert({ where, create }: any) {
-      const current = saved.get(where.idempotencyKey);
-      if (current) return current;
-      const row = { id: `n-${++sequence}`, createdAt: new Date(sequence), readAt: null, ...create };
-      saved.set(where.idempotencyKey, row);
+    async createMany({ data }: any) {
+      let count = 0;
+      for (const input of data) if (!saved.has(input.idempotencyKey)) {
+        const row = { id: `n-${++sequence}`, createdAt: new Date(sequence), readAt: null, ...input };
+        saved.set(input.idempotencyKey, row); count++;
+      }
+      return { count };
+    },
+    async findUniqueOrThrow({ where }: any) {
+      const row = saved.get(where.idempotencyKey);
+      if (!row) throw new Error("missing notification");
       return row;
     },
     async findMany({ where, take, skip }: any) {
@@ -117,10 +123,10 @@ test("business routes emit exactly the two scoped notification types without cha
   const messages = read("app/api/messages/route.ts");
   assert.match(cases, /type: "CASE_CREATED"/);
   assert.match(cases, /type: "NEW_RELATION_CASE"/);
-  assert.equal((cases.match(/type: "NEW_MESSAGE"/g) ?? []).length, 0, "initial message does not notify twice");
-  assert.match(messages, /if \(body\.senderType === "CANDIDATE"\)[\s\S]*type: "NEW_MESSAGE"/);
+  assert.equal((cases.match(/type: "NEW_MESSAGE"/g) ?? []).length, 1, "only the existing-case message path emits NEW_MESSAGE");
+  assert.match(messages, /body\.senderType === "CANDIDATE" \? await createNotificationOnce\(\{[\s\S]*type: "NEW_MESSAGE"/);
   assert.equal((messages.match(/type: "NEW_MESSAGE"/g) ?? []).length, 1);
   assert.match(messages, /prisma\.\$transaction/);
-  assert.match(cases, /sendNewRelationCaseEmail/); assert.match(messages, /sendNewMessageEmail/);
+  assert.match(cases, /maybeSendNotificationEmail/); assert.match(messages, /maybeSendNotificationEmail/);
   assert.doesNotMatch(read("components/DashboardHome.tsx"), /notification-repository/);
 });

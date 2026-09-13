@@ -60,7 +60,7 @@ test("the guard precedes form, admission, identity, persistence and notification
   const source = readFileSync(new URL("../app/api/cases/route.ts", import.meta.url), "utf8");
   const guard = source.indexOf("if (!canSubmitToGLink(gLink, submissionNow))");
   assert.ok(guard > source.indexOf("if (!gLink)"));
-  for (const later of ["const simpleLinkSubmission", "await observeTrustAdmissionToken", "tx.relationCase.create", "await createFormSubmission", "await sendNewRelationCaseEmail"]) {
+  for (const later of ["const simpleLinkSubmission", "await observeTrustAdmissionToken", "tx.relationCase.create", "await createFormSubmission", "await maybeSendNotificationEmail"]) {
     assert.ok(source.indexOf(later, guard) > guard, `${later} must remain after the availability guard`);
   }
 });

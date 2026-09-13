@@ -8,9 +8,10 @@ import {
   createCandidateAccessExpiresAt,
   createCandidateAccessToken,
 } from "@/lib/candidate-access";
-import { sendNewDocumentEmail, sendNewMessageEmail, sendNewRelationCaseEmail } from "@/lib/email";
+import { sendNewDocumentEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
-import { createNotificationOnce, relationCaseNotificationKey } from "@/lib/notification-repository";
+import { createNotificationOnce, messageNotificationKey, relationCaseNotificationKey } from "@/lib/notification-repository";
+import { maybeSendNotificationEmail } from "@/lib/notification-email";
 import {
   buildCandidateMessageFallback,
   deriveCandidateSubmissionFields,
@@ -494,12 +495,19 @@ export async function POST(req: Request) {
       },
     });
 
-    await createRelationEvent({
+    const messageEvent = await createRelationEvent({
       caseId: existingRelationCase.id,
       type: "MESSAGE_SENT",
       actorType: "CANDIDATE",
       actorId: "CANDIDATE",
       payload: { existing: true, messageId: message.id },
+    });
+    const ownerNotification = await createNotificationOnce({
+      recipientUserId: gLink.ownerId,
+      type: "NEW_MESSAGE",
+      relationCaseId: existingRelationCase.id,
+      sourceEventId: messageEvent?.id,
+      idempotencyKey: messageNotificationKey(message.id, gLink.ownerId),
     });
 
     if (documentName && documentUrl) {
@@ -546,21 +554,7 @@ export async function POST(req: Request) {
       });
     }
 
-    if (isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "messages")) {
-      await sendNewMessageEmail({
-        ownerEmail: existingRelationCase.owner.email,
-        candidateEmail: relationActorEmail,
-        caseId: existingRelationCase.id,
-        caseTitle: existingRelationCase.gLink.title,
-        candidateName: existingRelationCase.candidateName,
-        messageBody,
-      });
-    } else {
-      logNotificationSkipped(existingRelationCase.owner.notificationPreferences, "messages", {
-        caseId: existingRelationCase.id,
-        event: "candidate_message_existing_case",
-      });
-    }
+    if (ownerNotification.created) await maybeSendNotificationEmail(ownerNotification.notification.id);
 
     if (documentName && documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
       await sendNewDocumentEmail({
@@ -718,7 +712,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const relationCase = await prisma.$transaction(async (tx) => {
+  const { relationCase, ownerNotification } = await prisma.$transaction(async (tx) => {
     const identitySource = resolvedTrustAdmissionToken
       ? "TRUST_ADMISSION_TOKEN"
       : resolvedCandidateIdentityId
@@ -826,7 +820,7 @@ export async function POST(req: Request) {
       actorId: "CANDIDATE",
       payload: { gLinkId: gLink.id },
     }, tx);
-    await createNotificationOnce({
+    const ownerNotification = await createNotificationOnce({
       recipientUserId: gLink.ownerId,
       type: "NEW_RELATION_CASE",
       relationCaseId: createdRelationCase.id,
@@ -834,7 +828,7 @@ export async function POST(req: Request) {
       idempotencyKey: relationCaseNotificationKey(createdRelationCase.id, gLink.ownerId),
     }, tx);
 
-    return createdRelationCase;
+    return { relationCase: createdRelationCase, ownerNotification };
   });
 
   const message = await prisma.message.create({
@@ -903,21 +897,7 @@ export async function POST(req: Request) {
     });
   }
 
-  if (isNotificationEnabled(relationCase.owner.notificationPreferences, "requests")) {
-    await sendNewRelationCaseEmail({
-      ownerEmail: relationCase.owner.email,
-      candidateEmail: relationActorEmail,
-      caseId: relationCase.id,
-      caseTitle: relationCase.gLink.title,
-      candidateName: relationCase.candidateName,
-      messageBody,
-    });
-  } else {
-    logNotificationSkipped(relationCase.owner.notificationPreferences, "requests", {
-      caseId: relationCase.id,
-      event: "candidate_case_created",
-    });
-  }
+  if (ownerNotification.created) await maybeSendNotificationEmail(ownerNotification.notification.id);
 
   if (document && isNotificationEnabled(relationCase.owner.notificationPreferences, "documents")) {
     await sendNewDocumentEmail({

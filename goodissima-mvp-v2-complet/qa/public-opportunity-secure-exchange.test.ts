@@ -92,11 +92,12 @@ test("the real cases route creates an anonymous dossier for a template-less oppo
     "@/lib/events": { createRelationEvent: async ({ type }: { type: string }) => ({ id: `event-${type}` }) },
     "@/lib/notification-repository": {
       relationCaseNotificationKey: (caseId: string, userId: string) => `CASE_CREATED:${caseId}:${userId}`,
-      createNotificationOnce: async (input: Record<string, unknown>) => { notifications.push(input); },
+      createNotificationOnce: async (input: Record<string, unknown>) => { notifications.push(input); return { notification: { id: "notification" }, created: true }; },
     },
     "@/lib/audit": { auditLog: async () => {} },
     "@/lib/privacy": { isNotificationEnabled: () => false, logNotificationSkipped: () => {} },
-    "@/lib/email": { sendNewDocumentEmail: async () => {}, sendNewMessageEmail: async () => {}, sendNewRelationCaseEmail: async () => {} },
+    "@/lib/email": { sendNewDocumentEmail: async () => {} },
+    "@/lib/notification-email": { maybeSendNotificationEmail: async () => ({ status: "sent" }) },
     "@/lib/trust-admission-tokens": { markTrustAdmissionTokenUsed: async () => {}, resolveTrustAdmissionToken: async () => ({ resolved: false, reasons: [] }) },
   }, { console: { warn() {}, error() {}, info() {} } });
 

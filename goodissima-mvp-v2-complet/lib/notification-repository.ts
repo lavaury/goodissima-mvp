@@ -31,11 +31,10 @@ export async function createNotification(input: CreateNotificationInput, client?
 }
 
 export async function createNotificationOnce(input: CreateNotificationInput, client?: NotificationClient) {
-  return clientOrDefault(client).notification.upsert({
-    where: { idempotencyKey: input.idempotencyKey },
-    create: input,
-    update: {},
-  });
+  const db = clientOrDefault(client);
+  const inserted = await db.notification.createMany({ data: [input], skipDuplicates: true });
+  const notification = await db.notification.findUniqueOrThrow({ where: { idempotencyKey: input.idempotencyKey } });
+  return { notification, created: inserted.count === 1 };
 }
 
 export async function listNotificationsForUser(userId: string, options: { limit?: number; page?: number; unreadOnly?: boolean } = {}, client?: NotificationClient) {
