@@ -10,6 +10,7 @@ import {
 } from "@/lib/candidate-access";
 import { sendNewDocumentEmail, sendNewMessageEmail, sendNewRelationCaseEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
+import { createNotificationOnce, relationCaseNotificationKey } from "@/lib/notification-repository";
 import {
   buildCandidateMessageFallback,
   deriveCandidateSubmissionFields,
@@ -817,6 +818,21 @@ export async function POST(req: Request) {
         },
       });
     }
+
+    const caseCreatedEvent = await createRelationEvent({
+      caseId: createdRelationCase.id,
+      type: "CASE_CREATED",
+      actorType: "CANDIDATE",
+      actorId: "CANDIDATE",
+      payload: { gLinkId: gLink.id },
+    }, tx);
+    await createNotificationOnce({
+      recipientUserId: gLink.ownerId,
+      type: "NEW_RELATION_CASE",
+      relationCaseId: createdRelationCase.id,
+      sourceEventId: caseCreatedEvent?.id,
+      idempotencyKey: relationCaseNotificationKey(createdRelationCase.id, gLink.ownerId),
+    }, tx);
 
     return createdRelationCase;
   });

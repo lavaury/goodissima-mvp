@@ -69,6 +69,11 @@ enum SenderType {
   SYSTEM
 }
 
+enum NotificationType {
+  NEW_RELATION_CASE
+  NEW_MESSAGE
+}
+
 enum AccessInvitationStatus {
   PENDING
   ACCEPTED
@@ -359,6 +364,7 @@ model User {
   authorizedMeetingParticipants GovernedMeetingParticipant[] @relation("MeetingParticipantAuthorizer")
   goodissimaIdentity            GoodissimaIdentity?          @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
   notificationPreferences       UserNotificationPreference?
+  notifications                 Notification[]
   personalFavorites             PersonalFavorite[]
   templateGenerations           TemplateGeneration[]
   templateCriticReports         TemplateCriticReport[]
@@ -611,6 +617,7 @@ model RelationCase {
   productFeedback            ProductFeedback[]
   communicationSessions      CommunicationSession[]
   matchingResults            MatchingResult[]
+  notifications              Notification[]
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
@@ -1302,7 +1309,28 @@ model RelationEvent {
 
   createdAt DateTime @default(now())
 
+  notifications Notification[]
+
   @@index([caseId, createdAt])
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  recipientUserId String
+  type            NotificationType
+  relationCaseId  String
+  sourceEventId   String?
+  idempotencyKey  String           @unique
+  createdAt       DateTime         @default(now())
+  readAt          DateTime?
+
+  recipient    User           @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  relationCase RelationCase   @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+  sourceEvent  RelationEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+
+  @@index([recipientUserId, readAt, createdAt])
+  @@index([relationCaseId])
+  @@index([sourceEventId])
 }
 
 model RelationAction {

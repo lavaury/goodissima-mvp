@@ -6,6 +6,7 @@ import { resolveCandidateSecureAccess } from "@/lib/candidate-access";
 import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
+import { createNotificationOnce, messageNotificationKey } from "@/lib/notification-repository";
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
@@ -36,6 +37,7 @@ async function resolveCaseForAccess(params: {
       where: { id: access.id },
       select: {
         id: true,
+        ownerId: true,
         candidateAccessToken: true,
         candidateAccessExpiresAt: true,
         candidateAccessRevokedAt: true,
@@ -62,6 +64,7 @@ async function resolveCaseForAccess(params: {
     where: { id: params.caseId, ownerId: owner.id },
     select: {
       id: true,
+      ownerId: true,
       candidateAccessToken: true,
       candidateAccessExpiresAt: true,
       candidateAccessRevokedAt: true,
@@ -132,27 +135,41 @@ export async function POST(req: Request) {
       ? relationCase.owner.email
       : relationCase.candidateEmail || `candidate-access:${relationCase.id}`;
 
-  const message = await prisma.message.create({
-    data: {
+  const message = await prisma.$transaction(async (tx) => {
+    const createdMessage = await tx.message.create({
+      data: {
+        caseId: relationCase.id,
+        senderType: body.senderType,
+        senderEmail,
+        body: body.body,
+      },
+    });
+
+    const messageEvent = await createRelationEvent({
       caseId: relationCase.id,
-      senderType: body.senderType,
-      senderEmail,
-      body: body.body,
-    },
+      type: "MESSAGE_SENT",
+      actorType: body.senderType,
+      actorId: body.senderType,
+      payload: { messageId: createdMessage.id },
+    }, tx);
+
+    if (body.senderType === "CANDIDATE") {
+      await createNotificationOnce({
+        recipientUserId: relationCase.ownerId,
+        type: "NEW_MESSAGE",
+        relationCaseId: relationCase.id,
+        sourceEventId: messageEvent?.id,
+        idempotencyKey: messageNotificationKey(createdMessage.id, relationCase.ownerId),
+      }, tx);
+    }
+
+    return createdMessage;
   });
 
   await auditLog({
     caseId: relationCase.id,
     actorEmail: senderEmail,
     eventType: "MESSAGE_SENT",
-  });
-
-  await createRelationEvent({
-    caseId: relationCase.id,
-    type: "MESSAGE_SENT",
-    actorType: body.senderType,
-    actorId: body.senderType,
-    payload: { messageId: message.id },
   });
 
   await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "message_created" });

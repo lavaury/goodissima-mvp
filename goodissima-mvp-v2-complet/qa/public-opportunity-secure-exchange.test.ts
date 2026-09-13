@@ -56,6 +56,7 @@ test("the real cases route creates an anonymous dossier for a template-less oppo
   const file = "app/api/cases/route.ts";
   const imports = Object.fromEntries(ts.preProcessFile(readFileSync(file, "utf8")).importedFiles.map((item) => [item.fileName, {}]));
   const writes: Array<{ model: string; data: Record<string, unknown> }> = [];
+  const notifications: Record<string, unknown>[] = [];
   const tx = {
     goodissimaIdentity: { create: async ({ data }: { data: Record<string, unknown> }) => { writes.push({ model: "identity", data }); return { id: "identity" }; } },
     relationCase: { create: async ({ data }: { data: Record<string, unknown> }) => { writes.push({ model: "case", data }); return { id: "case", candidateAccessToken: data.candidateAccessToken, candidateName: data.candidateName, candidateEmailNotificationsEnabled: false, owner: { email: "owner@example.test", notificationPreferences: {} }, gLink: { title: "Opportunity" } }; } },
@@ -88,7 +89,11 @@ test("the real cases route creates an anonymous dossier for a template-less oppo
     "@/lib/trust-credentials": { issueCandidateCreatedCredentialInTransaction: async () => ({ id: "credential" }) },
     "@/lib/candidate-access": { CANDIDATE_ACCESS_TTL_DAYS: 30, createCandidateAccessExpiresAt: () => new Date("2026-10-13T00:00:00Z"), createCandidateAccessToken: () => "secure-token" },
     "@/lib/secure-trace": { secureTokenHash: async () => "hash", secureTrace: () => {} },
-    "@/lib/events": { createRelationEvent: async () => {} },
+    "@/lib/events": { createRelationEvent: async ({ type }: { type: string }) => ({ id: `event-${type}` }) },
+    "@/lib/notification-repository": {
+      relationCaseNotificationKey: (caseId: string, userId: string) => `CASE_CREATED:${caseId}:${userId}`,
+      createNotificationOnce: async (input: Record<string, unknown>) => { notifications.push(input); },
+    },
     "@/lib/audit": { auditLog: async () => {} },
     "@/lib/privacy": { isNotificationEnabled: () => false, logNotificationSkipped: () => {} },
     "@/lib/email": { sendNewDocumentEmail: async () => {}, sendNewMessageEmail: async () => {}, sendNewRelationCaseEmail: async () => {} },
@@ -107,4 +112,5 @@ test("the real cases route creates an anonymous dossier for a template-less oppo
   assert.equal(dossier.status, "NEW");
   assert.ok(!("workspaceId" in dossier));
   assert.deepEqual(writes.find((write) => write.model === "message")!.data, { caseId: "case", senderType: "CANDIDATE", senderEmail: "", body: "Bonjour" });
+  assert.deepEqual(notifications, [{ recipientUserId: "owner", type: "NEW_RELATION_CASE", relationCaseId: "case", sourceEventId: "event-CASE_CREATED", idempotencyKey: "CASE_CREATED:case:owner" }]);
 });
