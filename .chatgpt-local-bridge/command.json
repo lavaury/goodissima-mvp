@@ -1,9 +1,9 @@
 {
   "protocol": "chatgpt-local-bridge-v15",
-  "id": "launch-rayman-20260913T225846Z",
+  "id": "launch-rayman-origins-20260913T230207Z",
   "action": "launch-app",
-  "sessionId": "7e43bda8940c1f27f6c4977b47a6b47e",
-  "issuedAt": "2026-09-13T22:58:46Z",
-  "expiresAt": "2026-09-13T23:01:46Z",
-  "name": "Rayman"
+  "sessionId": "65ad43d4a278117a1b26ef1c4d6a08d6",
+  "issuedAt": "2026-09-13T23:02:07Z",
+  "expiresAt": "2026-09-13T23:05:07Z",
+  "name": "Rayman Origins"
 }
