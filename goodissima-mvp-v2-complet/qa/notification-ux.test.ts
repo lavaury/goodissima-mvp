@@ -46,6 +46,7 @@ function renderCenter(unreadCount: number) {
   };
   const center = loadTestModule<any>("components/NotificationCenter.tsx", {
     react, "react/jsx-runtime": jsx,
+    "next/navigation": { useRouter: () => ({ refresh: () => {} }) },
     "@/components/NotificationLink": { NotificationLink: ({ children }: any) => jsx.jsx("button", { children }) },
   });
   return renderToStaticMarkup(jsx.jsx(center.NotificationCenter, {}));
@@ -64,16 +65,23 @@ test("global bell has accessible zero, one and capped multiple states", () => {
 
 test("notification activation patches only that item then navigates, even if PATCH fails", async () => {
   const calls: any[] = [], destinations: string[] = [];
+  let refreshes = 0;
   let ok = true;
   const module = loadTestModule<any>("components/NotificationLink.tsx", {
     "react/jsx-runtime": jsx,
-    "next/navigation": { useRouter: () => ({ push: (href: string) => destinations.push(href) }) },
-  }, { fetch: async (...args: any[]) => { calls.push(args); return { ok }; } });
+    "next/navigation": { useRouter: () => ({ push: (href: string) => destinations.push(href), refresh: () => refreshes++ }) },
+  }, {
+    fetch: async (...args: any[]) => { calls.push(args); return { ok }; },
+    window: { dispatchEvent: () => true },
+    CustomEvent: class { type: string; init: unknown; constructor(type: string, init: unknown) { this.type = type; this.init = init; } },
+  });
   const element = module.NotificationLink({ notificationId: "n1", href: "/cases/c1", children: "Ouvrir" });
   element.props.onClick(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.match(calls[0][0], /\/api\/notifications\/n1$/); assert.match(calls[0][1].body, /"read":true/); assert.deepEqual(destinations, ["/cases/c1"]);
+  assert.equal(refreshes, 1);
   ok = false; element.props.onClick(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.deepEqual(destinations, ["/cases/c1", "/cases/c1"]);
+  assert.equal(refreshes, 1);
 });
 
 test("Mes espaces aggregates assigned, unassigned and collapsed attention without schema changes", async () => {

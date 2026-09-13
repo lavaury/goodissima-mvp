@@ -1,24 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { NotificationLink } from "@/components/NotificationLink";
 import type { NotificationView } from "@/lib/notification-projection";
 
 type Payload = { notifications: NotificationView[]; unreadCount: number };
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700";
+let lastObservedUnreadSnapshot: string | null = null;
 
 export function NotificationCenter() {
+  const router = useRouter();
   const [data, setData] = useState<Payload>({ notifications: [], unreadCount: 0 });
   const [pulse, setPulse] = useState(false);
   const previousCount = useRef(0);
+  const unreadSnapshot = useRef<string | null>(lastObservedUnreadSnapshot);
   const disclosure = useRef<HTMLDetailsElement>(null);
   async function load() {
     try {
       const response = await fetch("/api/notifications?limit=10", { cache: "no-store" });
       if (!response.ok) return;
       const next = await response.json() as Payload;
+      const nextSnapshot = `${next.unreadCount}:${next.notifications.filter(item => !item.readAt).map(item => item.id).sort().join("|")}`;
       if (next.unreadCount > previousCount.current) { setPulse(true); window.setTimeout(() => setPulse(false), 700); }
+      if (unreadSnapshot.current === null ? next.unreadCount > 0 : unreadSnapshot.current !== nextSnapshot) router.refresh();
       previousCount.current = next.unreadCount;
+      unreadSnapshot.current = nextSnapshot;
+      lastObservedUnreadSnapshot = nextSnapshot;
       setData(next);
     } catch {
       // Keep the last truthful state until the next lightweight poll.
@@ -28,6 +36,23 @@ export function NotificationCenter() {
     void load();
     const interval = window.setInterval(() => void load(), 45_000);
     return () => window.clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    const read = (event: Event) => {
+      const notificationId = (event as CustomEvent<{ notificationId?: string }>).detail?.notificationId;
+      if (!notificationId) return;
+      setData(current => {
+        const item = current.notifications.find(value => value.id === notificationId);
+        if (!item || item.readAt) return current;
+        const notifications = current.notifications.map(value => value.id === notificationId ? { ...value, readAt: new Date() } : value);
+        previousCount.current = Math.max(0, current.unreadCount - 1);
+        unreadSnapshot.current = `${previousCount.current}:${notifications.filter(value => !value.readAt).map(value => value.id).sort().join("|")}`;
+        lastObservedUnreadSnapshot = unreadSnapshot.current;
+        return { ...current, unreadCount: previousCount.current, notifications };
+      });
+    };
+    window.addEventListener("goodissima:notification-read", read);
+    return () => window.removeEventListener("goodissima:notification-read", read);
   }, []);
   useEffect(() => {
     const outside = (event: PointerEvent) => {
@@ -55,7 +80,7 @@ export function NotificationCenter() {
         <p className={item.readAt ? "text-sm font-semibold" : "text-sm font-bold"}>{item.title}{!item.readAt ? <span className="sr-only"> — non lue</span> : null}</p>
         <p className="mt-1 break-words text-sm text-slate-700">{item.contextLabel}</p>
         <p className="mt-1 text-xs text-slate-500">{item.description} · <time dateTime={String(item.createdAt)}>{new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(item.createdAt))}</time></p>
-        <NotificationLink notificationId={item.id} href={item.href} onNavigate={() => { if (disclosure.current) disclosure.current.open = false; }} onRead={() => setData(current => ({ ...current, unreadCount: Math.max(0, current.unreadCount - (item.readAt ? 0 : 1)), notifications: current.notifications.map(value => value.id === item.id ? { ...value, readAt: new Date() } : value) }))} className={`mt-2 min-h-11 rounded-lg border px-3 text-sm font-semibold ${focus}`}>Ouvrir le Dossier</NotificationLink>
+        <NotificationLink notificationId={item.id} href={item.href} onNavigate={() => { if (disclosure.current) disclosure.current.open = false; }} className={`mt-2 min-h-11 rounded-lg border px-3 text-sm font-semibold ${focus}`}>Ouvrir le Dossier</NotificationLink>
       </li>)}</ul>}
     </section>
   </details>;
