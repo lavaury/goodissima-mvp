@@ -1,0 +1,190 @@
+name: doonce-temp-windows-release-v2
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [doonce-ci-final-20260913]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      STRIPE_PRICE_MONTHLY: ${{ secrets.STRIPE_PRICE_MONTHLY }}
+      STRIPE_PRICE_ANNUAL: ${{ secrets.STRIPE_PRICE_ANNUAL }}
+      ACTIVATION_HMAC_SECRET: ${{ secrets.ACTIVATION_HMAC_SECRET }}
+      PUBLIC_APP_URL: ${{ secrets.PUBLIC_APP_URL }}
+      STRIPE_VERIFY_REPORT: apps/desktop/release/stripe-verification.json
+      CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE_PFX }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      DOONCE_REQUIRE_SIGNING: '0'
+
+    steps:
+      - name: Checkout temporary CI branch
+        uses: actions/checkout@v4
+        with:
+          ref: doonce-ci-final-20260913
+          persist-credentials: true
+
+      - name: Initialize diagnostics
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force 'ci/doonce-result/logs' | Out-Null
+          '{"stage":"checkout","status":"passed"}' | Set-Content 'ci/doonce-result/progress.json' -Encoding utf8
+
+      - name: Reconstruct DoOnce source archive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(
+            'ci/doonce-src/part00.b64','ci/doonce-src/part01.b64','ci/doonce-src/part02.b64','ci/doonce-src/part03.b64','ci/doonce-src/part04.b64',
+            'ci/doonce-rem/seg00.b64','ci/doonce-rem/seg01.b64','ci/doonce-rem/seg02.b64','ci/doonce-rem/seg03.b64','ci/doonce-rem/seg04.b64',
+            'ci/doonce-tail/chunk00.b64','ci/doonce-tail/chunk01.b64','ci/doonce-tail/chunk02.b64','ci/doonce-tail/chunk03.b64','ci/doonce-tail/chunk04.b64'
+          )
+          $parts = foreach ($file in $files) {
+            if (-not (Test-Path $file)) { throw "Missing archive segment: $file" }
+            (Get-Content $file -Raw).Trim()
+          }
+          $b64 = $parts -join ''
+          if ($b64.Length -ne 162044) { throw "Unexpected source base64 length: $($b64.Length), expected 162044" }
+          $zip = Join-Path $env:RUNNER_TEMP 'doonce-source.zip'
+          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          if ($hash -ne '25160fe2ceb186b866faa8fe71c89cb27536b64bde50e4a6dfe4e23218a12290') { throw "Source archive hash mismatch: $hash" }
+          $target = Join-Path $env:GITHUB_WORKSPACE 'doonce'
+          if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+          New-Item -ItemType Directory -Force $target | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $target -Force
+          if (-not (Test-Path (Join-Path $target 'package.json'))) { throw 'DoOnce package.json missing after extraction.' }
+          @{stage='source';status='passed';sourceSha256=$hash} | ConvertTo-Json | Set-Content 'ci/doonce-result/progress.json' -Encoding utf8
+
+      - name: Setup Node.js 22.12
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      - name: Install real npm dependencies
+        working-directory: doonce
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          npm install --no-fund --no-audit 2>&1 | Tee-Object -FilePath '../ci/doonce-result/logs/npm-install.log'
+          if ($LASTEXITCODE -ne 0) { throw "npm install failed with exit code $LASTEXITCODE" }
+          @{stage='npm-install';status='passed'} | ConvertTo-Json | Set-Content '../ci/doonce-result/progress.json' -Encoding utf8
+
+      - name: Run full project check
+        working-directory: doonce
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          npm run check 2>&1 | Tee-Object -FilePath '../ci/doonce-result/logs/npm-check.log'
+          if ($LASTEXITCODE -ne 0) { throw "npm run check failed with exit code $LASTEXITCODE" }
+          @{stage='check';status='passed'} | ConvertTo-Json | Set-Content '../ci/doonce-result/progress.json' -Encoding utf8
+
+      - name: Build and validate Windows installer
+        working-directory: doonce
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          npm run release:win -- -SkipInstall 2>&1 | Tee-Object -FilePath '../ci/doonce-result/logs/release-win.log'
+          if ($LASTEXITCODE -ne 0) { throw "release:win failed with exit code $LASTEXITCODE" }
+          @{stage='release-win';status='passed'} | ConvertTo-Json | Set-Content '../ci/doonce-result/progress.json' -Encoding utf8
+
+      - name: Verify Stripe against real test API
+        working-directory: doonce
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $required = @('STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET','STRIPE_PRICE_MONTHLY','STRIPE_PRICE_ANNUAL','ACTIVATION_HMAC_SECRET','PUBLIC_APP_URL')
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { throw "Missing required GitHub Actions secret: $name" }
+          }
+          if (-not $env:STRIPE_SECRET_KEY.StartsWith('sk_test_')) { throw 'STRIPE_SECRET_KEY must be a Stripe test key (sk_test_).' }
+          $ErrorActionPreference = 'Continue'
+          npm run verify:stripe 2>&1 | Tee-Object -FilePath '../ci/doonce-result/logs/verify-stripe.log'
+          if ($LASTEXITCODE -ne 0) { throw "verify:stripe failed with exit code $LASTEXITCODE" }
+          @{stage='stripe';status='passed'} | ConvertTo-Json | Set-Content '../ci/doonce-result/progress.json' -Encoding utf8
+
+      - name: Validate final release evidence
+        working-directory: doonce
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = Join-Path (Get-Location) 'apps/desktop/release'
+          $reportPath = Join-Path $release 'release-report.json'
+          $stripePath = Join-Path $release 'stripe-verification.json'
+          if (-not (Test-Path $reportPath)) { throw 'release-report.json missing.' }
+          if (-not (Test-Path $stripePath)) { throw 'stripe-verification.json missing.' }
+          $report = Get-Content $reportPath -Raw | ConvertFrom-Json
+          $stripe = Get-Content $stripePath -Raw | ConvertFrom-Json
+          $installer = Get-ChildItem $release -Filter 'DoOnce-*-x64-Setup.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Final NSIS installer missing.' }
+          $actualHash = (Get-FileHash -Algorithm SHA256 $installer.FullName).Hash.ToLowerInvariant()
+          if ([string]$report.installerSha256 -ne $actualHash) { throw "Installer hash/report mismatch: $actualHash vs $($report.installerSha256)" }
+          if ([string]$report.unpackedSmoke -ne 'passed') { throw "Unpacked smoke test did not pass: $($report.unpackedSmoke)" }
+          if ([string]$report.installedSmoke -ne 'passed') { throw "Installed smoke test did not pass: $($report.installedSmoke)" }
+          if ([string]$stripe.mode -ne 'test') { throw "Stripe verification was not in test mode: $($stripe.mode)" }
+          if ([string]$stripe.checkoutFinalStatus -ne 'expired') { throw "Stripe checkout session was not expired: $($stripe.checkoutFinalStatus)" }
+          @{stage='final-validation';status='passed';installer=$installer.Name;installerSha256=$actualHash;unpackedSmoke=$report.unpackedSmoke;installedSmoke=$report.installedSmoke;stripeMode=$stripe.mode;stripeCheckoutFinalStatus=$stripe.checkoutFinalStatus} | ConvertTo-Json | Set-Content '../ci/doonce-result/progress.json' -Encoding utf8
+
+      - name: Persist CI diagnostics and final deliverable on temporary branch
+        if: always()
+        shell: pwsh
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force 'ci/doonce-result' | Out-Null
+          $progress = $null
+          if (Test-Path 'ci/doonce-result/progress.json') {
+            try { $progress = Get-Content 'ci/doonce-result/progress.json' -Raw | ConvertFrom-Json } catch {}
+          }
+          $release = 'doonce/apps/desktop/release'
+          if (Test-Path "$release/release-report.json") { Copy-Item "$release/release-report.json" 'ci/doonce-result/release-report.json' -Force }
+          if (Test-Path "$release/stripe-verification.json") { Copy-Item "$release/stripe-verification.json" 'ci/doonce-result/stripe-verification.json' -Force }
+          $installer = Get-ChildItem $release -Filter 'DoOnce-*-x64-Setup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($installer) {
+            $hash = (Get-FileHash -Algorithm SHA256 $installer.FullName).Hash.ToLowerInvariant()
+            $hash | Set-Content 'ci/doonce-result/installer.sha256' -Encoding ascii
+            $bytes = [IO.File]::ReadAllBytes($installer.FullName)
+            $b64 = [Convert]::ToBase64String($bytes)
+            $chunkSize = 900000
+            $count = [Math]::Ceiling($b64.Length / $chunkSize)
+            New-Item -ItemType Directory -Force 'ci/doonce-result/exe' | Out-Null
+            Remove-Item 'ci/doonce-result/exe/*.b64' -Force -ErrorAction SilentlyContinue
+            for ($i=0; $i -lt $count; $i++) {
+              $start = $i * $chunkSize
+              $len = [Math]::Min($chunkSize, $b64.Length - $start)
+              $b64.Substring($start,$len) | Set-Content ("ci/doonce-result/exe/part{0:D3}.b64" -f $i) -NoNewline -Encoding ascii
+            }
+            @{name=$installer.Name;size=$installer.Length;sha256=$hash;base64Length=$b64.Length;chunks=$count;chunkSize=$chunkSize} | ConvertTo-Json | Set-Content 'ci/doonce-result/installer-manifest.json' -Encoding utf8
+          }
+          @{jobStatus=$env:JOB_STATUS;progress=$progress;runId=$env:GITHUB_RUN_ID;runAttempt=$env:GITHUB_RUN_ATTEMPT;headSha=$env:GITHUB_SHA;timestamp=(Get-Date).ToUniversalTime().ToString('o')} | ConvertTo-Json -Depth 8 | Set-Content 'ci/doonce-result/status.json' -Encoding utf8
+          git config user.name 'doonce-ci-bot'
+          git config user.email 'doonce-ci-bot@users.noreply.github.com'
+          git add -f ci/doonce-result
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "ci(doonce): persist Windows validation result [skip ci]"
+            git push origin HEAD:doonce-ci-final-20260913
+          }
+
+      - name: Upload final validated DoOnce release
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doonce-windows-final
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            doonce/apps/desktop/release/DoOnce-*-x64-Setup.exe
+            doonce/apps/desktop/release/DoOnce-*-x64-Setup.exe.sha256
+            doonce/apps/desktop/release/release-report.json
+            doonce/apps/desktop/release/stripe-verification.json
