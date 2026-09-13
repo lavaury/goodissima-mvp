@@ -1,0 +1,8 @@
+{
+  "protocol": "chatgpt-local-bridge-v14.3",
+  "id": "bootstrap-v14.3-generic",
+  "action": "status",
+  "sessionId": "",
+  "issuedAt": "",
+  "expiresAt": ""
+}
