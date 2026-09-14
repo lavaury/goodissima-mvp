@@ -54,7 +54,7 @@ test("public case contract rejects oversized and unexpected payloads", async () 
 });
 
 test("atomic UPSERT remains the sole authority under concurrent increments", async () => {
-  const file = "lib/public-case-rate-limit.ts";
+  const file = "lib/rate-limit-bucket.ts";
   const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
   assert.match(source, /ON CONFLICT/);
   assert.match(source, /"count"\s*=\s*"PublicRateLimitBucket"\."count"\s*\+\s*1/);
@@ -68,10 +68,9 @@ test("atomic UPSERT remains the sole authority under concurrent increments", asy
   const sql = (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values });
   const module = loadTestModule<any>(file, {
     "@prisma/client": { Prisma: { sql } },
-    "@/lib/prisma": { prisma: {} },
   });
   const results = await Promise.all(Array.from({ length: 100 }, () =>
-    module.incrementPublicCaseRateLimit(client, { dimension: "SOURCE_10_MIN", keyHash: "hash" }, new Date("2026-09-13T12:00:00Z")),
+    module.consumeRateLimitBucket(client, { dimension: "SOURCE_10_MIN", keyHash: "hash", windowSeconds: 600, limit: 100 }, new Date("2026-09-13T12:00:00Z")),
   ));
   assert.equal(count, 100);
   assert.deepEqual(results.map((item: { count: number }) => item.count), Array.from({ length: 100 }, (_, index) => index + 1));

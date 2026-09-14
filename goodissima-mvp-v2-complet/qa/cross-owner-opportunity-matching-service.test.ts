@@ -45,6 +45,7 @@ function setup(candidateRules: unknown[], persistFilter: (target: string) => boo
     { async findEligibleSourceForOwner() { return { internalSourceRef: "alice-need", internalOwnerRef: "alice", projection: sourceProjection }; } },
     { async listEligibleCandidates(input) { calls.discovered.push(input); return candidates; } },
     lifecycle,
+    () => true,
   );
   return { service, calls };
 }
@@ -94,6 +95,7 @@ test("ineligible source is rejected before run creation or discovery", async () 
     { async findEligibleSourceForOwner() { return null; } },
     { async listEligibleCandidates() { discovered = true; return []; } },
     { async prepareMatchingRun() { prepared = true; return run("PREPARED"); }, async startMatchingRun() { return run("RUNNING"); }, async createCrossOwnerMatchingResults() { return []; }, async markMatchingResultsAvailable() { return run("RESULTS_AVAILABLE"); }, async failMatchingRun() { return run("FAILED"); } },
+    () => true,
   );
   await assert.rejects(service.execute({ ownerId: "alice", sourceId: "alice-need" }), { message: "MATCHING_SOURCE_NOT_FOUND" });
   assert.equal(prepared, false);
@@ -124,4 +126,16 @@ test("source repository rejects absent or revoked consent", async () => {
 test("no public API imports or invokes the internal cross-owner orchestrator", () => {
   const route = readFileSync(new URL("../app/api/links/[linkId]/matching/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(route, /CrossOwnerOpportunityMatchingService|createCrossOwnerMatchingResults|CROSS_OWNER_V1/);
+});
+
+test("server kill switch refuses execution before source lookup", async () => {
+  let sourceRead = false;
+  const service = new CrossOwnerOpportunityMatchingService(
+    { async findEligibleSourceForOwner() { sourceRead = true; return null; } },
+    { async listEligibleCandidates() { return []; } },
+    { async prepareMatchingRun() { return run("PREPARED"); }, async startMatchingRun() { return run("RUNNING"); }, async createCrossOwnerMatchingResults() { return []; }, async markMatchingResultsAvailable() { return run("RESULTS_AVAILABLE"); }, async failMatchingRun() { return run("FAILED"); } },
+    () => false,
+  );
+  await assert.rejects(service.execute({ ownerId: "alice", sourceId: "source" }), { message: "MATCHING_DISABLED" });
+  assert.equal(sourceRead, false);
 });

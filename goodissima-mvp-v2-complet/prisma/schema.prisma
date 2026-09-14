@@ -365,6 +365,7 @@ model User {
   goodissimaIdentity            GoodissimaIdentity?          @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
   notificationPreferences       UserNotificationPreference?
   notifications                 Notification[]
+  matchingExecutionLeases       MatchingExecutionLease[]
   personalFavorites             PersonalFavorite[]
   templateGenerations           TemplateGeneration[]
   templateCriticReports         TemplateCriticReport[]
@@ -570,6 +571,7 @@ model GLink {
   matchingRuns               MatchingRun[]               @relation("MatchingRunSourceGLink")
   matchingResults            MatchingResult[]            @relation("MatchingResultTargetGLink")
   publicCaseCreationRequests PublicCaseCreationRequest[]
+  matchingExecutionLeases    MatchingExecutionLease[]
 
   @@index([workspaceId])
 }
@@ -627,22 +629,24 @@ model RelationCase {
 }
 
 model MatchingRun {
-  id               String            @id @default(cuid())
-  gLinkId          String
-  ownerId          String
-  status           MatchingRunStatus @default(PREPARED)
-  isPaused         Boolean           @default(false)
-  engineVersion    String
-  criteriaSnapshot Json
-  startedAt        DateTime?
-  completedAt      DateTime?
-  failedAt         DateTime?
-  pausedAt         DateTime?
-  closedAt         DateTime?
-  failureCode      String?
-  idempotencyKey   String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                      String            @id @default(cuid())
+  gLinkId                 String
+  ownerId                 String
+  status                  MatchingRunStatus @default(PREPARED)
+  isPaused                Boolean           @default(false)
+  engineVersion           String
+  criteriaSnapshot        Json
+  startedAt               DateTime?
+  completedAt             DateTime?
+  failedAt                DateTime?
+  pausedAt                DateTime?
+  closedAt                DateTime?
+  failureCode             String?
+  idempotencyKey          String?
+  criteriaFingerprintHash String?
+  cacheValidUntil         DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
   gLink   GLink            @relation("MatchingRunSourceGLink", fields: [gLinkId], references: [id], onDelete: Restrict)
   owner   User             @relation("MatchingRunOwner", fields: [ownerId], references: [id], onDelete: Restrict)
@@ -652,6 +656,25 @@ model MatchingRun {
   @@index([gLinkId, createdAt])
   @@index([ownerId, status])
   @@index([ownerId, isPaused])
+  @@index([ownerId, gLinkId, criteriaFingerprintHash, createdAt])
+  @@index([cacheValidUntil])
+  @@index([createdAt])
+}
+
+model MatchingExecutionLease {
+  id                      String   @id @default(cuid())
+  ownerId                 String
+  gLinkId                 String
+  criteriaFingerprintHash String
+  expiresAt               DateTime
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  owner User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  gLink GLink @relation(fields: [gLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, gLinkId, criteriaFingerprintHash])
+  @@index([expiresAt])
 }
 
 model MatchingResult {

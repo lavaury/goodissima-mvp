@@ -10,6 +10,7 @@ import { OPPORTUNITY_COMPARATOR_POLICY_VERSION, OPPORTUNITY_STRUCTURED_ENGINE_VE
 import type { MatchableOpportunityCandidateRepository } from "./cross-owner-opportunity-candidate-repository.ts";
 import type { MatchingResultViewV1 } from "./matching-result-view.ts";
 import { projectMatchingResultView } from "./matching-result-view.ts";
+import { isCrossOwnerMatchingEnabled } from "./matching-safety.ts";
 
 const CROSS_OWNER_CANDIDATE_LIMIT = 80;
 const CROSS_OWNER_RESULT_LIMIT = 50;
@@ -63,18 +64,22 @@ export class CrossOwnerOpportunityMatchingService {
   private readonly sources: MatchableOpportunitySourceRepository;
   private readonly candidates: MatchableOpportunityCandidateRepository;
   private readonly lifecycle: CrossOwnerLifecycle;
+  private readonly enabled: () => boolean;
 
   constructor(
     sources: MatchableOpportunitySourceRepository,
     candidates: MatchableOpportunityCandidateRepository,
     lifecycle: CrossOwnerLifecycle,
+    enabled: () => boolean = isCrossOwnerMatchingEnabled,
   ) {
     this.sources = sources;
     this.candidates = candidates;
     this.lifecycle = lifecycle;
+    this.enabled = enabled;
   }
 
   async execute(input: { ownerId: string; sourceId: string; idempotencyKey?: string }): Promise<CrossOwnerOpportunityMatchingOutput> {
+    if (!this.enabled()) throw new MatchingDomainError("MATCHING_DISABLED");
     const source = await this.sources.findEligibleSourceForOwner(input.ownerId, input.sourceId);
     if (!source || source.internalOwnerRef !== input.ownerId) throw new MatchingDomainError("MATCHING_SOURCE_NOT_FOUND");
     const snapshot = {
