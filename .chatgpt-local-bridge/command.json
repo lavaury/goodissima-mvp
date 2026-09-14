@@ -1,9 +1,8 @@
 {
   "protocol": "chatgpt-local-bridge-v15",
-  "id": "paint-tiny-preview-20260913T234440Z",
-  "action": "screen-capture",
-  "sessionId": "9892a5c402a68ca4623fd9698a040af7",
-  "issuedAt": "2026-09-13T23:44:40Z",
-  "expiresAt": "2026-09-13T23:47:40Z",
-  "maxWidth": 80
+  "id": "pc-status-20260914T115236Z",
+  "action": "pc-status",
+  "sessionId": "0b58b20eb738578bdb3ba362812f5b4a",
+  "issuedAt": "2026-09-14T11:52:36Z",
+  "expiresAt": "2026-09-14T11:55:36Z"
 }
