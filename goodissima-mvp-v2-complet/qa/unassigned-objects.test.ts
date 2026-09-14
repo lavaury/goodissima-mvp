@@ -4,6 +4,7 @@ import * as pagination from "../lib/unassigned-pagination.ts";
 import * as creation from "../lib/object-creation.ts";
 import * as candidateIdentity from "../lib/candidate-identity.ts";
 import * as opportunityProjection from "../lib/opportunities/opportunity-projection.ts";
+import * as caseOrigin from "../lib/case-origin.ts";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 
 function setup(user: string | null = "A") {
@@ -51,6 +52,7 @@ function setup(user: string | null = "A") {
   };
   const deps: any = { "@/lib/prisma": { prisma }, "@/lib/object-creation": creation, "@/lib/candidate-identity": candidateIdentity, "@/lib/unassigned-pagination": pagination,
     "@/lib/opportunities/opportunity-projection": opportunityProjection,
+    "@/lib/case-origin": caseOrigin,
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!user) throw Error("LOGIN"); return { id: user }; } },
     "next/server": { NextResponse: { json: Response.json } }, "next/cache": { revalidatePath: (p: string) => invalidated.push(p) },
     "next/navigation": { redirect: (p: string) => { throw Error(`REDIRECT:${p}`); } }, "@/lib/workspace-portfolio-context": {},

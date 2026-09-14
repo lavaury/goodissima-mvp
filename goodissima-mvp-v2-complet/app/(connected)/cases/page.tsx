@@ -9,7 +9,8 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { resolveCandidateIdentityState } from "@/lib/candidate-identity";
 import { prisma } from "@/lib/prisma";
 import { isSimpleLink } from "@/lib/simple-link-fields";
-import { relationCaseOriginLabel } from "@/lib/case-origin";
+import { relationCaseOriginHref } from "@/lib/case-origin";
+import { RelationCaseOrigin } from "@/components/RelationCaseOrigin";
 
 export default async function CasesPage() {
   noStore();
@@ -50,16 +51,14 @@ export default async function CasesPage() {
             });
 
             return (
-              <Link
+              <article
                 key={item.id}
-                href={`/cases/${item.id}?refresh=1`}
-                prefetch={false}
-                className="block border-b p-5 hover:bg-slate-50"
+                className="relative border-b p-5 hover:bg-slate-50"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="font-semibold">{identity.displayName}</p>
-                    <p className="break-words text-sm text-slate-600">{relationCaseOriginLabel(item.gLink.title)}</p>
+                    <Link href={`/cases/${item.id}?refresh=1`} prefetch={false} className="after:absolute after:inset-0 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700"><span className="font-semibold">{identity.displayName}</span></Link>
+                    <RelationCaseOrigin title={item.gLink.title} href={relationCaseOriginHref(owner.id, item.gLink)} />
                     <p className="break-words text-sm text-slate-500">{identity.displayEmail}</p>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
@@ -69,7 +68,7 @@ export default async function CasesPage() {
                     <StatusBadge status={item.status} />
                   </div>
                 </div>
-              </Link>
+              </article>
             );
           })
         )}

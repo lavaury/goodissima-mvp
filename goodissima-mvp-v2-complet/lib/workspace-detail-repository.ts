@@ -19,7 +19,7 @@ export async function getWorkspaceDetail(ownerId: string, workspaceId: string) {
       },
       relationCases: {
         where: { workspaceId, ownerId }, orderBy: { createdAt: "desc" },
-        select: { id: true, candidateName: true, status: true, gLink: { select: { title: true } } },
+        select: { id: true, candidateName: true, status: true, gLink: { select: { id: true, ownerId: true, title: true, rules: true, templateId: true } } },
       },
     },
   });

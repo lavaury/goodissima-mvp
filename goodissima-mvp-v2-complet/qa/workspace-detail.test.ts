@@ -50,12 +50,15 @@ test("Explorer selects only direct objects and omits unassigned, foreign and ind
 const spatial = loadTestModule("lib/spatial-navigation.ts", {});
 const { WorkspaceDetailView } = loadTestModule("components/WorkspaceDetailView.tsx", { "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow,
   "@/lib/object-creation": creation, "@/components/WorkspaceCreateActions": { WorkspaceCreateActions: () => jsx.jsx("div", { children: "+ Nouveau" }) },
-  "@/lib/case-origin": { relationCaseOriginLabel: (title: string) => `Réponse à « ${title} »` },
+  "@/lib/case-origin": { relationCaseOriginHref: () => "/links/link" },
+  "@/components/RelationCaseOrigin": { RelationCaseOrigin: ({ title, href }: any) => jsx.jsx("a", { href, children: `Réponse à « ${title} »` }) },
   "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial,
   "@/components/SpatialNavigationContext": { PageNavigationContext: () => null } });
 test("real Explorer rendering uses FormTemplate IDs, no fake link or duplicate Opportunity", async () => {
   const html = renderToStaticMarkup(jsx.jsx(WorkspaceDetailView, { workspace: await repository().read("a", "w-a"), explorer: true }));
-  for (const href of ["/gouvernance/parcours/form/pilotage", "/links/link", "/cases/case"]) assert.equal(html.split(`href="${href}"`).length - 1, 1);
+  assert.equal(html.split('href="/gouvernance/parcours/form/pilotage"').length - 1, 1);
+  assert.equal(html.split('href="/links/link"').length - 1, 2);
+  assert.equal(html.split('href="/cases/case"').length - 1, 1);
   assert.ok(html.includes("Aucun formulaire disponible"));
   assert.ok(!html.includes("/parcours/journey/") && !html.includes("Opportunité") && !html.includes("Indirect"));
   assert.ok(html.includes('href="/gouvernance/workspaces/w-a?view=explorer" aria-current="page"'));

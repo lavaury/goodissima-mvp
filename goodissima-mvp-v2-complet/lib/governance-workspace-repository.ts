@@ -13,6 +13,7 @@ import type {
   WorkspaceKind,
 } from "@prisma/client";
 import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection";
+import { relationCaseOriginHref } from "@/lib/case-origin";
 
 export const workspaceCategoryLabels: Record<WorkspaceCategory, string> = {
   PROFESSIONAL: "Professionnel",
@@ -143,6 +144,7 @@ export type UnassignedGovernedJourneySummary = {
 
 export type UnassignedRelationCaseSummary = GovernanceWorkspaceRelationCaseSummary & {
   gLinkId: string;
+  originHref: string | null;
 };
 
 export type UnassignedGLinkSummary = GovernanceWorkspaceGLinkSummary & {
@@ -391,10 +393,10 @@ export async function getUnassignedRelationCaseSummaries(ownerId: string, page =
     where: { ownerId, workspaceId: null }, ...organizeWindow(page),
     orderBy: [{ createdAt: "desc" }, { id: "asc" }],
     select: { id: true, candidateName: true, candidateEmail: true, createdAt: true,
-      gLink: { select: { id: true, title: true } } },
+      gLink: { select: { id: true, ownerId: true, title: true, rules: true, templateId: true } } },
   });
   return organizeResults(rows.map(row => ({ id: row.id, title: resolveCandidateIdentityState(row).displayName,
-    gLinkTitle: row.gLink.title, createdAt: row.createdAt, href: `/cases/${encodeURIComponent(row.id)}` })));
+    gLinkTitle: row.gLink.title, originHref: relationCaseOriginHref(ownerId, row.gLink), createdAt: row.createdAt, href: `/cases/${encodeURIComponent(row.id)}` })));
 }
 
 export async function getUnassignedGLinkSummaries(ownerId: string, page = 0) {
