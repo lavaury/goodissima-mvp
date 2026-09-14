@@ -14,6 +14,7 @@ import type {
 } from "@prisma/client";
 import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection";
 import { relationCaseOriginHref } from "@/lib/case-origin";
+import { classifyRelationTemplate, type BusinessObjectClassification } from "@/lib/business-object-classification";
 
 export const workspaceCategoryLabels: Record<WorkspaceCategory, string> = {
   PROFESSIONAL: "Professionnel",
@@ -140,6 +141,7 @@ export type UnassignedGovernedJourneySummary = {
   title: string;
   createdAt: Date;
   href: string;
+  classification: Extract<BusinessObjectClassification, "JOURNEY" | "LEGACY_OPPORTUNITY" | "LEGACY_AMBIGUOUS">;
 };
 
 export type UnassignedRelationCaseSummary = GovernanceWorkspaceRelationCaseSummary & {
@@ -382,8 +384,9 @@ export async function getUnassignedGovernedJourneySummaries(ownerId: string, pag
     items: window.items.filter(template => resolveTemplateAccess(ownerId, template).read).flatMap(template => {
       const form = template.formTemplates[0];
       if (!form) return [];
+      const classification = classifyRelationTemplate(template.versions[0]?.snapshot);
       return [{ relationTemplateId: template.id, formTemplateId: form.id, title: form.name || template.name,
-        createdAt: template.createdAt, href: `/gouvernance/parcours/${encodeURIComponent(form.id)}/pilotage` }];
+        createdAt: template.createdAt, href: `/gouvernance/parcours/${encodeURIComponent(form.id)}/pilotage`, classification }];
     }),
   };
 }

@@ -11,7 +11,7 @@ import { getCompassContext } from "../lib/boussole-context.ts";
 
 const base = { id: "w-a", ownerId: "a", name: "Contentieux", description: "Contexte réel", category: "PROJECT", kind: "GOVERNANCE", status: "ACTIVE", portfolio: { id: "p-a", ownerId: "a", name: "Europe" } };
 const rows = {
-  relationTemplates: [{ id: "journey", workspaceId: "w-a", name: "Parcours", status: "DRAFT", formTemplates: [{ id: "form", name: "Parcours ouvrable" }] }, { id: "no-form", workspaceId: "w-a", name: "Sans formulaire", status: "DRAFT", formTemplates: [] }],
+  relationTemplates: [{ id: "journey", workspaceId: "w-a", name: "Parcours", status: "DRAFT", versions: [], formTemplates: [{ id: "form", name: "Parcours ouvrable" }] }, { id: "no-form", workspaceId: "w-a", name: "Sans formulaire", status: "DRAFT", versions: [], formTemplates: [] }],
   links: [{ id: "link", workspaceId: "w-a", ownerId: "a", title: "Lien direct", status: "ACTIVE" }],
   relationCases: [{ id: "case", workspaceId: "w-a", ownerId: "a", candidateName: "Candidat", status: "NEW", gLink: { title: "Lien direct" } },
     { id: "indirect", workspaceId: null, ownerId: "a", candidateName: "Indirect", gLink: { workspaceId: "w-a", title: "Lien direct" } }],
@@ -52,6 +52,7 @@ const { WorkspaceDetailView } = loadTestModule("components/WorkspaceDetailView.t
   "@/lib/object-creation": creation, "@/components/WorkspaceCreateActions": { WorkspaceCreateActions: () => jsx.jsx("div", { children: "+ Nouveau" }) },
   "@/lib/case-origin": { relationCaseOriginHref: () => "/links/link" },
   "@/components/RelationCaseOrigin": { RelationCaseOrigin: ({ title, href }: any) => jsx.jsx("a", { href, children: `Réponse à « ${title} »` }) },
+  "@/lib/business-object-classification": { classifyRelationTemplate: () => "JOURNEY", businessObjectLabel: () => "Parcours" },
   "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial,
   "@/components/SpatialNavigationContext": { PageNavigationContext: () => null } });
 test("real Explorer rendering uses FormTemplate IDs, no fake link or duplicate Opportunity", async () => {

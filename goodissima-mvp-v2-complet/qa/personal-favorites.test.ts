@@ -9,6 +9,8 @@ import { renderShellFixture } from "./helpers/render-connected-shell.ts";
 import * as targets from "../lib/personal-favorite-target.ts";
 import * as classification from "../lib/object-creation.ts";
 import * as spatial from "../lib/spatial-navigation.ts";
+import * as businessClassification from "../lib/business-object-classification.ts";
+import { buildOpportunityRulesV1 } from "../lib/opportunities/opportunity-projection.ts";
 
 const read = (file: string) => readFileSync(file, "utf8");
 const access = loadTestModule("lib/relation-template-access.ts", { "@/lib/prisma": { prisma: {} } });
@@ -34,6 +36,7 @@ function fixture(data: Record<string, any[]> = {}) {
   const repository = loadTestModule("lib/personal-favorites-repository.ts", {
     "@/lib/prisma": { prisma }, "@/lib/personal-favorite-target": targets,
     "@/lib/object-creation": classification, "@/lib/spatial-navigation": spatial, "@/lib/relation-template-access": access,
+    "@/lib/business-object-classification": businessClassification,
   });
   const actions = loadTestModule("lib/personal-favorites-actions.ts", {
     "@/lib/auth": { getCurrentPrismaUser: async () => { if (!userId) throw Error("LOGIN"); return { id: userId }; } },
@@ -43,7 +46,7 @@ function fixture(data: Record<string, any[]> = {}) {
   return { ...actions, repository, calls, saved, invalidated, as: (id: string) => { userId = id; } };
 }
 const journey = (id: string, extra = {}) => ({ id, key: id, workspaceId: null, workspace: null, status: "ACTIVE",
-  generations: [{ createdById: "alice" }], versions: [], formTemplates: [{ id: `form-${id}`, name: "Voyage" }], ...extra });
+  generations: [{ createdById: "alice" }], versions: [{ snapshot: { metadata: { source: "governance-v1-minimal-create" } } }], formTemplates: [{ id: `form-${id}`, name: "Voyage" }], ...extra });
 
 test("schema and dedicated migration contain only minimal personal references and User FK", () => {
   const schema = read("prisma/schema.prisma");
@@ -105,11 +108,11 @@ test("inaccessible, deleted and malformed targets do not authorize an add or rev
 
 test("five types resolve in grouped owner/READ queries with no extra object lookups", async () => {
   const f = fixture({ portfolio: [{ id: "p", ownerId: "alice", name: "Projet" }], workspace: [{ id: "w", ownerId: "alice", name: "Espace" }],
-    gLink: [{ id: "s", ownerId: "alice", title: "Simple", rules: { simpleLink: true } }, { id: "o", ownerId: "alice", title: "Offre", rules: { creationSource: "opportunity" } }],
+    gLink: [{ id: "s", ownerId: "alice", title: "Simple", rules: { simpleLink: true } }, { id: "o", ownerId: "alice", title: "Offre", rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria: { subject: "Offre" } }) }],
     relationTemplate: [journey("t")], relationCase: [{ id: "c", ownerId: "alice", candidateName: "Dossier test" }] });
   const refs = [target(), target("WORKSPACE", "w"), target("GLINK", "s"), target("GLINK", "o"), target("RELATION_TEMPLATE", "t"), target("RELATION_CASE", "c")];
   const rows = await f.repository.resolveFavorites("alice", refs);
-  assert.deepEqual(rows.map((r: any) => r.label), ["Portfolio", "Workspace", "Lien simple", "Opportunité", "Parcours gouverné", "Dossier"]);
+  assert.deepEqual(rows.map((r: any) => r.label), ["Portfolio", "Workspace", "Lien", "Opportunité", "Parcours", "Dossier"]);
   assert.equal(f.calls.length, 5);
   for (const call of f.calls) {
     assert.equal(call.args.include, undefined);
@@ -141,11 +144,11 @@ test("classification is recomputed without rewriting the favorite", async () => 
   const link = { id: "l", ownerId: "alice", title: "Objet", rules: {} as any };
   const f = fixture({ gLink: [link] });
   await f.addFavorite(target("GLINK", "l"));
-  assert.equal((await f.listFavorites()).items[0].label, "Lien");
-  link.rules = { creationSource: "opportunity" };
+  assert.equal((await f.listFavorites()).items[0].label, "Objet historique à vérifier");
+  link.rules = buildOpportunityRulesV1({}, { type: "NEED", criteria: { subject: "Objet" } });
   assert.equal((await f.listFavorites()).items[0].label, "Opportunité");
   link.rules.simpleLink = true;
-  assert.equal((await f.listFavorites()).items[0].label, "Lien simple");
+  assert.equal((await f.listFavorites()).items[0].label, "Lien");
   assert.equal(f.saved.size, 1);
 });
 

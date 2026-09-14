@@ -43,13 +43,16 @@ function Destination({ options, title, selectTarget, buttonTarget }: { options: 
   </>;
 }
 export async function SpacesExistingAttachments({ ownerId, params = {}, unreadAttention = [] }: { ownerId: string; params?: Params; unreadAttention?: UnreadCaseAttention[] }) {
-  const [options, journeys, cases, links] = await Promise.all([
+  const [options, classifiedTemplates, cases, links] = await Promise.all([
     getGovernanceWorkspaceOptions(ownerId, organizePage(params.workspacesPage)),
     getUnassignedGovernedJourneySummaries(ownerId, organizePage(params.journeysPage)),
     getUnassignedRelationCaseSummaries(ownerId, organizePage(params.casesPage)),
     getUnassignedGLinkSummaries(ownerId, organizePage(params.linksPage)),
   ]);
   const workspaces = organizeResults(options);
+  const journeys = { ...classifiedTemplates, items: classifiedTemplates.items.filter(item => item.classification === "JOURNEY") };
+  const historicalOpportunities = classifiedTemplates.items.filter(item => item.classification === "LEGACY_OPPORTUNITY");
+  const ambiguousObjects = classifiedTemplates.items.filter(item => item.classification === "LEGACY_AMBIGUOUS");
   return <section id="a-organiser" aria-labelledby="organize-title" className="mt-8 min-w-0 border-t pt-6">
     <h2 id="organize-title" className="text-xl font-bold">À organiser</h2>
     <p className="mt-2 text-sm text-slate-600">Ces objets ne sont actuellement rattachés à aucun Workspace. Vous pouvez les utiliser ainsi ou les organiser quand vous le souhaitez.</p>
@@ -71,8 +74,22 @@ export async function SpacesExistingAttachments({ ownerId, params = {}, unreadAt
         </form> : null}</OrganizationPanel>
       </ObjectActionRow>)}
       </div>
-      <Pages name="journeysPage" label="Parcours" params={params} hasMore={journeys.hasMore} />
+      <Pages name="journeysPage" label="Parcours et objets historiques" params={params} hasMore={classifiedTemplates.hasMore} />
     </section>
+    {historicalOpportunities.length ? <section aria-labelledby="historical-opportunities-title" className="mt-5">
+      <h3 id="historical-opportunities-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">📣</span>Opportunités historiques</h3>
+      <div className={children}>{historicalOpportunities.map(item => <ObjectActionRow as="article" favorite={{ objectKind: "RELATION_TEMPLATE", objectId: item.relationTemplateId }} name={item.title} href={item.href} key={item.formTemplateId} className={row}>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 pr-16"><div className="min-w-0 flex-1"><h4 className="break-words font-semibold">{item.title}</h4><p className="text-sm text-slate-600">Opportunité historique · Créée le {formatDate(item.createdAt)}</p></div><Link href={item.href} aria-label={`Ouvrir l’opportunité historique : ${item.title}`} className={control}>Ouvrir</Link></div>
+        <OrganizationPanel><p className="mt-2 text-sm text-slate-600">Le rattachement organise cet objet historique sans modifier ses données ni sa publication.</p>{workspaces.items.length ? <form id={`attach-historical-opportunity-${item.formTemplateId}`} action={attachGovernedJourneyToWorkspaceAction} className={formClass}><input type="hidden" name="formTemplateId" value={item.formTemplateId} /><Destination options={workspaces.items} title={item.title} /></form> : null}</OrganizationPanel>
+      </ObjectActionRow>)}</div>
+    </section> : null}
+    {ambiguousObjects.length ? <section aria-labelledby="ambiguous-objects-title" className="mt-5">
+      <h3 id="ambiguous-objects-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">🗂️</span>Objets historiques à vérifier</h3>
+      <div className={children}>{ambiguousObjects.map(item => <ObjectActionRow as="article" favorite={{ objectKind: "RELATION_TEMPLATE", objectId: item.relationTemplateId }} name={item.title} href={item.href} key={item.formTemplateId} className={row}>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 pr-16"><div className="min-w-0 flex-1"><h4 className="break-words font-semibold">{item.title}</h4><p className="text-sm text-slate-600">Objet historique à vérifier · Créé le {formatDate(item.createdAt)}</p></div><Link href={item.href} aria-label={`Ouvrir l’objet historique : ${item.title}`} className={control}>Ouvrir</Link></div>
+        <OrganizationPanel><p className="mt-2 text-sm text-slate-600">Le rattachement organise cet objet sans décider automatiquement de sa catégorie métier.</p>{workspaces.items.length ? <form id={`attach-ambiguous-object-${item.formTemplateId}`} action={attachGovernedJourneyToWorkspaceAction} className={formClass}><input type="hidden" name="formTemplateId" value={item.formTemplateId} /><Destination options={workspaces.items} title={item.title} /></form> : null}</OrganizationPanel>
+      </ObjectActionRow>)}</div>
+    </section> : null}
     <div data-boussole-id="relational-cases-workspace-attachment">
     <section aria-labelledby="unassigned-links-title" className="mt-5">
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="unassigned-links-title" className="flex items-center gap-2 font-bold"><span aria-hidden="true">🔗</span>Liens et opportunités</h3><Link href="/opportunities" className="text-sm font-semibold text-slate-600 underline-offset-4 hover:underline">Voir toutes les opportunités</Link></div>

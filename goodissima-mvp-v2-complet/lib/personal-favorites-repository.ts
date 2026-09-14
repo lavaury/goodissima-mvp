@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { linkObjectLabel } from "@/lib/object-creation";
 import { businessLabel } from "@/lib/spatial-navigation";
 import { getTemplateCreationProofWhere, resolveTemplateAccess, templateAccessSelect } from "@/lib/relation-template-access";
 import { favoriteKey, favoritePage, favoriteObjectId, favoriteTarget, type FavoriteTarget } from "@/lib/personal-favorite-target";
+import { businessObjectLabel, classifyGLink, classifyRelationTemplate } from "@/lib/business-object-classification";
 
 export const FAVORITES_PAGE_SIZE = 20;
 export type ResolvedFavorite = FavoriteTarget & { title: string; label: string; href: string };
@@ -31,10 +31,11 @@ export async function resolveFavorites(userId: string, targets: FavoriteTarget[]
   const resolved = [
     ...ps.map(p => row("PORTFOLIO", p.id, p.name, "Portfolio", `/gouvernance/portfolios/${encodeURIComponent(p.id)}`)),
     ...ws.map(w => row("WORKSPACE", w.id, w.name, "Workspace", `/gouvernance/workspaces/${encodeURIComponent(w.id)}`)),
-    ...ls.map(l => row("GLINK", l.id, l.title, linkObjectLabel(l.rules), `/links/${encodeURIComponent(l.id)}`)),
+    ...ls.map(l => row("GLINK", l.id, l.title, businessObjectLabel(classifyGLink(l.rules)), `/links/${encodeURIComponent(l.id)}`)),
     ...ts.filter(t => resolveTemplateAccess(userId, t).read).flatMap(t => {
       const form = t.formTemplates[0];
-      return form && favoriteObjectId(form.id) ? [row("RELATION_TEMPLATE", t.id, businessLabel(form.name, "Parcours gouverné", [form.id]), "Parcours gouverné", `/gouvernance/parcours/${encodeURIComponent(form.id)}/pilotage`)] : [];
+      const label = businessObjectLabel(classifyRelationTemplate(t.versions[0]?.snapshot));
+      return form && favoriteObjectId(form.id) ? [row("RELATION_TEMPLATE", t.id, businessLabel(form.name, label, [form.id]), label, `/gouvernance/parcours/${encodeURIComponent(form.id)}/pilotage`)] : [];
     }),
     ...cs.map(c => row("RELATION_CASE", c.id, c.candidateName, "Dossier", `/cases/${encodeURIComponent(c.id)}`)),
   ];

@@ -24,6 +24,9 @@ import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-reposi
 import { changeGovernedJourneyWorkspaceAction } from "@/lib/governance-workspace-actions";
 import { prisma } from "@/lib/prisma";
 import { getTemplateReadAccess } from "@/lib/relation-template-access";
+import { classifyRelationTemplate } from "@/lib/business-object-classification";
+import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection";
+import { HistoricalTemplateCompatibilityView } from "@/components/HistoricalTemplateCompatibilityView";
 
 export const dynamic = "force-dynamic";
 
@@ -408,7 +411,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       relationTemplate: {
         include: {
           workspace: { select: navigationWorkspaceSelect },
-          relationCases: { select: { id: true, candidateName: true }, orderBy: { createdAt: "desc" } },
+          relationCases: { where: { ownerId: owner.id }, select: { id: true, candidateName: true }, orderBy: { createdAt: "desc" } },
+          links: { where: { ownerId: owner.id }, select: { id: true, title: true, status: true, rules: true, templateId: true }, orderBy: { createdAt: "desc" } },
           versions: {
             orderBy: { version: "desc" },
             take: 1,
@@ -424,11 +428,19 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const snapshot = asRecord(version?.snapshot);
   const metadata = asRecord(snapshot.metadata);
   if (!formTemplate.relationTemplate) notFound();
-  const workspaceOptions = await getGovernanceWorkspaceOptions(owner.id);
   const creationPlan = asRecord(metadata.creationPlan);
+  const title = text(creationPlan.title) ?? formTemplate.name;
+  const classification = classifyRelationTemplate(snapshot);
+  if (classification !== "JOURNEY") return <HistoricalTemplateCompatibilityView
+    title={title}
+    description={formTemplate.description ?? formTemplate.relationTemplate.description}
+    ambiguous={classification === "LEGACY_AMBIGUOUS"}
+    links={formTemplate.relationTemplate.links.map(link => ({ title: link.title, status: link.status, href: opportunityOwnerHref(link) }))}
+    cases={formTemplate.relationTemplate.relationCases.map(item => ({ candidateName: item.candidateName, href: `/cases/${encodeURIComponent(item.id)}` }))}
+  />;
+  const workspaceOptions = await getGovernanceWorkspaceOptions(owner.id);
   const validation = asRecord(metadata.humanValidation);
 
-  const title = text(creationPlan.title) ?? formTemplate.name;
   const objective = text(creationPlan.objective) ?? formTemplate.description ?? "Objectif non renseigné.";
   const initialNeed = text(creationPlan.initialNeed) ?? formTemplate.description ?? "Besoin initial non renseigné.";
   const workspaceDisplay =

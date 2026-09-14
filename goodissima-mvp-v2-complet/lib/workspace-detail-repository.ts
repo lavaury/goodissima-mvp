@@ -11,7 +11,7 @@ export async function getWorkspaceDetail(ownerId: string, workspaceId: string) {
         where: { workspaceId }, orderBy: { createdAt: "desc" },
         select: { id: true, name: true, status: true, formTemplates: {
           orderBy: { createdAt: "asc" }, take: 1, select: { id: true, name: true },
-        } },
+        }, versions: { where: { version: 1 }, take: 1, select: { snapshot: true } } },
       },
       links: {
         where: { workspaceId, ownerId }, orderBy: { createdAt: "desc" },

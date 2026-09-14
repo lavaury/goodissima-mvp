@@ -6,6 +6,8 @@ import { loadTestModule } from "./helpers/load-test-module.ts";
 import { renderShellFixture } from "./helpers/render-connected-shell.ts";
 import * as classification from "../lib/object-creation.ts";
 import * as spatial from "../lib/spatial-navigation.ts";
+import * as businessClassification from "../lib/business-object-classification.ts";
+import { buildOpportunityRulesV1 } from "../lib/opportunities/opportunity-projection.ts";
 
 const access = loadTestModule("lib/relation-template-access.ts", { "@/lib/prisma": { prisma: {} } });
 function fixture(rows: Record<string, any[]> = {}) {
@@ -16,11 +18,12 @@ function fixture(rows: Record<string, any[]> = {}) {
   const search = loadTestModule("lib/goodissima-search.ts", {
     "@/lib/prisma": { prisma }, "@/lib/object-creation": classification,
     "@/lib/spatial-navigation": spatial, "@/lib/relation-template-access": access,
+    "@/lib/business-object-classification": businessClassification,
   });
   return { ...search, calls };
 }
 const template = (id: string, extra = {}) => ({ id, key: id, status: "ACTIVE", workspaceId: null, workspace: null,
-  name: "Projet", generations: [{ createdById: "owner" }], versions: [], formTemplates: [{ id: `form-${id}`, name: "Projet" }], ...extra });
+  name: "Projet", generations: [{ createdById: "owner" }], versions: [{ snapshot: { metadata: { source: "governance-v1-minimal-create" } } }], formTemplates: [{ id: `form-${id}`, name: "Projet" }], ...extra });
 
 test("empty, short, oversized and repeated query parameters perform no object queries", async () => {
   const f = fixture();
@@ -74,10 +77,10 @@ test("READ reuses Workspace precedence and rejects foreign, contradictory and sy
 test("six object types use existing classification and encoded internal destinations only", async () => {
   const f = fixture({ portfolio: [{ id: "p/?token=x", name: "Projet" }], workspace: [{ id: "w", name: "Projet" }],
     gLink: [{ id: "simple", title: "Projet", rules: { simpleLink: true, creationSource: "opportunity" } },
-      { id: "opp", title: "https://site/secure/token", rules: { creationSource: "opportunity" } }],
+      { id: "opp", title: "https://site/secure/token", rules: buildOpportunityRulesV1({}, { type: "OFFER", criteria: { subject: "Projet" } }) }],
     relationTemplate: [template("t")], relationCase: [{ id: "c", candidateName: "Alice" }] });
   const result = await f.searchGoodissima("owner", "Projet");
-  assert.deepEqual(result.items.map((r: any) => r.type), ["Portfolio", "Workspace", "Lien simple", "Opportunité", "Parcours gouverné", "Dossier"]);
+  assert.deepEqual(result.items.map((r: any) => r.type), ["Portfolio", "Workspace", "Lien", "Opportunité", "Parcours", "Dossier"]);
   assert.equal(result.items[0].href, "/gouvernance/portfolios/p%2F%3Ftoken%3Dx");
   assert.equal(result.items[3].title, "Opportunité");
   for (const item of result.items) {

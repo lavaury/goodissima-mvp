@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { WorkspaceCreateActions } from "@/components/WorkspaceCreateActions";
 import { relationCaseOriginHref } from "@/lib/case-origin";
 import { RelationCaseOrigin } from "@/components/RelationCaseOrigin";
+import { businessObjectLabel, classifyRelationTemplate } from "@/lib/business-object-classification";
 
 const labels: Record<string, string> = {
   ACTIVE: "Actif", ARCHIVED: "Archivé", DRAFT: "Brouillon", PUBLISHED: "Publié",
@@ -20,8 +21,8 @@ const labels: Record<string, string> = {
 export function WorkspaceDetailView({ workspace, explorer = false, pilotage }: { workspace: WorkspaceDetail; explorer?: boolean; pilotage?: ReactNode }) {
   const pathname = `/gouvernance/workspaces/${encodeURIComponent(workspace.id)}`;
   const rows = [
-    ...workspace.relationTemplates.map(item => ({ favorite: { objectKind: "RELATION_TEMPLATE" as const, objectId: item.id }, key: `journey-${item.id}`, name: businessLabel(item.formTemplates[0]?.name || item.name, "Parcours", [item.id]), origin: null, type: "Parcours", status: item.status,
-      href: item.formTemplates[0] ? `/gouvernance/parcours/${encodeURIComponent(item.formTemplates[0].id)}/pilotage` : null })),
+    ...workspace.relationTemplates.map(item => { const label = businessObjectLabel(classifyRelationTemplate(item.versions[0]?.snapshot)); return ({ favorite: { objectKind: "RELATION_TEMPLATE" as const, objectId: item.id }, key: `journey-${item.id}`, name: businessLabel(item.formTemplates[0]?.name || item.name, label, [item.id]), origin: null, type: label, status: item.status,
+      href: item.formTemplates[0] ? `/gouvernance/parcours/${encodeURIComponent(item.formTemplates[0].id)}/pilotage` : null }); }),
     ...workspace.links.map(item => ({ favorite: { objectKind: "GLINK" as const, objectId: item.id }, key: `link-${item.id}`, name: businessLabel(item.title, "Lien", [item.id]), origin: null, type: linkObjectLabel(item.rules), status: item.status, href: `/links/${encodeURIComponent(item.id)}` })),
     ...workspace.relationCases.map(item => ({ favorite: { objectKind: "RELATION_CASE" as const, objectId: item.id }, key: `case-${item.id}`, name: businessLabel(item.candidateName, "Candidat non identifié", [item.id]), origin: { title: item.gLink.title, href: relationCaseOriginHref(workspace.ownerId, item.gLink) }, type: "Dossier", status: item.status, href: `/cases/${encodeURIComponent(item.id)}` })),
   ];

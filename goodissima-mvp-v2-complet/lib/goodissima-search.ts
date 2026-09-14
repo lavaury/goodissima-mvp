@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { linkObjectLabel } from "@/lib/object-creation";
 import { businessLabel } from "@/lib/spatial-navigation";
 import { getTemplateCreationProofWhere, resolveTemplateAccess, templateAccessSelect } from "@/lib/relation-template-access";
+import { businessObjectLabel, classifyGLink, classifyRelationTemplate } from "@/lib/business-object-classification";
 
 export const SEARCH_LIMIT = 10;
 export function searchTerm(value: unknown): string {
@@ -45,10 +45,11 @@ export async function searchGoodissima(ownerId: string, input: unknown) {
     items: [
       ...portfolios.slice(0, SEARCH_LIMIT).map(p => row(p.id, p.name, "Portfolio", "/gouvernance/portfolios/")),
       ...workspaces.slice(0, SEARCH_LIMIT).map(w => row(w.id, w.name, "Workspace", "/gouvernance/workspaces/")),
-      ...links.slice(0, SEARCH_LIMIT).map(l => row(l.id, l.title, linkObjectLabel(l.rules), "/links/")),
+      ...links.slice(0, SEARCH_LIMIT).map(l => row(l.id, l.title, businessObjectLabel(classifyGLink(l.rules)), "/links/")),
       ...templates.slice(0, SEARCH_LIMIT).filter(t => resolveTemplateAccess(ownerId, t).read).flatMap(t => {
         const form = t.formTemplates[0];
-        return form ? [row(form.id, form.name, "Parcours gouverné", "/gouvernance/parcours/", "/pilotage")] : [];
+        const classification = classifyRelationTemplate(t.versions[0]?.snapshot);
+        return form ? [row(form.id, form.name, businessObjectLabel(classification), "/gouvernance/parcours/", "/pilotage")] : [];
       }),
       ...cases.slice(0, SEARCH_LIMIT).map(c => row(c.id, c.candidateName, "Dossier", "/cases/")),
     ],
