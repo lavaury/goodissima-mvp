@@ -573,3 +573,52 @@ test("cross-owner persistence rejects a source that revokes consent or leaves AC
     assert.equal(repository.results.size, 0);
   }
 });
+
+test("cross-owner reads and decisions revalidate revoked or inactive targets without rewriting history", async () => {
+  for (const invalidTarget of [
+    { id: "bob", ownerId: "owner-2", status: "ACTIVE", rules: opportunityRules("OFFER", "Propose garde", false) },
+    { id: "bob", ownerId: "owner-2", status: "DISABLED", rules: opportunityRules("OFFER", "Propose garde") },
+  ]) {
+    const { repository, service, run, projection } = await crossOwnerFixture();
+    const [result] = await service.createCrossOwnerMatchingResults({ ownerId: "owner-1", runId: run.id, expectedSourceProjection: projection("source"), results: [{ internalTargetRef: "bob", expectedProjection: projection("bob"), explanation: { band: "GOOD" } }] });
+    await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: run.id });
+    repository.links.set("bob", invalidTarget);
+    const read = await service.getRevalidatedCrossOwnerRunWithResults({ ownerId: "owner-1", runId: run.id });
+    assert.deepEqual(read.results, []);
+    assert.deepEqual(read.invalidatedResultIds, [result.id]);
+    await expectCode(service.transitionCrossOwnerMatchingResult({ ownerId: "owner-1", runId: run.id, resultId: result.id, nextStatus: "SELECTED" }), "MATCHING_RESULT_UNAVAILABLE");
+    assert.equal(repository.results.get(result.id)?.status, "AVAILABLE");
+    assert.equal(repository.results.get(result.id)?.relationCaseId, null);
+  }
+});
+
+test("cross-owner read fails closed when an empty run source revokes consent", async () => {
+  const { repository, service, run } = await crossOwnerFixture();
+  await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: run.id });
+  repository.links.set("source", { id: "source", ownerId: "owner-1", status: "ACTIVE", rules: opportunityRules("NEED", "Recherche garde", false) });
+  await expectCode(service.getRevalidatedCrossOwnerRunWithResults({ ownerId: "owner-1", runId: run.id }), "MATCHING_RESULT_UNAVAILABLE");
+  assert.equal(repository.runs.get(run.id)?.status, "RESULTS_AVAILABLE");
+  assert.equal(repository.results.size, 0);
+});
+
+test("cross-owner read hides a target whose current criteria are no longer compatible", async () => {
+  const { repository, service, run, projection } = await crossOwnerFixture();
+  const [result] = await service.createCrossOwnerMatchingResults({ ownerId: "owner-1", runId: run.id, expectedSourceProjection: projection("source"), results: [{ internalTargetRef: "bob", expectedProjection: projection("bob"), explanation: { band: "GOOD" } }] });
+  await service.markMatchingResultsAvailable({ ownerId: "owner-1", runId: run.id });
+  repository.links.set("source", { id: "source", ownerId: "owner-1", status: "ACTIVE", rules: buildOpportunityRulesV1({}, { type: "NEED", matchingEnabled: true, criteria: { subject: "Recherche garde", availability: { days: ["TUESDAY"], timeFrom: "18:00", timeTo: "20:00" } } }) });
+  repository.links.set("bob", { id: "bob", ownerId: "owner-2", status: "ACTIVE", rules: buildOpportunityRulesV1({}, { type: "OFFER", matchingEnabled: true, criteria: { subject: "Propose garde", availability: { days: ["MONDAY"], timeFrom: "08:00", timeTo: "10:00" } } }) });
+  const read = await service.getRevalidatedCrossOwnerRunWithResults({ ownerId: "owner-1", runId: run.id });
+  assert.deepEqual(read.results, []);
+  assert.deepEqual(read.invalidatedResultIds, [result.id]);
+  assert.equal(repository.results.get(result.id)?.status, "AVAILABLE");
+});
+
+test("cross-owner persistence enforces the public Top-K limit in depth", async () => {
+  const { service, run, projection } = await crossOwnerFixture();
+  await assert.rejects(service.createCrossOwnerMatchingResults({
+    ownerId: "owner-1",
+    runId: run.id,
+    expectedSourceProjection: projection("source"),
+    results: Array.from({ length: 6 }, (_, index) => ({ internalTargetRef: `target-${index}`, expectedProjection: projection("bob"), explanation: {} })),
+  }), { name: "RangeError", message: "CROSS_OWNER_RESULT_LIMIT_EXCEEDED" });
+});

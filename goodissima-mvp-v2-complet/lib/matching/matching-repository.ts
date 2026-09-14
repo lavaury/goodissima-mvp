@@ -27,11 +27,13 @@ export type MatchingRunCreate = {
   engineVersion: string;
   criteriaSnapshot: unknown;
   idempotencyKey: string | null;
+  criteriaFingerprintHash?: string | null;
+  cacheValidUntil?: Date | null;
 };
 
 export type MatchingRunUpdate = Partial<Pick<
   MatchingRunRecord,
-  "status" | "isPaused" | "startedAt" | "completedAt" | "failedAt" | "pausedAt" | "closedAt" | "failureCode"
+  "status" | "isPaused" | "startedAt" | "completedAt" | "failedAt" | "pausedAt" | "closedAt" | "failureCode" | "criteriaFingerprintHash" | "cacheValidUntil"
 >>;
 
 export type MatchingResultCreate = {
@@ -109,7 +111,8 @@ function mapRun(row: {
   id: string; gLinkId: string; ownerId: string; status: MatchingRunStatus; isPaused: boolean;
   engineVersion: string; criteriaSnapshot: Prisma.JsonValue; startedAt: Date | null;
   completedAt: Date | null; failedAt: Date | null; pausedAt: Date | null; closedAt: Date | null;
-  failureCode: string | null; idempotencyKey: string | null; createdAt: Date; updatedAt: Date;
+  failureCode: string | null; idempotencyKey: string | null; criteriaFingerprintHash: string | null;
+  cacheValidUntil: Date | null; createdAt: Date; updatedAt: Date;
 }): MatchingRunRecord {
   return { ...row };
 }

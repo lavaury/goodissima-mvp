@@ -45,13 +45,15 @@ export async function acquireMatchingExecutionLease(client: MatchingSafetyClient
 }
 
 export function releaseMatchingExecutionLease(client: MatchingSafetyClient, input: {
+  leaseId: string;
   ownerId: string;
   gLinkId: string;
   criteriaFingerprintHash: string;
 }) {
   return client.$executeRaw(Prisma.sql`
     DELETE FROM "MatchingExecutionLease"
-    WHERE "ownerId" = ${input.ownerId}
+    WHERE "id" = ${input.leaseId}
+      AND "ownerId" = ${input.ownerId}
       AND "gLinkId" = ${input.gLinkId}
       AND "criteriaFingerprintHash" = ${input.criteriaFingerprintHash}
   `);

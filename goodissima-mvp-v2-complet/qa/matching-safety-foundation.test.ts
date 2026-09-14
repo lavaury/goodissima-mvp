@@ -13,6 +13,7 @@ import {
 import {
   acquireMatchingExecutionLease,
   findReusableMatchingRun,
+  releaseMatchingExecutionLease,
 } from "../lib/matching/matching-safety-repository.ts";
 import type { MatchableOpportunityProjectionV1 } from "../lib/opportunities/matching/matchable-projection.ts";
 
@@ -101,6 +102,8 @@ test("one database lease wins and an expired lease can be reacquired", async () 
   const source = readFileSync(new URL("../lib/matching/matching-safety-repository.ts", import.meta.url), "utf8");
   assert.match(source, /ON CONFLICT/);
   assert.match(source, /"expiresAt"\s*<=/);
+  assert.match(source, /WHERE "id" = \$\{input\.leaseId\}/);
+  await releaseMatchingExecutionLease(client, { leaseId: "lease", ownerId: "owner", gLinkId: "link", criteriaFingerprintHash: "hash" });
 });
 
 test("recent completed cache is selected and expired cache is ignored by the query", async () => {

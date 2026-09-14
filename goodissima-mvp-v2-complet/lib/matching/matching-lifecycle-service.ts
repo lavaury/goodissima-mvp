@@ -20,10 +20,11 @@ import {
   buildMatchableOpportunityProjection,
   structuredOpportunityMatchingConsent,
 } from "../opportunities/matching/matchable-projection.ts";
+import { rankStructuredOpportunityMatches } from "../opportunities/matching/structured-matcher.ts";
 
 const MAX_LIST_LIMIT = 100;
 const MAX_FAILURE_CODE_LENGTH = 120;
-const MAX_CROSS_OWNER_RESULTS = 100;
+const MAX_CROSS_OWNER_RESULTS = 5;
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -106,6 +107,8 @@ export class MatchingLifecycleService {
     engineVersion: string;
     criteriaSnapshot: unknown;
     idempotencyKey?: string;
+    criteriaFingerprintHash?: string;
+    cacheValidUntil?: Date;
   }): Promise<MatchingRunRecord> {
     const criteriaSnapshot = normalizeJson(input.criteriaSnapshot);
     const idempotencyKey = input.idempotencyKey?.trim() || null;
@@ -129,6 +132,8 @@ export class MatchingLifecycleService {
         engineVersion: input.engineVersion,
         criteriaSnapshot,
         idempotencyKey,
+        criteriaFingerprintHash: input.criteriaFingerprintHash ?? null,
+        cacheValidUntil: input.cacheValidUntil ?? null,
       });
     } catch (error) {
       if (!idempotencyKey || !isMatchingRunIdempotencyUniqueError(error)) throw error;
@@ -338,6 +343,48 @@ export class MatchingLifecycleService {
     });
   }
 
+  async getRevalidatedCrossOwnerRunWithResults(input: { ownerId: string; runId: string }) {
+    return this.repository.transaction(async (repository) => {
+      const persisted = await repository.findRunWithResultsForOwner(input.ownerId, input.runId);
+      if (!persisted || !isCrossOwnerV1Snapshot(persisted.run.criteriaSnapshot)) {
+        throw new MatchingDomainError("MATCHING_RUN_NOT_FOUND");
+      }
+      const eligibility = await this.crossOwnerEligibility(repository, persisted.run, persisted.results);
+      if (!eligibility.sourceEligible) throw new MatchingDomainError("MATCHING_RESULT_UNAVAILABLE");
+      return { run: persisted.run, results: eligibility.eligible, invalidatedResultIds: eligibility.invalidated };
+    });
+  }
+
+  async transitionCrossOwnerMatchingResult(input: {
+    ownerId: string;
+    runId: string;
+    resultId: string;
+    nextStatus: Extract<MatchingResultStatus, "SELECTED" | "DISMISSED">;
+  }) {
+    return this.repository.transaction(async (repository) => {
+      const run = requireRun(await repository.findRunForOwner(input.ownerId, input.runId));
+      assertMutableRun(run);
+      if (!isCrossOwnerV1Snapshot(run.criteriaSnapshot) || run.status !== "RESULTS_AVAILABLE") {
+        throw new MatchingDomainError("MATCHING_RESULT_UNAVAILABLE");
+      }
+      const result = await repository.findResultForOwner(input.ownerId, input.runId, input.resultId);
+      if (!result) throw new MatchingDomainError("MATCHING_RESULT_UNAVAILABLE");
+      const eligibility = await this.crossOwnerEligibility(repository, run, [result]);
+      if (eligibility.invalidated.length > 0) throw new MatchingDomainError("MATCHING_RESULT_UNAVAILABLE");
+      if (input.nextStatus === result.status) return result;
+      if (!canTransitionMatchingResult(run, result.status, input.nextStatus)) {
+        throw new MatchingDomainError("MATCHING_INVALID_RESULT_TRANSITION");
+      }
+      const now = this.now();
+      const data = input.nextStatus === "SELECTED"
+        ? { status: input.nextStatus, selectedAt: now, dismissedAt: null, linkedAt: null }
+        : { status: input.nextStatus, selectedAt: null, dismissedAt: now, linkedAt: null };
+      const updated = await repository.updateResultConditionally({ ownerId: input.ownerId, runId: input.runId, resultId: input.resultId, expectedStatus: result.status, expectedRunStatus: run.status, data });
+      if (!updated) throw new MatchingDomainError("MATCHING_INVALID_RESULT_TRANSITION");
+      return updated;
+    });
+  }
+
   async transitionMatchingResult(input: {
     ownerId: string;
     runId: string;
@@ -426,5 +473,38 @@ export class MatchingLifecycleService {
         throw new MatchingDomainError("MATCHING_DUPLICATE_RESULT");
       }
     }
+  }
+
+  private async crossOwnerEligibility(repository: MatchingRepository, run: MatchingRunRecord, results: MatchingResultRecord[]) {
+    const links = await repository.findGLinksForMatchingEligibility([run.gLinkId, ...results.map((result) => result.targetGLinkId)]);
+    const byId = new Map(links.map((link) => [link.id, link]));
+    const source = byId.get(run.gLinkId);
+    const sourceProjection = source ? buildMatchableOpportunityProjection({ rules: source.rules }) : null;
+    const sourceEligible = Boolean(source
+      && source.ownerId === run.ownerId
+      && source.status === "ACTIVE"
+      && structuredOpportunityMatchingConsent(source.rules) === "ENABLED"
+      && sourceProjection);
+    const complementaryType = sourceProjection?.opportunityType === "NEED" ? "OFFER" : "NEED";
+    const candidates: Array<{ result: MatchingResultRecord; projection: MatchableOpportunityProjectionV1; ownerId: string }> = [];
+    const invalidated: string[] = [];
+    for (const result of results) {
+      const target = byId.get(result.targetGLinkId);
+      const projection = target ? buildMatchableOpportunityProjection({ rules: target.rules }) : null;
+      if (sourceEligible && target && target.ownerId !== source!.ownerId && target.status === "ACTIVE"
+        && structuredOpportunityMatchingConsent(target.rules) === "ENABLED" && projection
+        && projection.opportunityType === complementaryType) candidates.push({ result, projection, ownerId: target.ownerId });
+      else invalidated.push(result.id);
+    }
+    const stillMatching = sourceEligible && sourceProjection
+      ? new Set(rankStructuredOpportunityMatches(
+        { id: run.gLinkId, ownerId: source!.ownerId, status: "ACTIVE", matchingConsent: "EXPLICIT", projection: sourceProjection },
+        candidates.map(({ result, projection, ownerId }) => ({ id: result.targetGLinkId, ownerId, status: "ACTIVE", matchingConsent: "EXPLICIT", projection })),
+        "CROSS_OWNER_V1",
+      ).map((match) => match.targetGLinkId))
+      : new Set<string>();
+    const eligible = candidates.filter(({ result }) => stillMatching.has(result.targetGLinkId)).map(({ result }) => result);
+    for (const { result } of candidates) if (!stillMatching.has(result.targetGLinkId)) invalidated.push(result.id);
+    return { sourceEligible, eligible, invalidated };
   }
 }

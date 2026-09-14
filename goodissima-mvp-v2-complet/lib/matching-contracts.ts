@@ -38,6 +38,8 @@ export type MatchingRunRecord = MatchingRunControlState & {
   closedAt: Date | null;
   failureCode: string | null;
   idempotencyKey: string | null;
+  criteriaFingerprintHash?: string | null;
+  cacheValidUntil?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -77,6 +79,9 @@ export const MATCHING_DOMAIN_ERROR_CODES = [
   "MATCHING_CRITERIA_CHANGED",
   "MATCHING_EXECUTION_IN_PROGRESS",
   "MATCHING_EXECUTION_FAILED",
+  "MATCHING_THROTTLED",
+  "MATCHING_PROTECTION_UNAVAILABLE",
+  "MATCHING_RESULT_UNAVAILABLE",
   "MATCHING_IDEMPOTENCY_KEY_INVALID",
 ] as const;
 

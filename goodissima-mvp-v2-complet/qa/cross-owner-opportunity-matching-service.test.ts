@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after } from "node:test";
 import type { MatchingResultRecord, MatchingRunRecord } from "../lib/matching-contracts.ts";
 import { CrossOwnerOpportunityMatchingService, PrismaMatchableOpportunitySourceRepository } from "../lib/matching/cross-owner-opportunity-matching-service.ts";
 import type { MatchCandidateV1 } from "../lib/matching/cross-owner-opportunity-candidate-repository.ts";
 import { buildOpportunityRulesV1 } from "../lib/opportunities/opportunity-projection.ts";
 import { buildMatchableOpportunityProjection } from "../lib/opportunities/matching/matchable-projection.ts";
+
+const originalRateLimitSecret = process.env.RATE_LIMIT_HMAC_SECRET;
+process.env.RATE_LIMIT_HMAC_SECRET = "cross-owner-test-secret-that-is-at-least-32-characters";
+after(() => {
+  if (originalRateLimitSecret === undefined) delete process.env.RATE_LIMIT_HMAC_SECRET;
+  else process.env.RATE_LIMIT_HMAC_SECRET = originalRateLimitSecret;
+});
 
 function rules(type: "OFFER" | "NEED", subject: string, location: string, days: Array<"MONDAY" | "TUESDAY" | "THURSDAY">, from: string, to: string, matchingEnabled = true) {
   return buildOpportunityRulesV1({}, { type, matchingEnabled, criteria: { subject, locations: [location], availability: { days, timeFrom: from, timeTo: to }, terms: [type === "OFFER" ? "PRIVATE_BOB_TERM" : "Recherche"] } });
@@ -13,7 +20,7 @@ function rules(type: "OFFER" | "NEED", subject: string, location: string, days: 
 
 function run(status: MatchingRunRecord["status"]): MatchingRunRecord {
   const now = new Date("2026-09-12T10:00:00.000Z");
-  return { id: "cross-run", gLinkId: "alice-need", ownerId: "alice", status, isPaused: false, engineVersion: "opportunity-structured-v1", criteriaSnapshot: {}, startedAt: status === "RUNNING" ? now : null, completedAt: status === "RESULTS_AVAILABLE" ? now : null, failedAt: null, pausedAt: null, closedAt: null, failureCode: null, idempotencyKey: null, createdAt: now, updatedAt: now };
+  return { id: "cross-run", gLinkId: "alice-need", ownerId: "alice", status, isPaused: false, engineVersion: "opportunity-structured-v1", criteriaSnapshot: { scope: "CROSS_OWNER_V1", sourceType: "NEED" }, startedAt: status === "RUNNING" ? now : null, completedAt: status === "RESULTS_AVAILABLE" ? now : null, failedAt: null, pausedAt: null, closedAt: null, failureCode: null, idempotencyKey: null, criteriaFingerprintHash: "hash", cacheValidUntil: new Date(now.getTime() + 600_000), createdAt: now, updatedAt: now };
 }
 
 function persisted(target: string, explanation: unknown, rank: number): MatchingResultRecord {
@@ -40,12 +47,21 @@ function setup(candidateRules: unknown[], persistFilter: (target: string) => boo
     },
     async markMatchingResultsAvailable() { return run("RESULTS_AVAILABLE"); },
     async failMatchingRun() { calls.failed += 1; return run("FAILED"); },
+    async getRevalidatedCrossOwnerRunWithResults() { return { run: run("RESULTS_AVAILABLE"), results: [], invalidatedResultIds: [] }; },
+    async transitionCrossOwnerMatchingResult() { return persisted("target-0", {}, 0); },
+  };
+  const safety = {
+    async consume() { return { allowed: true as const }; },
+    async findReusable() { return null; },
+    async acquire() { return { acquired: true as const, leaseId: "lease-test" }; },
+    async release() { return undefined; },
   };
   const service = new CrossOwnerOpportunityMatchingService(
     { async findEligibleSourceForOwner() { return { internalSourceRef: "alice-need", internalOwnerRef: "alice", projection: sourceProjection }; } },
     { async listEligibleCandidates(input) { calls.discovered.push(input); return candidates; } },
     lifecycle,
     () => true,
+    safety,
   );
   return { service, calls };
 }
@@ -56,14 +72,13 @@ test("internal pipeline discovers, ranks, persists and returns only the safe B1 
     rules("OFFER", "garde d’enfants", "Beauvais", ["TUESDAY"], "18:00", "20:00"),
   ]);
   const output = await service.execute({ ownerId: "alice", sourceId: "alice-need" });
-  assert.equal(output.persistedCount, 2);
   assert.deepEqual(calls.discovered[0], { sourceId: "alice-need", sourceOwnerId: "alice", complementaryType: "OFFER", limit: 80 });
   assert.equal(calls.prepared[0].criteriaSnapshot.scope, "CROSS_OWNER_V1");
   assert.equal(calls.persisted[0].results.length, 2);
   assert.equal(calls.persisted[0].results[0].expectedProjection.opportunityType, "OFFER");
   const json = JSON.stringify(output);
   for (const value of ["target-0", "target-1", "owner-0", "owner-1", "PRIVATE_BOB_TERM", "Beauvais", "17:00", "21:00", "similarity", "internalRank", "targetGLinkId"]) assert.equal(json.includes(value), false, value);
-  assert.deepEqual(Object.keys(output), ["runId", "persistedCount", "results"]);
+  assert.deepEqual(Object.keys(output), ["runId", "results"]);
   const keys = collectKeys(output);
   for (const key of ["targetGLinkId", "ownerId", "internalOwnerRef", "internalTargetRef", "internalRank", "score", "similarity", "title", "description", "slug", "email", "phone"]) assert.equal(keys.has(key.toLowerCase()), false, key);
   assert.equal(output.results[0]?.label, "OFFER_MATCH");
@@ -72,7 +87,6 @@ test("internal pipeline discovers, ranks, persists and returns only the safe B1 
 test("hard incompatibility produces a successful empty run", async () => {
   const { service, calls } = setup([rules("OFFER", "garde d’enfants", "Lille", ["MONDAY"], "08:00", "12:00")]);
   const output = await service.execute({ ownerId: "alice", sourceId: "alice-need" });
-  assert.equal(output.persistedCount, 0);
   assert.deepEqual(output.results, []);
   assert.deepEqual(calls.persisted[0].results, []);
   assert.equal(calls.failed, 0);
@@ -83,7 +97,6 @@ test("defense in depth excludes a same-owner candidate and B3 partial success is
   const { service, calls } = setup([compatible, compatible, compatible], (target) => target === "target-1", ["alice", "owner-1", "owner-2"]);
   const originalDiscovery = calls.discovered;
   const output = await service.execute({ ownerId: "alice", sourceId: "alice-need" });
-  assert.equal(output.persistedCount, 1);
   assert.equal(output.results.length, 1);
   assert.equal(originalDiscovery.length, 1);
 });
@@ -94,8 +107,9 @@ test("ineligible source is rejected before run creation or discovery", async () 
   const service = new CrossOwnerOpportunityMatchingService(
     { async findEligibleSourceForOwner() { return null; } },
     { async listEligibleCandidates() { discovered = true; return []; } },
-    { async prepareMatchingRun() { prepared = true; return run("PREPARED"); }, async startMatchingRun() { return run("RUNNING"); }, async createCrossOwnerMatchingResults() { return []; }, async markMatchingResultsAvailable() { return run("RESULTS_AVAILABLE"); }, async failMatchingRun() { return run("FAILED"); } },
+    { async prepareMatchingRun() { prepared = true; return run("PREPARED"); }, async startMatchingRun() { return run("RUNNING"); }, async createCrossOwnerMatchingResults() { return []; }, async markMatchingResultsAvailable() { return run("RESULTS_AVAILABLE"); }, async failMatchingRun() { return run("FAILED"); }, async getRevalidatedCrossOwnerRunWithResults() { return { run: run("RESULTS_AVAILABLE"), results: [], invalidatedResultIds: [] }; }, async transitionCrossOwnerMatchingResult() { return persisted("target", {}, 0); } },
     () => true,
+    { async consume() { return { allowed: true }; }, async findReusable() { return null; }, async acquire() { return { acquired: true, leaseId: "lease-test" }; }, async release() {} },
   );
   await assert.rejects(service.execute({ ownerId: "alice", sourceId: "alice-need" }), { message: "MATCHING_SOURCE_NOT_FOUND" });
   assert.equal(prepared, false);
@@ -125,7 +139,9 @@ test("source repository rejects absent or revoked consent", async () => {
 
 test("no public API imports or invokes the internal cross-owner orchestrator", () => {
   const route = readFileSync(new URL("../app/api/links/[linkId]/matching/route.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(route, /CrossOwnerOpportunityMatchingService|createCrossOwnerMatchingResults|CROSS_OWNER_V1/);
+  assert.doesNotMatch(route, /CrossOwnerOpportunityMatchingService|createCrossOwnerMatchingResults/);
+  assert.match(route, /publicPersisted = persisted && !isCrossOwnerRun/);
+  assert.match(route, /isCrossOwnerRun\(decisionRun\)/);
 });
 
 test("server kill switch refuses execution before source lookup", async () => {
@@ -133,9 +149,21 @@ test("server kill switch refuses execution before source lookup", async () => {
   const service = new CrossOwnerOpportunityMatchingService(
     { async findEligibleSourceForOwner() { sourceRead = true; return null; } },
     { async listEligibleCandidates() { return []; } },
-    { async prepareMatchingRun() { return run("PREPARED"); }, async startMatchingRun() { return run("RUNNING"); }, async createCrossOwnerMatchingResults() { return []; }, async markMatchingResultsAvailable() { return run("RESULTS_AVAILABLE"); }, async failMatchingRun() { return run("FAILED"); } },
+    { async prepareMatchingRun() { return run("PREPARED"); }, async startMatchingRun() { return run("RUNNING"); }, async createCrossOwnerMatchingResults() { return []; }, async markMatchingResultsAvailable() { return run("RESULTS_AVAILABLE"); }, async failMatchingRun() { return run("FAILED"); }, async getRevalidatedCrossOwnerRunWithResults() { return { run: run("RESULTS_AVAILABLE"), results: [], invalidatedResultIds: [] }; }, async transitionCrossOwnerMatchingResult() { return persisted("target", {}, 0); } },
     () => false,
+    { async consume() { return { allowed: true }; }, async findReusable() { return null; }, async acquire() { return { acquired: true, leaseId: "lease-test" }; }, async release() {} },
   );
   await assert.rejects(service.execute({ ownerId: "alice", sourceId: "source" }), { message: "MATCHING_DISABLED" });
   assert.equal(sourceRead, false);
+});
+
+test("cross-owner output is fixed top-K and exposes no cardinality metadata", async () => {
+  const compatible = rules("OFFER", "garde d’enfants", "Beauvais", ["TUESDAY"], "18:00", "20:00");
+  const { service, calls } = setup(Array.from({ length: 8 }, () => compatible));
+  const output = await service.execute({ ownerId: "alice", sourceId: "alice-need" });
+  assert.equal(calls.persisted[0].results.length, 5);
+  assert.equal(output.results.length, 5);
+  for (const forbidden of ["persistedCount", "total", "hasMore", "candidateCount", "scannedCount", "targetId", "ownerId", "slug", "email", "score", "internalRank"]) {
+    assert.equal(collectKeys(output).has(forbidden.toLowerCase()), false, forbidden);
+  }
 });

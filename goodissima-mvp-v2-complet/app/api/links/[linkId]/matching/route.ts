@@ -89,10 +89,11 @@ export async function GET(_request: Request, { params }: { params: { linkId: str
       ownerId: owner.id,
       gLinkId: linkId,
     });
+    const publicPersisted = persisted && !isCrossOwnerRun(persisted.run) ? persisted : null;
     return NextResponse.json({
       enabled: parseGLinkMatchingState(source.rules).enabled,
-      run: persisted ? publicDetailedRun(persisted.run) : null,
-      results: persisted ? publicResults(persisted.run, persisted.results) : [],
+      run: publicPersisted ? publicDetailedRun(publicPersisted.run) : null,
+      results: publicPersisted ? publicResults(publicPersisted.run, publicPersisted.results) : [],
     });
   } catch (error) {
     console.error("[matching-read] Unexpected route failure", {
@@ -144,6 +145,9 @@ export async function PATCH(request: Request, { params }: { params: { linkId: st
     if (!decisionRun || decisionRun.gLinkId !== source.id) {
       return NextResponse.json({ error: "MATCHING_RUN_NOT_FOUND" }, { status: 404 });
     }
+    if (isCrossOwnerRun(decisionRun)) {
+      return NextResponse.json({ error: "MATCHING_RESULT_UNAVAILABLE" }, { status: 409 });
+    }
     const result = await lifecycle.transitionMatchingResult({
       ownerId: owner.id,
       runId,
@@ -190,11 +194,25 @@ async function readIdempotencyKey(request: Request) {
 }
 
 const MATCHING_IDENTIFIER_MAX_LENGTH = 191;
+type MatchingRunWithSnapshot = { criteriaSnapshot: unknown };
+
+function isCrossOwnerRun(run: MatchingRunWithSnapshot) {
+  const snapshot = run.criteriaSnapshot;
+  return Boolean(snapshot) && typeof snapshot === "object" && !Array.isArray(snapshot)
+    && (snapshot as Record<string, unknown>).scope === "CROSS_OWNER_V1";
+}
 
 function parseMatchingIdentifier(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized && normalized.length <= MATCHING_IDENTIFIER_MAX_LENGTH ? normalized : null;
+}
+
+function structuredSourceType(run: MatchingRunWithSnapshot): "OFFER" | "NEED" | null {
+  const snapshot = run.criteriaSnapshot;
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
+  const sourceType = (snapshot as Record<string, unknown>).sourceType;
+  return sourceType === "OFFER" || sourceType === "NEED" ? sourceType : null;
 }
 
 function publicRun(run: Awaited<ReturnType<MatchingLifecycleService["prepareMatchingRun"]>>) {
@@ -219,18 +237,11 @@ function publicDetailedRun(run: Awaited<ReturnType<MatchingLifecycleService["pre
   };
 }
 
-function publicResults(run: { criteriaSnapshot: unknown }, results: MatchingResultRecord[]) {
+function publicResults(run: MatchingRunWithSnapshot, results: MatchingResultRecord[]) {
   const sourceType = structuredSourceType(run);
   return sourceType
     ? results.map((result, index) => projectMatchingResultView({ result, sourceType, ordinal: index + 1 }))
     : results.map(publicLegacyResult);
-}
-
-function structuredSourceType(run: { criteriaSnapshot: unknown }): "OFFER" | "NEED" | null {
-  const snapshot = run.criteriaSnapshot;
-  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
-  const sourceType = (snapshot as Record<string, unknown>).sourceType;
-  return sourceType === "OFFER" || sourceType === "NEED" ? sourceType : null;
 }
 
 function publicLegacyResult(result: MatchingResultRecord) {
