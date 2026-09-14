@@ -50,6 +50,7 @@ test("Explorer selects only direct objects and omits unassigned, foreign and ind
 const spatial = loadTestModule("lib/spatial-navigation.ts", {});
 const { WorkspaceDetailView } = loadTestModule("components/WorkspaceDetailView.tsx", { "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow,
   "@/lib/object-creation": creation, "@/components/WorkspaceCreateActions": { WorkspaceCreateActions: () => jsx.jsx("div", { children: "+ Nouveau" }) },
+  "@/lib/case-origin": { relationCaseOriginLabel: (title: string) => `Réponse à « ${title} »` },
   "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }), "@/lib/spatial-navigation": spatial,
   "@/components/SpatialNavigationContext": { PageNavigationContext: () => null } });
 test("real Explorer rendering uses FormTemplate IDs, no fake link or duplicate Opportunity", async () => {

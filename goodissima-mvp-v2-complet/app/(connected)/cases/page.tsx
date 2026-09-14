@@ -9,6 +9,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { resolveCandidateIdentityState } from "@/lib/candidate-identity";
 import { prisma } from "@/lib/prisma";
 import { isSimpleLink } from "@/lib/simple-link-fields";
+import { relationCaseOriginLabel } from "@/lib/case-origin";
 
 export default async function CasesPage() {
   noStore();
@@ -56,11 +57,10 @@ export default async function CasesPage() {
                 className="block border-b p-5 hover:bg-slate-50"
               >
                 <div className="flex items-center justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-semibold">{identity.displayName}</p>
-                    <p className="text-sm text-slate-500">
-                      {item.gLink.title} · {identity.displayEmail}
-                    </p>
+                    <p className="break-words text-sm text-slate-600">{relationCaseOriginLabel(item.gLink.title)}</p>
+                    <p className="break-words text-sm text-slate-500">{identity.displayEmail}</p>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
