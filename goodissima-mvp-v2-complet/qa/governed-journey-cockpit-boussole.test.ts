@@ -13,8 +13,8 @@ test("provides six contextual micro-journeys for the real cockpit", () => {
   assert.equal(governedJourneySequences.length, 6);
   assert.equal(getCompassContext("/gouvernance/parcours/real-id/pilotage")?.steps, governedJourneySteps);
   assert.deepEqual(governedJourneySequences.map((item) => item.title), [
-    "Découvrir ce parcours gouverné", "Voir les interventions humaines", "Participants, invitations et accès",
-    "Documents et premières actions", "Communications gouvernées", "Revue de gouvernance",
+    "Découvrir ce parcours", "Voir les interventions humaines", "Participants, invitations et accès",
+    "Documents et premières actions", "Communications gouvernées", "Comprendre les décisions",
   ]);
 });
 
@@ -26,7 +26,7 @@ test("resolves every target against the real cockpit", () => {
 });
 
 test("uses deterministic states for pending, empty, prepared and received objects", () => {
-  assert.match(cockpit, /humanInterventions\.length > 0 \? "pending" : "empty"/);
+  assert.match(cockpit, /currentActions\.length > 0 \? "pending" : "empty"/);
   assert.match(cockpit, /invitation \? "invitation-prepared" : "expected"/);
   assert.match(cockpit, /reception \? "received" : "pending"/);
   assert.match(cockpit, /data-boussole-state=\{session\.status\}/);
@@ -44,7 +44,7 @@ test("targets the first real matching object and safely skips an absent dynamic 
 test("prioritizes pending human interventions after the first opening", () => {
   assert.match(boussole, /governedJourneyVisitedKey/);
   assert.match(boussole, /alreadyVisited && pendingInterventions \? "human-interventions" : "discover-governed-journey"/);
-  assert.match(boussole, /Découvrir ce parcours gouverné/);
+  assert.match(boussole, /Découvrir ce parcours/);
 });
 
 test("keeps the guide explanatory, glossary-backed and business-action free", () => {

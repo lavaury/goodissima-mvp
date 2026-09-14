@@ -27,6 +27,7 @@ import { getTemplateReadAccess } from "@/lib/relation-template-access";
 import { classifyRelationTemplate } from "@/lib/business-object-classification";
 import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection";
 import { HistoricalTemplateCompatibilityView } from "@/components/HistoricalTemplateCompatibilityView";
+import { projectGovernedJourneyExperience } from "@/lib/governed-journey-experience";
 
 export const dynamic = "force-dynamic";
 
@@ -450,8 +451,6 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     text(metadata.workspaceId) ??
     "Workspace non rattaché en V1";
   const attachedWorkspaceId = formTemplate.relationTemplate?.workspaceId ?? null;
-  const workspaceCategory = text(metadata.workspaceCategory);
-  const workspacePersistence = text(metadata.workspacePersistence);
   const source = text(creationPlan.source) ?? text(metadata.source) ?? "Création V1";
 
   const participants = actorsFrom(creationPlan.participants ?? creationPlan.actors);
@@ -513,6 +512,18 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const meetingParticipants = communicationOverview.sessions.length > 0
     ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } } })
     : [];
+  const pendingReviews = governanceReviewPreparations.filter((review) => review.status !== "COMPLETED").length;
+  const experience = projectGovernedJourneyExperience({
+    humanValidated,
+    totalParticipants: summary.totalParticipants,
+    preparedInvitations: summary.preparedInvitationsCount,
+    totalDocuments: summary.totalDocuments,
+    receivedDocuments: summary.declaredReceptionsCount,
+    pendingReviews,
+    interventions: (consolidation?.humanInterventions ?? []).map((signal) => ({ label: signal.actionLabel, detail: signal.title, href: signal.href })),
+  });
+  const currentActions = experience.actions;
+  const journeySituation = experience.situation;
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <PageNavigationContext pathname={`/gouvernance/parcours/${encodeURIComponent(formTemplate.id)}/pilotage`} items={objectBreadcrumb({ name: title, fallback: "Parcours gouverné", objectId: formTemplate.id, ownerId: owner.id, workspace: formTemplate.relationTemplate.workspace })} />
@@ -524,61 +535,54 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <Link href="/gouvernance" className="text-sm font-semibold text-slate-600 underline underline-offset-4">
           Retour à la gouvernance
         </Link>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/annuaire" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
-            Annuaire Goodissima V1
-          </Link>
-          <Link href="/gouvernance/nouveau" className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">
-            Créer un autre parcours
-          </Link>
-        </div>
+        <details className="relative">
+          <summary className="min-h-11 cursor-pointer list-none rounded-lg border px-4 py-2 text-xl font-bold" aria-label="Actions avancées">•••</summary>
+          <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border bg-white p-2 shadow-xl">
+            <Link href="/annuaire" className="block min-h-11 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-50">Gérer les accès</Link>
+            <Link href="/gouvernance/nouveau" className="block min-h-11 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-50">Créer un autre parcours</Link>
+            <a href="#organize" className="block min-h-11 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-50">Organiser</a>
+          </div>
+        </details>
       </div>
 
-      <p className="mt-2 text-xs text-slate-500">
-        L'annuaire Goodissima est transversal ; en V1, il ne crée pas encore de contact global automatiquement depuis ce cockpit.
-      </p>
-
       <section data-boussole-id="governed-journey-overview" className="mt-4 rounded-lg border bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold text-[#247f88]">Pilotage V1 · préparation read-only</p>
+        <p className="text-sm font-semibold text-[#247f88]">Parcours gouverné</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">{title}</h1>
         <p className="mt-3 max-w-4xl text-sm leading-relaxed text-slate-700">{objective}</p>
 
-        <div className="mt-5 grid gap-3 text-sm md:grid-cols-3">
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</p>
-            <p className="mt-1 font-bold text-slate-950">Préparation</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Validation humaine</p>
-            <p className="mt-1 font-bold text-slate-950">{humanValidated ? "Enregistrée" : "Non retrouvée"}</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Créé le</p>
-            <p className="mt-1 font-bold text-slate-950">{formatDate(version?.createdAt)}</p>
-          </div>
-        </div>
       </section>
 
-      <section data-boussole-id="governed-journey-workspace" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-950">Workspace du parcours</h2>
-        <p className="mt-2 text-sm text-slate-600">Workspace courant : <strong>{workspaceDisplay}</strong></p>
+      <section data-boussole-id="governed-journey-summary" className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Où en sommes-nous ?</h2>
+        <p className="mt-3 text-base text-slate-700">{journeySituation}</p>
+        <p className="mt-2 text-sm text-slate-600">{summary.preparedInvitationsCount} invitation(s) préparée(s) · {summary.declaredReceptionsCount} document(s) reçu(s) · {summary.preparedReviewsCount} décision(s) préparée(s)</p>
+      </section>
+
+      <section data-boussole-id="governed-journey-human-interventions" data-boussole-state={currentActions.length > 0 ? "pending" : "empty"} className="mt-6 rounded-2xl border-2 border-cyan-700 bg-cyan-50 p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-950">À faire maintenant</h2>
+        {currentActions.length ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{currentActions.map((action, index) => <a key={`${action.href}-${index}`} data-boussole-id={index === 0 ? "governed-journey-human-intervention" : undefined} href={action.href} className="min-h-11 rounded-xl border bg-white p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-800"><span className="font-bold text-slate-950">{action.label}</span><span className="mt-1 block text-sm text-slate-600">{action.detail}</span></a>)}</div> : <p className="mt-3 text-sm text-slate-700">Vous pouvez poursuivre le travail ou consulter l’historique quand vous en avez besoin.</p>}
+      </section>
+
+      <details id="organize" className="mt-6 rounded-lg border bg-white shadow-sm">
+        <summary data-boussole-id="governed-journey-workspace" className="min-h-11 cursor-pointer px-6 py-4 font-bold text-slate-800">Organiser le parcours</summary>
+        <div className="border-t p-6"><p className="text-sm text-slate-600">Espace actuel : <strong>{workspaceDisplay}</strong></p>
         {workspaceOptions.length > 0 ? <form action={changeGovernedJourneyWorkspaceAction} className="mt-4 space-y-3">
           <input type="hidden" name="formTemplateId" value={formTemplate.id} />
-          <label className="block text-sm font-semibold text-slate-700">Nouveau Workspace
+          <label className="block text-sm font-semibold text-slate-700">Déplacer vers un autre espace
             <select required name="workspaceId" defaultValue={attachedWorkspaceId ?? ""} className="mt-1 block w-full max-w-xl rounded-lg border px-3 py-2 font-normal">
-              <option value="" disabled>Choisir un Workspace</option>
+              <option value="" disabled>Choisir un espace</option>
               {workspaceOptions.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name} - {workspace.categoryLabel} - {workspace.kindLabel}</option>)}
             </select>
           </label>
           <label className="flex max-w-2xl items-start gap-2 text-sm text-slate-600"><input required type="checkbox" name="humanConfirmed" value="yes" className="mt-1" /><span>Je confirme explicitement le changement de Workspace. Les invitations, acces et dossiers existants ne sont pas modifies.</span></label>
-          <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Changer le Workspace</button>
-        </form> : <p className="mt-3 text-sm text-slate-500">Aucun autre Workspace actif disponible.</p>}
-      </section>
+          <button type="submit" className="min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Déplacer le parcours</button>
+        </form> : <p className="mt-3 text-sm text-slate-500">Aucun autre espace actif disponible.</p>}</div>
+      </details>
 
-      <section data-boussole-id="governed-journey-summary" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <details className="mt-6 rounded-lg border bg-white shadow-sm"><summary className="min-h-11 cursor-pointer px-6 py-4 font-bold text-slate-800">Voir les indicateurs détaillés</summary><section className="border-t p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-950">Synthèse du parcours gouverné</h2>
+            <h2 className="text-xl font-bold text-slate-950">Indicateurs du parcours</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
               Cette synthèse est calculée localement à partir des informations déclarées.
             </p>
@@ -609,48 +613,20 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Revues</p>
             <p className="mt-1 font-bold text-slate-950">{summary.preparedReviewsCount} revue(s) préparée(s)</p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Automatisations</p>
-            <p className="mt-1 font-bold text-slate-950">Aucune automatisation active en V1</p>
-          </div>
         </div>
 
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">
           Goodissima ne vérifie pas automatiquement les documents, n’envoie pas les invitations et ne lance pas les revues.
         </p>
-      </section>
+      </section></details>
 
       <section data-boussole-id="governed-journey-initial-need" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-950">Besoin initial validé</h2>
+        <h2 className="text-xl font-bold text-slate-950">Contexte</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{initialNeed}</p>
       </section>
 
-      <section className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-500">Workspace actuel</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">{workspaceDisplay}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Le rattachement manuel d'un ancien parcours se fait depuis la page Gouvernance.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {workspaceCategory ? (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                Catégorie : {workspaceCategory}
-              </span>
-            ) : null}
-            {workspacePersistence ? (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                {workspacePersistence}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </section>
-
       {consolidation?.workspace ? (
-        <section data-boussole-id="governed-journey-consolidation" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <details className="mt-6 rounded-lg border bg-white shadow-sm"><summary className="min-h-11 cursor-pointer px-6 py-4 font-bold text-slate-800">Voir le travail rattaché en détail</summary><section data-boussole-id="governed-journey-consolidation" className="border-t p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-[#247f88]">Vue consolidee du Workspace</p>
@@ -742,7 +718,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
           <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Communications consolidees</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Echanges rattaches</h3>
               <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-600">
                 <span className="rounded-full bg-white px-2.5 py-1">Preparees : {consolidation.preparedCommunicationCount}</span>
                 <span className="rounded-full bg-white px-2.5 py-1">Actives : {consolidation.activeCommunicationCount}</span>
@@ -753,7 +729,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div>
-                <p className="text-sm font-bold text-slate-950">Communications gouvernees preparees</p>
+                <p className="text-sm font-bold text-slate-950">Echanges prepares</p>
                 {consolidation.governanceCommunications.length === 0 ? (
                   <p className="mt-2 rounded-lg bg-white p-3 text-sm text-slate-600">Aucune communication gouvernee preparee.</p>
                 ) : (
@@ -822,7 +798,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             </div>
           </div>
 
-          <div data-boussole-id="governed-journey-human-interventions" data-boussole-state={consolidation.humanInterventions.length > 0 ? "pending" : "empty"} className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div data-boussole-id="governed-journey-human-interventions-detail" data-boussole-state={consolidation.humanInterventions.length > 0 ? "pending" : "empty"} className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold uppercase tracking-wide text-amber-900">Interventions humaines</h3>
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-amber-900">
@@ -834,7 +810,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             ) : (
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 {consolidation.humanInterventions.map((signal) => (
-                  <article key={signal.id} data-boussole-id="governed-journey-human-intervention" className="rounded-lg bg-white p-3 text-sm">
+                  <article key={signal.id} data-boussole-id="governed-journey-human-intervention-detail" className="rounded-lg bg-white p-3 text-sm">
                     <p className="font-bold text-slate-950">{signal.title}</p>
                     <p className="mt-1 text-slate-600">{signal.description}</p>
                     <p className="mt-2 text-xs font-semibold text-slate-500">Source : {signal.source}</p>
@@ -846,7 +822,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
               </div>
             )}
           </div>
-        </section>
+        </section></details>
       ) : (
         <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-6 shadow-sm">
           <h2 className="text-xl font-bold text-amber-950">Vue consolidee du Workspace indisponible</h2>
@@ -857,8 +833,9 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </section>
       )}
 
-      <section data-boussole-id="governed-journey-organizer" className="mt-6 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-950">Organisateur du parcours</h2>
+      <section id="people" data-boussole-id="governed-journey-organizer" className="mt-6 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-950">Les personnes</h2>
+        <h3 className="mt-4 font-bold text-slate-900">Organisateur du parcours</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div><p className="text-xs font-semibold uppercase text-slate-500">Identité</p><p className="mt-1 font-semibold text-slate-950">{owner.name || owner.email}</p>{owner.name && owner.name !== owner.email ? <p className="text-xs text-slate-500">{owner.email}</p> : null}</div>
           <div><p className="text-xs font-semibold uppercase text-slate-500">Rôle</p><p className="mt-1 font-semibold text-slate-950">Organisateur</p></div>
@@ -867,8 +844,9 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <p className="mt-4 text-sm text-slate-700">L’organisateur pilote ce parcours depuis son compte. Aucun lien invité n’est nécessaire.</p>
       </section>
 
-      <section data-boussole-id="governed-journey-secure-communication" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-950">Communication sécurisée du parcours</h2>
+      <section id="work" data-boussole-id="governed-journey-secure-communication" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-950">Le travail</h2>
+        <h3 className="mt-4 font-bold text-slate-900">Réunion sécurisée</h3>
         <p className="mt-2 text-sm text-slate-600">Vous êtes l’organisateur de ce parcours. Vous pouvez ouvrir la salle sécurisée depuis votre compte Goodissima. Les invités gouvernés pourront la rejoindre avec leur propre lien d’accès.</p>
         <div className="mt-4">
           <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available />
@@ -1145,15 +1123,14 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       <section data-boussole-id="governed-communications" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-950">Communications gouvernees</h2>
+            <h2 className="text-xl font-bold text-slate-950">Reunions et echanges</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Cette section prepare et trace les communications gouvernees du parcours. En V1, les communications distantes
-              fonctionnelles sont disponibles dans les dossiers relationnels ; le multi-acteurs gouverne complet sera branche
-              dans un sprint dedie.
+              Preparez les echanges utiles au parcours et retrouvez leur suivi. Les conversations actives restent disponibles
+              dans les dossiers relationnels rattaches.
             </p>
           </div>
           <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
-            Multi-acteurs prepare - transport V1 non branche
+            Preparation humaine
           </span>
         </div>
 
@@ -1193,10 +1170,10 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           </div>
 
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            <p className="font-bold">Limite V1 obligatoire</p>
+            <p className="font-bold">Ce qui se passe ici</p>
             <p className="mt-2 leading-relaxed">
-              Le rattachement des dossiers relationnels aux Workspaces est visible dans la vue consolidee ci-dessus. Cette section
-              reste dediee a la preparation gouvernee : elle ne demarre pas de media multi-acteurs depuis la gouvernance.
+              Les dossiers relationnels rattaches restent visibles dans le detail du travail. Preparer un echange ici ne lance
+              aucun appel et n'envoie aucun message automatiquement.
             </p>
           </div>
         </div>
@@ -1369,16 +1346,17 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         )}
       </section>
 
-      <section data-boussole-id="governance-reviews" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section id="decisions" data-boussole-id="governance-reviews" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-950">Revue de gouvernance</h2>
+            <h2 className="text-2xl font-bold text-slate-950">Les décisions</h2>
+            <p className="mt-2 font-semibold text-slate-800">Revues à conduire et décisions déjà examinées</p>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
               Préparation humaine uniquement : aucune réunion, notification, synthèse IA, décision ou action n'est déclenchée.
             </p>
           </div>
           <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
-            Metadata-first V1.2
+            Preparation humaine
           </span>
         </div>
 
@@ -1470,8 +1448,19 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </form>
       </section>
 
-      <section data-boussole-id="governed-journey-v1-limits" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-        <h2 className="font-bold">Limite V1 explicite</h2>
+      <section id="history" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-950">Historique</h2>
+        <p className="mt-2 text-sm text-slate-600">Ce qui s’est passé dans ce parcours, sans modifier les informations conservées.</p>
+        <ul className="mt-4 space-y-2 text-sm text-slate-700">
+          <li>Parcours créé le {formatDate(version?.createdAt)}</li>
+          {participantInvitations.slice(0, 3).map((item) => <li key={item.invitationId}>Invitation préparée pour {item.participantName} le {formatDate(item.preparedAt)}</li>)}
+          {documentReceptions.slice(0, 3).map((item) => <li key={item.receptionId}>Réception de « {item.documentName} » déclarée le {formatDate(item.receivedAt)}</li>)}
+          {governanceReviewPreparations.slice(0, 3).map((item) => <li key={item.reviewPreparationId}>Décision « {item.question} » mise à jour le {formatDate(item.updatedAt)}</li>)}
+        </ul>
+      </section>
+
+      <details data-boussole-id="governed-journey-v1-limits" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-900">
+        <summary className="min-h-11 cursor-pointer px-5 py-4 font-bold">Fonctionnement et garanties</summary><div className="border-t border-amber-200 p-5">
         <p className="mt-2 leading-relaxed">
           Cette salle de pilotage affiche le cadrage validé et les éléments de préparation du parcours. V1 : les messages
           d'invitation sont uniquement préparés pour copie ou transmission manuelle. Goodissima n'envoie pas l'invitation,
@@ -1482,7 +1471,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <p className="mt-2 text-xs">
           Source : {source} · Workspace : {workspaceDisplay}
         </p>
-      </section>
+      </div></details>
     </main>
   );
 }
