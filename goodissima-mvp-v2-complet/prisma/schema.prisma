@@ -560,15 +560,16 @@ model GLink {
   createdAt         DateTime          @default(now())
   expiresAt         DateTime?
 
-  owner                User                  @relation(fields: [ownerId], references: [id])
-  workspace            Workspace?            @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  template             RelationTemplate?     @relation(fields: [templateId], references: [id])
-  templateVersion      TemplateVersion?      @relation(fields: [templateVersionId], references: [id])
-  cases                RelationCase[]
-  trustPolicies        TrustPolicy[]
-  trustAdmissionTokens TrustAdmissionToken[]
-  matchingRuns         MatchingRun[]         @relation("MatchingRunSourceGLink")
-  matchingResults      MatchingResult[]      @relation("MatchingResultTargetGLink")
+  owner                      User                        @relation(fields: [ownerId], references: [id])
+  workspace                  Workspace?                  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  template                   RelationTemplate?           @relation(fields: [templateId], references: [id])
+  templateVersion            TemplateVersion?            @relation(fields: [templateVersionId], references: [id])
+  cases                      RelationCase[]
+  trustPolicies              TrustPolicy[]
+  trustAdmissionTokens       TrustAdmissionToken[]
+  matchingRuns               MatchingRun[]               @relation("MatchingRunSourceGLink")
+  matchingResults            MatchingResult[]            @relation("MatchingResultTargetGLink")
+  publicCaseCreationRequests PublicCaseCreationRequest[]
 
   @@index([workspaceId])
 }
@@ -618,6 +619,7 @@ model RelationCase {
   communicationSessions      CommunicationSession[]
   matchingResults            MatchingResult[]
   notifications              Notification[]
+  publicCaseCreationRequests PublicCaseCreationRequest[]
 
   @@index([governanceStatus])
   @@index([candidateIdentityId])
@@ -1345,6 +1347,24 @@ model PublicRateLimitBucket {
   updatedAt     DateTime @updatedAt
 
   @@unique([dimension, keyHash, windowStart, windowSeconds])
+  @@index([expiresAt])
+}
+
+model PublicCaseCreationRequest {
+  id                 String   @id @default(cuid())
+  gLinkId            String
+  idempotencyKeyHash String
+  payloadHash        String
+  relationCaseId     String?
+  status             String   @default("PENDING")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  expiresAt          DateTime
+
+  gLink        GLink         @relation(fields: [gLinkId], references: [id])
+  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+
+  @@unique([gLinkId, idempotencyKeyHash])
   @@index([expiresAt])
 }
 

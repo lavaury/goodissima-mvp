@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -14,6 +14,7 @@ import {
   type DynamicFormField,
 } from "@/components/DynamicFormRenderer";
 import { deriveCandidateSubmissionFields } from "@/lib/candidate-form-safety";
+import { createPublicCaseIdempotencyKey } from "@/lib/public-case-idempotency-client";
 import { getFieldsForStep, getStepCount } from "@/lib/form-steps";
 import { isFieldDisabled, isFieldRequired, shouldDisplayField } from "@/lib/form-rules";
 import {
@@ -137,6 +138,7 @@ export default function CandidateForm({
   const [notificationEmail, setNotificationEmail] = useState("");
   const [admissionErrorMessage, setAdmissionErrorMessage] = useState("");
   const [isAdmissionBlocked, setIsAdmissionBlocked] = useState(false);
+  const submissionRef = useRef<{ payload: string; key: string } | null>(null);
   const stepCount = getStepCount(fields);
   const isMultiStep = stepCount > 1;
   const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
@@ -309,10 +311,17 @@ export default function CandidateForm({
     setIsAdmissionBlocked(false);
 
     try {
+      const serializedPayload = JSON.stringify(payload);
+      if (submissionRef.current?.payload !== serializedPayload) {
+        submissionRef.current = { payload: serializedPayload, key: createPublicCaseIdempotencyKey() };
+      }
       const res = await fetch("/api/cases", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": submissionRef.current.key,
+        },
+        body: serializedPayload,
       });
 
       if (!res.ok) {

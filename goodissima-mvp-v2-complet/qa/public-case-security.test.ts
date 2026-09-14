@@ -99,6 +99,7 @@ test("route returns uniform 429 and fail-closed 503 before reading a GLink", asy
     "next/server": { NextResponse: { json } },
     "@/lib/prisma": { prisma: { gLink: { findUnique: async () => { gLinkReads++; return null; } } } },
     "@/lib/public-case-contract": { readPublicCaseRequest: async () => ({ ok: true, body: { gLinkId: "link" } }), validateExpectedAnswerCount: () => true },
+    "@/lib/public-case-idempotency": { readPublicCaseIdempotencyKey: () => ({ ok: true, key: null }) },
     "@/lib/public-request-source": { getPublicRequestSource: () => "unknown", pseudonymizePublicRequestSource: () => "source-hash", pseudonymizePublicRateLimitKey: () => "target-hash" },
     "@/lib/public-case-rate-limit": { publicCaseSourceRateLimitEntries: () => [], publicCaseTargetRateLimitEntries: () => [] },
   };

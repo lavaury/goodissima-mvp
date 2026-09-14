@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import { createPublicCaseIdempotencyKey } from "@/lib/public-case-idempotency-client";
 
 export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const submissionRef = useRef<{ payload: string; key: string } | null>(null);
 
   async function startExchange(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -16,10 +18,17 @@ export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }
     setError("");
 
     try {
+      const payload = JSON.stringify({ gLinkId, message: message.trim() });
+      if (submissionRef.current?.payload !== payload) {
+        submissionRef.current = { payload, key: createPublicCaseIdempotencyKey() };
+      }
       const response = await fetch("/api/cases", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gLinkId, message: message.trim() }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": submissionRef.current.key,
+        },
+        body: payload,
       });
       const result = await response.json();
       const token = typeof result.candidateAccessToken === "string" ? result.candidateAccessToken : "";

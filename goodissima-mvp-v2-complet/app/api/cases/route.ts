@@ -45,6 +45,13 @@ import {
   publicCaseTargetRateLimitEntries,
 } from "@/lib/public-case-rate-limit";
 import { getPublicRequestSource, pseudonymizePublicRateLimitKey, pseudonymizePublicRequestSource } from "@/lib/public-request-source";
+import {
+  hashPublicCaseIdempotencyKey,
+  hashPublicCasePayload,
+  PUBLIC_CASE_IDEMPOTENCY_RETRY_AFTER_SECONDS,
+  readPublicCaseIdempotencyKey,
+  reservePublicCaseRequest,
+} from "@/lib/public-case-idempotency";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -261,6 +268,13 @@ export async function POST(req: Request) {
     );
   }
   const body = parsedRequest.body;
+  const idempotencyHeader = readPublicCaseIdempotencyKey(req.headers ?? new Headers());
+  if (!idempotencyHeader.ok) {
+    return NextResponse.json(
+      { error: "Invalid idempotency key", code: idempotencyHeader.code },
+      { status: 400 },
+    );
+  }
 
   let sourceKeyHash: string;
   try {
@@ -279,6 +293,20 @@ export async function POST(req: Request) {
       { error: "Service temporairement indisponible.", code: "RATE_LIMIT_UNAVAILABLE" },
       { status: 503, headers: { "Retry-After": "60" } },
     );
+  }
+
+  let idempotencyKeyHash: string | null = null;
+  let payloadHash: string | null = null;
+  if (idempotencyHeader.key) {
+    try {
+      idempotencyKeyHash = hashPublicCaseIdempotencyKey(idempotencyHeader.key);
+      payloadHash = hashPublicCasePayload(body);
+    } catch {
+      return NextResponse.json(
+        { error: "Service temporairement indisponible.", code: "IDEMPOTENCY_UNAVAILABLE" },
+        { status: 503, headers: { "Retry-After": "60" } },
+      );
+    }
   }
 
   const submittedCandidateEmail =
@@ -366,6 +394,61 @@ export async function POST(req: Request) {
       { error: "Service temporairement indisponible.", code: "RATE_LIMIT_UNAVAILABLE" },
       { status: 503, headers: { "Retry-After": "60" } },
     );
+  }
+
+  const resolvedGLinkId = gLink.id;
+  async function claimIdempotencyRequest() {
+    if (!idempotencyKeyHash || !payloadHash) return { kind: "LEGACY" as const };
+    try {
+      const claim = await reservePublicCaseRequest(prisma, { gLinkId: resolvedGLinkId, idempotencyKeyHash, payloadHash });
+      if (claim.kind === "CONFLICT") {
+        return {
+          kind: "RESPONSE" as const,
+          response: NextResponse.json(
+            { error: "Cette clÃ© dâ€™idempotence a dÃ©jÃ  Ã©tÃ© utilisÃ©e.", code: "IDEMPOTENCY_CONFLICT" },
+            { status: 409 },
+          ),
+        };
+      }
+      if (claim.kind === "PENDING") {
+        return {
+          kind: "RESPONSE" as const,
+          response: NextResponse.json(
+            { error: "Cette soumission est encore en cours.", code: "IDEMPOTENCY_PENDING" },
+            { status: 409, headers: { "Retry-After": String(PUBLIC_CASE_IDEMPOTENCY_RETRY_AFTER_SECONDS) } },
+          ),
+        };
+      }
+      if (claim.kind === "COMPLETED") {
+        const relationCase = await prisma.relationCase.findUnique({
+          where: { id: claim.request.relationCaseId! },
+          select: { id: true, gLinkId: true, candidateAccessToken: true },
+        });
+        if (!relationCase || relationCase.gLinkId !== resolvedGLinkId) {
+          return {
+            kind: "RESPONSE" as const,
+            response: NextResponse.json(
+              { error: "Cette soumission ne peut pas Ãªtre rejouÃ©e.", code: "IDEMPOTENCY_INCOMPLETE" },
+              { status: 409 },
+            ),
+          };
+        }
+        return {
+          kind: "RESPONSE" as const,
+          response: await withCandidateCookie(relationCase.candidateAccessToken, resolvedGLinkId, relationCase.id),
+        };
+      }
+      return { kind: "RESERVED" as const, requestId: claim.request.id };
+    } catch {
+      console.error("public_case_idempotency_unavailable", { stage: "reservation", timestamp: new Date().toISOString() });
+      return {
+        kind: "RESPONSE" as const,
+        response: NextResponse.json(
+          { error: "Service temporairement indisponible.", code: "IDEMPOTENCY_UNAVAILABLE" },
+          { status: 503, headers: { "Retry-After": "60" } },
+        ),
+      };
+    }
   }
 
   const simpleLinkSubmission = isSimpleLink(gLink.rules);
@@ -528,6 +611,22 @@ export async function POST(req: Request) {
       );
     }
 
+    const idempotencyClaim = await claimIdempotencyRequest();
+    if (idempotencyClaim.kind === "RESPONSE") return idempotencyClaim.response;
+    if (idempotencyClaim.kind === "RESERVED") {
+      try {
+        await prisma.publicCaseCreationRequest.update({
+          where: { id: idempotencyClaim.requestId },
+          data: { relationCaseId: existingRelationCase.id },
+        });
+      } catch (error) {
+        await prisma.publicCaseCreationRequest.deleteMany({
+          where: { id: idempotencyClaim.requestId, relationCaseId: null },
+        }).catch(() => undefined);
+        throw error;
+      }
+    }
+
     const message = await prisma.message.create({
       data: {
         caseId: existingRelationCase.id,
@@ -593,6 +692,13 @@ export async function POST(req: Request) {
         formTemplateId: formSubmission.formTemplateId,
         caseId: existingRelationCase.id,
         answers: formSubmission.answers as Prisma.InputJsonValue,
+      });
+    }
+
+    if (idempotencyClaim.kind === "RESERVED") {
+      await prisma.publicCaseCreationRequest.update({
+        where: { id: idempotencyClaim.requestId },
+        data: { status: "COMPLETED" },
       });
     }
 
@@ -754,7 +860,12 @@ export async function POST(req: Request) {
     }
   }
 
-  const { relationCase, ownerNotification } = await prisma.$transaction(async (tx) => {
+  const idempotencyClaim = await claimIdempotencyRequest();
+  if (idempotencyClaim.kind === "RESPONSE") return idempotencyClaim.response;
+
+  let creationResult;
+  try {
+    creationResult = await prisma.$transaction(async (tx) => {
     const identitySource = resolvedTrustAdmissionToken
       ? "TRUST_ADMISSION_TOKEN"
       : resolvedCandidateIdentityId
@@ -796,6 +907,13 @@ export async function POST(req: Request) {
         gLink: { select: { title: true } },
       },
     });
+
+    if (idempotencyClaim.kind === "RESERVED") {
+      await tx.publicCaseCreationRequest.update({
+        where: { id: idempotencyClaim.requestId },
+        data: { relationCaseId: createdRelationCase.id },
+      });
+    }
 
     try {
       const candidateCreatedCredential = await issueCandidateCreatedCredentialInTransaction(tx, {
@@ -871,7 +989,16 @@ export async function POST(req: Request) {
     }, tx);
 
     return { relationCase: createdRelationCase, ownerNotification };
-  });
+    });
+  } catch (error) {
+    if (idempotencyClaim.kind === "RESERVED") {
+      await prisma.publicCaseCreationRequest.deleteMany({
+        where: { id: idempotencyClaim.requestId, relationCaseId: null },
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
+  const { relationCase, ownerNotification } = creationResult;
 
   const message = await prisma.message.create({
     data: {
@@ -936,6 +1063,13 @@ export async function POST(req: Request) {
       formTemplateId: formSubmission.formTemplateId,
       caseId: relationCase.id,
       answers: formSubmission.answers as Prisma.InputJsonValue,
+    });
+  }
+
+  if (idempotencyClaim.kind === "RESERVED") {
+    await prisma.publicCaseCreationRequest.update({
+      where: { id: idempotencyClaim.requestId },
+      data: { status: "COMPLETED" },
     });
   }
 
