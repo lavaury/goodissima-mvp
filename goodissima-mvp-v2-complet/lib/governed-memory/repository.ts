@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export const JOURNEY_MEMORY_PAGE_SIZE = 100;
 
-export type MemoryPermission = "VIEW_MEMORY" | "VIEW_SOURCES" | "PROPOSE_FACT" | "ESTABLISH_FACT" | "DISPUTE_FACT" | "RECORD_DECISION" | "VALIDATE_DECISION";
+export type MemoryPermission = "VIEW_MEMORY" | "VIEW_SOURCES" | "PROPOSE_FACT" | "ESTABLISH_FACT" | "DISPUTE_FACT" | "RECORD_DECISION" | "VALIDATE_DECISION" | "REGISTER_SOURCE";
 export type MemoryRole = "MEMORY_STEWARD" | "MEMORY_DELEGATE";
 
 export type JourneyMemoryAccessRecord = {
@@ -53,7 +53,7 @@ export class PrismaGovernedMemoryReadRepository implements GovernedMemoryReadRep
     const roles = [...new Set(journey.memoryRoleAssignments.map((row) => row.role))] as MemoryRole[];
     const wholeJourney = roles.length > 0;
     const visibleCaseIds = wholeJourney ? relationCaseIds : [...new Set(grants.filter((grant) => grant.permission === "VIEW_MEMORY").map((grant) => grant.relationCaseId))];
-    const permissions = [...new Set(grants.filter((grant) => visibleCaseIds.includes(grant.relationCaseId)).map((row) => row.permission).filter((permission): permission is MemoryPermission => permission !== "VALIDATE_SYNTHESIS" && permission !== "MANAGE_MEMORY_ACCESS" && permission !== "PROMOTE_PRIVATE_SOURCE" && permission !== "REGISTER_SOURCE"))];
+    const permissions = [...new Set(grants.filter((grant) => visibleCaseIds.includes(grant.relationCaseId)).map((row) => row.permission).filter((permission): permission is MemoryPermission => permission !== "VALIDATE_SYNTHESIS" && permission !== "MANAGE_MEMORY_ACCESS" && permission !== "PROMOTE_PRIVATE_SOURCE"))];
     return { journeyId: journey.id, relationCaseIds: visibleCaseIds, wholeJourney, roles, permissions };
   }
 

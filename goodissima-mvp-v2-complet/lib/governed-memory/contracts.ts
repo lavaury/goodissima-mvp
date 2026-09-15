@@ -8,6 +8,7 @@ export type JourneyMemoryCapabilities = {
   canDispute: boolean;
   canRecordDecision: boolean;
   canValidateDecision: boolean;
+  canRegisterSource: boolean;
 };
 
 export type MemoryProvenance = {

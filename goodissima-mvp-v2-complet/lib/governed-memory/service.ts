@@ -2,8 +2,8 @@ import type { JourneyMemoryCapabilities, JourneyMemoryProjection, MemoryActorOri
 import type { GovernedMemoryReadRepository, JourneyMemoryAccessRecord, MemoryPermission } from "./repository";
 
 const rolePermissions: Record<string, MemoryPermission[]> = {
-  MEMORY_STEWARD: ["VIEW_MEMORY", "VIEW_SOURCES", "PROPOSE_FACT", "ESTABLISH_FACT", "DISPUTE_FACT", "RECORD_DECISION", "VALIDATE_DECISION"],
-  MEMORY_DELEGATE: ["VIEW_MEMORY", "VIEW_SOURCES", "PROPOSE_FACT", "DISPUTE_FACT", "RECORD_DECISION"],
+  MEMORY_STEWARD: ["VIEW_MEMORY", "VIEW_SOURCES", "PROPOSE_FACT", "ESTABLISH_FACT", "DISPUTE_FACT", "RECORD_DECISION", "VALIDATE_DECISION", "REGISTER_SOURCE"],
+  MEMORY_DELEGATE: ["VIEW_MEMORY", "VIEW_SOURCES", "PROPOSE_FACT", "DISPUTE_FACT", "RECORD_DECISION", "REGISTER_SOURCE"],
 };
 
 function capabilities(access: JourneyMemoryAccessRecord): JourneyMemoryCapabilities {
@@ -13,7 +13,7 @@ function capabilities(access: JourneyMemoryAccessRecord): JourneyMemoryCapabilit
     canView: effective.has("VIEW_MEMORY"), canViewSources: effective.has("VIEW_SOURCES"),
     canPropose: effective.has("PROPOSE_FACT"), canEstablishFact: effective.has("ESTABLISH_FACT"),
     canDispute: effective.has("DISPUTE_FACT"), canRecordDecision: effective.has("RECORD_DECISION"),
-    canValidateDecision: effective.has("VALIDATE_DECISION"),
+    canValidateDecision: effective.has("VALIDATE_DECISION"), canRegisterSource: effective.has("REGISTER_SOURCE"),
   };
 }
 

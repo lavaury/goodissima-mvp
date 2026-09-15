@@ -28,6 +28,8 @@ import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection
 import { HistoricalTemplateCompatibilityView } from "@/components/HistoricalTemplateCompatibilityView";
 import { projectGovernedJourneyExperience } from "@/lib/governed-journey-experience";
 import { equivalentJourneyText } from "@/lib/governed-journey-ux";
+import { GovernedJourneyMemorySection } from "@/components/GovernedJourneyMemorySection";
+import { readJourneyGovernedMemory } from "@/lib/governed-memory/runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -521,6 +523,12 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     pendingReviews,
     interventions: (consolidation?.humanInterventions ?? []).map((signal) => ({ label: signal.actionLabel, detail: signal.title, href: signal.href })),
   });
+  const governedMemoryJourney = await prisma.governedJourney.findFirst({
+    where: { formTemplateId: formTemplate.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, relationCaseId: true, relationCaseContexts: { select: { relationCaseId: true }, take: 1 } },
+  });
+  const governedMemory = governedMemoryJourney ? await readJourneyGovernedMemory(governedMemoryJourney.id) : null;
   const currentActions = experience.actions;
   const journeySituation = experience.situation;
   return (
@@ -1339,6 +1347,15 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           </button>
         </form>
       </section>
+
+      {governedMemory && governedMemoryJourney ? <GovernedJourneyMemorySection
+        memory={governedMemory}
+        context={{
+          journeyId: governedMemoryJourney.id,
+          relationCaseId: governedMemoryJourney.relationCaseId ?? governedMemoryJourney.relationCaseContexts[0]?.relationCaseId ?? null,
+          formTemplateId: formTemplate.id,
+        }}
+      /> : null}
 
       <section id="history" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-slate-950">Historique</h2>

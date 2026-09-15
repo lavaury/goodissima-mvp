@@ -83,6 +83,7 @@ test("active memory roles produce explicit capabilities", async () => {
   const delegate = repo({ access: { ...access, permissions: [], roles: ["MEMORY_DELEGATE"] } });
   assert.equal((await new GovernedMemoryReadService(steward.repository).readJourneyGovernedMemory("journey-a", "steward"))?.capabilities.canValidateDecision, true);
   assert.equal((await new GovernedMemoryReadService(delegate.repository).readJourneyGovernedMemory("journey-a", "delegate"))?.capabilities.canValidateDecision, false);
+  assert.equal((await new GovernedMemoryReadService(delegate.repository).readJourneyGovernedMemory("journey-a", "delegate"))?.capabilities.canRegisterSource, true);
 });
 
 test("repository and service expose no mutation surface and events are read-only", () => {
