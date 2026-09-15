@@ -16,9 +16,11 @@ Les modèles `RelationalSubject`/IDRU, Representation/Contacts, GovernedJourney,
 
 ## Append-only
 
-`GovernedJourneyEvent` est protégé en base contre `UPDATE` et `DELETE` par le trigger `GovernedJourneyEvent_append_only` et sa fonction SQL associée.
+`GovernedJourneyEvent` est protégé en base contre `UPDATE` et `DELETE` par le trigger `GovernedJourneyEvent_append_only`, exécuté `BEFORE UPDATE OR DELETE`, et la fonction `reject_governed_journey_event_mutation()`.
 
-`GovernedMemoryEvent` ne possède pas encore de protection SQL équivalente. Tant que la dette `MEM-EVENT-APPEND-01` n'est pas résolue par une migration explicitement revue, aucune mutation runtime de ce journal ne doit être ouverte sur la seule foi d'une convention applicative.
+`GovernedMemoryEvent` est protégé selon la même convention par le trigger `GovernedMemoryEvent_append_only`, exécuté `BEFORE UPDATE OR DELETE`, et la fonction dédiée `reject_governed_memory_event_mutation()`. Les deux fonctions lèvent une erreur explicite et ne prévoient aucune exception pour le runtime applicatif. `INSERT` et `SELECT` restent possibles sous réserve des permissions SQL et RLS ordinaires.
+
+Ces protections sont hors du DSL Prisma. Toute migration future touchant l'une de ces tables doit vérifier explicitement dans le catalogue PostgreSQL que le trigger et sa fonction sont toujours installés ; un `prisma migrate diff` nul ne suffit pas à le démontrer.
 
 ## Discipline de réconciliation
 

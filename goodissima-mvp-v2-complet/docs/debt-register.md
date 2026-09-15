@@ -34,7 +34,7 @@ Les autres entrées n'ont aucune date de résolution et ne sont pas corrigées p
 | D-018 | Suppression/duplication template sans contrôle propriétaire / autorisation | P0 | RESOLVED TECHNICALLY | Audit baseline : DELETE et duplicate recherchaient par id sans propriétaire ; suppression d'un brouillon étranger acceptée. Correction : garde commune, copie attribuée directement à un Workspace explicite actif propriétaire ; sinon refus. Preuves DEBT-AUTH-01 ci-dessous. | DEBT-AUTH-01 |
 | D-019 | Destination IA protocole relatif / navigation | P1 | OPEN | `lib/governance-ai-assistant.ts` accepte `url.startsWith("/")`, donc `//example.invalid`. Le clic peut sortir du site ; aucune navigation automatique constatée. | DEBT-AUTH-01 |
 | D-020 | Deux assertions QA obsolètes après Accueil simplifié / tests | P1 | OPEN | `qa/announcement-archive.test.ts` et `qa/archived-opportunity-count.test.ts` exigent encore l'ancien compteur Dashboard. Deux échecs reproduits ; aucune correction dans ce lot. | DEBT-DATA-QA-01 |
-| MEM-EVENT-APPEND-01 | Journal GovernedMemory protégé seulement par convention applicative | P0 | OPEN | `GovernedMemoryEvent` n'a aucun trigger SQL interdisant `UPDATE`/`DELETE`, contrairement à `GovernedJourneyEvent`. Bloque l'ouverture des mutations runtime mémoire jusqu'à une protection DB explicitement revue. | PARCOURS-UX-02A |
+| MEM-EVENT-APPEND-01 | Journal GovernedMemory protégé seulement par convention applicative | P0 | RESOLVED | Migration `20260915180000_add_governed_memory_event_append_only_guard` appliquée et vérifiée sur Staging : trigger `BEFORE UPDATE OR DELETE`, INSERT/SELECT autorisés, UPDATE/DELETE refusés, fixture rollbackée et événements historiques intacts. | MEM-EVENT-APPEND-01 |
 
 ## Preuves de résolution D-001 / D-017
 

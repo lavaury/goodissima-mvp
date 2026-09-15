@@ -1,6 +1,6 @@
 # Modèle de lecture GovernedMemory
 
-La couche `lib/governed-memory` expose uniquement une lecture bornée de la mémoire rattachée à un `GovernedJourney`. Elle ne fournit aucune méthode générique ou métier de création, modification ou suppression. En particulier, `GovernedMemoryEvent` est traité comme un journal en lecture seule. La dette `MEM-EVENT-APPEND-01` reste ouverte tant que cette intention applicative n'est pas également protégée en base.
+La couche `lib/governed-memory` expose uniquement une lecture bornée de la mémoire rattachée à un `GovernedJourney`. Elle ne fournit aucune méthode générique ou métier de création, modification ou suppression. En particulier, `GovernedMemoryEvent` est traité comme un journal en lecture seule et sa protection append-only est également imposée en base par `GovernedMemoryEvent_append_only`.
 
 L'accès est contrôlé côté serveur. Un rôle mémoire actif au niveau Journey ouvre le périmètre du Journey ; un grant explicite reste limité aux dossiers (`relationCaseId`) sur lesquels `VIEW_MEMORY` est effectif. `VIEW_SOURCES` est vérifié séparément. Un Journey absent et un accès refusé produisent le même résultat logique afin de ne pas révéler l'existence d'une mémoire étrangère. L'autorité ou la propriété d'un objet ne remplace pas automatiquement une permission mémoire.
 
