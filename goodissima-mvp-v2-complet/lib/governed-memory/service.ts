@@ -44,6 +44,18 @@ function provenance(records: any, events: any[], relations: any[], objectType: s
   return { actorOrigin: actorFor(events, objectType, records.id), recordedAt: records.recordedAt.toISOString(), sourceHandles };
 }
 
+const memoryEventActions: Record<string, string> = {
+  FACT_PROPOSED: "a proposé un fait.", FACT_ESTABLISHED: "a confirmé un fait.",
+  FACT_DISPUTED: "a contesté un fait.", DISPUTE_OPENED: "a contesté un fait.",
+  DECISION_RECORDED: "a préparé une décision.", DECISION_VALIDATED: "a confirmé une décision.",
+  SOURCE_REGISTERED: "a ajouté une source.",
+};
+
+function compactLabel(value: string | undefined) {
+  if (!value) return null;
+  return value.length > 180 ? `${value.slice(0, 177)}…` : value;
+}
+
 export class GovernedMemoryReadService {
   private readonly repository: GovernedMemoryReadRepository;
   private readonly now: () => Date;
@@ -73,7 +85,16 @@ export class GovernedMemoryReadService {
       ...records.facts.filter((fact) => fact.status === "PROPOSED").map((fact) => ({ kind: "fact" as const, handle: fact.id, label: fact.statement, recordedAt: fact.recordedAt.toISOString() })),
       ...records.decisions.filter((decision) => decision.status === "DRAFT").map((decision) => ({ kind: "decision" as const, handle: decision.id, label: decision.title, recordedAt: decision.recordedAt.toISOString() })),
     ];
-    return { facts, decisions, sources, pending, capabilities: allowed };
+    const factLabels = new Map(records.facts.map((fact) => [fact.id, fact.statement]));
+    const decisionLabels = new Map(records.decisions.map((decision) => [decision.id, decision.title]));
+    const sourceLabels = new Map((allowed.canViewSources ? records.sources : []).map((source) => [source.id, source.title]));
+    const history = records.events.map((event) => {
+      const hiddenSource = event.objectType === "SOURCE" && !allowed.canViewSources;
+      const action = hiddenSource ? "a ajouté un élément à la mémoire." : memoryEventActions[event.type] ?? "a enregistré une évolution de la mémoire.";
+      const objectLabel = hiddenSource ? null : compactLabel(event.objectType === "FACT" ? factLabels.get(event.objectId) : event.objectType === "DECISION" ? decisionLabels.get(event.objectId) : event.objectType === "SOURCE" ? sourceLabels.get(event.objectId) : undefined);
+      return { handle: event.id, actorLabel: event.actorType === "SYSTEM" ? "Goodissima" as const : "Une personne" as const, action, objectLabel, occurredAt: event.occurredAt.toISOString() };
+    }).sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || right.handle.localeCompare(left.handle));
+    return { facts, decisions, sources, pending, history, capabilities: allowed };
   }
 }
 

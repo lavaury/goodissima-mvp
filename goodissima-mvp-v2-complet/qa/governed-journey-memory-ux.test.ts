@@ -9,7 +9,7 @@ const provenance = { actorOrigin: "HUMAN" as const, recordedAt: at, sourceHandle
 const capabilities = { canView: true, canViewSources: true, canPropose: true, canEstablishFact: true, canDispute: true, canRecordDecision: true, canValidateDecision: true, canRegisterSource: true };
 
 function memory(overrides: Partial<JourneyMemoryProjection> = {}): JourneyMemoryProjection {
-  return { facts: [], decisions: [], sources: [], pending: [], capabilities, ...overrides };
+  return { facts: [], decisions: [], sources: [], pending: [], history: [], capabilities, ...overrides };
 }
 
 test("the journey view keeps facts, retained decisions, sources and pending work distinct", () => {

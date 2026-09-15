@@ -28,6 +28,7 @@ import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection
 import { HistoricalTemplateCompatibilityView } from "@/components/HistoricalTemplateCompatibilityView";
 import { projectGovernedJourneyExperience } from "@/lib/governed-journey-experience";
 import { equivalentJourneyText } from "@/lib/governed-journey-ux";
+import { JOURNEY_HISTORY_INITIAL_COUNT, orderJourneyHistory } from "@/lib/governed-journey-history";
 import { GovernedJourneyMemorySection } from "@/components/GovernedJourneyMemorySection";
 import { readJourneyGovernedMemory } from "@/lib/governed-memory/runtime";
 
@@ -548,6 +549,16 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   ] : [];
   const currentActions = experience.actions;
   const journeySituation = experience.situation;
+  const journeyHistory = orderJourneyHistory([
+    ...(version?.createdAt ? [{ key: `journey-${version.id}`, occurredAt: version.createdAt.toISOString(), text: "Le parcours a été créé.", source: "journey" as const }] : []),
+    ...participantInvitations.map((item) => ({ key: `invitation-${item.invitationId}`, occurredAt: item.preparedAt, text: `Une invitation au parcours a été préparée pour ${item.participantName}.`, source: "invitation" as const })),
+    ...documentReceptions.map((item) => ({ key: `document-${item.receptionId}`, occurredAt: item.receivedAt, text: "La réception d’un document a été déclarée.", detail: item.documentName, source: "document" as const })),
+    ...governanceReviewPreparations.map((item) => ({ key: `review-${item.reviewPreparationId}`, occurredAt: item.updatedAt, text: "Une décision de travail a été mise à jour.", detail: item.question, source: "review" as const })),
+    ...communicationOverview.sessions.map((session) => ({ key: `meeting-${session.id}`, occurredAt: session.createdAt.toISOString(), text: "Une réunion a été préparée.", detail: session.title, source: "meeting" as const })),
+    ...(governedMemory?.history ?? []).map((item) => ({ key: `memory-${item.handle}`, occurredAt: item.occurredAt, text: `${item.actorLabel} ${item.action}`, detail: item.objectLabel, source: "memory" as const })),
+  ]);
+  const initialHistory = journeyHistory.slice(0, JOURNEY_HISTORY_INITIAL_COUNT);
+  const additionalHistory = journeyHistory.slice(JOURNEY_HISTORY_INITIAL_COUNT);
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <PageNavigationContext pathname={`/gouvernance/parcours/${encodeURIComponent(formTemplate.id)}/pilotage`} items={objectBreadcrumb({ name: title, fallback: "Parcours", objectId: formTemplate.id, ownerId: owner.id, workspace: formTemplate.relationTemplate.workspace })} />
@@ -1396,13 +1407,9 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
       <section id="history" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-slate-950">Historique</h2>
-        <p className="mt-2 text-sm text-slate-600">Ce qui s’est passé dans ce parcours, sans modifier les informations conservées.</p>
-        <ul className="mt-4 space-y-2 text-sm text-slate-700">
-          <li>Parcours créé le {formatDate(version?.createdAt)}</li>
-          {participantInvitations.slice(0, 3).map((item) => <li key={item.invitationId}>Invitation préparée pour {item.participantName} le {formatDate(item.preparedAt)}</li>)}
-          {documentReceptions.slice(0, 3).map((item) => <li key={item.receptionId}>Réception de « {item.documentName} » déclarée le {formatDate(item.receivedAt)}</li>)}
-          {governanceReviewPreparations.slice(0, 3).map((item) => <li key={item.reviewPreparationId}>Décision « {item.question} » mise à jour le {formatDate(item.updatedAt)}</li>)}
-        </ul>
+        <p className="mt-2 text-sm text-slate-600">Ce qui s’est passé dans ce parcours. La mémoire ci-dessus décrit séparément ce qui est retenu aujourd’hui.</p>
+        {initialHistory.length > 0 ? <ol className="mt-4 space-y-3">{initialHistory.map((item) => <HistoryItem key={item.key} item={item} />)}</ol> : <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucun événement à afficher.</p>}
+        {additionalHistory.length > 0 ? <details className="mt-4 rounded-lg border bg-slate-50"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-cyan-900">Afficher plus ({additionalHistory.length})</summary><ol className="space-y-3 border-t p-4">{additionalHistory.map((item) => <HistoryItem key={item.key} item={item} />)}</ol></details> : null}
       </section>
       </section>
 
@@ -1417,6 +1424,14 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       </div></details>
     </main>
   );
+}
+
+function HistoryItem({ item }: { item: { occurredAt: string; text: string; detail?: string | null } }) {
+  return <li className="min-w-0 rounded-lg border bg-slate-50 p-3">
+    <time dateTime={item.occurredAt} className="text-xs font-semibold text-slate-500">{formatDate(item.occurredAt)}</time>
+    <p className="mt-1 break-words text-sm font-semibold text-slate-900">{item.text}</p>
+    {item.detail ? <p className="mt-1 line-clamp-2 break-words text-sm text-slate-600">« {item.detail} »</p> : null}
+  </li>;
 }
 
 function MetricCard({ label, value }: { label: string; value: number }) {

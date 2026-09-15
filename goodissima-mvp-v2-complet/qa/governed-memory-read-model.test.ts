@@ -23,6 +23,7 @@ function repo(options: { access?: JourneyMemoryAccessRecord | null; records?: Pa
 function fact(status = "ESTABLISHED") { return { id: "fact-a", statement: "Fait établi", status, evidenceLevel: "SUPPORTED", recordedAt: at, effectiveFrom: at, effectiveUntil: null, establishedAt: status === "ESTABLISHED" ? at : null, supersededByFactId: null }; }
 function decision(status = "VALIDATED") { return { id: "decision-a", title: "Décision validée", rationale: "Motif", status, recordedAt: at, decidedAt: at, validatedAt: status === "VALIDATED" ? at : null }; }
 function source(id = "source-a") { return { id, title: `Rapport ${id}`, kind: "DOCUMENT", status: "ACTIVE", recordedAt: at, unavailableReason: null }; }
+function event(id: string, type: string, objectType: string, objectId: string, actorType = "HUMAN", occurredAt = at) { return { id, type, objectType, objectId, actorType, occurredAt, recordedAt: occurredAt }; }
 
 test("empty memory returns a user-facing empty projection", async () => {
   const setup = repo();
@@ -55,10 +56,33 @@ test("open disputes and supersession describe current state without erasing reco
 });
 
 test("pending contains only proposed facts and draft decisions", async () => {
-  const setup = repo({ records: { facts: [fact("PROPOSED"), fact("ESTABLISHED")], decisions: [decision("DRAFT"), decision("VALIDATED")], events: [{ id: "event", objectType: "FACT", objectId: "fact-a", actorType: "SYSTEM", recordedAt: at }], transitionRequests: [{ id: "review-like-work" }] } });
+  const setup = repo({ records: { facts: [fact("PROPOSED"), fact("ESTABLISHED")], decisions: [decision("DRAFT"), decision("VALIDATED")], events: [event("event", "FACT_PROPOSED", "FACT", "fact-a", "SYSTEM")], transitionRequests: [{ id: "review-like-work" }] } });
   const result = await new GovernedMemoryReadService(setup.repository).readJourneyGovernedMemory("journey-a", "user-a");
   assert.deepEqual(result?.pending.map((item) => item.kind), ["fact", "decision"]);
   assert.equal(result?.facts[0].provenance.actorOrigin, "SYSTEM");
+});
+
+test("memory events are humanized, compact and stably ordered", async () => {
+  const earlier = new Date("2026-09-14T12:00:00.000Z");
+  const setup = repo({ records: {
+    facts: [fact()], decisions: [decision()], sources: [source()],
+    events: [
+      event("a", "FACT_PROPOSED", "FACT", "fact-a"), event("b", "FACT_ESTABLISHED", "FACT", "fact-a"),
+      event("c", "FACT_DISPUTED", "FACT", "fact-a"), event("d", "DECISION_RECORDED", "DECISION", "decision-a"),
+      event("e", "DECISION_VALIDATED", "DECISION", "decision-a"), event("f", "SOURCE_REGISTERED", "SOURCE", "source-a", "SYSTEM", earlier),
+    ],
+  } });
+  const result = await new GovernedMemoryReadService(setup.repository).readJourneyGovernedMemory("journey-a", "user-a");
+  assert.deepEqual(result?.history.map((item) => item.handle), ["e", "d", "c", "b", "a", "f"]);
+  assert.deepEqual(result?.history.map((item) => item.action), ["a confirmé une décision.", "a préparé une décision.", "a contesté un fait.", "a confirmé un fait.", "a proposé un fait.", "a ajouté une source."]);
+  assert.equal(result?.history.at(-1)?.actorLabel, "Goodissima");
+  assert.equal(result?.history.at(-1)?.objectLabel, "Rapport source-a");
+});
+
+test("source events reveal neither source detail nor source wording without VIEW_SOURCES", async () => {
+  const setup = repo({ access: { ...access, permissions: ["VIEW_MEMORY"] }, records: { sources: [source()], events: [event("source-event", "SOURCE_REGISTERED", "SOURCE", "source-a")] } });
+  const result = await new GovernedMemoryReadService(setup.repository).readJourneyGovernedMemory("journey-a", "user-a");
+  assert.deepEqual(result?.history, [{ handle: "source-event", actorLabel: "Une personne", action: "a ajouté un élément à la mémoire.", objectLabel: null, occurredAt: at.toISOString() }]);
 });
 
 test("VIEW_MEMORY denial, foreign owner and absent journey are indistinguishable", async () => {

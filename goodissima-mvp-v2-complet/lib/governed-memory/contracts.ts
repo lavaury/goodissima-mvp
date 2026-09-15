@@ -48,5 +48,12 @@ export type JourneyMemoryProjection = {
     available: boolean;
   }>;
   pending: Array<{ kind: "fact" | "decision"; handle: string; label: string; recordedAt: string }>;
+  history: Array<{
+    handle: string;
+    actorLabel: "Une personne" | "Goodissima";
+    action: string;
+    objectLabel: string | null;
+    occurredAt: string;
+  }>;
   capabilities: JourneyMemoryCapabilities;
 };
