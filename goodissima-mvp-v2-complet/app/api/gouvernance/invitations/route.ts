@@ -13,6 +13,7 @@ export async function POST(request: Request) {
   const participantName = typeof body.participantName === "string" ? body.participantName.trim() : displayName;
   const participantRole = typeof body.participantRole === "string" ? body.participantRole.trim() : "";
   const preparedEmail = typeof body.preparedEmail === "string" && body.preparedEmail.trim() ? body.preparedEmail.trim() : null;
+  const directoryPublicId = typeof body.directoryPublicId === "string" && body.directoryPublicId.trim() ? body.directoryPublicId.trim() : null;
   const relationCaseId = typeof body.relationCaseId === "string" && body.relationCaseId.trim() ? body.relationCaseId.trim() : null;
   const role = roles.has(body.role) ? body.role : "OTHER";
   const expiresInDays = Math.min(30, Math.max(1, Number(body.expiresInDays) || 7));
@@ -20,7 +21,19 @@ export async function POST(request: Request) {
     where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } },
     select: { relationTemplate: { select: { id: true, workspaceId: true } } },
   });
-  if (!form?.relationTemplate || !displayName) return NextResponse.json({ error: "Parcours ou invité invalide." }, { status: 400 });
+  const directoryProfile = directoryPublicId
+    ? await prisma.directoryProfile.findFirst({
+        where: { publicId: directoryPublicId, status: "PUBLISHED", deletedAt: null, actorType: "PERSON", subjectIdentity: { user: { isNot: null } } },
+        select: { publicId: true, publicName: true, subjectIdentity: { select: { user: { select: { id: true } } } } },
+      })
+    : null;
+  const resolvedDisplayName = directoryProfile?.publicName ?? displayName;
+  if (!form?.relationTemplate || !resolvedDisplayName || (directoryPublicId && !directoryProfile?.subjectIdentity.user)) {
+    return NextResponse.json({ error: "Parcours ou invité invalide." }, { status: 400 });
+  }
+  if (directoryProfile?.subjectIdentity.user?.id === owner.id) {
+    return NextResponse.json({ error: "L’organisateur participe déjà à ce parcours." }, { status: 409 });
+  }
 
   if (relationCaseId) {
     const allowedCase = await prisma.relationCase.findFirst({ where: { id: relationCaseId, ownerId: owner.id, templateId: form.relationTemplate.id }, select: { id: true } });
@@ -31,7 +44,9 @@ export async function POST(request: Request) {
     where: {
       ownerId: owner.id,
       relationTemplateId: form.relationTemplate.id,
-      displayName,
+      ...(directoryPublicId
+        ? { OR: [{ metadata: { path: ["directoryPublicId"], equals: directoryPublicId } }, { displayName: resolvedDisplayName }] }
+        : { displayName: resolvedDisplayName }),
       status: "ACTIVE",
       accessTokenExpiresAt: { gt: new Date() },
     },
@@ -47,12 +62,14 @@ export async function POST(request: Request) {
   const token = createJourneyInvitationToken();
   const invitation = await prisma.governedJourneyInvitation.create({ data: {
     ownerId: owner.id, workspaceId: form.relationTemplate.workspaceId, relationTemplateId: form.relationTemplate.id, relationCaseId,
-    displayName, role, status: "ACTIVE", accessTokenHash: hashJourneyInvitationToken(token),
+    displayName: resolvedDisplayName, role, status: "ACTIVE", accessTokenHash: hashJourneyInvitationToken(token),
     accessTokenExpiresAt: new Date(Date.now() + expiresInDays * 86400000),
     metadata: {
-      participantName,
+      participantName: participantName || resolvedDisplayName,
       participantRole,
       preparedEmail,
+      directoryPublicId,
+      subjectUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
       deliveryMode: "MANUAL_OUT_OF_BAND",
       automaticEmailSent: false,
       automaticNotificationSent: false,

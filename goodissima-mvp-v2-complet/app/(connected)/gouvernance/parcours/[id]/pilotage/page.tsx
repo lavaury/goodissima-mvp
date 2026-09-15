@@ -31,6 +31,7 @@ import { equivalentJourneyText } from "@/lib/governed-journey-ux";
 import { JOURNEY_HISTORY_INITIAL_COUNT, orderJourneyHistory } from "@/lib/governed-journey-history";
 import { meetingIsClosed, meetingListCategory, selectPrimaryMeetings } from "@/lib/governed-journey-meetings";
 import { GovernedJourneyMemorySection } from "@/components/GovernedJourneyMemorySection";
+import { GovernedJourneyAddParticipantPanel } from "@/components/GovernedJourneyAddParticipantPanel";
 import { readJourneyGovernedMemory } from "@/lib/governed-memory/runtime";
 
 export const dynamic = "force-dynamic";
@@ -891,6 +892,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <div className="mt-4">
         <section data-boussole-id="governed-journey-participants" className="rounded-lg border bg-white p-6 shadow-sm">
           <h3 className="text-lg font-bold text-slate-950">Participants</h3>
+          {attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} /> : <p className="mt-3 text-sm text-slate-600">Rattachez d’abord le parcours à un espace pour ajouter un participant.</p>}
           {participants.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucun participant attendu n’a été renseigné.</p>
           ) : (
