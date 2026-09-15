@@ -25,3 +25,13 @@ Ces protections sont hors du DSL Prisma. Toute migration future touchant l'une d
 ## Discipline de réconciliation
 
 Une vérification de schéma doit utiliser une cible explicitement identifiée et comparer le datamodel à cette cible avec `prisma migrate diff`. Un diff nul confirme le mapping Prisma ; il ne contrôle pas à lui seul la conservation des objets hors DSL listés ci-dessus.
+
+## Consentement au Parcours
+
+Une invitation, un consentement explicite, un droit d'accès et une participation à une réunion sont quatre objets distincts. `GovernedJourneyInvitation` transporte l'invitation et son accès historique ; `GovernedJourneyConsent` porte la décision explicite ; `GovernedMeetingParticipant` porte l'autorisation de participer à une réunion.
+
+Le champ historique `GovernedJourneyInvitation.acceptedAt` reste un marqueur de première consultation du lien. Il ne constitue pas une preuve de consentement. Pour les invitations antérieures à la fondation persistante, l'absence de ligne `GovernedJourneyConsent` se projette comme `LEGACY_UNKNOWN` sans ajouter cette valeur à l'enum stockée.
+
+`decidedByUserId` reste nullable : les transitions futures peuvent être attribuées à un acteur système ou externe sans compte `User`. L'identité et la nature de l'acteur sont conservées séparément dans le journal ; la contrainte SQL impose seulement la cohérence entre le statut et `decidedAt`.
+
+`GovernedJourneyConsentEvent` est append-only au niveau PostgreSQL. Le trigger `GovernedJourneyConsentEvent_append_only` refuse tout `UPDATE` ou `DELETE`, tandis que les nouveaux événements restent insérables.

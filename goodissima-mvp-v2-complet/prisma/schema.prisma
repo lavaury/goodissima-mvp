@@ -35,6 +35,9 @@ model User {
   directoryProfilesManaged                                                                      DirectoryProfileManager[]
   links                                                                                         GLink[]
   governedJourneys                                                                              GovernedJourney[]
+  governedJourneyConsentDecisions                                                               GovernedJourneyConsent[]              @relation("GovernedJourneyConsentDecider")
+  governedJourneyConsentEvents                                                                  GovernedJourneyConsentEvent[]         @relation("GovernedJourneyConsentEventActor")
+  governedJourneyInvitations                                                                    GovernedJourneyInvitation[]           @relation("GovernedJourneyInvitationInvitee")
   GovernedJourneyCreationRequest                                                                GovernedJourneyCreationRequest[]
   GovernedJourneyEvent                                                                          GovernedJourneyEvent[]
   GovernedJourneyMemoryRoleAssignment_GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser GovernedJourneyMemoryRoleAssignment[] @relation("GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser")
@@ -143,16 +146,59 @@ model GovernedJourneyInvitation {
   revokedAt            DateTime?
   acceptedAt           DateTime?
   lastAccessedAt       DateTime?
+  inviteeUserId        String?
   metadata             Json?
   createdAt            DateTime                        @default(now())
   updatedAt            DateTime                        @updatedAt
   relationCase         RelationCase?                   @relation(fields: [relationCaseId], references: [id])
   relationTemplate     RelationTemplate                @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
   workspace            Workspace?                      @relation(fields: [workspaceId], references: [id])
+  inviteeUser          User?                           @relation("GovernedJourneyInvitationInvitee", fields: [inviteeUserId], references: [id], onDelete: SetNull)
+  consent              GovernedJourneyConsent?
+  consentEvents        GovernedJourneyConsentEvent[]
   meetingParticipants  GovernedMeetingParticipant[]
 
   @@index([ownerId, relationTemplateId, status])
   @@index([accessTokenExpiresAt, status])
+  @@index([inviteeUserId, status, createdAt])
+}
+
+/// Explicit Journey consent is distinct from invitation delivery, access and meeting participation.
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model GovernedJourneyConsent {
+  id              String                        @id @default(cuid())
+  invitationId    String                        @unique
+  status          JourneyConsentStatus          @default(PENDING)
+  decidedAt       DateTime?
+  decidedByUserId String?
+  version         Int                           @default(0)
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+  invitation      GovernedJourneyInvitation     @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+  decidedByUser   User?                         @relation("GovernedJourneyConsentDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  events          GovernedJourneyConsentEvent[]
+
+  @@index([status, updatedAt])
+}
+
+/// Append-only audit journal for explicit Journey consent transitions.
+model GovernedJourneyConsentEvent {
+  id             String                          @id @default(cuid())
+  invitationId   String
+  consentId      String?
+  type           GovernedJourneyConsentEventType
+  actorUserId    String?
+  actorKind      GovernedJourneyConsentActorKind
+  occurredAt     DateTime
+  consentVersion Int?
+  roleSnapshot   GovernedJourneyInvitationRole?
+  createdAt      DateTime                        @default(now())
+  invitation     GovernedJourneyInvitation       @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+  consent        GovernedJourneyConsent?         @relation(fields: [consentId], references: [id], onDelete: Restrict)
+  actorUser      User?                           @relation("GovernedJourneyConsentEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([invitationId, occurredAt, id])
+  @@index([consentId, occurredAt, id])
 }
 
 model CommunicationSession {
@@ -2223,6 +2269,25 @@ enum GovernedJourneyInvitationStatus {
   ACTIVE
   REVOKED
   EXPIRED
+}
+
+enum JourneyConsentStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum GovernedJourneyConsentEventType {
+  CREATED
+  ACCEPTED
+  DECLINED
+  REVOKED
+}
+
+enum GovernedJourneyConsentActorKind {
+  INVITEE
+  OWNER
+  SYSTEM
 }
 
 enum WorkspaceKind {
