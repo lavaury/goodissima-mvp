@@ -521,16 +521,13 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const journeySituation = experience.situation;
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <PageNavigationContext pathname={`/gouvernance/parcours/${encodeURIComponent(formTemplate.id)}/pilotage`} items={objectBreadcrumb({ name: title, fallback: "Parcours gouverné", objectId: formTemplate.id, ownerId: owner.id, workspace: formTemplate.relationTemplate.workspace })} />
+      <PageNavigationContext pathname={`/gouvernance/parcours/${encodeURIComponent(formTemplate.id)}/pilotage`} items={objectBreadcrumb({ name: title, fallback: "Parcours", objectId: formTemplate.id, ownerId: owner.id, workspace: formTemplate.relationTemplate.workspace })} />
 
       {searchParams.meetingPrepared ? <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-emerald-950"><p className="font-bold">Réunion préparée : {searchParams.meetingPrepared}</p><p className="mt-1 text-sm">Vous pouvez maintenant l’ouvrir depuis sa carte.</p></div> : null}
       {searchParams.similarMeetingId ? <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"><p className="font-bold">Une réunion similaire existe déjà.</p><a href={`#meeting-${searchParams.similarMeetingId}`} className="mt-2 inline-block text-sm font-bold underline">Voir la réunion existante</a></div> : null}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/gouvernance" className="text-sm font-semibold text-slate-600 underline underline-offset-4">
-          Retour à la gouvernance
-        </Link>
-        <details className="relative">
+        <details className="relative ml-auto">
           <summary className="min-h-11 cursor-pointer list-none rounded-lg border px-4 py-2 text-xl font-bold" aria-label="Actions avancées">•••</summary>
           <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border bg-white p-2 shadow-xl">
             <Link href="/annuaire" className="block min-h-11 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-50">Gérer les accès</Link>

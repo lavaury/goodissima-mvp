@@ -9,11 +9,13 @@ import { governedJourneySteps } from "./boussole-governed-journey.ts";
 import { dossierSteps } from "./boussole-dossiers.ts";
 import { directorySteps } from "./boussole-directory.ts";
 import { newOpportunitySteps } from "./boussole-new-opportunity.ts";
+import { workspaceSteps } from "./boussole-workspace.ts";
 
 export type CompassStep = { id?: string; title: string; body: string; detailedBody?: string; targetId?: string; targetStates?: string[]; glossaryTermIds?: string[]; optional?: boolean; fallbackTargetId?: string; targetStrategy?: import("./boussole/contracts.ts").BoussoleTargetStrategy; animation?: { focus: string; movement: string; narration: string; subtitles: string; duration: number; transition: string; tryNow: boolean } };
 export type CompassContext = { id: string; pageName: string; summary: string; caution: string; steps: CompassStep[] };
 
 const contexts: CompassContext[] = [
+  { id: "workspace", pageName: "Cet espace", summary: "Vous consultez un espace de travail réel. Piloter synthétise son activité ; Explorer présente ses objets directement rattachés.", caution: "La Boussole explique la vue actuelle sans créer, ouvrir ou modifier d’objet.", steps: workspaceSteps },
   { id: "portfolio-detail", pageName: "Explorer ce Portfolio", summary: "Ce Portfolio contient ses Workspaces dans Mes espaces.", caution: "Ouvrir, rattacher et détacher restent des actions humaines.", steps: portfolioDetailSteps },
   { id: "portfolio-pilotage", pageName: "Pilotage du Portfolio", summary: "Les signaux concernent le Portfolio ouvert.", caution: "La Boussole ne traite aucun signal et ne lance pas l’assistant.", steps: portfolioPilotageSteps },
   { id: "simple-link", pageName: "Créer un lien simple", summary: "Vous êtes dans le constructeur de lien simple. Il permet de créer rapidement un formulaire sécurisé à partir d’un modèle ou de vos propres champs.", caution: "Cette page structure un besoin sans créer un parcours gouverné complet. Commencez par choisir un modèle ou renseignez directement le titre.", steps: simpleLinkSteps },
@@ -67,9 +69,9 @@ export function getCompassContext(pathname: string, search = "") {
   if (/^\/gouvernance\/invitation\/[^/]+\/?$/.test(pathname)) return null;
   if (pathname === "/links/simple") return contexts.find((item) => item.id === "simple-link")!;
   if (/^\/links\/[^/]+$/.test(pathname) && pathname !== "/links/new") return contexts.find((item) => item.id === "link-owner")!;
-  // A focused Workspace is not the Governance collection: its guide targets do not apply.
+  // A focused Workspace uses its own real targets, never those of the Governance collection.
   if (/^\/gouvernance\/workspaces\/nouveau\/?$/.test(pathname)) return null;
-  if (/^\/gouvernance\/workspaces\/[^/]+\/?$/.test(pathname) && !pathname.endsWith("/nouveau")) return null;
+  if (/^\/gouvernance\/workspaces\/[^/]+\/?$/.test(pathname) && !pathname.endsWith("/nouveau")) return contexts.find((item) => item.id === "workspace")!;
   if (pathname.startsWith("/gouvernance/parcours/")) return contexts.find((item) => item.id === "governed-journey")!;
   if (pathname === "/gouvernance/nouveau") return contexts.find((item) => item.id === "new-governed-journey")!;
   if (/^\/gouvernance\/portfolios\/?$/.test(pathname)) return contexts.find((item) => item.id === "portfolio")!;

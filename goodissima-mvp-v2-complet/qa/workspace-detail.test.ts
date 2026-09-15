@@ -91,8 +91,9 @@ test("Workspace breadcrumb has real Portfolio parent or Mes espaces", () => {
   assert.equal(logicalParent(workspaceBreadcrumb({ ...base, portfolio: null }))?.href, "/gouvernance");
   assert.equal(logicalParent(workspaceBreadcrumb({ ...base, portfolio: { ...base.portfolio, ownerId: "b" } }))?.href, "/gouvernance");
 });
-test("Workspace focused, empty and populated views do not inherit absent Governance targets", () => {
-  for (const search of ["", "?view=explorer"]) assert.equal(getCompassContext("/gouvernance/workspaces/w-a", search), null);
+test("Workspace focused views use their contextual guide without inheriting Governance targets", () => {
+  for (const search of ["", "view=explorer"]) assert.equal(getCompassContext("/gouvernance/workspaces/w-a", search)?.id, "workspace");
+  assert.ok(!getCompassContext("/gouvernance/workspaces/w-a")?.steps.some((step) => step.targetId?.startsWith("governance-")));
   assert.ok(getCompassContext("/gouvernance"));
 });
 test("both Workspace entry repositories use canonical destination, Governance exposes a real anchor", () => {

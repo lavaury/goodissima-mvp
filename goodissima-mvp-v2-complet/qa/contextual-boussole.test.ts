@@ -6,6 +6,7 @@ import { dashboardSequences, dashboardSteps } from "../lib/boussole-dashboard.ts
 import { simpleLinkSequences, simpleLinkSteps } from "../lib/boussole-simple-link.ts";
 import { boussoleGlossary, getGlossaryTerm, searchGlossary, validateGlossaryReferences } from "../lib/boussole/glossary.ts";
 import { resolveNextTargetInSequence } from "../lib/boussole/target-resolver.ts";
+import { workspaceSteps } from "../lib/boussole-workspace.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -15,6 +16,16 @@ test("selects contextual journeys before generic navigation contexts", () => {
   assert.equal(getCompassContext("/gouvernance/pilotage")?.id, "pilotage");
   assert.equal(getCompassContext("/gouvernance")?.id, "governance");
   assert.equal(getCompassContext("/cases/case-123")?.id, "dossiers");
+  assert.equal(getCompassContext("/gouvernance/workspaces/workspace-123")?.id, "workspace");
+});
+
+test("uses one contextual Boussole with stable human labels for Journey and Workspace views", () => {
+  const source = read("components/ContextualBoussole.tsx");
+  const workspace = `${read("components/WorkspaceDetailView.tsx")}\n${read("components/WorkspacePilotageView.tsx")}`;
+  assert.match(source, /"Découvrir ce parcours"/);
+  assert.match(source, /"Découvrir cet espace"/);
+  assert.match(source, /context\?\.id === "workspace" \? workspaceSequences/);
+  for (const target of workspaceSteps.map((step) => step.targetId)) assert.ok(target && workspace.includes(target), `missing Workspace target ${target}`);
 });
 
 test("covers the expected internal actions in contextual journeys", () => {

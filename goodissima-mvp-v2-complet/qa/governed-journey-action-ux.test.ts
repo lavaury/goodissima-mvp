@@ -43,3 +43,10 @@ test("les réunions exigent une préparation explicite et utilisent des actions 
   assert.doesNotMatch(guest, /Rejoindre la salle securisee/);
   assert.match(media, /Audio, vidéo et partage d&apos;écran sont disponibles dans cette réunion/);
 });
+
+test("le parcours s'appuie sur la navigation spatiale sans retour technique", () => {
+  const page = readFileSync(new URL("../app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /PageNavigationContext/);
+  assert.match(page, /fallback: "Parcours"/);
+  assert.doesNotMatch(page, /Retour à la gouvernance/);
+});

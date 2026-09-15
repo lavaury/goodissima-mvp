@@ -23,6 +23,7 @@ import { resolveBoussolePageState } from "@/lib/boussole/page-state";
 import type { BoussoleRuntimeContext } from "@/lib/boussole/contracts";
 import { createBoussoleProgress, parseBoussoleProgressStore, resolveBoussoleProgress } from "@/lib/boussole/progress";
 import { getBoussoleJourneyVersion } from "@/lib/boussole/registry";
+import { workspaceSequences } from "@/lib/boussole-workspace";
 
 const unavailableMessage = "Cette action n’est pas disponible sur cette page ou dans cet état.";
 const positionStorageKey = "goodissima:boussole-position-v1";
@@ -72,13 +73,17 @@ export function ContextualBoussole() {
     if (typeof document === "undefined") return { pageState: "EMPTY", visibleObjectCount: 0 };
     const targets = Array.from(document.querySelectorAll<HTMLElement>("[data-boussole-id]"));
     const availableTargetIds = [...new Set(targets.filter((element) => element.getClientRects().length > 0 || element.closest("[data-dossier-tab-content]") || (isInClosedNavigationDisclosure(element) || isInClosedPortfolio(element))).map((element) => element.dataset.boussoleId).filter((id): id is string => Boolean(id)))];
-    const focusedObjectId = context?.id === "governed-journey" && availableTargetIds.includes("governed-journey-overview") ? pathname.match(/^\/gouvernance\/parcours\/([^/]+)/)?.[1] : undefined;
+    const focusedObjectId = context?.id === "governed-journey" && availableTargetIds.includes("governed-journey-overview")
+      ? pathname.match(/^\/gouvernance\/parcours\/([^/]+)/)?.[1]
+      : context?.id === "workspace" && (availableTargetIds.includes("workspace-pilotage") || availableTargetIds.includes("workspace-explorer"))
+        ? pathname.match(/^\/gouvernance\/workspaces\/([^/]+)/)?.[1]
+        : undefined;
     const visibleObjectCount = context?.id === "governance"
       ? ["governance-first-workspace", "governance-first-journey", "governance-first-portfolio", "first-unassigned-governed-journey", "first-unassigned-relational-case"].filter((id) => availableTargetIds.includes(id)).length
       : focusedObjectId ? 1 : 0;
     return {
       pageState: resolveBoussolePageState({ focusedObjectId, visibleObjectCount }),
-      focusedObjectType: focusedObjectId ? "GOVERNED_JOURNEY" : undefined,
+      focusedObjectType: focusedObjectId ? context?.id === "workspace" ? "WORKSPACE" : "GOVERNED_JOURNEY" : undefined,
       focusedObjectId,
       visibleObjectCount,
       ...portfolioRuntimeContext(context?.id, pathname, availableTargetIds),
@@ -105,7 +110,7 @@ export function ContextualBoussole() {
       return available;
     });
   }, [context, domRevision]);
-  const allSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "new-opportunity" ? newOpportunitySequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "portfolio-detail" ? portfolioDetailSequences : context?.id === "portfolio-pilotage" ? portfolioPilotageSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : context?.id === "directory" ? directorySequences : [];
+  const allSequences = context?.id === "dashboard" ? dashboardSequences : context?.id === "simple-link" ? simpleLinkSequences : context?.id === "new-opportunity" ? newOpportunitySequences : context?.id === "opportunities" || context?.id === "archives" ? opportunitySequences : context?.id === "governance" ? governanceSequences : context?.id === "workspace" ? workspaceSequences : context?.id === "portfolio" ? portfolioSequences : context?.id === "portfolio-detail" ? portfolioDetailSequences : context?.id === "portfolio-pilotage" ? portfolioPilotageSequences : context?.id === "new-governed-journey" ? newGovernedJourneySequences : context?.id === "governed-journey" ? governedJourneySequences : context?.id === "dossiers" ? dossierSequences : context?.id === "directory" ? directorySequences : [];
   const availableSequences = allSequences.filter((item) => !item.applicableStates || item.applicableStates.includes(runtimeContext.pageState));
   const sequence = sequenceId === "all" ? null : availableSequences.find((item) => item.id === sequenceId);
   const selectedSteps = sequence ? visibleSteps.filter((item) => sequence.steps.some((candidate) => candidate.id === item.id)) : visibleSteps;
@@ -469,7 +474,7 @@ export function ContextualBoussole() {
 
   return <>
     <style>{`.goodissima-boussole-highlight{outline:4px solid #21a6b3!important;outline-offset:5px!important;box-shadow:0 0 0 10px rgba(33,166,179,.16),0 18px 45px rgba(15,23,42,.18)!important;border-radius:14px!important;position:relative;z-index:39;transition:${experience.reducedMotion ? "none" : "outline-color 180ms ease,box-shadow 180ms ease"}}@media(prefers-reduced-motion:reduce){.goodissima-boussole-highlight{transition:none!important}}`}</style>
-    {!compact ? <button type="button" onClick={openBoussole} className="fixed bottom-4 left-4 z-40 rounded-full border border-cyan-200 bg-white px-4 py-3 text-sm font-bold text-[#247f88] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:left-6" aria-label={`Ouvrir la Boussole pour ${context.pageName}`}>{context.id === "governed-journey" ? "Découvrir ce parcours gouverné" : "Boussole"}</button> : null}
+    {!compact ? <button type="button" onClick={openBoussole} className="fixed bottom-4 left-4 z-40 rounded-full border border-cyan-200 bg-white px-4 py-3 text-sm font-bold text-[#247f88] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:left-6" aria-label={`Ouvrir la Boussole pour ${context.pageName}`}>{context.id === "governed-journey" ? "Découvrir ce parcours" : context.id === "workspace" ? "Découvrir cet espace" : "Boussole"}</button> : null}
     {compact ? <aside className={`fixed bottom-4 z-40 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-cyan-200 bg-white p-3 shadow-xl sm:bottom-6 ${compactSide === "right" ? "right-4 sm:right-6" : "left-4 sm:left-6"}`} aria-label="Boussole réduite">
       <p className="text-xs font-bold uppercase tracking-wide text-[#247f88]">Boussole · zone visible</p>
       <p className="mt-1 truncate text-sm font-semibold text-slate-900">{step.title}</p>

@@ -9,6 +9,7 @@ import { portfolioDetailSequences, portfolioPilotageSequences } from "../boussol
 import { directorySequences } from "../boussole-directory.ts";
 import { newOpportunitySequences } from "../boussole-new-opportunity.ts";
 import { opportunitySequences } from "../boussole-opportunities.ts";
+import { workspaceSequences } from "../boussole-workspace.ts";
 import type {
   BoussoleJourneyDefinition,
   BoussolePageManifest,
@@ -83,6 +84,7 @@ export const boussoleRegistry: BoussoleRegistryEntry[] = [
   registerPage("governance", ["/gouvernance"], governanceSequences),
   registerPage("new-governed-journey", ["/gouvernance/nouveau"], newGovernedJourneySequences),
   registerPage("governed-journey-cockpit", ["/gouvernance/parcours/:id/pilotage"], governedJourneySequences),
+  registerPage("workspace", ["/gouvernance/workspaces/:id"], workspaceSequences, ["FOCUSED"]),
   registerPage("portfolio", ["/gouvernance/portfolios"], portfolioSequences),
   registerPage("portfolio-detail", ["/gouvernance/portfolios/:id"], portfolioDetailSequences),
   registerPage("portfolio-pilotage", ["/gouvernance/portfolios/:id/pilotage"], portfolioPilotageSequences),
