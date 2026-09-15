@@ -16,6 +16,7 @@ export default async function GuestJourneyPage({ params }: { params: { token: st
   if (invitation.status !== "ACTIVE" || invitation.revokedAt || invitation.accessTokenExpiresAt <= new Date()) {
     return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold">Acces refuse</h1><p className="mt-3">Ce lien est expire ou a ete revoque.</p></main>;
   }
+  const inviter = await prisma.user.findUnique({ where: { id: invitation.ownerId }, select: { name: true, email: true } });
 
   await prisma.governedJourneyInvitation.update({
     where: { id: invitation.id },
@@ -33,10 +34,10 @@ export default async function GuestJourneyPage({ params }: { params: { token: st
 
   return <main className="mx-auto max-w-2xl p-8">
     <GovernedInvitationStatusRefresh />
-    <p className="text-sm font-semibold text-[#247f88]">Parcours gouverne - acces invite limite</p>
-    <h1 className="mt-2 text-3xl font-bold">{invitation.relationTemplate.name}</h1>
-    <p className="mt-4">{invitation.relationTemplate.description}</p>
-    <section className="mt-6 rounded-lg border bg-slate-50 p-5"><h2 className="font-bold">Votre acces</h2><p className="mt-2">Invite : {invitation.displayName}</p><p>Role : {getGovernedInvitationRoleLabel(invitation.role, invitation.metadata)}</p><p className="mt-3 text-sm">Votre acces est limite a ce parcours. Aucun Workspace ni autre dossier n'est accessible.</p></section>
+    <p className="text-sm font-semibold text-[#247f88]">Invitation au parcours</p>
+    <h1 className="mt-2 text-3xl font-bold">Vous êtes invité(e) à participer à « {invitation.relationTemplate.name} »</h1>
+    <p className="mt-4"><strong>Objectif :</strong> {invitation.relationTemplate.description}</p>
+    <section className="mt-6 rounded-lg border bg-slate-50 p-5"><h2 className="font-bold">Votre participation</h2><p className="mt-2"><strong>Invitation envoyée par :</strong> {inviter?.name || inviter?.email || "L’organisateur du parcours"}</p><p className="mt-2"><strong>Personne invitée :</strong> {invitation.displayName}</p><p><strong>Rôle proposé :</strong> {getGovernedInvitationRoleLabel(invitation.role, invitation.metadata)}</p><p className="mt-3 text-sm">Votre accès est limité à ce parcours. Cette invitation ne vous donne pas automatiquement accès à toutes ses réunions, à un autre dossier ou à l’espace de l’organisateur.</p><p className="mt-2 text-sm font-semibold text-amber-900">La consultation de ce lien ne vaut pas acceptation formelle : aucun mécanisme d’acceptation ou de refus n’est disponible pour le moment.</p></section>
     {meetings.length > 0 ? <section className="mt-6"><h2 className="text-xl font-bold">Réunions</h2>
       {meetings.map(({ communicationSession: session }) => {
         const live = session.status === "REQUESTED" && session.provider === "LIVEKIT_PENDING" && session.accessOpened && (!session.expiresAt || session.expiresAt > new Date());

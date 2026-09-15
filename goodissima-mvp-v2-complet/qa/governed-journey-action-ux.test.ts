@@ -11,7 +11,7 @@ test("un parcours simple commence sans capacité artificielle", () => {
 
 test("un parcours avec personnes et documents ne montre que les besoins présents", () => {
   const view = projectGovernedJourneyExperience({ humanValidated: true, totalParticipants: 3, preparedInvitations: 1, totalDocuments: 2, receivedDocuments: 1, pendingReviews: 0, interventions: [] });
-  assert.deepEqual(view.actions.map((item) => item.label), ["Inviter une personne", "Examiner les documents attendus"]);
+  assert.deepEqual(view.actions.map((item) => item.label), ["Invitez les participants prévus", "Examiner les documents attendus"]);
 });
 
 test("un parcours riche priorise les interventions et borne la densité", () => {

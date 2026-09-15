@@ -205,15 +205,17 @@ function invitationsFrom(value: unknown): ParticipantInvitation[] {
     .filter((item): item is ParticipantInvitation => item !== null);
 }
 
-function defaultInvitationMessageDraft(input: { journeyTitle: string; participantRole: string }) {
+function defaultInvitationMessageDraft(input: { journeyTitle: string; journeyObjective: string | null; participantRole: string; inviterName: string }) {
   return [
     "Bonjour,",
     "",
-    `Vous etes identifie comme participant attendu dans le parcours gouverne \"${input.journeyTitle}\".`,
-    `Role attendu : ${input.participantRole}.`,
+    `${input.inviterName} vous invite à participer au parcours « ${input.journeyTitle} ».`,
+    ...(input.journeyObjective ? [`Objectif : ${input.journeyObjective}`] : []),
+    `Rôle proposé : ${input.participantRole}.`,
+    "Cette invitation concerne le parcours, pas automatiquement toutes ses réunions.",
+    "Participer permet de consulter les éléments rendus accessibles et de contribuer selon le rôle attribué.",
     "Cette invitation n'a pas ete envoyee automatiquement par Goodissima.",
-    "Aucun acces n'est ouvert a ce stade.",
-    "Merci de confirmer les modalites de participation avec le responsable du parcours.",
+    "L’ouverture du lien ne vaut pas consentement formel : aucun mécanisme d’acceptation ou de refus n’est encore disponible.",
   ].join("\n");
 }
 
@@ -529,6 +531,21 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     select: { id: true, relationCaseId: true, relationCaseContexts: { select: { relationCaseId: true }, take: 1 } },
   });
   const governedMemory = governedMemoryJourney ? await readJourneyGovernedMemory(governedMemoryJourney.id) : null;
+  const activeExpectedParticipants = participants.filter((participant) => governedInvitations.some((invitation) => {
+    const invitationMetadata = asRecord(invitation.metadata);
+    const linkedName = text(invitationMetadata.participantName) ?? invitation.displayName;
+    const linkedRole = text(invitationMetadata.participantRole);
+    return invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && linkedName.toLocaleLowerCase("fr") === participant.name.toLocaleLowerCase("fr") && (!linkedRole || linkedRole.toLocaleLowerCase("fr") === participant.role.toLocaleLowerCase("fr"));
+  })).length;
+  const pendingPreparedParticipants = Math.max(0, summary.preparedInvitationsCount - activeExpectedParticipants);
+  const memoryRights = governedMemory ? [
+    ...(governedMemory.capabilities.canPropose ? ["Peut proposer des faits"] : []),
+    ...(governedMemory.capabilities.canRecordDecision ? ["Peut préparer des décisions"] : []),
+    ...(governedMemory.capabilities.canRegisterSource ? ["Peut ajouter des sources"] : []),
+    ...(governedMemory.capabilities.canEstablishFact ? ["Peut confirmer des faits"] : []),
+    ...(governedMemory.capabilities.canValidateDecision ? ["Peut confirmer des décisions"] : []),
+    ...(governedMemory.capabilities.canDispute ? ["Peut contester des faits"] : []),
+  ] : [];
   const currentActions = experience.actions;
   const journeySituation = experience.situation;
   return (
@@ -554,6 +571,23 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <h1 className="mt-2 text-3xl font-bold text-slate-950">{title}</h1>
         <p className="mt-3 max-w-4xl text-sm leading-relaxed text-slate-700">{objective}</p>
 
+      </section>
+
+      <section aria-labelledby="journey-frame-title" className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50/60 p-4 shadow-sm sm:p-5">
+        <h2 id="journey-frame-title" className="text-lg font-bold text-slate-950">Cadre du parcours</h2>
+        <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-3">
+          <div className="min-w-0 rounded-lg bg-white p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Objectif</p><p className="mt-1 break-words text-sm text-slate-800">{equivalentJourneyText(objective, title) ? "Le titre du parcours constitue l’objectif actuellement renseigné." : objective}</p></div>
+          <div className="min-w-0 rounded-lg bg-white p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Participants prévus</p><p className="mt-1 text-sm text-slate-800">{participants.length} personne{participants.length > 1 ? "s" : ""} · {activeExpectedParticipants} avec un accès actif · {pendingPreparedParticipants} invitation{pendingPreparedParticipants > 1 ? "s" : ""} en préparation</p></div>
+          <div className="min-w-0 rounded-lg bg-white p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Votre rôle</p><p className="mt-1 text-sm font-semibold text-slate-900">Vous êtes organisateur.</p></div>
+        </div>
+        <details className="mt-3 rounded-lg border bg-white">
+          <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-cyan-900">Voir les rôles et les droits</summary>
+          <div className="grid gap-3 border-t p-4 text-sm sm:grid-cols-2">
+            <div><p className="font-bold text-slate-900">Organisateur</p><ul className="mt-2 list-disc space-y-1 pl-5 text-slate-700"><li>Peut organiser ce parcours</li><li>Peut préparer les invitations</li><li>Peut préparer et ouvrir les réunions</li></ul></div>
+            {memoryRights.length > 0 ? <div><p className="font-bold text-slate-900">Dans la mémoire du parcours</p><ul className="mt-2 list-disc space-y-1 pl-5 text-slate-700">{memoryRights.map((right) => <li key={right}>{right}</li>)}</ul></div> : null}
+          </div>
+          <a href="#people" className="mx-4 mb-4 inline-flex min-h-11 items-center text-sm font-bold text-cyan-900 underline underline-offset-4">Voir les participants</a>
+        </details>
       </section>
 
       <section data-boussole-id="governed-journey-summary" className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
@@ -850,7 +884,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 );
                 const messageDraft =
                   invitation?.messageDraft ??
-                  defaultInvitationMessageDraft({ journeyTitle: title, participantRole: participant.role });
+                  defaultInvitationMessageDraft({ journeyTitle: title, journeyObjective: equivalentJourneyText(objective, title) ? null : objective, participantRole: participant.role, inviterName: owner.name || owner.email });
                 const participantGovernedInvitations = governedInvitations
                   .filter((access) => {
                     const accessMetadata = asRecord(access.metadata);
@@ -866,8 +900,9 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 <article key={`${participant.name}-${index}`} data-boussole-id="governed-journey-participant" data-boussole-state={invitation ? "invitation-prepared" : "expected"} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{participant.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{participant.role}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-700">État : {participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date()) ? "Actif" : invitation ? "Invitation préparée" : "À inviter"}</p>
-                  {!isOrganizer ? <details className="mt-3 rounded-lg border bg-white p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-[#247f88]">{invitation ? "Modifier l’invitation" : "Inviter"}</summary>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">État : {participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date()) ? "Accès actif" : invitation ? "Invitation en préparation" : "Invitation à préparer"}</p>
+                  <details className="mt-2"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-slate-700">Voir les droits</summary><div className="rounded-lg bg-white p-3 text-sm text-slate-700"><p><strong>Rôle prévu :</strong> {participant.role}</p><p className="mt-1">{participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date()) ? "Peut consulter les éléments accessibles de ce parcours avec son lien personnel." : "Aucun accès au parcours n’est encore ouvert."}</p><p className="mt-1 text-xs">L’accès à chaque réunion est géré séparément.</p></div></details>
+                  {!isOrganizer ? <details className="mt-3 rounded-lg border bg-white p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-[#247f88]">{invitation ? "Modifier l’invitation au parcours" : "Inviter au parcours"}</summary>
                   {invitation ? (
                     <div className="mt-4 space-y-3">
                       <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
@@ -930,7 +965,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                       <input type="hidden" name="formTemplateId" value={formTemplate.id} />
                       <input type="hidden" name="participantName" value={participant.name} />
                       <input type="hidden" name="participantRole" value={participant.role} />
-                      <p className="text-sm font-bold text-slate-950">Inviter {participant.name}</p>
+                      <p className="text-sm font-bold text-slate-950">Inviter au parcours</p>
+                      <div className="mt-2 rounded-lg bg-cyan-50 p-3 text-sm text-slate-700"><p><strong>Parcours :</strong> « {title} »</p>{!equivalentJourneyText(objective, title) ? <p className="mt-1"><strong>Objectif :</strong> {objective}</p> : null}<p className="mt-1"><strong>Rôle proposé :</strong> {participant.role}</p><p className="mt-2 text-xs">Cette invitation concerne le parcours, pas automatiquement toutes ses réunions.</p></div>
                       <div className="mt-3 grid gap-3">
                         <label className="text-xs font-semibold text-slate-600">
                           Email optionnel
@@ -980,7 +1016,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
               })}
             </div>
           )}
-          {additionalActiveParticipants.map((participant) => <article key={participant.id} className="mt-3 rounded-lg border bg-slate-50 p-4"><p className="font-semibold text-slate-950">{participant.displayName}</p><p className="mt-1 text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)}</p><p className="mt-1 text-sm font-semibold text-slate-700">État : Actif</p></article>)}
+          {additionalActiveParticipants.map((participant) => <article key={participant.id} className="mt-3 rounded-lg border bg-slate-50 p-4"><p className="font-semibold text-slate-950">{participant.displayName}</p><p className="mt-1 text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)}</p><p className="mt-1 text-sm font-semibold text-slate-700">État : Accès actif</p></article>)}
         </section>
         </div>
       </section>
@@ -1126,8 +1162,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     />
                   </label>
                   <fieldset className="rounded-lg border border-slate-200 bg-white p-3">
-                    <legend className="px-1 text-xs font-semibold text-slate-600">Participants à autoriser pour cette réunion</legend>
-                    <p className="mb-2 text-xs text-slate-500">Cochez les personnes qui pourront rejoindre cette réunion précise. Chaque personne externe doit disposer de son propre accès invité gouverné.</p>
+                    <legend className="px-1 text-xs font-semibold text-slate-600">Participants prévus</legend>
+                    <p className="mb-2 text-xs text-slate-500">Vous pouvez préparer la réunion avant l’ouverture des accès. La sélection indique les personnes envisagées ; elle ne vaut ni acceptation du parcours ni confirmation de présence.</p>
                     {participantInvitations.length === 0 ? (
                       <p className="text-xs text-slate-500">Aucune invitation preparee. La session restera liee au parcours sans envoi ni acces.</p>
                     ) : (
@@ -1142,7 +1178,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                             />
                             <span>
                               <span className="font-semibold">{invitation.participantName}</span> - {invitation.participantRole}
-                              <span className="block text-slate-500">Preparee / non envoyee / aucun acces ouvert</span>
+                              <span className="block text-slate-500">Invitation au parcours en préparation · aucun accès ouvert</span>
                             </span>
                           </label>
                         ))}
@@ -1185,6 +1221,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   </span>
                 </div>
                 {session.purpose ? <p className="mt-3 text-sm text-emerald-950">Objectif : {session.purpose}</p> : null}
+                <p className="mt-2 text-sm text-emerald-950">Participants prévus : {meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").length} personne(s) ayant accès · {session.attendance.length} présence(s) observée(s)</p>
                 {session.status !== "COMPLETED" && session.status !== "CANCELLED" && !(session.expiresAt && session.expiresAt <= new Date()) ? (
                   <div className="mt-3">
                     <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel="Ouvrir la réunion" expectedParticipants={[
@@ -1209,10 +1246,10 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 ) : null}
                 <details className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-emerald-950">Options avancées</summary>
                 <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">
-                  <p className="text-sm font-bold text-emerald-950">Participants autorisés à cette réunion</p>
-                  <p className="mt-1 text-xs text-emerald-800">Accès limité aux personnes autorisées.</p>
+                  <p className="text-sm font-bold text-emerald-950">Participants ayant accès à cette réunion</p>
+                  <p className="mt-1 text-xs text-emerald-800">Cet accès ne signifie pas que la personne a confirmé sa présence.</p>
                   {session.status === "COMPLETED" || session.status === "CANCELLED" || Boolean(session.expiresAt && session.expiresAt <= new Date()) ? <p className="mt-1 text-xs font-bold text-slate-600">Périmètre verrouillé</p> : null}
-                  {meetingParticipants.every((item) => item.communicationSessionId !== session.id || item.status !== "AUTHORIZED") ? <p className="mt-2 text-sm font-semibold text-slate-700">Aucun invité autorisé pour cette réunion.</p> : null}
+                  {meetingParticipants.every((item) => item.communicationSessionId !== session.id || item.status !== "AUTHORIZED") ? <p className="mt-2 text-sm font-semibold text-slate-700">Aucun participant ne dispose encore d’un accès à cette réunion.</p> : null}
                   {(() => { const metadata = asRecord(session.metadata); return !Array.isArray(metadata.selectedParticipantInvitationIds) ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Cette réunion a été préparée avant les autorisations par réunion. Ajoutez les invités autorisés ci-dessous.</p> : null; })()}
                   {governedInvitations.length === 0 ? <p className="mt-2 text-sm text-slate-600">Aucun invité gouverné.</p> : (
                     <div className="mt-2 space-y-2">
@@ -1223,12 +1260,12 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                         const expired = invitation.accessTokenExpiresAt <= new Date();
                         const unavailable = invitation.status !== "ACTIVE" || Boolean(invitation.revokedAt) || expired;
                         const authorized = assignment?.status === "AUTHORIZED" && !unavailable;
-                        const status = invitation.revokedAt || invitation.status === "REVOKED" ? "Accès révoqué" : expired || invitation.status === "EXPIRED" ? "Accès expiré" : authorized ? "Autorisé" : selectedPreviously ? "Sélectionné précédemment · à confirmer" : "Non autorisé";
+                        const status = invitation.revokedAt || invitation.status === "REVOKED" ? "Accès retiré" : expired || invitation.status === "EXPIRED" ? "Accès expiré" : authorized ? "Accès à la réunion" : selectedPreviously ? "Participant prévu · accès à ouvrir" : "Sans accès à cette réunion";
                         return <div key={invitation.id} className="flex flex-col gap-2 rounded-lg border bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
                           <div><p className="font-semibold text-slate-900">{invitation.displayName}</p><p className="text-xs text-slate-600">{governedInvitationRoleLabel(invitation.role)} · invité gouverné · {status}</p></div>
                           {!unavailable && session.status !== "COMPLETED" && session.status !== "CANCELLED" && !(session.expiresAt && session.expiresAt <= new Date()) ? <form action={authorized ? removeGuestFromGovernedMeetingAction : authorizeGuestForGovernedMeetingAction}>
                             <input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><input type="hidden" name="invitationId" value={invitation.id} />
-                            <button className="rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700" type="submit">{authorized ? "Retirer de cette réunion" : "Autoriser à cette réunion"}</button>
+                            <button className="min-h-11 rounded-lg border px-3 py-2 text-xs font-bold text-slate-700" type="submit">{authorized ? "Retirer l’accès à cette réunion" : "Donner accès à cette réunion"}</button>
                           </form> : null}
                         </div>;
                       })}

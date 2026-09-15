@@ -13,7 +13,7 @@ export function projectGovernedJourneyExperience(input: {
   const pendingDocuments = Math.max(0, input.totalDocuments - input.receivedDocuments);
   const actions = [
     ...input.interventions,
-    ...(pendingParticipants > 0 ? [{ label: "Inviter une personne", detail: `${pendingParticipants} invitation${pendingParticipants > 1 ? "s" : ""} à préparer`, href: "#people" }] : []),
+    ...(pendingParticipants > 0 ? [{ label: "Invitez les participants prévus", detail: `${pendingParticipants} personne${pendingParticipants > 1 ? "s" : ""} sans invitation préparée`, href: "#people" }] : []),
     ...(pendingDocuments > 0 ? [{ label: "Examiner les documents attendus", detail: `${pendingDocuments} document${pendingDocuments > 1 ? "s" : ""} encore attendu${pendingDocuments > 1 ? "s" : ""}`, href: "#work" }] : []),
     ...(input.pendingReviews > 0 ? [{ label: "Poursuivre une décision", detail: `${input.pendingReviews} revue${input.pendingReviews > 1 ? "s" : ""} en attente`, href: "#decisions" }] : []),
   ].slice(0, 5);

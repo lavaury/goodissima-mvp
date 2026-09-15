@@ -32,7 +32,7 @@ function guestPage(state: "valid" | "revoked" | "expired" | "inactive" | "unknow
   const updates: any[] = [];
   const participationQueries: any[] = [];
   const invitation = state === "unknown" ? null : {
-    id: "invitation-fixture", displayName: "Test Guest", role: "OBSERVER", metadata: {},
+    id: "invitation-fixture", ownerId: "fixture-owner", displayName: "Test Guest", role: "OBSERVER", metadata: {},
     relationTemplateId: "journey-fixture", relationTemplate: { name: "Fixture journey", description: "Test only" },
     status: state === "inactive" ? "REVOKED" : "ACTIVE",
     revokedAt: state === "revoked" ? new Date() : null,
@@ -59,6 +59,7 @@ function guestPage(state: "valid" | "revoked" | "expired" | "inactive" | "unknow
         update: async (query: any) => { updates.push(query); return invitation; },
       },
       governedMeetingParticipant: { findMany: async (query: any) => { participationQueries.push(query); return meetings; } },
+      user: { findUnique: async () => ({ name: "Fixture Owner", email: "owner@example.test" }) },
     } },
   });
   return { page, updates, participationQueries };
@@ -78,7 +79,10 @@ for (const connected of [false, true]) {
 
     const fixture = guestPage("valid");
     const html = renderToStaticMarkup(await fixture.page({ params: { token } }));
-    assert.match(html, /acces invite limite/);
+    assert.match(html, /Invitation au parcours/);
+    assert.match(html, /Fixture Owner/);
+    assert.match(html, /ne vaut pas acceptation formelle/);
+    assert.doesNotMatch(html, />Accepter<|>Refuser</);
     assert.doesNotMatch(html, /Navigation principale|href="\/(?:dashboard|settings|administration|gouvernance)/);
     assert.equal(getCompassContext(`/gouvernance/invitation/${token}`), null);
     assert.equal(getCompassContext(`/gouvernance/invitation/${token}/`), null);

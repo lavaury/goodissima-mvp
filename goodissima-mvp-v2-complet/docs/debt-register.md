@@ -36,6 +36,9 @@ Les autres entrées n'ont aucune date de résolution et ne sont pas corrigées p
 | D-020 | Deux assertions QA obsolètes après Accueil simplifié / tests | P1 | OPEN | `qa/announcement-archive.test.ts` et `qa/archived-opportunity-count.test.ts` exigent encore l'ancien compteur Dashboard. Deux échecs reproduits ; aucune correction dans ce lot. | DEBT-DATA-QA-01 |
 | MEM-EVENT-APPEND-01 | Journal GovernedMemory protégé seulement par convention applicative | P0 | RESOLVED | Migration `20260915180000_add_governed_memory_event_append_only_guard` appliquée et vérifiée sur Staging : trigger `BEFORE UPDATE OR DELETE`, INSERT/SELECT autorisés, UPDATE/DELETE refusés, fixture rollbackée et événements historiques intacts. | MEM-EVENT-APPEND-01 |
 | MEM-TRANSITION-MODEL-01 | Transitions mémoire sans contrat d'autorisation/idempotence complet | P1 | OPEN | Résolution de contestation, révision de fait, remplacement/annulation de décision et rattachement de source restent `MODEL_GAP` jusqu'à définition explicite des permissions et `TransitionType`. | PARCOURS-UX-02A.2c |
+| JOURNEY-CONSENT-01 | Consentement explicite au Parcours absent | P1 | OPEN | `acceptedAt` est renseigné à la première consultation du lien et ne constitue pas une acceptation explicite ; aucun état de refus ni transition serveur dédiée. Ne pas exposer Accepter/Refuser avant modèle persistant et audit d'autorisation. | Parcours consentement |
+| MEETING-RSVP-01 | RSVP de réunion absent | P1 | OPEN | `GovernedMeetingParticipant` porte uniquement AUTHORIZED/REMOVED : ce périmètre d'accès ne prouve ni invitation reçue, ni présence confirmée, ni refus. | PARCOURS-UX-03B |
+| PARCOURS-UX-03B | Surface de réunion dédiée responsive | P2 | OPEN | La carte Journey reste une carte de pilotage ; aucune grille vidéo multipersonne ni surface RSVP n'est créée dans 03A. | PARCOURS-UX-03B |
 
 ## Preuves de résolution D-001 / D-017
 

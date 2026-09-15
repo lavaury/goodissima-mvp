@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getTemplateReadAccess } from "@/lib/relation-template-access";
 
 type ParticipantInvitationMetadata = {
   invitationId: string;
@@ -35,15 +36,17 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-function defaultMessageDraft(input: { journeyTitle: string; participantRole: string }) {
+function defaultMessageDraft(input: { journeyTitle: string; journeyObjective: string | null; participantRole: string; inviterName: string }) {
   return [
     "Bonjour,",
     "",
-    `Vous etes identifie comme participant attendu dans le parcours gouverne \"${input.journeyTitle}\".`,
-    `Role attendu : ${input.participantRole}.`,
+    `${input.inviterName} vous invite à participer au parcours « ${input.journeyTitle} ».`,
+    ...(input.journeyObjective ? [`Objectif : ${input.journeyObjective}`] : []),
+    `Rôle proposé : ${input.participantRole}.`,
+    "Cette invitation concerne le parcours, pas automatiquement toutes ses réunions.",
+    "Participer permet de consulter les éléments rendus accessibles et de contribuer selon le rôle attribué.",
     "Cette invitation n'a pas ete envoyee automatiquement par Goodissima.",
-    "Aucun acces n'est ouvert a ce stade.",
-    "Merci de confirmer les modalites de participation avec le responsable du parcours.",
+    "L’ouverture du lien ne vaut pas consentement formel : aucun mécanisme d’acceptation ou de refus n’est encore disponible.",
   ].join("\n");
 }
 
@@ -100,6 +103,7 @@ export async function prepareParticipantInvitationAction(formData: FormData) {
   if (!formTemplateId || !participantName || !participantRole) {
     throw new Error("Informations participant incompletes.");
   }
+  if (!await getTemplateReadAccess(owner, formTemplateId)) throw new Error("Parcours introuvable.");
 
   const formTemplate = await prisma.formTemplate.findUnique({
     where: { id: formTemplateId },
@@ -127,6 +131,9 @@ export async function prepareParticipantInvitationAction(formData: FormData) {
     (typeof creationPlan.title === "string" && creationPlan.title.trim()) ||
     formTemplate.name ||
     "Parcours gouverne";
+  const journeyObjective =
+    (typeof creationPlan.objective === "string" && creationPlan.objective.trim()) ||
+    formTemplate.description?.trim() || null;
   const currentInvitations = existingInvitations(metadata.participantInvitations);
   const key = participantKey(participantName, participantRole);
   const previous = currentInvitations.find((invitation) =>
@@ -136,7 +143,7 @@ export async function prepareParticipantInvitationAction(formData: FormData) {
   const messageDraft =
     submittedMessageDraft ||
     previous?.messageDraft ||
-    defaultMessageDraft({ journeyTitle, participantRole });
+    defaultMessageDraft({ journeyTitle, journeyObjective, participantRole, inviterName: owner.name || owner.email });
 
   const preparedInvitation: ParticipantInvitationMetadata = {
     invitationId: previous?.invitationId ?? `prepared-${randomUUID()}`,
