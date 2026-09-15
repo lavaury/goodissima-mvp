@@ -144,6 +144,6 @@ test("guest page exposes media only for an open, unexpired authorized meeting", 
   ] as const) {
     const fixture = guestPage("valid", [{ communicationSession: session }]);
     const html = renderToStaticMarkup(await fixture.page({ params: { token } }));
-    assert.equal(html.includes("Rejoindre la salle securisee"), canJoin);
+    assert.equal(html.includes("Rejoindre la réunion"), canJoin);
   }
 });

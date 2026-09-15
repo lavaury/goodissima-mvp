@@ -17,7 +17,6 @@ import { prepareParticipantInvitationAction } from "@/lib/governance-participant
 import { prepareGovernanceReviewAction, transitionGovernanceReviewAction } from "@/lib/governance-review-preparations-actions";
 import {
   getGovernanceCommunicationOverview,
-  governanceCommunicationChannelLabels,
 } from "@/lib/governance-communication-session-repository";
 import { getGovernanceCockpitConsolidation } from "@/lib/governance-cockpit-consolidation-repository";
 import { getGovernanceWorkspaceOptions } from "@/lib/governance-workspace-repository";
@@ -494,11 +493,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         expiredCount: 0,
         invitationPreparedCount: participantInvitations.length,
       };
-  const communicationCapabilities = [
-    { channelType: "VOICE_IP", label: governanceCommunicationChannelLabels.VOICE_IP },
-    { channelType: "VIDEO_IP", label: governanceCommunicationChannelLabels.VIDEO_IP },
-    { channelType: "SCREEN_SHARE", label: governanceCommunicationChannelLabels.SCREEN_SHARE },
-  ] as const;
+  const communicationCapabilities = [{ channelType: "VIDEO_IP" }] as const;
   const consolidation = await getGovernanceCockpitConsolidation({
     ownerId: owner.id,
     formTemplateId: formTemplate.id,
@@ -750,8 +745,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                         </p>
                         {session.status !== "COMPLETED" && session.status !== "CANCELLED" ? (
                           <div className="mt-3">
-                            <p className="mb-2 text-xs text-slate-600">Cette réunion utilise la salle sécurisée du parcours. Les invités gouvernés rejoignent avec leur propre lien d’accès.</p>
-                            <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel={session.status === "REQUESTED" && session.provider === "LIVEKIT_PENDING" ? "Rejoindre cette réunion" : "Ouvrir cette réunion"} expectedParticipants={[
+                            <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel="Ouvrir la réunion" expectedParticipants={[
                               { identity: `owner:${owner.id}`, displayName: owner.name || owner.email, roleLabel: "Organisateur", accessKind: "compte Goodissima" },
                               ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date()).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité gouverné" })),
                             ]} />
@@ -844,13 +838,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <p className="mt-4 text-sm text-slate-700">L’organisateur pilote ce parcours depuis son compte. Aucun lien invité n’est nécessaire.</p>
       </section>
 
-      <section id="work" data-boussole-id="governed-journey-secure-communication" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      <section id="work" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-slate-950">Le travail</h2>
-        <h3 className="mt-4 font-bold text-slate-900">Réunion sécurisée</h3>
-        <p className="mt-2 text-sm text-slate-600">Vous êtes l’organisateur de ce parcours. Vous pouvez ouvrir la salle sécurisée depuis votre compte Goodissima. Les invités gouvernés pourront la rejoindre avec leur propre lien d’accès.</p>
-        <div className="mt-4">
-          <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available />
-        </div>
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -1183,7 +1172,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             {communicationCapabilities.map((capability) => (
               <details key={capability.channelType} className="rounded-lg border bg-slate-50 p-4">
                 <summary className="cursor-pointer text-sm font-bold text-slate-950">
-                  Preparer une communication - {capability.label}
+                  Préparer une réunion
                 </summary>
                 <form action={prepareGovernanceMultiActorCommunicationAction} className="mt-4 space-y-3">
                   <input type="hidden" name="formTemplateId" value={formTemplate.id} />
@@ -1196,7 +1185,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                       required
                       maxLength={140}
                       className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
-                      placeholder={`${capability.label} gouvernee`}
+                      placeholder="Titre de la réunion"
                     />
                   </label>
                   <label className="block text-xs font-semibold text-slate-600">
@@ -1263,10 +1252,10 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
         {communicationOverview.sessions.length > 0 ? (
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            {communicationOverview.sessions.map((session) => (
+            {communicationOverview.sessions.map((session, index) => (
               <article id={`meeting-${session.id}`} key={session.id} data-boussole-id="governed-journey-communication" data-boussole-state={session.status} className={`rounded-lg border border-emerald-200 bg-emerald-50 p-4 ${searchParams.meetingPrepared === session.title ? "ring-4 ring-emerald-200" : ""}`}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
+                  <div data-boussole-id={index === 0 ? "governed-journey-secure-communication" : undefined}>
                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
                       {session.channelLabel} - {session.scope === "WORKSPACE" ? "Workspace et parcours" : "Parcours"}
                     </p>
@@ -1277,7 +1266,14 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   </span>
                 </div>
                 {session.purpose ? <p className="mt-3 text-sm text-emerald-950">Objectif : {session.purpose}</p> : null}
-                <p className="mt-2 text-sm font-semibold text-emerald-950">Cette carte ouvre la réunion : {session.title}.</p>
+                {session.status !== "COMPLETED" && session.status !== "CANCELLED" && !(session.expiresAt && session.expiresAt <= new Date()) ? (
+                  <div className="mt-3">
+                    <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel="Ouvrir la réunion" expectedParticipants={[
+                      { identity: `owner:${owner.id}`, displayName: owner.name || owner.email, roleLabel: "Organisateur", accessKind: "compte Goodissima" },
+                      ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date()).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité" })),
+                    ]} />
+                  </div>
+                ) : null}
                 {governedMeetingUserNote(session.note) ? <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950">Note : {governedMeetingUserNote(session.note)}</p> : null}
                 {session.attendance.length > 0 ? (
                   <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">
@@ -1341,7 +1337,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           </div>
         ) : (
           <p className="mt-5 rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">
-            Aucune communication gouvernee n'est preparee pour ce parcours.
+            Aucune réunion n'est préparée pour ce parcours.
           </p>
         )}
       </section>

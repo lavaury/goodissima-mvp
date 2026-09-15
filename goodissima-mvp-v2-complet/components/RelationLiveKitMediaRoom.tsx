@@ -204,7 +204,7 @@ export function RelationLiveKitMediaRoom({
       });
       const payload = (await response.json().catch(() => ({}))) as TokenResponse;
       if (!response.ok || !payload.livekitUrl || !payload.token || !payload.communicationSessionId) {
-        throw new Error(payload.error || "Impossible de rejoindre la salle securisee.");
+        throw new Error(payload.error || "Impossible de rejoindre la réunion.");
       }
 
       const room = new Room({ adaptiveStream: true, dynacast: true });
@@ -245,7 +245,7 @@ export function RelationLiveKitMediaRoom({
       refreshRoom();
       router.refresh();
     } catch (joinError) {
-      const message = joinError instanceof Error ? joinError.message : "Connexion a la salle securisee impossible.";
+      const message = joinError instanceof Error ? joinError.message : "Connexion à la réunion impossible.";
       resetClientRoom(roomRef.current, "error", null);
       setError(message);
       setRoomState("error");
@@ -359,9 +359,9 @@ export function RelationLiveKitMediaRoom({
     <section data-boussole-id={contextKind === "governedJourney" ? "governed-journey-media-room" : "case-secure-media-room"} className="rounded-2xl border border-[#b9dfe2] bg-[#f5ffff] p-4 shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-semibold text-[#2f3437]">Communication securisee</h2>
+          <h2 className="font-semibold text-[#2f3437]">Réunion</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[#766f68]">
-            La salle securisee permet l&apos;audio, la video et le partage d&apos;ecran. Le micro, la camera et le partage d&apos;ecran ne demarrent qu&apos;apres votre accord.
+            Audio, vidéo et partage d&apos;écran sont disponibles dans cette réunion. Ils ne démarrent qu&apos;après votre accord.
           </p>
         </div>
         <span className="rounded-full bg-[#dff6f7] px-2.5 py-1 text-xs font-semibold text-[#247f88]">
@@ -371,7 +371,7 @@ export function RelationLiveKitMediaRoom({
 
       {!available ? (
         <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          La salle securisee n&apos;est pas disponible pour le moment.
+          La réunion n&apos;est pas disponible pour le moment.
         </p>
       ) : roomState !== "connected" ? (
         <button
@@ -384,8 +384,8 @@ export function RelationLiveKitMediaRoom({
           {roomState === "connecting"
             ? "Connexion..."
             : roomState === "ended" && actorKind === "owner"
-              ? "Demarrer une nouvelle salle securisee"
-              : joinLabel ?? "Rejoindre la salle securisee"}
+              ? "Ouvrir une nouvelle réunion"
+              : joinLabel ?? "Rejoindre la réunion"}
         </button>
       ) : (
         <div data-boussole-id={contextKind === "governedJourney" ? "governed-journey-media-controls" : "case-secure-media-controls"} className="mt-4 flex flex-wrap gap-2">
@@ -438,7 +438,7 @@ export function RelationLiveKitMediaRoom({
       <p className="mt-4 text-xs leading-relaxed text-[#766f68]">
         {actorKind === "guest"
           ? "Vous pouvez quitter la salle à tout moment. Seul l'organisateur peut terminer la session pour tous. Aucun enregistrement ni transcription automatique."
-          : "La salle securisee est concue pour plusieurs participants. Aucun enregistrement ni transcription automatique."}
+          : "La réunion accueille plusieurs participants. Aucun enregistrement ni transcription automatique."}
       </p>
     </section>
   );

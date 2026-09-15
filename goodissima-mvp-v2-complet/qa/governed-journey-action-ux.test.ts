@@ -29,3 +29,17 @@ test("la page expose la grammaire utilisateur et garde les surfaces legacy sépa
   assert.match(page, /HistoricalTemplateCompatibilityView/);
   assert.match(page, /min-h-11/);
 });
+
+test("les réunions exigent une préparation explicite et utilisent des actions humaines", () => {
+  const page = readFileSync(new URL("../app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx", import.meta.url), "utf8");
+  const guest = readFileSync(new URL("../app/gouvernance/invitation/[token]/page.tsx", import.meta.url), "utf8");
+  const media = readFileSync(new URL("../components/RelationLiveKitMediaRoom.tsx", import.meta.url), "utf8");
+  assert.match(page, /Préparer une réunion/);
+  assert.match(page, /joinLabel="Ouvrir la réunion"/);
+  assert.doesNotMatch(page, /VOICE_IP|SCREEN_SHARE/);
+  assert.doesNotMatch(page, /actorKind="owner" available \/>/);
+  assert.match(guest, /meetings\.length > 0/);
+  assert.match(guest, /joinLabel="Rejoindre la réunion"/);
+  assert.doesNotMatch(guest, /Rejoindre la salle securisee/);
+  assert.match(media, /Audio, vidéo et partage d&apos;écran sont disponibles dans cette réunion/);
+});
