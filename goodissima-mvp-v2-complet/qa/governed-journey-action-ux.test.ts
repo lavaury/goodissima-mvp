@@ -35,7 +35,7 @@ test("les réunions exigent une préparation explicite et utilisent des actions 
   const guest = readFileSync(new URL("../app/gouvernance/invitation/[token]/page.tsx", import.meta.url), "utf8");
   const media = readFileSync(new URL("../components/RelationLiveKitMediaRoom.tsx", import.meta.url), "utf8");
   assert.match(page, /Préparer une réunion/);
-  assert.match(page, /joinLabel="Ouvrir la réunion"/);
+  assert.match(page, /joinLabel=\{[\s\S]*?"Ouvrir la réunion"[\s\S]*?"Ouvrir quand même"\}/);
   assert.doesNotMatch(page, /VOICE_IP|SCREEN_SHARE/);
   assert.doesNotMatch(page, /actorKind="owner" available \/>/);
   assert.match(guest, /meetings\.length > 0/);
