@@ -42,9 +42,9 @@ export const governedJourneySequences: BoussoleSequence[] = [
     step("real-media-controls", "governed-journey-media-controls", "Audio, vidéo et partage d’écran", "Une fois la salle rejointe, chaque personne active séparément son microphone, sa caméra ou le partage d’écran. Aucun média, enregistrement ou transcription ne s’active automatiquement.", { glossary: ["communication-securisee", "validation-humaine"] }),
   ] },
   { id: "governance-review", title: "Comprendre les décisions", description: "Distinguer ce qui reste à décider de ce qui a déjà été examiné.", applicableStates: ["FOCUSED"], steps: [
-    step("real-reviews", "governance-reviews", "Les décisions", "Cette section rassemble les décisions préparées ou conduites et permet de cadrer une nouvelle revue. Aucune réunion ou décision n’est automatique.", { glossary: ["revue", "validation-humaine"] }),
-    step("real-prepared-review", "open-governance-review", "Revue préparée", "Cette carte présente le motif et la question à trancher. L’assistant est facultatif et ne reçoit des données que si vous le sollicitez ; la conduite et la décision restent humaines.", { glossary: ["revue", "conduite-humaine", "validation-humaine"] }),
-    step("real-prepare-review", "prepare-governance-review", "Préparer une revue", "La préparation enregistre un cadrage à relire. La Boussole ne remplit pas le formulaire, ne déclenche pas l’assistant et ne lance aucune action.", { glossary: ["revue", "validation-humaine"] }),
+    step("real-reviews", "governance-reviews", "Les décisions", "Cette section rassemble les décisions préparées ou examinées et permet d’en cadrer une nouvelle.", { glossary: ["revue", "validation-humaine"] }),
+    step("real-prepared-review", "open-governance-review", "Décision préparée", "Cette carte présente le sujet et la question à trancher. L’assistant reste facultatif ; l’examen et la décision restent humains.", { glossary: ["revue", "conduite-humaine", "validation-humaine"] }),
+    step("real-prepare-review", "prepare-governance-review", "Préparer une décision", "La préparation enregistre un cadrage à relire. La Boussole ne remplit pas le formulaire et ne décide pas à votre place.", { glossary: ["revue", "validation-humaine"] }),
     step("real-v1-limits", "governed-journey-v1-limits", "Limites V1", "La V1 ne crée aucune réunion, notification, synthèse, décision, invitation ou communication automatiquement.", { glossary: ["conduite-humaine", "validation-humaine"] }),
   ] },
 ];

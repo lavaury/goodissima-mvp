@@ -27,6 +27,7 @@ import { classifyRelationTemplate } from "@/lib/business-object-classification";
 import { opportunityOwnerHref } from "@/lib/opportunities/opportunity-projection";
 import { HistoricalTemplateCompatibilityView } from "@/components/HistoricalTemplateCompatibilityView";
 import { projectGovernedJourneyExperience } from "@/lib/governed-journey-experience";
+import { equivalentJourneyText } from "@/lib/governed-journey-ux";
 
 export const dynamic = "force-dynamic";
 
@@ -443,6 +444,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
   const objective = text(creationPlan.objective) ?? formTemplate.description ?? "Objectif non renseigné.";
   const initialNeed = text(creationPlan.initialNeed) ?? formTemplate.description ?? "Besoin initial non renseigné.";
+  const showInitialNeed = !equivalentJourneyText(initialNeed, title) && !equivalentJourneyText(initialNeed, objective);
   const workspaceDisplay =
     text(metadata.workspaceName) ??
     text(metadata.workspaceSlug) ??
@@ -507,6 +509,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const meetingParticipants = communicationOverview.sessions.length > 0
     ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } } })
     : [];
+  const expectedParticipantNames = new Set(participants.map((participant) => participant.name.toLocaleLowerCase("fr")));
+  const additionalActiveParticipants = governedInvitations.filter((invitation) => invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && !expectedParticipantNames.has(invitation.displayName.toLocaleLowerCase("fr")));
   const pendingReviews = governanceReviewPreparations.filter((review) => review.status !== "COMPLETED").length;
   const experience = projectGovernedJourneyExperience({
     humanValidated,
@@ -612,10 +616,10 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </p>
       </section></details>
 
-      <section data-boussole-id="governed-journey-initial-need" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+      {showInitialNeed ? <section data-boussole-id="governed-journey-initial-need" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Contexte</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{initialNeed}</p>
-      </section>
+      </section> : null}
 
       {consolidation?.workspace ? (
         <details className="mt-6 rounded-lg border bg-white shadow-sm"><summary className="min-h-11 cursor-pointer px-6 py-4 font-bold text-slate-800">Voir le travail rattaché en détail</summary><section data-boussole-id="governed-journey-consolidation" className="border-t p-6">
@@ -814,36 +818,17 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             )}
           </div>
         </section></details>
-      ) : (
-        <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-amber-950">Vue consolidee du Workspace indisponible</h2>
-          <p className="mt-2 text-sm leading-relaxed text-amber-900">
-            Rattachez ce parcours gouverne a un Workspace produit depuis la page Gouvernance pour consolider les dossiers,
-            liens et communications reellement associes.
-          </p>
-        </section>
-      )}
+      ) : null}
 
       <section id="people" data-boussole-id="governed-journey-organizer" className="mt-6 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-slate-950">Les personnes</h2>
-        <h3 className="mt-4 font-bold text-slate-900">Organisateur du parcours</h3>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div><p className="text-xs font-semibold uppercase text-slate-500">Identité</p><p className="mt-1 font-semibold text-slate-950">{owner.name || owner.email}</p>{owner.name && owner.name !== owner.email ? <p className="text-xs text-slate-500">{owner.email}</p> : null}</div>
-          <div><p className="text-xs font-semibold uppercase text-slate-500">Rôle</p><p className="mt-1 font-semibold text-slate-950">Organisateur</p></div>
-          <div><p className="text-xs font-semibold uppercase text-slate-500">Accès</p><p className="mt-1 font-semibold text-slate-950">Accès via compte Goodissima</p></div>
-        </div>
-        <p className="mt-4 text-sm text-slate-700">L’organisateur pilote ce parcours depuis son compte. Aucun lien invité n’est nécessaire.</p>
-      </section>
-
-      <section id="work" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-950">Le travail</h2>
-      </section>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <article className="mt-4 rounded-lg border bg-white p-4">
+          <p className="font-semibold text-slate-950">{owner.name || owner.email}</p>
+          <p className="mt-1 text-sm text-slate-600">Organisateur · Actif</p>
+        </article>
+        <div className="mt-4">
         <section data-boussole-id="governed-journey-participants" className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-950">Participants attendus</h2>
-          <p className="mt-2 text-sm text-slate-600">Les accès invités gouvernés sont destinés aux personnes externes ou non authentifiées. Ne créez pas de lien invité pour l’organisateur.</p>
-          <p className="mt-1 text-xs text-slate-500">Les liens invités gouvernés sont réservés aux personnes à qui vous souhaitez donner un accès limité au parcours. Goodissima ne transmet aucun lien automatiquement.</p>
+          <h3 className="text-lg font-bold text-slate-950">Participants</h3>
           {participants.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucun participant attendu n’a été renseigné.</p>
           ) : (
@@ -873,13 +858,12 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 <article key={`${participant.name}-${index}`} data-boussole-id="governed-journey-participant" data-boussole-state={invitation ? "invitation-prepared" : "expected"} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{participant.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{participant.role}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">État : {participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date()) ? "Actif" : invitation ? "Invitation préparée" : "À inviter"}</p>
+                  {!isOrganizer ? <details className="mt-3 rounded-lg border bg-white p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-[#247f88]">{invitation ? "Modifier l’invitation" : "Inviter"}</summary>
                   {invitation ? (
                     <div className="mt-4 space-y-3">
                       <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-                        <p className="font-bold">Invitation preparee - non envoyee automatiquement</p>
-                        <p className="mt-1 text-xs font-semibold text-emerald-800">
-                          Statut metadata : {invitation.status} - transmission manuelle requise - aucun email automatique.
-                        </p>
+                        <p className="font-bold">Invitation préparée · Non envoyée</p>
                         {invitation.email ? <p className="mt-2 text-sm">Email prepare : {invitation.email}</p> : null}
                         {invitation.note ? <p className="mt-1 text-sm">Note : {invitation.note}</p> : null}
                         <p className="mt-2 text-xs text-emerald-800">
@@ -887,7 +871,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                         </p>
                       </div>
                       <div className="rounded-lg border bg-white p-3">
-                        <p className="text-sm font-bold text-slate-950">Message a transmettre manuellement</p>
+                        <p className="text-sm font-bold text-slate-950">Message</p>
                         <textarea
                           readOnly
                           value={messageDraft}
@@ -898,7 +882,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                         <input type="hidden" name="formTemplateId" value={formTemplate.id} />
                         <input type="hidden" name="participantName" value={participant.name} />
                         <input type="hidden" name="participantRole" value={participant.role} />
-                        <p className="text-sm font-bold text-slate-950">Modifier la preparation</p>
+                        <p className="text-sm font-bold text-slate-950">Modifier l’invitation</p>
                         <div className="mt-3 grid gap-3">
                           <label className="text-xs font-semibold text-slate-600">
                             Email optionnel
@@ -929,11 +913,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                           </label>
                         </div>
                         <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
-                          Mettre a jour sans transmettre
+                          Mettre à jour l’invitation
                         </button>
-                        <p className="mt-2 text-xs text-slate-500">
-                          Ce message est un brouillon à transmettre manuellement. Il ne crée pas d’accès.
-                        </p>
                       </form>
                     </div>
                   ) : (
@@ -941,7 +922,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                       <input type="hidden" name="formTemplateId" value={formTemplate.id} />
                       <input type="hidden" name="participantName" value={participant.name} />
                       <input type="hidden" name="participantRole" value={participant.role} />
-                      <p className="text-sm font-bold text-slate-950">Preparer une invitation privee</p>
+                      <p className="text-sm font-bold text-slate-950">Inviter {participant.name}</p>
                       <div className="mt-3 grid gap-3">
                         <label className="text-xs font-semibold text-slate-600">
                           Email optionnel
@@ -953,36 +934,30 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                           />
                         </label>
                         <label className="text-xs font-semibold text-slate-600">
-                          Note optionnelle
+                          Message
                           <textarea
                             name="optionalNote"
                             className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
-                            placeholder="Message interne de preparation"
+                            placeholder="Votre message"
                           />
                         </label>
-                        <label className="text-xs font-semibold text-slate-600">
-                          Brouillon de message
+                        <details className="rounded-lg border bg-slate-50 p-3">
+                          <summary className="cursor-pointer text-xs font-semibold text-slate-700">Options avancées</summary>
+                        <label className="mt-3 block text-xs font-semibold text-slate-600">
+                          Brouillon complet
                           <textarea
                             name="messageDraft"
                             defaultValue={messageDraft}
                             className="mt-1 min-h-40 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
                           />
-                        </label>
+                        </label></details>
                       </div>
                       <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
-                        Preparer sans envoyer
+                        Préparer l’invitation
                       </button>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Ce message est un brouillon à transmettre manuellement. Il ne crée pas d’accès.
-                      </p>
                     </form>
                   )}
-                  {isOrganizer ? (
-                    <div className="mt-4 rounded-lg border border-[#b9dfe2] bg-[#f5ffff] p-4">
-                      <p className="font-bold text-[#247f88]">Organisateur — accès via compte Goodissima</p>
-                      <p className="mt-1 text-sm text-slate-600">L’organisateur n’a pas besoin de lien invité.</p>
-                    </div>
-                  ) : !attachedWorkspaceId ? <p className="mt-4 text-sm text-slate-600">Un Workspace est nécessaire pour créer un accès invité.</p> : <GovernedJourneyGuestAccessPanel
+                  {!attachedWorkspaceId ? <p className="mt-4 text-sm text-slate-600">Un espace est nécessaire pour créer un accès invité.</p> : <details className="mt-4 rounded-lg border bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Options avancées</summary><GovernedJourneyGuestAccessPanel
                     formTemplateId={formTemplate.id}
                     participantName={participant.name}
                     participantRole={participant.role}
@@ -990,18 +965,22 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     preparedEmail={invitation?.email}
                     invitations={participantGovernedInvitations}
                     relationCases={(formTemplate.relationTemplate?.relationCases ?? []).map((relationCase) => ({ id: relationCase.id, label: relationCase.candidateName || `Dossier ${relationCase.id}` }))}
-                  />}
-                  {!isOrganizer ? <p className="mt-2 text-xs text-slate-500">Si cette personne est en réalité l’organisateur déjà connecté, ne créez pas de lien invité.</p> : null}
-                  <p className="mt-2 text-xs font-semibold text-slate-500">Statut V1 : attendu, non contacté automatiquement.</p>
+                  /></details>}
+                  </details> : null}
                 </article>
                 );
               })}
             </div>
           )}
+          {additionalActiveParticipants.map((participant) => <article key={participant.id} className="mt-3 rounded-lg border bg-slate-50 p-4"><p className="font-semibold text-slate-950">{participant.displayName}</p><p className="mt-1 text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)}</p><p className="mt-1 text-sm font-semibold text-slate-700">État : Actif</p></article>)}
         </section>
+        </div>
+      </section>
 
-        <section data-boussole-id="governed-journey-documents" className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-950">Documents attendus</h2>
+      <section id="work" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-950">Le travail</h2>
+        <section data-boussole-id="governed-journey-documents" className="mt-5">
+          <h3 className="text-xl font-bold text-slate-950">Documents</h3>
           {documents.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucun document attendu n’a été renseigné.</p>
           ) : (
@@ -1015,10 +994,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   <p className="mt-1 text-sm text-slate-600">{document.reason}</p>
                   {reception ? (
                     <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-                      <p className="font-bold">Reception declaree - fichier non stocke en V1</p>
-                      <p className="mt-1 text-xs font-semibold text-emerald-800">
-                        Statut metadata : {reception.status} - fichier stocke : non - validation automatique : non
-                      </p>
+                      <p className="font-bold">Reçu</p>
                       {reception.reference ? <p className="mt-2 text-sm">Reference : {reception.reference}</p> : null}
                       {reception.note ? <p className="mt-1 text-sm">Note : {reception.note}</p> : null}
                       <p className="mt-2 text-xs text-emerald-800">Declare le {formatDate(reception.receivedAt)}.</p>
@@ -1027,8 +1003,10 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     <form action={declareDocumentReceptionAction} className="mt-4 rounded-lg border bg-white p-3">
                       <input type="hidden" name="formTemplateId" value={formTemplate.id} />
                       <input type="hidden" name="documentName" value={document.name} />
-                      <p className="text-sm font-bold text-slate-950">Declarer une reception</p>
-                      <div className="mt-3 grid gap-3">
+                      <button type="submit" className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
+                        Marquer comme reçu
+                      </button>
+                      <details className="mt-3 rounded-lg border bg-slate-50 p-3"><summary className="cursor-pointer text-xs font-semibold text-slate-700">Options avancées</summary><div className="mt-3 grid gap-3">
                         <label className="text-xs font-semibold text-slate-600">
                           Reference optionnelle
                           <input
@@ -1045,22 +1023,16 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                             placeholder="Contexte de reception, sans fichier stocke"
                           />
                         </label>
-                      </div>
-                      <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
-                        Declarer sans stocker
-                      </button>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Metadata V1 uniquement : aucun fichier stocke, aucune validation automatique, aucun workflow.
-                      </p>
+                      </div></details>
                     </form>
                   )}
                   {!reception ? (
                   <p className="mt-2 text-xs font-semibold text-slate-500">
-                    {document.required ? "Obligatoire" : "Optionnel"} · statut V1 : attendu, non reçu.
+                    {document.required ? "Obligatoire" : "Optionnel"} · En attente
                   </p>
                   ) : (
                   <p className="mt-2 text-xs font-semibold text-slate-500">
-                    {document.required ? "Obligatoire" : "Optionnel"} - statut V1 : reception declaree, fichier non stocke en V1.
+                    {document.required ? "Obligatoire" : "Optionnel"} · Reçu
                   </p>
                   )}
                 </article>
@@ -1069,9 +1041,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
             </div>
           )}
         </section>
-      </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <details className="mt-6 rounded-lg border bg-slate-50"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-700">Autres éléments du parcours</summary><div className="grid gap-6 border-t p-4 lg:grid-cols-2">
         <section data-boussole-id="governed-journey-first-actions" className="rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">Règles de confidentialité</h2>
           {confidentialityRules.length === 0 ? (
@@ -1098,71 +1069,16 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   <p className="font-semibold text-slate-950">{action.title}</p>
                   <p className="mt-1 text-sm text-slate-600">Responsable : {action.owner}</p>
                   {action.dueHint ? <p className="mt-1 text-sm text-slate-500">Échéance : {action.dueHint}</p> : null}
-                  <p className="mt-2 text-xs font-semibold text-slate-500">Statut V1 : à démarrer.</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-500">En attente</p>
                 </article>
               ))}
             </div>
           )}
         </section>
-      </div>
+      </div></details>
 
       <section data-boussole-id="governed-communications" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-950">Reunions et echanges</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Preparez les echanges utiles au parcours et retrouvez leur suivi. Les conversations actives restent disponibles
-              dans les dossiers relationnels rattaches.
-            </p>
-          </div>
-          <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
-            Preparation humaine
-          </span>
-        </div>
-
-        <dl className="mt-5 grid gap-3 text-sm md:grid-cols-4">
-          <MetricCard label="Preparees / en cours" value={communicationOverview.preparedCount} />
-          <MetricCard label="Terminees" value={communicationOverview.completedCount} />
-          <MetricCard label="Expirees" value={communicationOverview.expiredCount} />
-          <MetricCard label="Invitations preparees" value={communicationOverview.invitationPreparedCount} />
-        </dl>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-bold text-slate-950">Participants attendus</p>
-            {participants.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-600">Aucun participant attendu n'est present dans la metadata du parcours.</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {participants.map((participant) => {
-                  const invitation = participantInvitations.find(
-                    (item) => participantKey(item.participantName, item.participantRole) === participantKey(participant.name, participant.role),
-                  );
-
-                  return (
-                    <div key={participantKey(participant.name, participant.role)} className="rounded-lg bg-white px-3 py-2 text-sm">
-                      <p className="font-semibold text-slate-950">{participant.name}</p>
-                      <p className="text-slate-600">Role : {participant.role}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {invitation
-                          ? "Invitation preparee - non envoyee automatiquement - aucun acces ouvert"
-                          : "Invitation non preparee - aucun envoi automatique"}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            <p className="font-bold">Ce qui se passe ici</p>
-            <p className="mt-2 leading-relaxed">
-              Les dossiers relationnels rattaches restent visibles dans le detail du travail. Preparer un echange ici ne lance
-              aucun appel et n'envoie aucun message automatiquement.
-            </p>
-          </div>
-        </div>
+        <h3 className="text-xl font-bold text-slate-950">Réunions et échanges</h3>
 
         {attachedWorkspaceId ? (
           <div className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -1234,9 +1150,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     />
                   </label>
                   <GovernedMeetingSubmitButton />
-                  <p className="text-xs text-slate-500">
-                    Goodissima prépare la réunion et ses autorisations. Aucun lien n’est transmis automatiquement, aucun média ne démarre.
-                  </p>
+                  <p className="text-xs text-slate-500">Brouillon</p>
                 </form>
               </details>
             ))}
@@ -1285,9 +1199,10 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     <p className="mt-2 text-xs text-emerald-800">Présence historisée sans enregistrement ni transcription.</p>
                   </div>
                 ) : null}
+                <details className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-emerald-950">Options avancées</summary>
                 <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">
                   <p className="text-sm font-bold text-emerald-950">Participants autorisés à cette réunion</p>
-                  <p className="mt-1 text-xs text-emerald-800">Les invités gardent leur lien personnel. Goodissima ne transmet rien automatiquement.</p>
+                  <p className="mt-1 text-xs text-emerald-800">Accès limité aux personnes autorisées.</p>
                   {session.status === "COMPLETED" || session.status === "CANCELLED" || Boolean(session.expiresAt && session.expiresAt <= new Date()) ? <p className="mt-1 text-xs font-bold text-slate-600">Périmètre verrouillé</p> : null}
                   {meetingParticipants.every((item) => item.communicationSessionId !== session.id || item.status !== "AUTHORIZED") ? <p className="mt-2 text-sm font-semibold text-slate-700">Aucun invité autorisé pour cette réunion.</p> : null}
                   {(() => { const metadata = asRecord(session.metadata); return !Array.isArray(metadata.selectedParticipantInvitationIds) ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Cette réunion a été préparée avant les autorisations par réunion. Ajoutez les invités autorisés ci-dessous.</p> : null; })()}
@@ -1313,10 +1228,10 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   )}
                 </div>
                 {session.status === "PREPARED_NOT_STARTED" ? <div className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white/80 p-3">
-                  <form action={updateGovernedMeetingScheduleAction} className="flex flex-wrap items-end gap-2"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><label className="text-xs font-semibold text-slate-600">{session.scheduledAt ? "Reporter / modifier la date" : "Définir une date prévue"}<input required name="scheduledAt" type="datetime-local" className="mt-1 block rounded-lg border px-3 py-2 text-sm font-normal" /></label><button type="submit" className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700">Enregistrer la date</button><p className="w-full text-xs text-slate-500">Goodissima met à jour la date dans le parcours. Aucun participant n’est notifié automatiquement.</p></form>
+                  <form action={updateGovernedMeetingScheduleAction} className="flex flex-wrap items-end gap-2"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><label className="text-xs font-semibold text-slate-600">{session.scheduledAt ? "Reporter / modifier la date" : "Définir une date prévue"}<input required name="scheduledAt" type="datetime-local" className="mt-1 block rounded-lg border px-3 py-2 text-sm font-normal" /></label><button type="submit" className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700">Enregistrer la date</button></form>
                   <form action={cancelGovernedMeetingAction}><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><ConfirmMeetingCancellationButton /></form>
                 </div> : session.status === "CANCELLED" ? <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-semibold text-slate-700">Réunion annulée. Périmètre conservé pour historique.</p> : null}
-                <div className="mt-3 rounded-lg bg-white/80 p-3 text-xs font-semibold text-emerald-900">
+                <details className="mt-3 rounded-lg bg-white/80 p-3 text-xs font-semibold text-emerald-900"><summary className="cursor-pointer">Options avancées</summary><div className="mt-2">
                   <p>Provider : {session.providerLabel}</p>
                   <p className="mt-1">Creee le : {formatDate(session.createdAt)}</p>
                   <p className="mt-1">Date prevue : {session.scheduledAt ? formatDate(session.scheduledAt) : "Non definie"}</p>
@@ -1328,7 +1243,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   <p className="mt-1">Acces ouvert : {session.accessOpened ? "oui" : "non"}</p>
                   <p className="mt-1">Enregistrement : non</p>
                   <p className="mt-1">Transcription : non</p>
-                </div>
+                </div></details>
+                </details>
               </article>
             ))}
           </div>
@@ -1343,24 +1259,18 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-950">Les décisions</h2>
-            <p className="mt-2 font-semibold text-slate-800">Revues à conduire et décisions déjà examinées</p>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Préparation humaine uniquement : aucune réunion, notification, synthèse IA, décision ou action n'est déclenchée.
-            </p>
+            <p className="mt-2 text-sm text-slate-600">Décisions à préparer ou déjà examinées.</p>
           </div>
-          <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
-            Preparation humaine
-          </span>
         </div>
 
         {governanceReviewPreparations.length > 0 ? (
           <div className="mt-5 space-y-3">
             {governanceReviewPreparations.map((review) => (
               <article id={`governance-review-${review.reviewPreparationId}`} data-boussole-id="open-governance-review" key={review.reviewPreparationId} className="scroll-mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-emerald-950">{review.status === "PREPARED_NOT_STARTED" ? "Revue préparée — à conduire humainement" : review.status === "IN_HUMAN_REVIEW" ? "Revue en conduite humaine" : "Revue conduite"}</p><span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">{review.status === "PREPARED_NOT_STARTED" ? "Préparée" : review.status === "IN_HUMAN_REVIEW" ? "En conduite humaine" : "Conduite"}</span></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-emerald-950">Décision</p><span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">{review.status === "PREPARED_NOT_STARTED" ? "Préparée" : review.status === "IN_HUMAN_REVIEW" ? "En cours" : "Examinée"}</span></div>
                 <div className="mt-3 grid gap-3 text-sm lg:grid-cols-2">
                   <div className="rounded-lg bg-white/80 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Motif</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Sujet</p>
                     <p className="mt-1 text-emerald-950">{review.reason}</p>
                   </div>
                   <div className="rounded-lg bg-white/80 p-3">
@@ -1381,31 +1291,24 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     <ConfirmGovernanceReviewTransitionButton nextStatus={review.status === "PREPARED_NOT_STARTED" ? "IN_HUMAN_REVIEW" : "COMPLETED"} />
                   </form>
                 ) : null}
-                {review.startedAt ? <p className="mt-2 text-xs font-semibold text-emerald-800">Conduite humaine démarrée le {formatDate(review.startedAt)}.</p> : null}
-                {review.completedAt ? <p className="mt-1 text-xs font-semibold text-emerald-800">Revue conduite le {formatDate(review.completedAt)}.</p> : null}
-                <GovernanceReviewAIAssistant formTemplateId={formTemplate.id} reason={review.reason} question={review.question} humanNote={review.note} />
-                <div className="mt-3 grid gap-2 text-xs font-semibold text-emerald-900 sm:grid-cols-2 lg:grid-cols-5">
-                  <p className="rounded-lg bg-white/80 px-3 py-2">Réunion créée : non</p>
-                  <p className="rounded-lg bg-white/80 px-3 py-2">Notification envoyée : non</p>
-                  <p className="rounded-lg bg-white/80 px-3 py-2">Synthèse IA générée : non</p>
-                  <p className="rounded-lg bg-white/80 px-3 py-2">Décision automatique : non</p>
-                  <p className="rounded-lg bg-white/80 px-3 py-2">Workflow lancé : non</p>
-                </div>
+                {review.startedAt ? <p className="mt-2 text-xs font-semibold text-emerald-800">Examen commencé le {formatDate(review.startedAt)}.</p> : null}
+                {review.completedAt ? <p className="mt-1 text-xs font-semibold text-emerald-800">Décision examinée le {formatDate(review.completedAt)}.</p> : null}
+                <details className="mt-3 rounded-lg border bg-white/80 p-3"><summary className="cursor-pointer text-sm font-semibold text-emerald-950">Options avancées</summary><GovernanceReviewAIAssistant formTemplateId={formTemplate.id} reason={review.reason} question={review.question} humanNote={review.note} /></details>
               </article>
             ))}
           </div>
         ) : (
           <p className="mt-5 rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">
-            Aucune revue de gouvernance n'est préparée pour ce parcours.
+            Aucune décision à prendre pour le moment.
           </p>
         )}
 
         <form action={prepareGovernanceReviewAction} data-boussole-id="prepare-governance-review" className="mt-5 rounded-lg border bg-slate-50 p-4">
           <input type="hidden" name="formTemplateId" value={formTemplate.id} />
-          <p className="text-sm font-bold text-slate-950">Préparer une revue de gouvernance</p>
+          <p className="text-sm font-bold text-slate-950">Préparer une décision</p>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <label className="text-xs font-semibold text-slate-600">
-              Motif
+              Sujet
               <input
                 name="reviewReason"
                 required
@@ -1427,17 +1330,13 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
               <textarea
                 name="optionalNote"
                 className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-950"
-                placeholder="Contexte utile pour la préparation humaine"
+                placeholder="Contexte utile à la décision"
               />
             </label>
           </div>
           <button type="submit" className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">
-            Préparer sans lancer
+            Préparer la décision
           </button>
-          <p className="mt-2 text-xs text-slate-500">
-            V1 : cette revue est uniquement préparée. Goodissima ne crée pas de réunion, ne notifie personne,
-            ne génère pas de synthèse IA et ne prend aucune décision automatiquement.
-          </p>
         </form>
       </section>
 
@@ -1451,19 +1350,16 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           {governanceReviewPreparations.slice(0, 3).map((item) => <li key={item.reviewPreparationId}>Décision « {item.question} » mise à jour le {formatDate(item.updatedAt)}</li>)}
         </ul>
       </section>
+      </section>
 
       <details data-boussole-id="governed-journey-v1-limits" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-900">
         <summary className="min-h-11 cursor-pointer px-5 py-4 font-bold">Fonctionnement et garanties</summary><div className="border-t border-amber-200 p-5">
-        <p className="mt-2 leading-relaxed">
-          Cette salle de pilotage affiche le cadrage validé et les éléments de préparation du parcours. V1 : les messages
-          d'invitation sont uniquement préparés pour copie ou transmission manuelle. Goodissima n'envoie pas l'invitation,
-          ne génère pas de lien et n'ouvre aucun accès automatiquement. Les revues de gouvernance sont uniquement préparées :
-          Goodissima ne crée pas de réunion, ne notifie personne, ne génère pas de synthèse IA et ne prend aucune décision
-          automatiquement. Les communications sécurisées et dépôts documentaires interactifs ne sont pas activés dans ce cockpit minimal.
-        </p>
-        <p className="mt-2 text-xs">
-          Source : {source} · Workspace : {workspaceDisplay}
-        </p>
+        <ul className="list-disc space-y-2 pl-5 leading-relaxed">
+          <li>Les actions importantes restent sous votre contrôle.</li>
+          <li>Les accès sont limités aux personnes autorisées.</li>
+          <li>Les décisions et l’historique ne sont pas modifiés automatiquement.</li>
+          <li>Goodissima n’envoie ni invitation ni décision sans action explicite.</li>
+        </ul>
       </div></details>
     </main>
   );

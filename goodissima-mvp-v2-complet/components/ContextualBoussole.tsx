@@ -41,7 +41,9 @@ type DragState = { pointerId: number; startX: number; startY: number; origin: Pa
 export function ContextualBoussole() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const context = useMemo(() => getCompassContext(pathname, searchParams.toString()), [pathname, searchParams]);
+  const search = searchParams.toString();
+  const context = useMemo(() => getCompassContext(pathname, search), [pathname, search]);
+  const contextSurfaceKey = `${pathname}?${search}`;
   const [open, setOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const [compactSide, setCompactSide] = useState<"left" | "right">("left");
@@ -145,7 +147,7 @@ export function ContextualBoussole() {
     clearHighlight();
     stopSpeech();
     setSequenceId(context?.id === "dashboard" ? "repères" : context?.id === "simple-link" ? "start" : context?.id === "opportunities" || context?.id === "archives" ? "discover-opportunities" : context?.id === "governance" ? runtimeContext.pageState === "EMPTY" ? "governance-summary" : "understand-governance" : context?.id === "portfolio" ? "portfolio-landmarks" : context?.id === "new-governed-journey" ? "choose-governed-format" : context?.id === "governed-journey" ? "discover-governed-journey" : context?.id === "dossiers" ? "understand-secure-case" : context?.id === "directory" ? runtimeContext.pageState === "FOCUSED" ? "understand-directory-result" : "discover-directory" : "all");
-  }, [context?.id, runtimeContext.pageState]);
+  }, [context?.id, contextSurfaceKey, runtimeContext.pageState]);
 
   function openBoussole() {
     if (context?.id === "governed-journey") {
