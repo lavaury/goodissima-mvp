@@ -8,12 +8,1970 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model PersonalFavorite {
+  userId     String
+  objectKind FavoriteObjectKind
+  objectId   String
+  createdAt  DateTime           @default(now())
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, objectKind, objectId])
+  @@index([userId, createdAt])
+}
+
+model User {
+  id                                                                                            String                                @id @default(cuid())
+  email                                                                                         String                                @unique
+  name                                                                                          String?
+  role                                                                                          String                                @default("OWNER")
+  createdAt                                                                                     DateTime                              @default(now())
+  goodissimaIdentityId                                                                          String?                               @unique
+  aiEvents                                                                                      AIEvent[]
+  communicationSessions                                                                         CommunicationSession[]
+  ContactRequest_ContactRequest_decidedByUserIdToUser                                           ContactRequest[]                      @relation("ContactRequest_decidedByUserIdToUser")
+  ContactRequest_ContactRequest_requesterOwnerIdToUser                                          ContactRequest[]                      @relation("ContactRequest_requesterOwnerIdToUser")
+  ContactRequest_ContactRequest_targetOwnerIdToUser                                             ContactRequest[]                      @relation("ContactRequest_targetOwnerIdToUser")
+  contactRequestEvents                                                                          ContactRequestEvent[]
+  directoryProfilesManaged                                                                      DirectoryProfileManager[]
+  links                                                                                         GLink[]
+  governedJourneys                                                                              GovernedJourney[]
+  GovernedJourneyCreationRequest                                                                GovernedJourneyCreationRequest[]
+  GovernedJourneyEvent                                                                          GovernedJourneyEvent[]
+  GovernedJourneyMemoryRoleAssignment_GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser GovernedJourneyMemoryRoleAssignment[] @relation("GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser")
+  GovernedJourneyMemoryRoleAssignment_GovernedJourneyMemoryRoleAssignment_userIdToUser          GovernedJourneyMemoryRoleAssignment[] @relation("GovernedJourneyMemoryRoleAssignment_userIdToUser")
+  GovernedJourneyRelationCase                                                                   GovernedJourneyRelationCase[]
+  authorizedMeetingParticipants                                                                 GovernedMeetingParticipant[]          @relation("MeetingParticipantAuthorizer")
+  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_grantedByUserIdToUser                     GovernedMemoryAccessGrant[]           @relation("GovernedMemoryAccessGrant_grantedByUserIdToUser")
+  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_revokedByUserIdToUser                     GovernedMemoryAccessGrant[]           @relation("GovernedMemoryAccessGrant_revokedByUserIdToUser")
+  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_subjectUserIdToUser                       GovernedMemoryAccessGrant[]           @relation("GovernedMemoryAccessGrant_subjectUserIdToUser")
+  GovernedMemoryCreationRequest                                                                 GovernedMemoryCreationRequest[]
+  GovernedMemoryDecision_GovernedMemoryDecision_decidedByUserIdToUser                           GovernedMemoryDecision[]              @relation("GovernedMemoryDecision_decidedByUserIdToUser")
+  GovernedMemoryDecision_GovernedMemoryDecision_validatedByUserIdToUser                         GovernedMemoryDecision[]              @relation("GovernedMemoryDecision_validatedByUserIdToUser")
+  GovernedMemoryDispute_GovernedMemoryDispute_raisedByUserIdToUser                              GovernedMemoryDispute[]               @relation("GovernedMemoryDispute_raisedByUserIdToUser")
+  GovernedMemoryDispute_GovernedMemoryDispute_resolvedByUserIdToUser                            GovernedMemoryDispute[]               @relation("GovernedMemoryDispute_resolvedByUserIdToUser")
+  memoryEvents                                                                                  GovernedMemoryEvent[]
+  GovernedMemoryFact_GovernedMemoryFact_authorUserIdToUser                                      GovernedMemoryFact[]                  @relation("GovernedMemoryFact_authorUserIdToUser")
+  GovernedMemoryFact_GovernedMemoryFact_establishedByUserIdToUser                               GovernedMemoryFact[]                  @relation("GovernedMemoryFact_establishedByUserIdToUser")
+  createdMemoryRelations                                                                        GovernedMemoryRelation[]
+  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_assignedByUserIdToUser              GovernedMemoryRoleAssignment[]        @relation("GovernedMemoryRoleAssignment_assignedByUserIdToUser")
+  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_revokedByUserIdToUser               GovernedMemoryRoleAssignment[]        @relation("GovernedMemoryRoleAssignment_revokedByUserIdToUser")
+  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_userIdToUser                        GovernedMemoryRoleAssignment[]        @relation("GovernedMemoryRoleAssignment_userIdToUser")
+  GovernedMemorySource                                                                          GovernedMemorySource[]
+  GovernedMemoryTransitionRequest_GovernedMemoryTransitionRequest_requesterUserIdToUser         GovernedMemoryTransitionRequest[]     @relation("GovernedMemoryTransitionRequest_requesterUserIdToUser")
+  GovernedMemoryTransitionRequest_GovernedMemoryTransitionRequest_targetUserIdToUser            GovernedMemoryTransitionRequest[]     @relation("GovernedMemoryTransitionRequest_targetUserIdToUser")
+  memoryValidations                                                                             GovernedMemoryValidation[]
+  manualTemplateEditAudits                                                                      ManualTemplateEditAudit[]
+  matchingExecutionLeases                                                                       MatchingExecutionLease[]
+  matchingRuns                                                                                  MatchingRun[]                         @relation("MatchingRunOwner")
+  notifications                                                                                 Notification[]
+  personalFavorites                                                                             PersonalFavorite[]
+  portfolios                                                                                    Portfolio[]                           @relation("OwnerPortfolios")
+  productFeedback                                                                               ProductFeedback[]
+  cases                                                                                         RelationCase[]                        @relation("OwnerCases")
+  Representation                                                                                Representation[]
+  RepresentationContact                                                                         RepresentationContact[]
+  representationContactEvents                                                                   RepresentationContactEvent[]
+  templateCriticReports                                                                         TemplateCriticReport[]
+  templateGenerations                                                                           TemplateGeneration[]
+  templateOptimizations                                                                         TemplateOptimization[]
+  goodissimaIdentity                                                                            GoodissimaIdentity?                   @relation(fields: [goodissimaIdentityId], references: [id])
+  notificationPreferences                                                                       UserNotificationPreference?
+  workspaces                                                                                    Workspace[]                           @relation("OwnerWorkspaces")
+
+  @@unique([id, goodissimaIdentityId])
+}
+
+model Portfolio {
+  id          String          @id @default(cuid())
+  ownerId     String
+  slug        String
+  name        String
+  description String?
+  kind        PortfolioKind   @default(OTHER)
+  status      PortfolioStatus @default(ACTIVE)
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  owner       User            @relation("OwnerPortfolios", fields: [ownerId], references: [id], onDelete: Cascade)
+  workspaces  Workspace[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, status, createdAt])
+  @@index([ownerId, kind, status])
+}
+
+model Workspace {
+  id                              String                           @id @default(cuid())
+  ownerId                         String
+  slug                            String
+  name                            String
+  description                     String?
+  kind                            WorkspaceKind                    @default(GOVERNANCE)
+  status                          WorkspaceStatus                  @default(ACTIVE)
+  metadata                        Json?
+  createdAt                       DateTime                         @default(now())
+  updatedAt                       DateTime                         @updatedAt
+  category                        WorkspaceCategory                @default(OTHER)
+  portfolioId                     String?
+  communicationSessions           CommunicationSession[]
+  links                           GLink[]
+  governedJourneyCreationRequests GovernedJourneyCreationRequest[]
+  governedJourneyInvitations      GovernedJourneyInvitation[]
+  relationCases                   RelationCase[]
+  relationTemplates               RelationTemplate[]
+  owner                           User                             @relation("OwnerWorkspaces", fields: [ownerId], references: [id], onDelete: Cascade)
+  portfolio                       Portfolio?                       @relation(fields: [portfolioId], references: [id])
+
+  @@unique([ownerId, slug])
+  @@index([portfolioId])
+  @@index([ownerId, status, createdAt])
+  @@index([ownerId, category, status])
+  @@index([kind, status])
+}
+
+model GovernedJourneyInvitation {
+  id                   String                          @id @default(cuid())
+  ownerId              String
+  workspaceId          String?
+  relationTemplateId   String
+  relationCaseId       String?
+  displayName          String
+  role                 GovernedJourneyInvitationRole
+  status               GovernedJourneyInvitationStatus @default(ACTIVE)
+  accessTokenHash      String                          @unique
+  accessTokenExpiresAt DateTime
+  revokedAt            DateTime?
+  acceptedAt           DateTime?
+  lastAccessedAt       DateTime?
+  metadata             Json?
+  createdAt            DateTime                        @default(now())
+  updatedAt            DateTime                        @updatedAt
+  relationCase         RelationCase?                   @relation(fields: [relationCaseId], references: [id])
+  relationTemplate     RelationTemplate                @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
+  workspace            Workspace?                      @relation(fields: [workspaceId], references: [id])
+  meetingParticipants  GovernedMeetingParticipant[]
+
+  @@index([ownerId, relationTemplateId, status])
+  @@index([accessTokenExpiresAt, status])
+}
+
+model CommunicationSession {
+  id                        String                       @id @default(cuid())
+  ownerId                   String
+  workspaceId               String?
+  relationTemplateId        String?
+  relationCaseId            String?
+  channelType               CommunicationChannelType
+  provider                  CommunicationProvider
+  status                    CommunicationSessionStatus
+  title                     String
+  purpose                   String?
+  note                      String?
+  externalUrl               String?
+  scheduledAt               DateTime?
+  expiresAt                 DateTime?
+  transcriptionRequested    Boolean                      @default(false)
+  transcriptionConsented    Boolean                      @default(false)
+  recordingEnabled          Boolean                      @default(false)
+  automaticNotificationSent Boolean                      @default(false)
+  tokenGenerated            Boolean                      @default(false)
+  accessOpened              Boolean                      @default(false)
+  workflowStarted           Boolean                      @default(false)
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
+  metadata                  Json?
+  owner                     User                         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  relationCase              RelationCase?                @relation(fields: [relationCaseId], references: [id])
+  relationTemplate          RelationTemplate?            @relation(fields: [relationTemplateId], references: [id])
+  workspace                 Workspace?                   @relation(fields: [workspaceId], references: [id])
+  meetingParticipants       GovernedMeetingParticipant[]
+
+  @@index([ownerId, status, createdAt])
+  @@index([workspaceId, status])
+  @@index([relationTemplateId, status])
+  @@index([relationCaseId, status])
+  @@index([channelType, status])
+}
+
+model GovernedMeetingParticipant {
+  id                          String                           @id @default(cuid())
+  communicationSessionId      String
+  governedJourneyInvitationId String
+  status                      GovernedMeetingParticipantStatus @default(AUTHORIZED)
+  authorizedAt                DateTime                         @default(now())
+  removedAt                   DateTime?
+  authorizedById              String?
+  metadata                    Json?
+  createdAt                   DateTime                         @default(now())
+  updatedAt                   DateTime                         @updatedAt
+  authorizedBy                User?                            @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id])
+  communicationSession        CommunicationSession             @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
+  governedJourneyInvitation   GovernedJourneyInvitation        @relation(fields: [governedJourneyInvitationId], references: [id], onDelete: Cascade)
+
+  @@unique([communicationSessionId, governedJourneyInvitationId], map: "GovernedMeetingParticipant_communicationSessionId_governedJourn")
+  @@index([governedJourneyInvitationId, status], map: "GovernedMeetingParticipant_governedJourneyInvitationId_status_i")
+}
+
+model AccessInvitation {
+  id              String                 @id @default(cuid())
+  email           String                 @unique
+  invitedByUserId String?
+  status          AccessInvitationStatus @default(PENDING)
+  note            String?
+  token           String?
+  expiresAt       DateTime?
+  acceptedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model UserNotificationPreference {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique
+  emailNotificationsEnabled Boolean  @default(false)
+  newMessagesEnabled        Boolean  @default(false)
+  newRequestsEnabled        Boolean  @default(false)
+  newDocumentsEnabled       Boolean  @default(false)
+  validationsEnabled        Boolean  @default(false)
+  relationalPrivacyEnabled  Boolean  @default(true)
+  pseudonymizationEnabled   Boolean  @default(true)
+  frequency                 String   @default("IMMEDIATE")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GLink {
+  id                String            @id @default(cuid())
+  ownerId           String
+  workspaceId       String?
+  templateId        String?
+  templateVersionId String?
+  slug              String            @unique
+  title             String
+  city              String?
+  description       String?
+  rules             Json?
+  status            LinkStatus        @default(ACTIVE)
+  admissionMode     LinkAdmissionMode @default(OPEN)
+  createdAt         DateTime          @default(now())
+  expiresAt         DateTime?
+
+  owner                      User                        @relation(fields: [ownerId], references: [id])
+  workspace                  Workspace?                  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  template                   RelationTemplate?           @relation(fields: [templateId], references: [id])
+  templateVersion            TemplateVersion?            @relation(fields: [templateVersionId], references: [id])
+  cases                      RelationCase[]
+  trustPolicies              TrustPolicy[]
+  trustAdmissionTokens       TrustAdmissionToken[]
+  matchingRuns               MatchingRun[]               @relation("MatchingRunSourceGLink")
+  matchingResults            MatchingResult[]            @relation("MatchingResultTargetGLink")
+  publicCaseCreationRequests PublicCaseCreationRequest[]
+  matchingExecutionLeases    MatchingExecutionLease[]
+
+  @@index([workspaceId])
+}
+
+model RelationCase {
+  id                                 String                            @id @default(cuid())
+  gLinkId                            String
+  ownerId                            String
+  candidateName                      String
+  candidateEmail                     String
+  status                             RelationStatus                    @default(NEW)
+  createdAt                          DateTime                          @default(now())
+  closedAt                           DateTime?
+  candidateAccessToken               String                            @unique
+  candidateAccessExpiresAt           DateTime?
+  candidateAccessRevokedAt           DateTime?
+  priority                           RelationPriority                  @default(NORMAL)
+  templateId                         String?
+  currentStep                        String?                           @default("CONVERSATION")
+  candidateEmailNotificationsEnabled Boolean                           @default(false)
+  matchingEnabled                    Boolean                           @default(false)
+  embeddingStatus                    String                            @default("fresh")
+  embeddingUpdatedAt                 DateTime?
+  governanceStatus                   RelationGovernanceStatus          @default(ACTIVE)
+  governanceUpdatedAt                DateTime?
+  governanceReason                   String?
+  candidateIdentityId                String?
+  workspaceId                        String?
+  aiEvents                           AIEvent[]
+  auditLogs                          AuditLog[]
+  communicationSessions              CommunicationSession[]
+  documents                          Document[]
+  embeddingJobs                      EmbeddingJob[]
+  formSubmissions                    FormSubmission[]
+  governedJourneys                   GovernedJourney[]
+  governedJourneyInvitations         GovernedJourneyInvitation[]
+  governedJourneyContexts            GovernedJourneyRelationCase?
+  memoryAccessGrants                 GovernedMemoryAccessGrant[]
+  governedMemoryCreationRequests     GovernedMemoryCreationRequest[]
+  memoryDecisions                    GovernedMemoryDecision[]
+  memoryDisputes                     GovernedMemoryDispute[]
+  memoryEvents                       GovernedMemoryEvent[]
+  memoryFacts                        GovernedMemoryFact[]
+  memoryRelations                    GovernedMemoryRelation[]
+  memoryRoleAssignments              GovernedMemoryRoleAssignment[]
+  memorySources                      GovernedMemorySource[]
+  governedMemoryTransitionRequests   GovernedMemoryTransitionRequest[]
+  memoryValidations                  GovernedMemoryValidation[]
+  matchingResults                    MatchingResult[]
+  messages                           Message[]
+  notifications                      Notification[]
+  productFeedback                    ProductFeedback[]
+  publicCaseCreationRequests         PublicCaseCreationRequest[]
+  relationActions                    RelationAction[]
+  candidateIdentity                  GoodissimaIdentity?               @relation(fields: [candidateIdentityId], references: [id])
+  gLink                              GLink                             @relation(fields: [gLinkId], references: [id])
+  owner                              User                              @relation("OwnerCases", fields: [ownerId], references: [id])
+  template                           RelationTemplate?                 @relation(fields: [templateId], references: [id])
+  workspace                          Workspace?                        @relation(fields: [workspaceId], references: [id])
+  embeddings                         RelationEmbedding[]
+  relationEvents                     RelationEvent[]
+  trustPolicies                      TrustPolicy[]
+
+  @@unique([id, ownerId])
+  @@unique([id, templateId])
+  @@index([governanceStatus])
+  @@index([candidateIdentityId])
+  @@index([workspaceId])
+}
+
+model MatchingRun {
+  id                      String            @id @default(cuid())
+  gLinkId                 String
+  ownerId                 String
+  status                  MatchingRunStatus @default(PREPARED)
+  isPaused                Boolean           @default(false)
+  engineVersion           String
+  criteriaSnapshot        Json
+  startedAt               DateTime?
+  completedAt             DateTime?
+  failedAt                DateTime?
+  pausedAt                DateTime?
+  closedAt                DateTime?
+  failureCode             String?
+  idempotencyKey          String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  criteriaFingerprintHash String?
+  cacheValidUntil         DateTime?
+  results                 MatchingResult[]
+  gLink                   GLink             @relation("MatchingRunSourceGLink", fields: [gLinkId], references: [id])
+  owner                   User              @relation("MatchingRunOwner", fields: [ownerId], references: [id])
+
+  @@unique([ownerId, idempotencyKey])
+  @@index([gLinkId, createdAt])
+  @@index([ownerId, status])
+  @@index([ownerId, isPaused])
+  @@index([cacheValidUntil])
+  @@index([createdAt])
+  @@index([ownerId, gLinkId, criteriaFingerprintHash, createdAt], map: "MatchingRun_ownerId_gLinkId_criteriaFingerprintHash_createdAt_i")
+}
+
+model MatchingExecutionLease {
+  id                      String   @id @default(cuid())
+  ownerId                 String
+  gLinkId                 String
+  criteriaFingerprintHash String
+  expiresAt               DateTime
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  gLink                   GLink    @relation(fields: [gLinkId], references: [id], onDelete: Cascade)
+  owner                   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, gLinkId, criteriaFingerprintHash], map: "MatchingExecutionLease_ownerId_gLinkId_criteriaFingerprintHash_")
+  @@index([expiresAt])
+}
+
+model MatchingResult {
+  id             String               @id @default(cuid())
+  runId          String
+  targetGLinkId  String
+  status         MatchingResultStatus @default(AVAILABLE)
+  explanation    Json
+  internalRank   Int?
+  selectedAt     DateTime?
+  dismissedAt    DateTime?
+  linkedAt       DateTime?
+  relationCaseId String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  run          MatchingRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  targetGLink  GLink         @relation("MatchingResultTargetGLink", fields: [targetGLinkId], references: [id], onDelete: Restrict)
+  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+
+  @@unique([runId, targetGLinkId])
+  @@index([runId, status])
+  @@index([targetGLinkId])
+  @@index([relationCaseId])
+}
+
+model EmbeddingJob {
+  id             String       @id @default(cuid())
+  relationCaseId String
+  status         String       @default("pending")
+  triggerType    String
+  attempts       Int          @default(0)
+  lastError      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  processedAt    DateTime?
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([relationCaseId, status])
+}
+
+model RelationEmbedding {
+  id             String                 @id @default(cuid())
+  relationCaseId String
+  embeddingType  String
+  contentHash    String
+  vector         Unsupported("vector")?
+  createdAt      DateTime               @default(now())
+  relationCase   RelationCase           @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  @@index([relationCaseId, embeddingType])
+  @@index([contentHash])
+  @@index([vector], map: "RelationEmbedding_vector_cosine_idx")
+}
+
+model RelationTemplate {
+  id                               String                            @id @default(cuid())
+  key                              String                            @unique
+  name                             String
+  description                      String?
+  isDefault                        Boolean                           @default(false)
+  createdAt                        DateTime                          @default(now())
+  updatedAt                        DateTime                          @updatedAt
+  status                           String                            @default("DRAFT")
+  aiInstructions                   String?
+  workspaceId                      String?
+  aiEvents                         AIEvent[]
+  communicationSessions            CommunicationSession[]
+  formTemplates                    FormTemplate[]
+  links                            GLink[]
+  governedJourney                  GovernedJourney[]
+  governedJourneyCreationRequest   GovernedJourneyCreationRequest?
+  governedJourneyInvitations       GovernedJourneyInvitation[]
+  governedMemoryCreationRequests   GovernedMemoryCreationRequest[]
+  memoryDecisions                  GovernedMemoryDecision[]
+  memoryDisputes                   GovernedMemoryDispute[]
+  memoryEvents                     GovernedMemoryEvent[]
+  memoryFacts                      GovernedMemoryFact[]
+  memorySources                    GovernedMemorySource[]
+  governedMemoryTransitionRequests GovernedMemoryTransitionRequest[]
+  memoryValidations                GovernedMemoryValidation[]
+  productFeedback                  ProductFeedback[]
+  relationCases                    RelationCase[]
+  workspace                        Workspace?                        @relation(fields: [workspaceId], references: [id])
+  generations                      TemplateGeneration[]
+  versions                         TemplateVersion[]
+  trustPolicies                    TrustPolicy[]
+
+  @@index([workspaceId])
+}
+
+model ProductFeedback {
+  id          String                      @id @default(cuid())
+  type        String
+  message     String
+  page        String?
+  role        String?
+  userId      String?
+  caseId      String?
+  templateId  String?
+  browserInfo Json?
+  environment String?
+  status      ProductFeedbackStatus       @default(NEW)
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+  resolvedAt  DateTime?
+  adminNotes  String?
+  case        RelationCase?               @relation(fields: [caseId], references: [id])
+  template    RelationTemplate?           @relation(fields: [templateId], references: [id])
+  user        User?                       @relation(fields: [userId], references: [id])
+  attachments ProductFeedbackAttachment[]
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@index([userId])
+  @@index([caseId])
+  @@index([templateId])
+}
+
+model ProductFeedbackAttachment {
+  id         String          @id @default(cuid())
+  feedbackId String
+  fileName   String
+  fileUrl    String
+  mimeType   String
+  fileSize   Int
+  width      Int?
+  height     Int?
+  annotation Json?
+  createdAt  DateTime        @default(now())
+  feedback   ProductFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+  @@index([createdAt])
+}
+
+model TemplateGeneration {
+  id                 String               @id @default(cuid())
+  createdById        String
+  templateId         String?
+  inputDescription   String
+  language           String               @default("fr")
+  output             Json
+  provider           String
+  model              String?
+  promptVersion      String
+  status             String               @default("GENERATED")
+  validatedAt        DateTime?
+  createdAt          DateTime             @default(now())
+  aiEventId          String?              @unique
+  parentGenerationId String?
+  proposalVersion    Int                  @default(1)
+  revisionFeedback   String?
+  changes            Json?
+  aiEvent            AIEvent?             @relation(fields: [aiEventId], references: [id])
+  createdBy          User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  parentGeneration   TemplateGeneration?  @relation("TemplateGenerationRevisions", fields: [parentGenerationId], references: [id])
+  revisions          TemplateGeneration[] @relation("TemplateGenerationRevisions")
+  template           RelationTemplate?    @relation(fields: [templateId], references: [id])
+
+  @@index([createdById, createdAt])
+  @@index([templateId])
+  @@index([parentGenerationId])
+}
+
+model TrustPolicy {
+  id                      String                             @id @default(cuid())
+  scope                   TrustPolicyScope
+  templateId              String?
+  gLinkId                 String?
+  relationCaseId          String?
+  accessMode              TrustPolicyAccessMode              @default(PUBLIC_LINK)
+  candidateCanRead        Boolean                            @default(true)
+  candidateCanWrite       Boolean                            @default(true)
+  ownerCanRead            Boolean                            @default(true)
+  ownerCanWrite           Boolean                            @default(true)
+  requireCandidateEmail   Boolean                            @default(true)
+  requireCandidateConsent Boolean                            @default(false)
+  allowDocuments          Boolean                            @default(true)
+  candidateTokenTtlDays   Int                                @default(30)
+  status                  TrustPolicyStatus                  @default(ACTIVE)
+  reason                  String?
+  version                 Int                                @default(1)
+  createdAt               DateTime                           @default(now())
+  updatedAt               DateTime                           @updatedAt
+  gLink                   GLink?                             @relation(fields: [gLinkId], references: [id])
+  relationCase            RelationCase?                      @relation(fields: [relationCaseId], references: [id])
+  template                RelationTemplate?                  @relation(fields: [templateId], references: [id])
+  credentialRequirements  TrustPolicyCredentialRequirement[]
+
+  @@index([scope, status])
+  @@index([templateId])
+  @@index([gLinkId])
+  @@index([relationCaseId])
+}
+
+model CredentialType {
+  id                      String                             @id @default(cuid())
+  code                    String                             @unique
+  name                    String
+  description             String?
+  status                  CredentialTypeStatus
+  createdAt               DateTime                           @default(now())
+  updatedAt               DateTime                           @updatedAt
+  credentials             TrustCredential[]
+  trustPolicyRequirements TrustPolicyCredentialRequirement[]
+}
+
+model TrustedOrganization {
+  id                String                    @id @default(cuid())
+  organizationId    String
+  status            TrustedOrganizationStatus
+  approvedAt        DateTime?
+  approvedBy        String?
+  reason            String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  trustConnectors   TrustConnector[]
+  issuedCredentials TrustCredential[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model TrustConnector {
+  id                    String                     @id @default(cuid())
+  code                  String                     @unique
+  name                  String
+  description           String?
+  status                TrustConnectorStatus
+  providerType          TrustConnectorProviderType
+  trustedOrganizationId String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  trustedOrganization   TrustedOrganization?       @relation(fields: [trustedOrganizationId], references: [id])
+
+  @@index([status])
+  @@index([providerType])
+  @@index([trustedOrganizationId])
+}
+
+model GoodissimaIdentity {
+  id                     String                @id @default(cuid())
+  type                   IdentityType
+  status                 IdentityStatus
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  relationalSubjectId    String?
+  directoryProfile       DirectoryProfile?
+  RelationalSubject      RelationalSubject?    @relation(fields: [relationalSubjectId], references: [id])
+  candidateRelationCases RelationCase[]
+  representations        Representation[]
+  trustAdmissionTokens   TrustAdmissionToken[]
+  credentials            TrustCredential[]
+  user                   User?
+
+  @@index([relationalSubjectId])
+}
+
+model TrustAdmissionToken {
+  id         String                     @id @default(cuid())
+  tokenHash  String                     @unique
+  identityId String
+  gLinkId    String?
+  purpose    TrustAdmissionTokenPurpose
+  status     TrustAdmissionTokenStatus
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+  gLink      GLink?                     @relation(fields: [gLinkId], references: [id])
+  identity   GoodissimaIdentity         @relation(fields: [identityId], references: [id])
+
+  @@index([identityId])
+  @@index([gLinkId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model TrustPolicyCredentialRequirement {
+  id               String         @id @default(cuid())
+  trustPolicyId    String
+  credentialTypeId String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  credentialType   CredentialType @relation(fields: [credentialTypeId], references: [id])
+  trustPolicy      TrustPolicy    @relation(fields: [trustPolicyId], references: [id], onDelete: Cascade)
+
+  @@unique([trustPolicyId, credentialTypeId], map: "TrustPolicyCredentialRequirement_trustPolicyId_credentialTypeId")
+  @@index([trustPolicyId])
+  @@index([credentialTypeId])
+}
+
+model TrustCredential {
+  id                          String                            @id @default(cuid())
+  identityId                  String
+  credentialTypeId            String
+  issuerTrustedOrganizationId String
+  status                      TrustCredentialStatus
+  issuedAt                    DateTime
+  expiresAt                   DateTime?
+  revokedAt                   DateTime?
+  revocationReason            String?
+  createdAt                   DateTime                          @default(now())
+  updatedAt                   DateTime                          @updatedAt
+  directoryVerifications      DirectoryVerificationProvenance[]
+  claims                      TrustClaim[]
+  credentialType              CredentialType                    @relation(fields: [credentialTypeId], references: [id])
+  identity                    GoodissimaIdentity                @relation(fields: [identityId], references: [id])
+  issuerTrustedOrganization   TrustedOrganization               @relation(fields: [issuerTrustedOrganizationId], references: [id])
+
+  @@index([identityId])
+  @@index([credentialTypeId])
+  @@index([issuerTrustedOrganizationId])
+  @@index([status])
+}
+
+model TrustClaim {
+  id                     String                            @id @default(cuid())
+  credentialId           String
+  claimKey               String
+  claimType              TrustClaimType
+  claimValue             Json
+  createdAt              DateTime                          @default(now())
+  updatedAt              DateTime                          @updatedAt
+  directoryVerifications DirectoryVerificationProvenance[]
+  credential             TrustCredential                   @relation(fields: [credentialId], references: [id])
+
+  @@index([credentialId])
+  @@index([claimKey])
+}
+
+model DirectoryProfile {
+  /// Logical contract: publicId String @unique @default(uuid())
+  id                String                 @id @default(cuid())
+  publicId          String                 @unique @default(dbgenerated("gen_random_uuid()"))
+  subjectIdentityId String                 @unique
+  actorType         DirectoryActorType
+  status            DirectoryProfileStatus @default(DRAFT)
+  publicName        String
+  normalizedName    String
+  consentedAt       DateTime?
+  publishedAt       DateTime?
+  disabledAt        DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  subjectIdentity GoodissimaIdentity        @relation(fields: [subjectIdentityId], references: [id], onDelete: Restrict)
+  managers        DirectoryProfileManager[]
+  attributes      DirectoryAttribute[]
+  auditEvents     DirectoryAuditEvent[]
+
+  @@index([status, actorType, publishedAt, id])
+  @@index([actorType, status, normalizedName])
+}
+
+model DirectoryProfileManager {
+  profileId   String
+  userId      String
+  role        DirectoryManagerRole
+  grantedAt   DateTime             @default(now())
+  revokedAt   DateTime?
+  grantedById String?
+  profile     DirectoryProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  user        User                 @relation(fields: [userId], references: [id])
+
+  @@id([profileId, userId])
+  @@index([userId, revokedAt])
+}
+
+model DirectoryAttribute {
+  id                     String                          @id @default(cuid())
+  profileId              String
+  kind                   DirectoryAttributeKind
+  displayValue           String
+  normalizedValue        String
+  code                   String?
+  locale                 String?
+  locationGranularity    DirectoryLocationGranularity?
+  publicationStatus      DirectoryPublicationStatus      @default(DRAFT)
+  declaredTrustLevel     DirectoryTrustLevel             @default(DECLARED)
+  verificationLossPolicy DirectoryVerificationLossPolicy @default(KEEP_AS_DECLARED)
+  publishedAt            DateTime?
+  withdrawnAt            DateTime?
+  createdAt              DateTime                        @default(now())
+  updatedAt              DateTime                        @updatedAt
+
+  profile      DirectoryProfile                 @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  verification DirectoryVerificationProvenance?
+
+  @@index([profileId, publicationStatus, kind])
+  @@index([kind, code, publicationStatus, profileId])
+  /// Logical index: @@index([kind, normalizedValue, publicationStatus, profileId])
+  @@index([kind, normalizedValue, publicationStatus, profileId], map: "DirectoryAttribute_kind_normalizedValue_publicationStatus_profi")
+}
+
+model DirectoryVerificationProvenance {
+  id            String                     @id @default(cuid())
+  attributeId   String                     @unique
+  credentialId  String
+  claimId       String?
+  state         DirectoryVerificationState
+  verifiedAt    DateTime
+  validUntil    DateTime?
+  lastCheckedAt DateTime
+  invalidatedAt DateTime?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  attribute  DirectoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  credential TrustCredential    @relation(fields: [credentialId], references: [id], onDelete: Restrict)
+  claim      TrustClaim?        @relation(fields: [claimId], references: [id], onDelete: SetNull)
+
+  @@index([credentialId, state])
+  /// Logical index: @@index([state, validUntil, attributeId])
+  @@index([state, validUntil, attributeId], map: "DirectoryVerificationProvenance_state_validUntil_attributeId_id")
+}
+
+model DirectoryAuditEvent {
+  id            String                  @id @default(cuid())
+  profileId     String?
+  actorUserId   String?
+  action        DirectoryAuditAction
+  attributeId   String?
+  attributeKind DirectoryAttributeKind?
+  occurredAt    DateTime                @default(now())
+  profile       DirectoryProfile?       @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model AIEvent {
+  id                 String              @id @default(cuid())
+  caseId             String?
+  provider           String
+  model              String?
+  action             String
+  status             String
+  promptVersion      String?
+  outputSummary      String?
+  errorCode          String?
+  createdAt          DateTime            @default(now())
+  tokensInput        Int?
+  tokensOutput       Int?
+  estimatedCostEur   Decimal?            @db.Decimal(12, 6)
+  latencyMs          Int?
+  userId             String?
+  templateId         String?
+  organizationId     String?
+  organizationName   String?
+  featureName        String?
+  promptTokens       Int?
+  completionTokens   Int?
+  case               RelationCase?       @relation(fields: [caseId], references: [id])
+  template           RelationTemplate?   @relation(fields: [templateId], references: [id])
+  user               User?               @relation(fields: [userId], references: [id])
+  templateGeneration TemplateGeneration?
+
+  @@index([caseId, createdAt])
+  @@index([provider, action, createdAt])
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([featureName, createdAt])
+  @@index([templateId, createdAt])
+}
+
+model TemplateVersion {
+  id                  String                    @id @default(cuid())
+  templateId          String
+  version             Int
+  name                String
+  description         String?
+  snapshot            Json
+  isPublished         Boolean                   @default(false)
+  createdAt           DateTime                  @default(now())
+  links               GLink[]
+  governedJourneys    GovernedJourney[]
+  manualEditResults   ManualTemplateEditAudit?  @relation("ManualEditNewVersion")
+  manualEditSources   ManualTemplateEditAudit[] @relation("ManualEditSourceVersion")
+  criticReports       TemplateCriticReport[]
+  optimizationDrafts  TemplateOptimization?     @relation("OptimizationDraftVersion")
+  optimizationSources TemplateOptimization[]    @relation("OptimizationSourceVersion")
+  template            RelationTemplate          @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, version])
+  @@unique([id, templateId])
+}
+
+model ManualTemplateEditAudit {
+  id              String          @id @default(cuid())
+  userId          String
+  sourceVersionId String
+  newVersionId    String          @unique
+  changeType      String
+  changedFields   Json
+  reason          String?
+  createdAt       DateTime        @default(now())
+  newVersion      TemplateVersion @relation("ManualEditNewVersion", fields: [newVersionId], references: [id], onDelete: Cascade)
+  sourceVersion   TemplateVersion @relation("ManualEditSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([sourceVersionId, createdAt])
+}
+
+model TemplateCriticReport {
+  id                String                 @id @default(cuid())
+  templateVersionId String
+  createdById       String
+  criticVersion     String
+  score             Int
+  report            Json
+  createdAt         DateTime               @default(now())
+  createdBy         User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  templateVersion   TemplateVersion        @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+  optimizations     TemplateOptimization[]
+
+  @@index([templateVersionId, createdAt])
+  @@index([createdById, createdAt])
+}
+
+model TemplateOptimization {
+  id               String               @id @default(cuid())
+  criticReportId   String
+  sourceVersionId  String
+  draftVersionId   String?              @unique
+  createdById      String
+  optimizerVersion String
+  language         String               @default("fr")
+  status           String               @default("PROPOSED")
+  originalScore    Int
+  projectedScore   Int
+  proposal         Json
+  provenance       Json
+  approvedAt       DateTime?
+  createdAt        DateTime             @default(now())
+  createdBy        User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  criticReport     TemplateCriticReport @relation(fields: [criticReportId], references: [id], onDelete: Cascade)
+  draftVersion     TemplateVersion?     @relation("OptimizationDraftVersion", fields: [draftVersionId], references: [id])
+  sourceVersion    TemplateVersion      @relation("OptimizationSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Cascade)
+
+  @@index([criticReportId, createdAt])
+  @@index([sourceVersionId, createdAt])
+  @@index([createdById, createdAt])
+}
+
+model FormTemplate {
+  id                             String                          @id @default(cuid())
+  key                            String                          @unique
+  name                           String
+  description                    String?
+  relationTemplateId             String?
+  createdAt                      DateTime                        @default(now())
+  updatedAt                      DateTime                        @updatedAt
+  fields                         FormField[]
+  submissions                    FormSubmission[]
+  relationTemplate               RelationTemplate?               @relation(fields: [relationTemplateId], references: [id])
+  governedJourneys               GovernedJourney[]
+  governedJourneyCreationRequest GovernedJourneyCreationRequest?
+}
+
+model FormField {
+  id               String       @id @default(cuid())
+  formTemplateId   String
+  key              String
+  label            String
+  type             String
+  required         Boolean      @default(false)
+  placeholder      String?
+  defaultValue     String?
+  position         Int          @default(0)
+  options          Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  validationRules  Json?
+  conditionalRules Json?
+  step             Int          @default(1)
+  formTemplate     FormTemplate @relation(fields: [formTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([formTemplateId, position])
+}
+
+model FormSubmission {
+  id             String        @id @default(cuid())
+  formTemplateId String
+  caseId         String?
+  answers        Json
+  createdAt      DateTime      @default(now())
+  case           RelationCase? @relation(fields: [caseId], references: [id])
+  formTemplate   FormTemplate  @relation(fields: [formTemplateId], references: [id])
+}
+
+model RelationEvent {
+  id            String         @id @default(cuid())
+  caseId        String
+  type          String
+  actorType     String?
+  actorId       String?
+  payload       Json?
+  createdAt     DateTime       @default(now())
+  notifications Notification[]
+  case          RelationCase   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  recipientUserId String
+  type            NotificationType
+  relationCaseId  String
+  sourceEventId   String?
+  idempotencyKey  String           @unique
+  createdAt       DateTime         @default(now())
+  readAt          DateTime?
+  recipient       User             @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  relationCase    RelationCase     @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+  sourceEvent     RelationEvent?   @relation(fields: [sourceEventId], references: [id])
+
+  @@index([recipientUserId, readAt, createdAt])
+  @@index([relationCaseId])
+  @@index([sourceEventId])
+}
+
+model PublicRateLimitBucket {
+  id            String   @id @default(cuid())
+  dimension     String
+  keyHash       String
+  windowStart   DateTime
+  windowSeconds Int
+  count         Int      @default(1)
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([dimension, keyHash, windowStart, windowSeconds], map: "PublicRateLimitBucket_dimension_keyHash_windowStart_windowSecon")
+  @@index([expiresAt])
+}
+
+model PublicCaseCreationRequest {
+  id                 String        @id @default(cuid())
+  gLinkId            String
+  idempotencyKeyHash String
+  payloadHash        String
+  relationCaseId     String?
+  status             String        @default("PENDING")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  expiresAt          DateTime
+  gLink              GLink         @relation(fields: [gLinkId], references: [id])
+  relationCase       RelationCase? @relation(fields: [relationCaseId], references: [id])
+
+  @@unique([gLinkId, idempotencyKeyHash])
+  @@index([expiresAt])
+}
+
+model RelationAction {
+  id             String       @id @default(cuid())
+  relationCaseId String
+  type           String
+  status         String       @default("PENDING")
+  title          String
+  description    String?
+  payload        Json?
+  createdByRole  String
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
+
+  @@index([relationCaseId, status])
+  @@index([relationCaseId, createdAt])
+}
+
+model Message {
+  id           String       @id @default(cuid())
+  caseId       String
+  senderType   SenderType
+  senderEmail  String
+  body         String
+  createdAt    DateTime     @default(now())
+  relationCase RelationCase @relation(fields: [caseId], references: [id])
+}
+
+model Document {
+  id              String       @id @default(cuid())
+  caseId          String
+  uploadedByEmail String
+  fileName        String
+  fileUrl         String
+  mimeType        String?
+  createdAt       DateTime     @default(now())
+  relationCase    RelationCase @relation(fields: [caseId], references: [id])
+}
+
+model AuditLog {
+  id           String        @id @default(cuid())
+  caseId       String?
+  actorEmail   String?
+  eventType    String
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+  relationCase RelationCase? @relation(fields: [caseId], references: [id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ContactRequest {
+  id                                                                                       String                           @id
+  requesterOwnerId                                                                         String
+  requesterRepresentationId                                                                String
+  targetOwnerId                                                                            String
+  targetRepresentationId                                                                   String
+  reason                                                                                   String
+  contextType                                                                              String?
+  contextId                                                                                String?
+  status                                                                                   ContactRequestStatus             @default(PENDING)
+  expiresAt                                                                                DateTime?
+  decidedAt                                                                                DateTime?
+  decidedByUserId                                                                          String?
+  deferredUntil                                                                            DateTime?
+  cancelledAt                                                                              DateTime?
+  createdAt                                                                                DateTime                         @default(now())
+  updatedAt                                                                                DateTime
+  contactCreatedAt                                                                         DateTime?
+  User_ContactRequest_decidedByUserIdToUser                                                User?                            @relation("ContactRequest_decidedByUserIdToUser", fields: [decidedByUserId], references: [id])
+  User_ContactRequest_requesterOwnerIdToUser                                               User                             @relation("ContactRequest_requesterOwnerIdToUser", fields: [requesterOwnerId], references: [id])
+  Representation_ContactRequest_requesterRepresentationId_requesterOwnerIdToRepresentation Representation                   @relation("ContactRequest_requesterRepresentationId_requesterOwnerIdToRepresentation", fields: [requesterRepresentationId, requesterOwnerId], references: [id, ownerId], onUpdate: Restrict)
+  User_ContactRequest_targetOwnerIdToUser                                                  User                             @relation("ContactRequest_targetOwnerIdToUser", fields: [targetOwnerId], references: [id])
+  Representation_ContactRequest_targetRepresentationId_targetOwnerIdToRepresentation       Representation                   @relation("ContactRequest_targetRepresentationId_targetOwnerIdToRepresentation", fields: [targetRepresentationId, targetOwnerId], references: [id, ownerId], onUpdate: Restrict)
+  events                                                                                   ContactRequestEvent[]
+  requestedChannels                                                                        ContactRequestRequestedChannel[]
+  contacts                                                                                 RepresentationContact[]
+
+  @@unique([id, requesterRepresentationId, targetRepresentationId], map: "ContactRequest_id_requesterRepresentationId_targetRepresentatio")
+  @@index([expiresAt, status])
+  @@index([requesterOwnerId, status, createdAt])
+  @@index([requesterRepresentationId, targetRepresentationId, status], map: "ContactRequest_requesterRepresentationId_targetRepresentationId")
+  @@index([targetOwnerId, status, createdAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ContactRequestEvent {
+  id          String                  @id
+  requestId   String
+  actorUserId String?
+  type        ContactRequestEventType
+  createdAt   DateTime                @default(now())
+  actor       User?                   @relation(fields: [actorUserId], references: [id])
+  request     ContactRequest          @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ContactRequestRequestedChannel {
+  id        String                @id
+  requestId String
+  channel   ContactRequestChannel
+  request   ContactRequest        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, channel])
+  @@index([requestId])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedJourney {
+  id                             String                                @id
+  relationCaseId                 String?
+  formTemplateId                 String?
+  relationTemplateId             String                                @unique
+  createdFromTemplateVersionId   String
+  title                          String
+  status                         GovernedJourneyStatus                 @default(DRAFT)
+  authorityUserId                String
+  currentStepKey                 String?
+  startedAt                      DateTime?
+  suspendedAt                    DateTime?
+  closedAt                       DateTime?
+  cancelledAt                    DateTime?
+  createdAt                      DateTime                              @default(now())
+  updatedAt                      DateTime
+  version                        Int                                   @default(1)
+  authority                      User                                  @relation(fields: [authorityUserId], references: [id], onUpdate: Restrict)
+  createdFromTemplateVersion     TemplateVersion                       @relation(fields: [createdFromTemplateVersionId, relationTemplateId], references: [id, templateId], onUpdate: Restrict, map: "GovernedJourney_createdFromTemplateVersionId_relationTemplateId")
+  formTemplate                   FormTemplate?                         @relation(fields: [formTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationCase                   RelationCase?                         @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate               RelationTemplate                      @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  creationRequest                GovernedJourneyCreationRequest?
+  events                         GovernedJourneyEvent[]
+  memoryRoleAssignments          GovernedJourneyMemoryRoleAssignment[]
+  relationCaseContexts           GovernedJourneyRelationCase[]
+  governedMemoryCreationRequests GovernedMemoryCreationRequest[]
+  GovernedMemoryDecision         GovernedMemoryDecision[]
+  memoryDisputes                 GovernedMemoryDispute[]
+  GovernedMemoryEvent            GovernedMemoryEvent[]
+  GovernedMemoryFact             GovernedMemoryFact[]
+  GovernedMemorySource           GovernedMemorySource[]
+  memoryTransitionRequests       GovernedMemoryTransitionRequest[]
+  memoryValidations              GovernedMemoryValidation[]
+
+  @@unique([id, relationCaseId, authorityUserId])
+  @@unique([id, relationCaseId])
+  @@unique([id, relationTemplateId])
+  @@index([authorityUserId, status])
+  @@index([formTemplateId])
+  @@index([relationCaseId, status, createdAt])
+  @@index([relationCaseId, status, updatedAt])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedJourneyCreationRequest {
+  id                 String            @id
+  requesterUserId    String
+  requestKey         String
+  requestFingerprint String
+  workspaceScopeKey  String
+  workspaceId        String?
+  relationTemplateId String?           @unique
+  formTemplateId     String?           @unique
+  governedJourneyId  String?           @unique
+  createdAt          DateTime          @default(now())
+  completedAt        DateTime?
+  formTemplate       FormTemplate?     @relation(fields: [formTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney    GovernedJourney?  @relation(fields: [governedJourneyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate   RelationTemplate? @relation(fields: [relationTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  User               User              @relation(fields: [requesterUserId], references: [id], onUpdate: Restrict)
+  workspace          Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([requesterUserId, requestKey])
+  @@index([requesterUserId, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedJourneyEvent {
+  id                   String                   @id
+  governedJourneyId    String
+  relationCaseId       String
+  type                 GovernedJourneyEventType
+  actorUserId          String
+  occurredAt           DateTime
+  createdAt            DateTime                 @default(now())
+  authorityUserId      String
+  fromStatus           GovernedJourneyStatus?
+  toStatus             GovernedJourneyStatus
+  reason               String?
+  sequence             Int
+  User                 User                     @relation(fields: [actorUserId], references: [id], onUpdate: Restrict)
+  governedJourney      GovernedJourney          @relation(fields: [governedJourneyId, relationCaseId, authorityUserId], references: [id, relationCaseId, authorityUserId], onUpdate: Restrict, map: "GovernedJourneyEvent_governedJourneyId_relationCaseId_authority")
+  GovernedMemorySource GovernedMemorySource[]
+
+  @@unique([governedJourneyId, sequence])
+  @@unique([id, governedJourneyId, relationCaseId])
+  @@index([governedJourneyId, occurredAt, id])
+  @@index([relationCaseId, occurredAt, id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedJourneyMemoryRoleAssignment {
+  id                                                             String                           @id
+  userId                                                         String
+  governedJourneyId                                              String
+  relationTemplateId                                             String
+  role                                                           GovernedMemoryRole
+  grantedByUserId                                                String
+  createdAt                                                      DateTime                         @default(now())
+  revokedAt                                                      DateTime?
+  User_GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser User                             @relation("GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser", fields: [grantedByUserId], references: [id], onUpdate: Restrict)
+  governedJourney                                                GovernedJourney                  @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict, map: "GovernedJourneyMemoryRoleAssignment_journey_root_fkey")
+  User_GovernedJourneyMemoryRoleAssignment_userIdToUser          User                             @relation("GovernedJourneyMemoryRoleAssignment_userIdToUser", fields: [userId], references: [id], onUpdate: Restrict)
+  GovernedMemoryTransitionRequest                                GovernedMemoryTransitionRequest?
+
+  @@unique([userId, governedJourneyId, role], map: "GovernedJourneyMemoryRoleAssignment_userId_governedJourneyId_ro")
+  @@index([governedJourneyId, revokedAt], map: "GovernedJourneyMemoryRoleAssignment_governedJourneyId_revokedAt")
+  @@index([relationTemplateId])
+  @@index([userId, governedJourneyId, revokedAt], map: "GovernedJourneyMemoryRoleAssignment_userId_governedJourneyId_re")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedJourneyRelationCase {
+  governedJourneyId  String
+  relationCaseId     String
+  relationTemplateId String
+  createdByUserId    String
+  createdAt          DateTime        @default(now())
+  User               User            @relation(fields: [createdByUserId], references: [id], onUpdate: Restrict)
+  governedJourney    GovernedJourney @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict, map: "GovernedJourneyRelationCase_governedJourneyId_relationTemplateI")
+  relationCase       RelationCase    @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict, map: "GovernedJourneyRelationCase_relationCaseId_relationTemplateId_f")
+
+  @@id([governedJourneyId, relationCaseId])
+  @@unique([relationCaseId, relationTemplateId], map: "GovernedJourneyRelationCase_relationCaseId_relationTemplateId_k")
+  @@index([createdByUserId, createdAt])
+  @@index([relationTemplateId])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryAccessGrant {
+  id                                                   String                    @id
+  relationCaseId                                       String
+  subjectType                                          GovernedMemorySubjectType
+  subjectUserId                                        String?
+  subjectRepresentationId                              String?
+  permission                                           GovernedMemoryPermission
+  resourceType                                         GovernedMemoryTargetType?
+  resourceId                                           String?
+  grantedByUserId                                      String
+  basis                                                String
+  grantedAt                                            DateTime
+  effectiveFrom                                        DateTime
+  effectiveUntil                                       DateTime?
+  revokedAt                                            DateTime?
+  revokedByUserId                                      String?
+  residualPermission                                   GovernedMemoryPermission?
+  residualEffectiveUntil                               DateTime?
+  residualBasis                                        String?
+  createdAt                                            DateTime                  @default(now())
+  updatedAt                                            DateTime
+  User_GovernedMemoryAccessGrant_grantedByUserIdToUser User                      @relation("GovernedMemoryAccessGrant_grantedByUserIdToUser", fields: [grantedByUserId], references: [id])
+  relationCase                                         RelationCase              @relation(fields: [relationCaseId], references: [id], onUpdate: Restrict)
+  User_GovernedMemoryAccessGrant_revokedByUserIdToUser User?                     @relation("GovernedMemoryAccessGrant_revokedByUserIdToUser", fields: [revokedByUserId], references: [id], onDelete: Restrict)
+  Representation                                       Representation?           @relation(fields: [subjectRepresentationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  User_GovernedMemoryAccessGrant_subjectUserIdToUser   User?                     @relation("GovernedMemoryAccessGrant_subjectUserIdToUser", fields: [subjectUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, relationCaseId])
+  @@index([relationCaseId, subjectRepresentationId, permission, effectiveFrom], map: "GovernedMemoryAccessGrant_representation_effective_idx")
+  @@index([relationCaseId, resourceType, resourceId], map: "GovernedMemoryAccessGrant_resource_idx")
+  @@index([relationCaseId, subjectUserId, permission, effectiveFrom], map: "GovernedMemoryAccessGrant_user_effective_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryCreationRequest {
+  id                 String                         @id
+  requesterUserId    String
+  requestKey         String
+  requestFingerprint String
+  category           GovernedMemoryCreationCategory
+  relationTemplateId String
+  governedJourneyId  String
+  relationCaseId     String?
+  factId             String?                        @unique
+  decisionId         String?                        @unique
+  sourceId           String?                        @unique
+  createdAt          DateTime                       @default(now())
+  completedAt        DateTime?
+  decision           GovernedMemoryDecision?        @relation(fields: [decisionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  fact               GovernedMemoryFact?            @relation(fields: [factId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney    GovernedJourney                @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict, map: "GovernedMemoryCreationRequest_governedJourneyId_relationTemplat")
+  relationCase       RelationCase?                  @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict, map: "GovernedMemoryCreationRequest_relationCaseId_relationTemplateId")
+  relationTemplate   RelationTemplate               @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  User               User                           @relation(fields: [requesterUserId], references: [id], onUpdate: Restrict)
+  source             GovernedMemorySource?          @relation(fields: [sourceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([requesterUserId, requestKey])
+  @@index([governedJourneyId, createdAt])
+  @@index([relationCaseId, createdAt])
+  @@index([relationTemplateId, createdAt])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryDecision {
+  id                                                  String                            @id
+  relationCaseId                                      String?
+  title                                               String
+  rationale                                           String
+  status                                              GovernedMemoryDecisionStatus      @default(DRAFT)
+  decidedByUserId                                     String
+  validatedByUserId                                   String?
+  decidedAt                                           DateTime
+  validatedAt                                         DateTime?
+  recordedAt                                          DateTime
+  effectiveFrom                                       DateTime
+  effectiveUntil                                      DateTime?
+  consequences                                        String?
+  reservations                                        String?
+  createdAt                                           DateTime                          @default(now())
+  updatedAt                                           DateTime
+  relationTemplateId                                  String
+  governedJourneyId                                   String?
+  creationRequest                                     GovernedMemoryCreationRequest?
+  User_GovernedMemoryDecision_decidedByUserIdToUser   User                              @relation("GovernedMemoryDecision_decidedByUserIdToUser", fields: [decidedByUserId], references: [id])
+  GovernedJourney                                     GovernedJourney?                  @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict, map: "GovernedMemoryDecision_governedJourneyId_relationTemplateId_fke")
+  relationCase                                        RelationCase?                     @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict)
+  relationTemplate                                    RelationTemplate                  @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  User_GovernedMemoryDecision_validatedByUserIdToUser User?                             @relation("GovernedMemoryDecision_validatedByUserIdToUser", fields: [validatedByUserId], references: [id], onDelete: Restrict)
+  GovernedMemoryTransitionRequest                     GovernedMemoryTransitionRequest[]
+
+  @@unique([id, relationCaseId])
+  @@index([governedJourneyId, recordedAt, id])
+  @@index([relationCaseId, effectiveFrom, effectiveUntil], map: "GovernedMemoryDecision_relationCaseId_effectiveFrom_effectiveUn")
+  @@index([relationCaseId, recordedAt, id])
+  @@index([relationCaseId, status])
+  @@index([relationTemplateId, recordedAt, id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryDispute {
+  id                                                String                           @id
+  relationCaseId                                    String?
+  targetType                                        GovernedMemoryTargetType
+  targetId                                          String
+  raisedByUserId                                    String
+  reason                                            String
+  status                                            GovernedMemoryDisputeStatus      @default(OPEN)
+  raisedAt                                          DateTime
+  resolvedAt                                        DateTime?
+  resolvedByUserId                                  String?
+  resolution                                        String?
+  createdAt                                         DateTime                         @default(now())
+  updatedAt                                         DateTime
+  relationTemplateId                                String
+  governedJourneyId                                 String?
+  governedJourney                                   GovernedJourney?                 @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict)
+  User_GovernedMemoryDispute_raisedByUserIdToUser   User                             @relation("GovernedMemoryDispute_raisedByUserIdToUser", fields: [raisedByUserId], references: [id])
+  relationCase                                      RelationCase?                    @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict)
+  relationTemplate                                  RelationTemplate                 @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  User_GovernedMemoryDispute_resolvedByUserIdToUser User?                            @relation("GovernedMemoryDispute_resolvedByUserIdToUser", fields: [resolvedByUserId], references: [id], onDelete: Restrict)
+  GovernedMemoryTransitionRequest                   GovernedMemoryTransitionRequest?
+
+  @@unique([id, relationCaseId])
+  @@index([governedJourneyId, targetType, targetId, status], map: "GovernedMemoryDispute_governedJourneyId_targetType_targetId_sta")
+  @@index([relationCaseId, raisedAt])
+  @@index([relationTemplateId, raisedAt])
+  @@index([relationCaseId, targetType, targetId, status], map: "GovernedMemoryDispute_target_status_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryEvent {
+  id                              String                           @id
+  relationCaseId                  String?
+  type                            GovernedMemoryEventType
+  actorType                       GovernedMemoryActorType
+  actorUserId                     String?
+  actorRepresentationId           String?
+  objectType                      GovernedMemoryTargetType
+  objectId                        String
+  occurredAt                      DateTime
+  recordedAt                      DateTime
+  summary                         String
+  createdAt                       DateTime                         @default(now())
+  relationTemplateId              String
+  governedJourneyId               String?
+  Representation                  Representation?                  @relation(fields: [actorRepresentationId, actorUserId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  actorUser                       User?                            @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  GovernedJourney                 GovernedJourney?                 @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict)
+  relationCase                    RelationCase?                    @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict)
+  relationTemplate                RelationTemplate                 @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  GovernedMemoryTransitionRequest GovernedMemoryTransitionRequest?
+
+  @@index([governedJourneyId, recordedAt, id])
+  @@index([relationCaseId, objectType, objectId], map: "GovernedMemoryEvent_object_idx")
+  @@index([relationCaseId, recordedAt, id])
+  @@index([relationTemplateId, recordedAt, id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryFact {
+  id                                                                                                String                            @id
+  relationCaseId                                                                                    String?
+  statement                                                                                         String
+  status                                                                                            GovernedMemoryFactStatus          @default(PROPOSED)
+  evidenceLevel                                                                                     GovernedMemoryEvidenceLevel       @default(DECLARED)
+  authorUserId                                                                                      String
+  authorRepresentationId                                                                            String?
+  recordedAt                                                                                        DateTime
+  effectiveFrom                                                                                     DateTime
+  effectiveUntil                                                                                    DateTime?
+  establishedByUserId                                                                               String?
+  establishedAt                                                                                     DateTime?
+  supersedesFactId                                                                                  String?
+  supersededByFactId                                                                                String?
+  createdAt                                                                                         DateTime                          @default(now())
+  updatedAt                                                                                         DateTime
+  relationTemplateId                                                                                String
+  governedJourneyId                                                                                 String?
+  creationRequest                                                                                   GovernedMemoryCreationRequest?
+  Representation                                                                                    Representation?                   @relation(fields: [authorRepresentationId, authorUserId], references: [id, ownerId], onUpdate: Restrict)
+  User_GovernedMemoryFact_authorUserIdToUser                                                        User                              @relation("GovernedMemoryFact_authorUserIdToUser", fields: [authorUserId], references: [id])
+  User_GovernedMemoryFact_establishedByUserIdToUser                                                 User?                             @relation("GovernedMemoryFact_establishedByUserIdToUser", fields: [establishedByUserId], references: [id], onDelete: Restrict)
+  GovernedJourney                                                                                   GovernedJourney?                  @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict)
+  relationCase                                                                                      RelationCase?                     @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict)
+  relationTemplate                                                                                  RelationTemplate                  @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  GovernedMemoryFact_GovernedMemoryFact_supersededByFactId_relationCaseIdToGovernedMemoryFact       GovernedMemoryFact?               @relation("GovernedMemoryFact_supersededByFactId_relationCaseIdToGovernedMemoryFact", fields: [supersededByFactId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  other_GovernedMemoryFact_GovernedMemoryFact_supersededByFactId_relationCaseIdToGovernedMemoryFact GovernedMemoryFact[]              @relation("GovernedMemoryFact_supersededByFactId_relationCaseIdToGovernedMemoryFact")
+  GovernedMemoryFact_GovernedMemoryFact_supersedesFactId_relationCaseIdToGovernedMemoryFact         GovernedMemoryFact?               @relation("GovernedMemoryFact_supersedesFactId_relationCaseIdToGovernedMemoryFact", fields: [supersedesFactId, relationCaseId], references: [id, relationCaseId], onDelete: Restrict, onUpdate: Restrict)
+  other_GovernedMemoryFact_GovernedMemoryFact_supersedesFactId_relationCaseIdToGovernedMemoryFact   GovernedMemoryFact[]              @relation("GovernedMemoryFact_supersedesFactId_relationCaseIdToGovernedMemoryFact")
+  GovernedMemoryTransitionRequest                                                                   GovernedMemoryTransitionRequest[]
+
+  @@unique([id, relationCaseId])
+  @@index([governedJourneyId, recordedAt, id])
+  @@index([relationCaseId, effectiveFrom, effectiveUntil], map: "GovernedMemoryFact_relationCaseId_effectiveFrom_effectiveUntil_")
+  @@index([relationCaseId, recordedAt, id])
+  @@index([relationCaseId, status])
+  @@index([relationTemplateId, recordedAt, id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryRelation {
+  id              String                     @id
+  relationCaseId  String
+  type            GovernedMemoryRelationType
+  sourceType      GovernedMemoryTargetType
+  sourceId        String
+  targetType      GovernedMemoryTargetType
+  targetId        String
+  createdByUserId String
+  createdAt       DateTime                   @default(now())
+  createdBy       User                       @relation(fields: [createdByUserId], references: [id])
+  relationCase    RelationCase               @relation(fields: [relationCaseId], references: [id], onUpdate: Restrict)
+
+  @@unique([relationCaseId, type, sourceType, sourceId, targetType, targetId], map: "GovernedMemoryRelation_exact_key")
+  @@index([relationCaseId, sourceType, sourceId], map: "GovernedMemoryRelation_source_idx")
+  @@index([relationCaseId, targetType, targetId], map: "GovernedMemoryRelation_target_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryRoleAssignment {
+  id                                                       String             @id
+  relationCaseId                                           String
+  userId                                                   String
+  role                                                     GovernedMemoryRole
+  assignedByUserId                                         String
+  assignedAt                                               DateTime
+  revokedAt                                                DateTime?
+  revokedByUserId                                          String?
+  createdAt                                                DateTime           @default(now())
+  User_GovernedMemoryRoleAssignment_assignedByUserIdToUser User               @relation("GovernedMemoryRoleAssignment_assignedByUserIdToUser", fields: [assignedByUserId], references: [id])
+  relationCase                                             RelationCase       @relation(fields: [relationCaseId], references: [id], onUpdate: Restrict)
+  User_GovernedMemoryRoleAssignment_revokedByUserIdToUser  User?              @relation("GovernedMemoryRoleAssignment_revokedByUserIdToUser", fields: [revokedByUserId], references: [id], onDelete: Restrict)
+  User_GovernedMemoryRoleAssignment_userIdToUser           User               @relation("GovernedMemoryRoleAssignment_userIdToUser", fields: [userId], references: [id])
+
+  @@index([relationCaseId, role, revokedAt], map: "GovernedMemoryRoleAssignment_role_idx")
+  @@index([relationCaseId, userId, role, assignedAt], map: "GovernedMemoryRoleAssignment_subject_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemorySource {
+  id                     String                         @id
+  relationCaseId         String?
+  kind                   GovernedMemorySourceKind
+  status                 GovernedMemorySourceStatus     @default(ACTIVE)
+  sourceObjectType       String
+  sourceObjectId         String
+  title                  String
+  authoredAt             DateTime?
+  receivedAt             DateTime?
+  recordedAt             DateTime
+  promotedByUserId       String?
+  promotedAt             DateTime?
+  visibilityPolicyRef    String?
+  retentionPolicyRef     String?
+  integrityRef           String?
+  unavailableReason      String?
+  excerpt                String?
+  promotionPurpose       String?
+  consentBasis           String?
+  externalOrigin         String?
+  createdAt              DateTime                       @default(now())
+  updatedAt              DateTime
+  governedJourneyId      String?
+  governedJourneyEventId String?
+  relationTemplateId     String
+  creationRequest        GovernedMemoryCreationRequest?
+  GovernedJourneyEvent   GovernedJourneyEvent?          @relation(fields: [governedJourneyEventId, governedJourneyId, relationCaseId], references: [id, governedJourneyId, relationCaseId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedMemorySource_governedJourneyEventId_governedJourneyId_r")
+  GovernedJourney        GovernedJourney?               @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict)
+  User                   User?                          @relation(fields: [promotedByUserId], references: [id], onDelete: Restrict)
+  relationCase           RelationCase?                  @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict)
+  relationTemplate       RelationTemplate               @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+
+  @@unique([id, relationCaseId])
+  @@index([governedJourneyId, recordedAt, id])
+  @@index([relationCaseId, governedJourneyEventId])
+  @@index([relationCaseId, governedJourneyId, recordedAt, id], map: "GovernedMemorySource_relationCaseId_governedJourneyId_recordedA")
+  @@index([relationCaseId, kind])
+  @@index([relationCaseId, status, recordedAt])
+  @@index([relationTemplateId, recordedAt, id])
+  @@index([sourceObjectType, sourceObjectId])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryTransitionRequest {
+  id                                                         String                               @id
+  requesterUserId                                            String
+  requestKey                                                 String
+  requestFingerprint                                         String
+  transitionType                                             GovernedMemoryTransitionType
+  relationTemplateId                                         String
+  governedJourneyId                                          String
+  relationCaseId                                             String?
+  targetUserId                                               String?
+  role                                                       GovernedMemoryRole?
+  factId                                                     String?
+  decisionId                                                 String?
+  roleAssignmentId                                           String?                              @unique
+  validationId                                               String?                              @unique
+  disputeId                                                  String?                              @unique
+  eventId                                                    String?                              @unique
+  createdAt                                                  DateTime                             @default(now())
+  completedAt                                                DateTime?
+  GovernedMemoryDecision                                     GovernedMemoryDecision?              @relation(fields: [decisionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  GovernedMemoryDispute                                      GovernedMemoryDispute?               @relation(fields: [disputeId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  GovernedMemoryEvent                                        GovernedMemoryEvent?                 @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  GovernedMemoryFact                                         GovernedMemoryFact?                  @relation(fields: [factId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney                                            GovernedJourney                      @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict, map: "GovernedMemoryTransitionRequest_governedJourneyId_relationTempl")
+  relationCase                                               RelationCase?                        @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict, map: "GovernedMemoryTransitionRequest_relationCaseId_relationTemplate")
+  relationTemplate                                           RelationTemplate                     @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  User_GovernedMemoryTransitionRequest_requesterUserIdToUser User                                 @relation("GovernedMemoryTransitionRequest_requesterUserIdToUser", fields: [requesterUserId], references: [id], onUpdate: Restrict)
+  GovernedJourneyMemoryRoleAssignment                        GovernedJourneyMemoryRoleAssignment? @relation(fields: [roleAssignmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  User_GovernedMemoryTransitionRequest_targetUserIdToUser    User?                                @relation("GovernedMemoryTransitionRequest_targetUserIdToUser", fields: [targetUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  GovernedMemoryValidation                                   GovernedMemoryValidation?            @relation(fields: [validationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([requesterUserId, requestKey])
+  @@index([governedJourneyId, createdAt])
+  @@index([relationCaseId, createdAt])
+  @@index([relationTemplateId, createdAt], map: "GovernedMemoryTransitionRequest_relationTemplateId_createdAt_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GovernedMemoryValidation {
+  id                              String                           @id
+  relationCaseId                  String?
+  targetType                      GovernedMemoryTargetType
+  targetId                        String
+  validatorUserId                 String
+  validatorRole                   GovernedMemoryRole
+  decision                        GovernedMemoryValidationDecision
+  rationale                       String?
+  reservations                    String?
+  validatedAt                     DateTime
+  createdAt                       DateTime                         @default(now())
+  relationTemplateId              String
+  governedJourneyId               String?
+  GovernedMemoryTransitionRequest GovernedMemoryTransitionRequest?
+  governedJourney                 GovernedJourney?                 @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict, map: "GovernedMemoryValidation_governedJourneyId_relationTemplateId_f")
+  relationCase                    RelationCase?                    @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict)
+  relationTemplate                RelationTemplate                 @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  validator                       User                             @relation(fields: [validatorUserId], references: [id])
+
+  @@index([governedJourneyId, targetType, targetId, validatedAt], map: "GovernedMemoryValidation_governedJourneyId_targetType_targetId_")
+  @@index([relationTemplateId, validatedAt])
+  @@index([relationCaseId, targetType, targetId, validatedAt], map: "GovernedMemoryValidation_target_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model IdentityResolution {
+  id                String                   @id
+  presenceId        String
+  subjectId         String
+  result            IdentityResolutionResult
+  method            IdentityResolutionMethod
+  createdAt         DateTime                 @default(now())
+  SubjectPresence   SubjectPresence          @relation(fields: [presenceId], references: [id])
+  RelationalSubject RelationalSubject        @relation(fields: [subjectId], references: [id])
+  ResolutionAudit   ResolutionAudit[]
+
+  @@index([presenceId, createdAt])
+  @@index([result, createdAt])
+  @@index([subjectId, createdAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RelationalSubject {
+  id                      String                    @id
+  idru                    String                    @unique
+  type                    IdentityType
+  state                   IdruSubjectStatus         @default(ACTIVE)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime
+  GoodissimaIdentity      GoodissimaIdentity[]
+  IdentityResolution      IdentityResolution[]
+  SubjectObservationEvent SubjectObservationEvent[]
+  SubjectPresence         SubjectPresence[]
+
+  @@index([createdAt])
+  @@index([type, state])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Representation {
+  id                                                                                        String                           @id
+  ownerId                                                                                   String
+  identityId                                                                                String
+  type                                                                                      RepresentationType
+  displayName                                                                               String
+  title                                                                                     String?
+  organizationName                                                                          String?
+  description                                                                               String?
+  territory                                                                                 String?
+  status                                                                                    RepresentationStatus             @default(ACTIVE)
+  createdAt                                                                                 DateTime                         @default(now())
+  updatedAt                                                                                 DateTime
+  archivedAt                                                                                DateTime?
+  relationshipPolicy                                                                        RepresentationRelationshipPolicy @default(OPEN)
+  visibility                                                                                RepresentationVisibility         @default(PRIVATE)
+  publishedAt                                                                               DateTime?
+  ContactRequest_ContactRequest_requesterRepresentationId_requesterOwnerIdToRepresentation  ContactRequest[]                 @relation("ContactRequest_requesterRepresentationId_requesterOwnerIdToRepresentation")
+  ContactRequest_ContactRequest_targetRepresentationId_targetOwnerIdToRepresentation        ContactRequest[]                 @relation("ContactRequest_targetRepresentationId_targetOwnerIdToRepresentation")
+  GovernedMemoryAccessGrant                                                                 GovernedMemoryAccessGrant[]
+  GovernedMemoryEvent                                                                       GovernedMemoryEvent[]
+  GovernedMemoryFact                                                                        GovernedMemoryFact[]
+  identity                                                                                  GoodissimaIdentity               @relation(fields: [identityId], references: [id])
+  User                                                                                      User                             @relation(fields: [ownerId, identityId], references: [id, goodissimaIdentityId], onDelete: Cascade, onUpdate: Restrict)
+  RepresentationContact_RepresentationContact_contactRepresentationIdToRepresentation       RepresentationContact[]          @relation("RepresentationContact_contactRepresentationIdToRepresentation")
+  RepresentationContact_RepresentationContact_ownerRepresentationId_ownerIdToRepresentation RepresentationContact[]          @relation("RepresentationContact_ownerRepresentationId_ownerIdToRepresentation")
+
+  @@unique([id, ownerId])
+  @@index([identityId])
+  @@index([ownerId, identityId])
+  @@index([ownerId, status])
+  @@index([ownerId, updatedAt])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RepresentationContact {
+  id                                                                                 String                           @id
+  ownerId                                                                            String
+  ownerRepresentationId                                                              String
+  contactRepresentationId                                                            String
+  sourceContactRequestId                                                             String
+  sourceRequesterRepresentationId                                                    String
+  sourceTargetRepresentationId                                                       String
+  status                                                                             RepresentationContactStatus      @default(ACTIVE)
+  snapshotDisplayName                                                                String
+  snapshotType                                                                       RepresentationType
+  snapshotTitle                                                                      String?
+  snapshotOrganizationName                                                           String?
+  snapshotTerritory                                                                  String?
+  snapshotDescription                                                                String?
+  snapshotRelationshipPolicy                                                         RepresentationRelationshipPolicy
+  createdAt                                                                          DateTime                         @default(now())
+  updatedAt                                                                          DateTime
+  archivedAt                                                                         DateTime?
+  Representation_RepresentationContact_contactRepresentationIdToRepresentation       Representation                   @relation("RepresentationContact_contactRepresentationIdToRepresentation", fields: [contactRepresentationId], references: [id], onUpdate: Restrict)
+  User                                                                               User                             @relation(fields: [ownerId], references: [id])
+  Representation_RepresentationContact_ownerRepresentationId_ownerIdToRepresentation Representation                   @relation("RepresentationContact_ownerRepresentationId_ownerIdToRepresentation", fields: [ownerRepresentationId, ownerId], references: [id, ownerId], onUpdate: Restrict)
+  sourceContactRequest                                                               ContactRequest                   @relation(fields: [sourceContactRequestId, sourceRequesterRepresentationId, sourceTargetRepresentationId], references: [id, requesterRepresentationId, targetRepresentationId], onUpdate: Restrict, map: "RepresentationContact_sourceContactRequest_fkey")
+  events                                                                             RepresentationContactEvent[]
+
+  @@unique([sourceContactRequestId, ownerId])
+  @@index([contactRepresentationId])
+  @@index([ownerId, status, updatedAt])
+  @@index([ownerRepresentationId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RepresentationContactEvent {
+  id          String                         @id
+  contactId   String
+  actorUserId String?
+  type        RepresentationContactEventType
+  createdAt   DateTime                       @default(now())
+  actor       User?                          @relation(fields: [actorUserId], references: [id])
+  contact     RepresentationContact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId, createdAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ResolutionAudit {
+  id                 String             @id
+  resolutionId       String
+  eventType          String
+  payload            Json?
+  createdAt          DateTime           @default(now())
+  IdentityResolution IdentityResolution @relation(fields: [resolutionId], references: [id])
+
+  @@index([eventType, createdAt])
+  @@index([resolutionId, createdAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SubjectObservationEvent {
+  id                String                      @id
+  eventType         SubjectObservationEventType
+  subjectId         String?
+  sourceType        String
+  sourceId          String?
+  metadata          Json?
+  createdAt         DateTime                    @default(now())
+  RelationalSubject RelationalSubject?          @relation(fields: [subjectId], references: [id])
+
+  @@index([createdAt])
+  @@index([eventType, createdAt])
+  @@index([sourceType, sourceId])
+  @@index([subjectId, createdAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SubjectPresence {
+  id                 String               @id
+  subjectId          String
+  presenceType       SubjectPresenceType
+  sourceType         String
+  sourceId           String
+  state              SubjectPresenceState @default(ACTIVE)
+  attachedAt         DateTime             @default(now())
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  IdentityResolution IdentityResolution[]
+  RelationalSubject  RelationalSubject    @relation(fields: [subjectId], references: [id])
+
+  @@unique([presenceType, sourceType, sourceId])
+  @@index([createdAt])
+  @@index([presenceType, state])
+  @@index([subjectId])
+}
+
+model goodissima_channels {
+  id                        String                      @id
+  relationId                String
+  kind                      GoodissimaChannelType
+  state                     GoodissimaChannelStatus
+  scope                     String
+  expiration                String
+  personName                String?
+  expiresAt                 DateTime?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  goodissima_relations      goodissima_relations        @relation(fields: [relationId], references: [id], onDelete: Cascade)
+  goodissima_history_events goodissima_history_events[]
+
+  @@index([expiresAt])
+  @@index([relationId])
+  @@index([state])
+}
+
+model goodissima_discovery_contexts {
+  id                        String                           @id
+  name                      String
+  description               String
+  state                     GoodissimaDiscoveryContextStatus
+  conditions                String[]
+  requestedChannels         GoodissimaChannelType[]
+  trustContext              String[]
+  displayOrder              Int
+  createdAt                 DateTime                         @default(now())
+  updatedAt                 DateTime
+  goodissima_history_events goodissima_history_events[]
+  goodissima_profiles       goodissima_profiles[]
+  goodissima_relations      goodissima_relations[]
+  goodissima_requests       goodissima_requests[]
+
+  @@index([displayOrder])
+  @@index([state])
+}
+
+model goodissima_entry_doors {
+  id                        String                      @id
+  state                     GoodissimaEntryDoorStatus
+  name                      String
+  requestedChannels         GoodissimaChannelType[]
+  conditions                String[]
+  lastActivity              String
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  goodissima_history_events goodissima_history_events[]
+  goodissima_profiles       goodissima_profiles[]
+
+  @@index([state])
+}
+
+model goodissima_history_events {
+  id                            String                         @id
+  type                          GoodissimaHistoryEventType
+  label                         String
+  requestId                     String
+  relationId                    String?
+  channelId                     String?
+  doorId                        String?
+  actor                         String
+  createdAt                     DateTime                       @default(now())
+  discoveryContextId            String?
+  goodissima_channels           goodissima_channels?           @relation(fields: [channelId], references: [id])
+  goodissima_discovery_contexts goodissima_discovery_contexts? @relation(fields: [discoveryContextId], references: [id])
+  goodissima_entry_doors        goodissima_entry_doors?        @relation(fields: [doorId], references: [id])
+  goodissima_relations          goodissima_relations?          @relation(fields: [relationId], references: [id])
+
+  @@index([channelId])
+  @@index([discoveryContextId])
+  @@index([doorId])
+  @@index([relationId])
+  @@index([requestId])
+  @@index([type, createdAt])
+}
+
+model goodissima_profiles {
+  id                            String                        @id
+  userId                        String?
+  doorId                        String
+  name                          String
+  role                          String
+  city                          String
+  availability                  String
+  requestedChannels             GoodissimaChannelType[]
+  conditions                    String[]
+  trustSignals                  String[]
+  createdAt                     DateTime                      @default(now())
+  updatedAt                     DateTime
+  identityId                    String                        @default("")
+  discoveryContextId            String                        @default("context-conseil")
+  goodissima_discovery_contexts goodissima_discovery_contexts @relation(fields: [discoveryContextId], references: [id])
+  goodissima_entry_doors        goodissima_entry_doors        @relation(fields: [doorId], references: [id])
+
+  @@index([discoveryContextId])
+  @@index([doorId])
+  @@index([identityId])
+  @@index([userId])
+}
+
+model goodissima_relational_pause {
+  id          String                @id @default("global")
+  state       GoodissimaPauseStatus
+  activatedAt DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime
+}
+
+model goodissima_relations {
+  id                            String                        @id
+  state                         GoodissimaRelationStatus
+  personName                    String
+  receiverName                  String
+  motive                        String
+  protections                   String[]
+  createdFromRequestId          String?                       @unique
+  createdAt                     DateTime                      @default(now())
+  updatedAt                     DateTime
+  discoveryContextId            String                        @default("context-conseil")
+  discoveryContextName          String                        @default("Conseil")
+  goodissima_channels           goodissima_channels[]
+  goodissima_history_events     goodissima_history_events[]
+  goodissima_requests           goodissima_requests?          @relation(fields: [createdFromRequestId], references: [id])
+  goodissima_discovery_contexts goodissima_discovery_contexts @relation(fields: [discoveryContextId], references: [id])
+
+  @@index([discoveryContextId])
+  @@index([state])
+}
+
+model goodissima_requests {
+  id                            String                        @id
+  state                         GoodissimaRequestStatus
+  requesterName                 String
+  requesterRole                 String
+  receiverName                  String
+  motive                        String
+  message                       String
+  requestedChannels             GoodissimaChannelType[]
+  trustSignals                  String[]
+  receivedAt                    String
+  createdAt                     DateTime                      @default(now())
+  updatedAt                     DateTime
+  discoveryContextId            String                        @default("context-conseil")
+  discoveryContextName          String                        @default("Conseil")
+  goodissima_relations          goodissima_relations?
+  goodissima_discovery_contexts goodissima_discovery_contexts @relation(fields: [discoveryContextId], references: [id])
+
+  @@index([createdAt])
+  @@index([discoveryContextId])
+  @@index([state])
+}
+
 enum LinkStatus {
-  DRAFT
   ACTIVE
   DISABLED
   EXPIRED
   ARCHIVED
+  DRAFT
 }
 
 enum CaseStatus {
@@ -335,1117 +2293,334 @@ enum FavoriteObjectKind {
   RELATION_CASE
 }
 
-model PersonalFavorite {
-  userId     String
-  objectKind FavoriteObjectKind
-  objectId   String
-  createdAt  DateTime           @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@id([userId, objectKind, objectId])
-  @@index([userId, createdAt])
+enum ContactRequestChannel {
+  MESSAGE
+  VOICE
+  VIDEO
 }
 
-model User {
-  id                   String   @id @default(cuid())
-  email                String   @unique
-  name                 String?
-  role                 String   @default("OWNER")
-  goodissimaIdentityId String?  @unique
-  createdAt            DateTime @default(now())
-
-  links                         GLink[]
-  cases                         RelationCase[]               @relation("OwnerCases")
-  matchingRuns                  MatchingRun[]                @relation("MatchingRunOwner")
-  portfolios                    Portfolio[]                  @relation("OwnerPortfolios")
-  workspaces                    Workspace[]                  @relation("OwnerWorkspaces")
-  communicationSessions         CommunicationSession[]
-  authorizedMeetingParticipants GovernedMeetingParticipant[] @relation("MeetingParticipantAuthorizer")
-  goodissimaIdentity            GoodissimaIdentity?          @relation(fields: [goodissimaIdentityId], references: [id], onDelete: SetNull)
-  notificationPreferences       UserNotificationPreference?
-  notifications                 Notification[]
-  matchingExecutionLeases       MatchingExecutionLease[]
-  personalFavorites             PersonalFavorite[]
-  templateGenerations           TemplateGeneration[]
-  templateCriticReports         TemplateCriticReport[]
-  templateOptimizations         TemplateOptimization[]
-  aiEvents                      AIEvent[]
-  manualTemplateEditAudits      ManualTemplateEditAudit[]
-  productFeedback               ProductFeedback[]
-  directoryProfilesManaged      DirectoryProfileManager[]
+enum ContactRequestEventType {
+  CREATED
+  VIEWED_BY_TARGET
+  ACCEPTED
+  REFUSED
+  DEFERRED
+  RESUMED
+  CANCELLED
+  EXPIRED
 }
 
-model Portfolio {
-  id          String          @id @default(cuid())
-  ownerId     String
-  slug        String
-  name        String
-  description String?
-  kind        PortfolioKind   @default(OTHER)
-  status      PortfolioStatus @default(ACTIVE)
-  metadata    Json?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
-  owner      User        @relation("OwnerPortfolios", fields: [ownerId], references: [id], onDelete: Cascade)
-  workspaces Workspace[]
-
-  @@unique([ownerId, slug])
-  @@index([ownerId, status, createdAt])
-  @@index([ownerId, kind, status])
+enum ContactRequestStatus {
+  PENDING
+  ACCEPTED
+  REFUSED
+  DEFERRED
+  CANCELLED
+  EXPIRED
 }
 
-model Workspace {
-  id          String            @id @default(cuid())
-  ownerId     String
-  portfolioId String?
-  slug        String
-  name        String
-  description String?
-  kind        WorkspaceKind     @default(GOVERNANCE)
-  category    WorkspaceCategory @default(OTHER)
-  status      WorkspaceStatus   @default(ACTIVE)
-  metadata    Json?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  owner                      User                        @relation("OwnerWorkspaces", fields: [ownerId], references: [id], onDelete: Cascade)
-  portfolio                  Portfolio?                  @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
-  relationTemplates          RelationTemplate[]
-  relationCases              RelationCase[]
-  links                      GLink[]
-  communicationSessions      CommunicationSession[]
-  governedJourneyInvitations GovernedJourneyInvitation[]
-
-  @@unique([ownerId, slug])
-  @@index([portfolioId])
-  @@index([ownerId, status, createdAt])
-  @@index([ownerId, category, status])
-  @@index([kind, status])
+enum GoodissimaChannelStatus {
+  Requested
+  Authorized
+  Scheduled
+  Expiring
+  Expired
+  Revoked
 }
 
-model GovernedJourneyInvitation {
-  id                   String                          @id @default(cuid())
-  ownerId              String
-  workspaceId          String?
-  relationTemplateId   String
-  relationCaseId       String?
-  displayName          String
-  role                 GovernedJourneyInvitationRole
-  status               GovernedJourneyInvitationStatus @default(ACTIVE)
-  accessTokenHash      String                          @unique
-  accessTokenExpiresAt DateTime
-  revokedAt            DateTime?
-  acceptedAt           DateTime?
-  lastAccessedAt       DateTime?
-  metadata             Json?
-  createdAt            DateTime                        @default(now())
-  updatedAt            DateTime                        @updatedAt
-
-  workspace           Workspace?                   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  relationTemplate    RelationTemplate             @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
-  relationCase        RelationCase?                @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
-  meetingParticipants GovernedMeetingParticipant[]
-
-  @@index([ownerId, relationTemplateId, status])
-  @@index([accessTokenExpiresAt, status])
+enum GoodissimaChannelType {
+  Message
+  Appel_audio @map("Appel audio")
+  Documents
+  Visio
 }
 
-model CommunicationSession {
-  id                        String                     @id @default(cuid())
-  ownerId                   String
-  workspaceId               String?
-  relationTemplateId        String?
-  relationCaseId            String?
-  channelType               CommunicationChannelType
-  provider                  CommunicationProvider      @default(NONE)
-  status                    CommunicationSessionStatus @default(PREPARED_NOT_STARTED)
-  title                     String
-  purpose                   String?
-  note                      String?
-  externalUrl               String?
-  scheduledAt               DateTime?
-  expiresAt                 DateTime?
-  transcriptionRequested    Boolean                    @default(false)
-  transcriptionConsented    Boolean                    @default(false)
-  recordingEnabled          Boolean                    @default(false)
-  automaticNotificationSent Boolean                    @default(false)
-  tokenGenerated            Boolean                    @default(false)
-  accessOpened              Boolean                    @default(false)
-  workflowStarted           Boolean                    @default(false)
-  metadata                  Json?
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
-
-  owner               User                         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  workspace           Workspace?                   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  relationTemplate    RelationTemplate?            @relation(fields: [relationTemplateId], references: [id], onDelete: SetNull)
-  relationCase        RelationCase?                @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
-  meetingParticipants GovernedMeetingParticipant[]
-
-  @@index([ownerId, status, createdAt])
-  @@index([workspaceId, status])
-  @@index([relationTemplateId, status])
-  @@index([relationCaseId, status])
-  @@index([channelType, status])
+enum GoodissimaDiscoveryContextStatus {
+  Active
+  Suspended
+  Invisible
+  Inactive
 }
 
-model GovernedMeetingParticipant {
-  id                          String                           @id @default(cuid())
-  communicationSessionId      String
-  governedJourneyInvitationId String
-  status                      GovernedMeetingParticipantStatus @default(AUTHORIZED)
-  authorizedAt                DateTime                         @default(now())
-  removedAt                   DateTime?
-  authorizedById              String?
-  metadata                    Json?
-  createdAt                   DateTime                         @default(now())
-  updatedAt                   DateTime                         @updatedAt
-
-  communicationSession      CommunicationSession      @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
-  governedJourneyInvitation GovernedJourneyInvitation @relation(fields: [governedJourneyInvitationId], references: [id], onDelete: Cascade)
-  authorizedBy              User?                     @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id], onDelete: SetNull)
-
-  @@unique([communicationSessionId, governedJourneyInvitationId])
-  @@index([governedJourneyInvitationId, status])
+enum GoodissimaEntryDoorStatus {
+  Inactive
+  Active
+  Suspended
+  Archived
 }
 
-model AccessInvitation {
-  id              String                 @id @default(cuid())
-  email           String                 @unique
-  invitedByUserId String?
-  status          AccessInvitationStatus @default(PENDING)
-  note            String?
-  token           String?
-  expiresAt       DateTime?
-  acceptedAt      DateTime?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-
-  @@index([status, createdAt])
+enum GoodissimaHistoryEventType {
+  REQUEST_CREATED
+  REQUEST_SUBMITTED
+  REQUEST_VIEWED
+  RELATION_ACCEPTED
+  MESSAGE_AUTHORIZED
+  REQUEST_REFUSED
+  CHANNEL_AUTHORIZED
+  CHANNEL_EXPIRED
+  CHANNEL_REVOKED
+  DOOR_ACTIVATED
+  DOOR_SUSPENDED
+  DOOR_REACTIVATED
+  PAUSE_ACTIVATED
+  PAUSE_ENDED
+  DISCOVERY_CONTEXT_ACTIVATED
+  DISCOVERY_CONTEXT_SUSPENDED
+  DISCOVERY_CONTEXT_HIDDEN
+  DISCOVERY_CONTEXT_CHANNELS_UPDATED
+  DISCOVERY_CONTEXT_CONDITIONS_UPDATED
 }
 
-model UserNotificationPreference {
-  id     String @id @default(cuid())
-  userId String @unique
-
-  emailNotificationsEnabled Boolean @default(false)
-  newMessagesEnabled        Boolean @default(false)
-  newRequestsEnabled        Boolean @default(false)
-  newDocumentsEnabled       Boolean @default(false)
-  validationsEnabled        Boolean @default(false)
-  relationalPrivacyEnabled  Boolean @default(true)
-  pseudonymizationEnabled   Boolean @default(true)
-  frequency                 String  @default("IMMEDIATE")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum GoodissimaPauseStatus {
+  Inactive
+  Scheduled
+  Active
+  Ended
 }
 
-model GLink {
-  id                String            @id @default(cuid())
-  ownerId           String
-  workspaceId       String?
-  templateId        String?
-  templateVersionId String?
-  slug              String            @unique
-  title             String
-  city              String?
-  description       String?
-  rules             Json?
-  status            LinkStatus        @default(ACTIVE)
-  admissionMode     LinkAdmissionMode @default(OPEN)
-  createdAt         DateTime          @default(now())
-  expiresAt         DateTime?
-
-  owner                      User                        @relation(fields: [ownerId], references: [id])
-  workspace                  Workspace?                  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  template                   RelationTemplate?           @relation(fields: [templateId], references: [id])
-  templateVersion            TemplateVersion?            @relation(fields: [templateVersionId], references: [id])
-  cases                      RelationCase[]
-  trustPolicies              TrustPolicy[]
-  trustAdmissionTokens       TrustAdmissionToken[]
-  matchingRuns               MatchingRun[]               @relation("MatchingRunSourceGLink")
-  matchingResults            MatchingResult[]            @relation("MatchingResultTargetGLink")
-  publicCaseCreationRequests PublicCaseCreationRequest[]
-  matchingExecutionLeases    MatchingExecutionLease[]
-
-  @@index([workspaceId])
+enum GoodissimaRelationStatus {
+  Pending
+  Active
+  Paused
+  Archived
+  Deleted
 }
 
-model RelationCase {
-  id                                 String                   @id @default(cuid())
-  gLinkId                            String
-  ownerId                            String
-  workspaceId                        String?
-  templateId                         String?
-  candidateIdentityId                String?
-  candidateAccessToken               String                   @unique
-  candidateAccessExpiresAt           DateTime?
-  candidateAccessRevokedAt           DateTime?
-  candidateName                      String
-  candidateEmail                     String
-  candidateEmailNotificationsEnabled Boolean                  @default(false)
-  matchingEnabled                    Boolean                  @default(false)
-  embeddingStatus                    String                   @default("fresh")
-  embeddingUpdatedAt                 DateTime?
-  priority                           RelationPriority         @default(NORMAL)
-  status                             RelationStatus           @default(NEW)
-  governanceStatus                   RelationGovernanceStatus @default(ACTIVE)
-  governanceUpdatedAt                DateTime?
-  governanceReason                   String?
-  currentStep                        String?                  @default("CONVERSATION")
-  createdAt                          DateTime                 @default(now())
-  closedAt                           DateTime?
-
-  gLink                      GLink                       @relation(fields: [gLinkId], references: [id])
-  owner                      User                        @relation("OwnerCases", fields: [ownerId], references: [id])
-  workspace                  Workspace?                  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  governedJourneyInvitations GovernedJourneyInvitation[]
-  template                   RelationTemplate?           @relation(fields: [templateId], references: [id])
-  candidateIdentity          GoodissimaIdentity?         @relation(fields: [candidateIdentityId], references: [id], onDelete: SetNull)
-  messages                   Message[]
-  documents                  Document[]
-  auditLogs                  AuditLog[]
-  relationEvents             RelationEvent[]
-  relationActions            RelationAction[]
-  formSubmissions            FormSubmission[]
-  aiEvents                   AIEvent[]
-  embeddings                 RelationEmbedding[]
-  embeddingJobs              EmbeddingJob[]
-  trustPolicies              TrustPolicy[]
-  productFeedback            ProductFeedback[]
-  communicationSessions      CommunicationSession[]
-  matchingResults            MatchingResult[]
-  notifications              Notification[]
-  publicCaseCreationRequests PublicCaseCreationRequest[]
-
-  @@index([governanceStatus])
-  @@index([candidateIdentityId])
-  @@index([workspaceId])
+enum GoodissimaRequestStatus {
+  Draft
+  Submitted
+  Viewed
+  Accepted
+  Refused
+  Cancelled
+  Expired
 }
 
-model MatchingRun {
-  id                      String            @id @default(cuid())
-  gLinkId                 String
-  ownerId                 String
-  status                  MatchingRunStatus @default(PREPARED)
-  isPaused                Boolean           @default(false)
-  engineVersion           String
-  criteriaSnapshot        Json
-  startedAt               DateTime?
-  completedAt             DateTime?
-  failedAt                DateTime?
-  pausedAt                DateTime?
-  closedAt                DateTime?
-  failureCode             String?
-  idempotencyKey          String?
-  criteriaFingerprintHash String?
-  cacheValidUntil         DateTime?
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
-
-  gLink   GLink            @relation("MatchingRunSourceGLink", fields: [gLinkId], references: [id], onDelete: Restrict)
-  owner   User             @relation("MatchingRunOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  results MatchingResult[]
-
-  @@unique([ownerId, idempotencyKey])
-  @@index([gLinkId, createdAt])
-  @@index([ownerId, status])
-  @@index([ownerId, isPaused])
-  @@index([ownerId, gLinkId, criteriaFingerprintHash, createdAt])
-  @@index([cacheValidUntil])
-  @@index([createdAt])
+enum GovernedJourneyEventType {
+  CREATED
+  ACTIVATED
+  SUSPENDED
+  RESUMED
+  CLOSED
+  CANCELLED
 }
 
-model MatchingExecutionLease {
-  id                      String   @id @default(cuid())
-  ownerId                 String
-  gLinkId                 String
-  criteriaFingerprintHash String
-  expiresAt               DateTime
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-
-  owner User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  gLink GLink @relation(fields: [gLinkId], references: [id], onDelete: Cascade)
-
-  @@unique([ownerId, gLinkId, criteriaFingerprintHash])
-  @@index([expiresAt])
+enum GovernedJourneyStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  CLOSED
+  CANCELLED
 }
 
-model MatchingResult {
-  id             String               @id @default(cuid())
-  runId          String
-  targetGLinkId  String
-  status         MatchingResultStatus @default(AVAILABLE)
-  explanation    Json
-  internalRank   Int?
-  selectedAt     DateTime?
-  dismissedAt    DateTime?
-  linkedAt       DateTime?
-  relationCaseId String?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-
-  run          MatchingRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
-  targetGLink  GLink         @relation("MatchingResultTargetGLink", fields: [targetGLinkId], references: [id], onDelete: Restrict)
-  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
-
-  @@unique([runId, targetGLinkId])
-  @@index([runId, status])
-  @@index([targetGLinkId])
-  @@index([relationCaseId])
+enum GovernedMemoryActorType {
+  HUMAN
+  SYSTEM
 }
 
-model EmbeddingJob {
-  id String @id @default(cuid())
-
-  relationCaseId String
-  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
-
-  status      String  @default("pending")
-  triggerType String
-  attempts    Int     @default(0)
-  lastError   String?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  processedAt DateTime?
-
-  @@index([status, createdAt])
-  @@index([relationCaseId, status])
+enum GovernedMemoryCreationCategory {
+  FACT
+  DECISION
+  SOURCE
 }
 
-model RelationEmbedding {
-  id String @id @default(cuid())
-
-  relationCaseId String
-  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
-
-  embeddingType String
-  contentHash   String
-  vector        Unsupported("vector")?
-
-  createdAt DateTime @default(now())
-
-  @@index([relationCaseId, embeddingType])
-  @@index([contentHash])
+enum GovernedMemoryDecisionStatus {
+  DRAFT
+  VALIDATED
+  SUPERSEDED
+  CANCELLED
 }
 
-model RelationTemplate {
-  id             String  @id @default(cuid())
-  workspaceId    String?
-  key            String  @unique
-  name           String
-  description    String?
-  isDefault      Boolean @default(false)
-  status         String  @default("DRAFT")
-  aiInstructions String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  workspace                  Workspace?                  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  relationCases              RelationCase[]
-  links                      GLink[]
-  formTemplates              FormTemplate[]
-  versions                   TemplateVersion[]
-  trustPolicies              TrustPolicy[]
-  generations                TemplateGeneration[]
-  aiEvents                   AIEvent[]
-  productFeedback            ProductFeedback[]
-  communicationSessions      CommunicationSession[]
-  governedJourneyInvitations GovernedJourneyInvitation[]
-
-  @@index([workspaceId])
+enum GovernedMemoryDisputeStatus {
+  OPEN
+  RESOLVED
+  MAINTAINED
+  WITHDRAWN
 }
 
-model ProductFeedback {
-  id          String                @id @default(cuid())
-  type        String
-  message     String
-  page        String?
-  role        String?
-  userId      String?
-  caseId      String?
-  templateId  String?
-  browserInfo Json?
-  environment String?
-  status      ProductFeedbackStatus @default(NEW)
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  resolvedAt  DateTime?
-  adminNotes  String?
-
-  user        User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  case        RelationCase?               @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  template    RelationTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  attachments ProductFeedbackAttachment[]
-
-  @@index([status, createdAt])
-  @@index([type, createdAt])
-  @@index([userId])
-  @@index([caseId])
-  @@index([templateId])
+enum GovernedMemoryEventType {
+  FACT_PROPOSED
+  FACT_ESTABLISHED
+  FACT_DISPUTED
+  FACT_SUPERSEDED
+  DECISION_RECORDED
+  DECISION_VALIDATED
+  DECISION_SUPERSEDED
+  DECISION_CANCELLED
+  SOURCE_REGISTERED
+  SOURCE_PROMOTED
+  SOURCE_RESTRICTED
+  SOURCE_DELETED
+  ACCESS_GRANTED
+  ACCESS_REVOKED
+  VALIDATION_RECORDED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
 }
 
-model ProductFeedbackAttachment {
-  id         String   @id @default(cuid())
-  feedbackId String
-  fileName   String
-  fileUrl    String
-  mimeType   String
-  fileSize   Int
-  width      Int?
-  height     Int?
-  annotation Json?
-  createdAt  DateTime @default(now())
-
-  feedback ProductFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
-
-  @@index([feedbackId])
-  @@index([createdAt])
+enum GovernedMemoryEvidenceLevel {
+  DECLARED
+  SUPPORTED
+  CORROBORATED
+  CONTESTED
 }
 
-model TemplateGeneration {
-  id String @id @default(cuid())
-
-  createdById String
-  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  templateId String?
-  template   RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-
-  aiEventId String?  @unique
-  aiEvent   AIEvent? @relation(fields: [aiEventId], references: [id], onDelete: SetNull)
-
-  parentGenerationId String?
-  parentGeneration   TemplateGeneration?  @relation("TemplateGenerationRevisions", fields: [parentGenerationId], references: [id], onDelete: SetNull)
-  revisions          TemplateGeneration[] @relation("TemplateGenerationRevisions")
-
-  inputDescription String
-  language         String    @default("fr")
-  output           Json
-  provider         String
-  model            String?
-  promptVersion    String
-  proposalVersion  Int       @default(1)
-  revisionFeedback String?
-  changes          Json?
-  status           String    @default("GENERATED")
-  validatedAt      DateTime?
-  createdAt        DateTime  @default(now())
-
-  @@index([createdById, createdAt])
-  @@index([templateId])
-  @@index([parentGenerationId])
+enum GovernedMemoryFactStatus {
+  PROPOSED
+  ESTABLISHED
+  DISPUTED
+  SUPERSEDED
 }
 
-model TrustPolicy {
-  id String @id @default(cuid())
-
-  scope          TrustPolicyScope
-  templateId     String?
-  gLinkId        String?
-  relationCaseId String?
-
-  accessMode              TrustPolicyAccessMode @default(PUBLIC_LINK)
-  candidateCanRead        Boolean               @default(true)
-  candidateCanWrite       Boolean               @default(true)
-  ownerCanRead            Boolean               @default(true)
-  ownerCanWrite           Boolean               @default(true)
-  requireCandidateEmail   Boolean               @default(true)
-  requireCandidateConsent Boolean               @default(false)
-  allowDocuments          Boolean               @default(true)
-  candidateTokenTtlDays   Int                   @default(30)
-  status                  TrustPolicyStatus     @default(ACTIVE)
-  reason                  String?
-  version                 Int                   @default(1)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  template               RelationTemplate?                  @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  gLink                  GLink?                             @relation(fields: [gLinkId], references: [id], onDelete: SetNull)
-  relationCase           RelationCase?                      @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
-  credentialRequirements TrustPolicyCredentialRequirement[]
-
-  @@index([scope, status])
-  @@index([templateId])
-  @@index([gLinkId])
-  @@index([relationCaseId])
+enum GovernedMemoryPermission {
+  VIEW_MEMORY
+  VIEW_SOURCES
+  PROPOSE_FACT
+  ESTABLISH_FACT
+  DISPUTE_FACT
+  RECORD_DECISION
+  VALIDATE_DECISION
+  VALIDATE_SYNTHESIS
+  MANAGE_MEMORY_ACCESS
+  PROMOTE_PRIVATE_SOURCE
+  REGISTER_SOURCE
 }
 
-model CredentialType {
-  id          String               @id @default(cuid())
-  code        String               @unique
-  name        String
-  description String?
-  status      CredentialTypeStatus
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-
-  credentials             TrustCredential[]
-  trustPolicyRequirements TrustPolicyCredentialRequirement[]
+enum GovernedMemoryRelationType {
+  SUPPORTED_BY
+  DERIVED_FROM
+  REPLACES
+  CORRECTS
+  CANCELS
+  COMPLEMENTS
+  CONTESTS
+  VALIDATES
+  SUMMARIZES
 }
 
-model TrustedOrganization {
-  id             String                    @id @default(cuid())
-  organizationId String
-  status         TrustedOrganizationStatus
-  approvedAt     DateTime?
-  approvedBy     String?
-  reason         String?
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
-
-  issuedCredentials TrustCredential[]
-  trustConnectors   TrustConnector[]
-
-  @@index([organizationId])
-  @@index([status])
+enum GovernedMemoryRole {
+  MEMORY_STEWARD
+  MEMORY_DELEGATE
 }
 
-model TrustConnector {
-  id                    String                     @id @default(cuid())
-  code                  String                     @unique
-  name                  String
-  description           String?
-  status                TrustConnectorStatus
-  providerType          TrustConnectorProviderType
-  trustedOrganizationId String?
-  createdAt             DateTime                   @default(now())
-  updatedAt             DateTime                   @updatedAt
-
-  trustedOrganization TrustedOrganization? @relation(fields: [trustedOrganizationId], references: [id], onDelete: SetNull)
-
-  @@index([status])
-  @@index([providerType])
-  @@index([trustedOrganizationId])
+enum GovernedMemorySourceKind {
+  DOCUMENT
+  DOCUMENT_VERSION
+  FORM_SUBMISSION
+  MESSAGE_EXCERPT
+  SYSTEM_EVENT
+  HUMAN_DECLARATION
+  VALIDATED_SYNTHESIS
+  EXTERNAL_IMPORT
 }
 
-model GoodissimaIdentity {
-  id        String         @id @default(cuid())
-  type      IdentityType
-  status    IdentityStatus
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-
-  user                   User?
-  credentials            TrustCredential[]
-  trustAdmissionTokens   TrustAdmissionToken[]
-  candidateRelationCases RelationCase[]
-  directoryProfile       DirectoryProfile?
+enum GovernedMemorySourceStatus {
+  ACTIVE
+  ARCHIVED
+  RESTRICTED
+  EXPIRED
+  ANONYMIZED
+  DELETED
+  LEGAL_HOLD
 }
 
-model TrustAdmissionToken {
-  id         String                     @id @default(cuid())
-  tokenHash  String                     @unique
-  identityId String
-  gLinkId    String?
-  purpose    TrustAdmissionTokenPurpose
-  status     TrustAdmissionTokenStatus
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime                   @default(now())
-  updatedAt  DateTime                   @updatedAt
-
-  identity GoodissimaIdentity @relation(fields: [identityId], references: [id])
-  gLink    GLink?             @relation(fields: [gLinkId], references: [id], onDelete: SetNull)
-
-  @@index([identityId])
-  @@index([gLinkId])
-  @@index([status])
-  @@index([expiresAt])
+enum GovernedMemorySubjectType {
+  USER
+  REPRESENTATION
 }
 
-model TrustPolicyCredentialRequirement {
-  id               String   @id @default(cuid())
-  trustPolicyId    String
-  credentialTypeId String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  trustPolicy    TrustPolicy    @relation(fields: [trustPolicyId], references: [id], onDelete: Cascade)
-  credentialType CredentialType @relation(fields: [credentialTypeId], references: [id], onDelete: Restrict)
-
-  @@unique([trustPolicyId, credentialTypeId])
-  @@index([trustPolicyId])
-  @@index([credentialTypeId])
+enum GovernedMemoryTargetType {
+  FACT
+  DECISION
+  SOURCE
 }
 
-model TrustCredential {
-  id                          String                @id @default(cuid())
-  identityId                  String
-  credentialTypeId            String
-  issuerTrustedOrganizationId String
-  status                      TrustCredentialStatus
-  issuedAt                    DateTime
-  expiresAt                   DateTime?
-  revokedAt                   DateTime?
-  revocationReason            String?
-  createdAt                   DateTime              @default(now())
-  updatedAt                   DateTime              @updatedAt
-
-  identity                  GoodissimaIdentity                @relation(fields: [identityId], references: [id])
-  credentialType            CredentialType                    @relation(fields: [credentialTypeId], references: [id])
-  issuerTrustedOrganization TrustedOrganization               @relation(fields: [issuerTrustedOrganizationId], references: [id])
-  claims                    TrustClaim[]
-  directoryVerifications    DirectoryVerificationProvenance[]
-
-  @@index([identityId])
-  @@index([credentialTypeId])
-  @@index([issuerTrustedOrganizationId])
-  @@index([status])
+enum GovernedMemoryTransitionType {
+  ESTABLISH_FACT
+  DISPUTE_FACT
+  VALIDATE_DECISION
+  GRANT_JOURNEY_MEMORY_ROLE
+  REVOKE_JOURNEY_MEMORY_ROLE
 }
 
-model TrustClaim {
-  id           String         @id @default(cuid())
-  credentialId String
-  claimKey     String
-  claimType    TrustClaimType
-  claimValue   Json
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-
-  credential             TrustCredential                   @relation(fields: [credentialId], references: [id])
-  directoryVerifications DirectoryVerificationProvenance[]
-
-  @@index([credentialId])
-  @@index([claimKey])
+enum GovernedMemoryValidationDecision {
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  WITH_RESERVATIONS
 }
 
-model DirectoryProfile {
-  id                String                 @id @default(cuid())
-  publicId          String                 @unique @default(uuid())
-  subjectIdentityId String                 @unique
-  actorType         DirectoryActorType
-  status            DirectoryProfileStatus @default(DRAFT)
-  publicName        String
-  normalizedName    String
-  consentedAt       DateTime?
-  publishedAt       DateTime?
-  disabledAt        DateTime?
-  deletedAt         DateTime?
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-
-  subjectIdentity GoodissimaIdentity        @relation(fields: [subjectIdentityId], references: [id], onDelete: Restrict)
-  managers        DirectoryProfileManager[]
-  attributes      DirectoryAttribute[]
-  auditEvents     DirectoryAuditEvent[]
-
-  @@index([status, actorType, publishedAt, id])
-  @@index([actorType, status, normalizedName])
+enum IdentityResolutionMethod {
+  BACKFILL
+  MANUAL
+  SYSTEM
 }
 
-model DirectoryProfileManager {
-  profileId   String
-  userId      String
-  role        DirectoryManagerRole
-  grantedAt   DateTime             @default(now())
-  revokedAt   DateTime?
-  grantedById String?
-
-  profile DirectoryProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  user    User             @relation(fields: [userId], references: [id], onDelete: Restrict)
-
-  @@id([profileId, userId])
-  @@index([userId, revokedAt])
+enum IdentityResolutionResult {
+  RESOLVED
+  UNRESOLVED
+  AMBIGUOUS
 }
 
-model DirectoryAttribute {
-  id                     String                          @id @default(cuid())
-  profileId              String
-  kind                   DirectoryAttributeKind
-  displayValue           String
-  normalizedValue        String
-  code                   String?
-  locale                 String?
-  locationGranularity    DirectoryLocationGranularity?
-  publicationStatus      DirectoryPublicationStatus      @default(DRAFT)
-  declaredTrustLevel     DirectoryTrustLevel             @default(DECLARED)
-  verificationLossPolicy DirectoryVerificationLossPolicy @default(KEEP_AS_DECLARED)
-  publishedAt            DateTime?
-  withdrawnAt            DateTime?
-  createdAt              DateTime                        @default(now())
-  updatedAt              DateTime                        @updatedAt
-
-  profile      DirectoryProfile                 @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  verification DirectoryVerificationProvenance?
-
-  @@index([profileId, publicationStatus, kind])
-  @@index([kind, normalizedValue, publicationStatus, profileId])
-  @@index([kind, code, publicationStatus, profileId])
+enum IdruSubjectStatus {
+  ACTIVE
+  SUSPENDED
+  MERGED_ALIAS
 }
 
-model DirectoryVerificationProvenance {
-  id            String                     @id @default(cuid())
-  attributeId   String                     @unique
-  credentialId  String
-  claimId       String?
-  state         DirectoryVerificationState
-  verifiedAt    DateTime
-  validUntil    DateTime?
-  lastCheckedAt DateTime
-  invalidatedAt DateTime?
-  createdAt     DateTime                   @default(now())
-  updatedAt     DateTime                   @updatedAt
-
-  attribute  DirectoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
-  credential TrustCredential    @relation(fields: [credentialId], references: [id], onDelete: Restrict)
-  claim      TrustClaim?        @relation(fields: [claimId], references: [id], onDelete: SetNull)
-
-  @@index([state, validUntil, attributeId])
-  @@index([credentialId, state])
+enum RepresentationContactEventType {
+  CREATED
+  ARCHIVED
+  RESTORED
 }
 
-model DirectoryAuditEvent {
-  id            String                  @id @default(cuid())
-  profileId     String?
-  actorUserId   String?
-  action        DirectoryAuditAction
-  attributeId   String?
-  attributeKind DirectoryAttributeKind?
-  occurredAt    DateTime                @default(now())
-
-  profile DirectoryProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
-
-  @@index([profileId, occurredAt])
-  @@index([actorUserId, occurredAt])
+enum RepresentationContactStatus {
+  ACTIVE
+  ARCHIVED
+  REVOKED
 }
 
-model AIEvent {
-  id String @id @default(cuid())
-
-  caseId String?
-  case   RelationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  templateId String?
-  template   RelationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-
-  organizationId   String?
-  organizationName String?
-  featureName      String?
-
-  provider String
-  model    String?
-  action   String
-  status   String
-
-  promptVersion String?
-  outputSummary String?
-  errorCode     String?
-
-  tokensInput      Int?
-  tokensOutput     Int?
-  promptTokens     Int?
-  completionTokens Int?
-  estimatedCostEur Decimal? @db.Decimal(12, 6)
-  latencyMs        Int?
-
-  createdAt DateTime @default(now())
-
-  templateGeneration TemplateGeneration?
-
-  @@index([caseId, createdAt])
-  @@index([provider, action, createdAt])
-  @@index([userId, createdAt])
-  @@index([organizationId, createdAt])
-  @@index([featureName, createdAt])
-  @@index([templateId, createdAt])
+enum RepresentationRelationshipPolicy {
+  OPEN
+  MESSAGE_ONLY
+  CLOSED
 }
 
-model TemplateVersion {
-  id String @id @default(cuid())
-
-  templateId String
-  template   RelationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  version Int
-
-  name        String
-  description String?
-
-  snapshot Json
-
-  isPublished Boolean @default(false)
-
-  createdAt DateTime @default(now())
-
-  links               GLink[]
-  criticReports       TemplateCriticReport[]
-  optimizationSources TemplateOptimization[]    @relation("OptimizationSourceVersion")
-  optimizationDrafts  TemplateOptimization[]    @relation("OptimizationDraftVersion")
-  manualEditSources   ManualTemplateEditAudit[] @relation("ManualEditSourceVersion")
-  manualEditResults   ManualTemplateEditAudit[] @relation("ManualEditNewVersion")
-
-  @@unique([templateId, version])
+enum RepresentationStatus {
+  ACTIVE
+  HIDDEN
+  ARCHIVED
 }
 
-model ManualTemplateEditAudit {
-  id String @id @default(cuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  sourceVersionId String
-  sourceVersion   TemplateVersion @relation("ManualEditSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Cascade)
-
-  newVersionId String          @unique
-  newVersion   TemplateVersion @relation("ManualEditNewVersion", fields: [newVersionId], references: [id], onDelete: Cascade)
-
-  changeType    String
-  changedFields Json
-  reason        String?
-  createdAt     DateTime @default(now())
-
-  @@index([userId, createdAt])
-  @@index([sourceVersionId, createdAt])
+enum RepresentationType {
+  PROFESSIONAL
+  ORGANIZATION_REPRESENTATIVE
+  ASSOCIATION
+  PRIVATE
+  OTHER
 }
 
-model TemplateCriticReport {
-  id String @id @default(cuid())
-
-  templateVersionId String
-  templateVersion   TemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
-
-  createdById String
-  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  criticVersion String
-  score         Int
-  report        Json
-  createdAt     DateTime @default(now())
-
-  optimizations TemplateOptimization[]
-
-  @@index([templateVersionId, createdAt])
-  @@index([createdById, createdAt])
+enum RepresentationVisibility {
+  PRIVATE
+  DISCOVERABLE
 }
 
-model TemplateOptimization {
-  id String @id @default(cuid())
-
-  criticReportId String
-  criticReport   TemplateCriticReport @relation(fields: [criticReportId], references: [id], onDelete: Cascade)
-
-  sourceVersionId String
-  sourceVersion   TemplateVersion @relation("OptimizationSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Cascade)
-
-  draftVersionId String?          @unique
-  draftVersion   TemplateVersion? @relation("OptimizationDraftVersion", fields: [draftVersionId], references: [id], onDelete: SetNull)
-
-  createdById String
-  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  optimizerVersion String
-  language         String    @default("fr")
-  status           String    @default("PROPOSED")
-  originalScore    Int
-  projectedScore   Int
-  proposal         Json
-  provenance       Json
-  approvedAt       DateTime?
-  createdAt        DateTime  @default(now())
-
-  @@index([criticReportId, createdAt])
-  @@index([sourceVersionId, createdAt])
-  @@index([createdById, createdAt])
+enum SubjectObservationEventType {
+  IDENTITY_CREATED
+  IDENTITY_LINKED
+  CREDENTIAL_ISSUED
+  CREDENTIAL_REVOKED
+  ADMISSION_GRANTED
+  ADMISSION_REVOKED
+  RELATION_OBSERVED
 }
 
-model FormTemplate {
-  id String @id @default(cuid())
-
-  key         String  @unique
-  name        String
-  description String?
-
-  relationTemplateId String?
-  relationTemplate   RelationTemplate? @relation(fields: [relationTemplateId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  fields      FormField[]
-  submissions FormSubmission[]
+enum SubjectPresenceState {
+  ACTIVE
+  DETACHED
 }
 
-model FormField {
-  id String @id @default(cuid())
-
-  formTemplateId String
-  formTemplate   FormTemplate @relation(fields: [formTemplateId], references: [id], onDelete: Cascade)
-
-  key   String
-  label String
-
-  type     String
-  required Boolean @default(false)
-
-  placeholder  String?
-  defaultValue String?
-
-  position Int @default(0)
-  step     Int @default(1)
-
-  options          Json?
-  validationRules  Json?
-  conditionalRules Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([formTemplateId, position])
-}
-
-model FormSubmission {
-  id String @id @default(cuid())
-
-  formTemplateId String
-  formTemplate   FormTemplate @relation(fields: [formTemplateId], references: [id])
-
-  caseId String?
-  case   RelationCase? @relation(fields: [caseId], references: [id])
-
-  answers Json
-
-  createdAt DateTime @default(now())
-}
-
-model RelationEvent {
-  id String @id @default(cuid())
-
-  caseId String
-  case   RelationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  type      String
-  actorType String?
-  actorId   String?
-
-  payload Json?
-
-  createdAt DateTime @default(now())
-
-  notifications Notification[]
-
-  @@index([caseId, createdAt])
-}
-
-model Notification {
-  id              String           @id @default(cuid())
-  recipientUserId String
-  type            NotificationType
-  relationCaseId  String
-  sourceEventId   String?
-  idempotencyKey  String           @unique
-  createdAt       DateTime         @default(now())
-  readAt          DateTime?
-
-  recipient    User           @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
-  relationCase RelationCase   @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
-  sourceEvent  RelationEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
-
-  @@index([recipientUserId, readAt, createdAt])
-  @@index([relationCaseId])
-  @@index([sourceEventId])
-}
-
-model PublicRateLimitBucket {
-  id            String   @id @default(cuid())
-  dimension     String
-  keyHash       String
-  windowStart   DateTime
-  windowSeconds Int
-  count         Int      @default(1)
-  expiresAt     DateTime
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@unique([dimension, keyHash, windowStart, windowSeconds])
-  @@index([expiresAt])
-}
-
-model PublicCaseCreationRequest {
-  id                 String   @id @default(cuid())
-  gLinkId            String
-  idempotencyKeyHash String
-  payloadHash        String
-  relationCaseId     String?
-  status             String   @default("PENDING")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  expiresAt          DateTime
-
-  gLink        GLink         @relation(fields: [gLinkId], references: [id])
-  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
-
-  @@unique([gLinkId, idempotencyKeyHash])
-  @@index([expiresAt])
-}
-
-model RelationAction {
-  id String @id @default(cuid())
-
-  relationCaseId String
-  relationCase   RelationCase @relation(fields: [relationCaseId], references: [id], onDelete: Cascade)
-
-  type String
-
-  status String @default("PENDING")
-
-  title       String
-  description String?
-
-  payload Json?
-
-  createdByRole String
-
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-
-  @@index([relationCaseId, status])
-  @@index([relationCaseId, createdAt])
-}
-
-model Message {
-  id          String     @id @default(cuid())
-  caseId      String
-  senderType  SenderType
-  senderEmail String
-  body        String
-  createdAt   DateTime   @default(now())
-
-  relationCase RelationCase @relation(fields: [caseId], references: [id])
-}
-
-model Document {
-  id              String   @id @default(cuid())
-  caseId          String
-  uploadedByEmail String
-  fileName        String
-  fileUrl         String
-  mimeType        String?
-  createdAt       DateTime @default(now())
-
-  relationCase RelationCase @relation(fields: [caseId], references: [id])
-}
-
-model AuditLog {
-  id         String   @id @default(cuid())
-  caseId     String?
-  actorEmail String?
-  eventType  String
-  metadata   Json?
-  createdAt  DateTime @default(now())
-
-  relationCase RelationCase? @relation(fields: [caseId], references: [id])
+enum SubjectPresenceType {
+  GOODISSIMA_IDENTITY
+  DEMO_ALIAS
 }
