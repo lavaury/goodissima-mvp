@@ -35,6 +35,7 @@ Les autres entrées n'ont aucune date de résolution et ne sont pas corrigées p
 | D-019 | Destination IA protocole relatif / navigation | P1 | OPEN | `lib/governance-ai-assistant.ts` accepte `url.startsWith("/")`, donc `//example.invalid`. Le clic peut sortir du site ; aucune navigation automatique constatée. | DEBT-AUTH-01 |
 | D-020 | Deux assertions QA obsolètes après Accueil simplifié / tests | P1 | OPEN | `qa/announcement-archive.test.ts` et `qa/archived-opportunity-count.test.ts` exigent encore l'ancien compteur Dashboard. Deux échecs reproduits ; aucune correction dans ce lot. | DEBT-DATA-QA-01 |
 | MEM-EVENT-APPEND-01 | Journal GovernedMemory protégé seulement par convention applicative | P0 | RESOLVED | Migration `20260915180000_add_governed_memory_event_append_only_guard` appliquée et vérifiée sur Staging : trigger `BEFORE UPDATE OR DELETE`, INSERT/SELECT autorisés, UPDATE/DELETE refusés, fixture rollbackée et événements historiques intacts. | MEM-EVENT-APPEND-01 |
+| MEM-TRANSITION-MODEL-01 | Transitions mémoire sans contrat d'autorisation/idempotence complet | P1 | OPEN | Résolution de contestation, révision de fait, remplacement/annulation de décision et rattachement de source restent `MODEL_GAP` jusqu'à définition explicite des permissions et `TransitionType`. | PARCOURS-UX-02A.2c |
 
 ## Preuves de résolution D-001 / D-017
 
