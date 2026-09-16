@@ -65,7 +65,8 @@ export async function POST(request: Request) {
       displayName: resolvedDisplayName, role, status: "PREPARED", inviteeUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
       accessTokenHash: hashJourneyInvitationToken(token), accessTokenExpiresAt: new Date(Date.now() + expiresInDays * 86400000),
       metadata: {
-        participantName: participantName || resolvedDisplayName, participantRole: expectedRole?.label ?? participantRole, expectedRoleId, preparedEmail, directoryPublicId,
+        participantName: participantName || resolvedDisplayName, participantRole: expectedRole?.isFallback ? "" : expectedRole?.label ?? participantRole,
+        expectedRoleId, expectedRoleContext: expectedRole?.name ?? null, preparedEmail, directoryPublicId,
         subjectUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
         deliveryMode: "MANUAL_OUT_OF_BAND", automaticEmailSent: false, automaticNotificationSent: false,
         mediaStarted: false, liveKitRoomCreated: false,

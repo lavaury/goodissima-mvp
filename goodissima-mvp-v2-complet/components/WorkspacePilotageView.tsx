@@ -17,7 +17,7 @@ export function WorkspacePilotageView({ data, counts }: { data: WorkspacePilotag
         <h3 className="break-words font-bold">{signal.title}</h3><p className="mt-1 break-words">{businessLabel(signal.subject, "Élément à examiner")}</p>
         <p className="mt-2 break-words text-sm text-slate-600">{signal.id.startsWith("GLINK:") ? `Lien : ${businessLabel(signal.subject, "Lien")}` : `Parcours : ${businessLabel(signal.journey, "Parcours")}`}</p>
         <p className="mt-2 break-words text-sm text-slate-600">{signal.reason}</p>
-        <Link href={signal.href} className={linkClass} aria-label={`Ouvrir : ${businessLabel(signal.subject, "élément à examiner")}`}>{signal.actionLabel}</Link>
+        <div className="flex flex-wrap gap-3"><Link href={signal.href} className={linkClass} aria-label={`Ouvrir : ${businessLabel(signal.subject, "élément à examiner")}`}>{signal.actionLabel}</Link>{signal.secondaryActionLabel && signal.secondaryHref ? <Link href={signal.secondaryHref} className={linkClass}>{signal.secondaryActionLabel}</Link> : null}</div>
       </li>)}</ul> : <p className="mt-3 rounded-xl border bg-white p-4 text-slate-600">Aucun point ne nécessite votre attention dans ce Workspace.</p>}
     </section>
     <Communications boussoleId="workspace-upcoming" title="Réunions à venir" empty="Aucune réunion à venir." items={data.upcoming} upcoming />

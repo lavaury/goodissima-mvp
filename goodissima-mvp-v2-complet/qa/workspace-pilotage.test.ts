@@ -69,6 +69,15 @@ test("real engine includes direct signals and isolates same names, workspaces an
   assert.deepEqual(forbidden.signals, []); assert.deepEqual(forbidden.upcoming, []); assert.deepEqual(forbidden.recent, []);
   assert.ok((await s.read("b", "b1")).signals.length > 0);
 });
+test("a prepared meeting without participants produces one consolidated attention card", async () => {
+  const data = await setup().read();
+  const meetingSignals = data.signals.filter((signal: any) => signal.id.includes("session-a1"));
+  assert.equal(meetingSignals.length, 1);
+  assert.equal(meetingSignals[0].title, "Réunion prête à ouvrir");
+  assert.match(meetingSignals[0].reason, /Aucun autre participant/);
+  assert.equal(meetingSignals[0].actionLabel, "Ouvrir la réunion");
+  assert.equal(meetingSignals[0].secondaryActionLabel, "Définir les participants");
+});
 test("meeting and recent queries are direct, limited, time-filtered and exclude GLINK associations", async () => {
   const s = setup(); const data = await s.read();
   assert.deepEqual(data.upcoming.map((x: any) => x.id).sort(), ["orphan", "session-a1"]);

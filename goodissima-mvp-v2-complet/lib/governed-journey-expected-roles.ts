@@ -1,4 +1,4 @@
-type ExpectedRole = { id: string; name: string; label: string };
+type ExpectedRole = { id: string; name: string; label: string; isFallback: boolean };
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -15,6 +15,6 @@ export function expectedRolesFromSnapshot(snapshotValue: unknown): ExpectedRole[
     if (!name) return [];
     const label = typeof row.role === "string" && row.role.trim() ? row.role.trim() : "Participant attendu";
     const id = typeof row.roleId === "string" && row.roleId.trim() ? row.roleId.trim() : `expected-role-${index + 1}`;
-    return [{ id, name, label }];
+    return [{ id, name, label, isFallback: label === "Participant attendu" }];
   });
 }

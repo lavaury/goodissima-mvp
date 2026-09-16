@@ -60,7 +60,7 @@ test("a global participant action is independent from expected participant place
   assert.match(page, /GovernedJourneyAddParticipantPanel/);
   assert.match(panel, /Ajouter un participant/);
   assert.match(panel, /Personne déjà dans Goodissima/);
-  assert.doesNotMatch(panel, /participants\.map|participant attendu/i);
+  assert.doesNotMatch(panel, /participants\.map/);
 });
 
 test("a published Goodissima person can be invited without an email", () => {

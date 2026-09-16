@@ -45,6 +45,7 @@ test("three roles, including duplicate labels, keep distinct stable ids", () => 
   ] } } });
   assert.deepEqual(roles.map((role) => role.id), ["expected-role-1", "expected-role-2", "travel-lead"]);
   assert.equal(roles[1].name, "Asie");
+  assert.equal(roles[1].isFallback, true);
   assert.match(expectedRoles, /`expected-role-\$\{index \+ 1\}`/);
   assert.match(page, /key=\{participant\.id\}/);
   assert.match(invitationRoute, /expectedRolesFromSnapshot/);
@@ -53,15 +54,22 @@ test("three roles, including duplicate labels, keep distinct stable ids", () => 
 });
 
 test("server derives the business label from the Journey role", () => {
-  assert.match(invitationRoute, /participantRole: expectedRole\?\.label \?\? participantRole/);
+  assert.match(invitationRoute, /expectedRole\?\.isFallback \? ""/);
   assert.match(invitationRoute, /expectedRoleId/);
+});
+
+test("legacy fallback is humanized and external identity limitation is explicit", () => {
+  assert.match(page, /Participation prévue/);
+  assert.match(page, /Contexte de participation/);
+  assert.match(panel, /le rôle métier n’était pas renseigné/);
+  assert.match(panel, /Une identité Goodissima vérifiée sera nécessaire pour accepter en ligne/);
 });
 
 test("business role labels survive AI proposal validation", () => {
   assert.match(actions, /participantActorsFromLines/);
   assert.match(actions, /lastIndexOf\(" - "\)/);
   assert.match(actions, /actors: participantActors/);
-  assert.match(page, /participant\.role \|\| "Participant attendu"/);
+  assert.match(page, /participant\.role === "Participant attendu" \? "Participation prévue"/);
   assert.match(page, /Aucune personne associée/);
 });
 

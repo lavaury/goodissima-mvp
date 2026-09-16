@@ -6,7 +6,7 @@ import { selectDeterministicMatchingSources, type PilotageSignalKind } from "@/l
 export { filterSignalsByWorkspaceId, isInterventionSignalKind, summarizeGovernanceAttention } from "@/lib/governance-attention";
 
 export type { PilotageSignalKind } from "@/lib/governance-attention";
-export type GovernancePilotageSignal = { id: string; kind: PilotageSignalKind; title: string; subject: string; journey: string; workspaceId: string | null; workspace: string | null; portfolioId: string | null; portfolio: string | null; reason: string; actionLabel: string; href: string; date: Date | null };
+export type GovernancePilotageSignal = { id: string; kind: PilotageSignalKind; title: string; subject: string; journey: string; workspaceId: string | null; workspace: string | null; portfolioId: string | null; portfolio: string | null; reason: string; actionLabel: string; href: string; secondaryActionLabel?: string; secondaryHref?: string; date: Date | null };
 
 function record(value: unknown) { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function selectedParticipants(value: unknown) { const rows = record(value).selectedParticipants; return Array.isArray(rows) ? rows.map(record).map((row) => ({ name: typeof row.participantName === "string" ? row.participantName : "", role: typeof row.participantRole === "string" ? row.participantRole : "" })).filter((row) => row.name) : []; }
@@ -92,8 +92,7 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
     for (const meeting of journey.communicationSessions) {
       const meetingHref = `${href}#meeting-${meeting.id}`; const authorized = meeting.meetingParticipants.filter((participant) => participant.status === "AUTHORIZED");
       if (meeting.status === "PREPARED_NOT_STARTED") {
-        signals.push({ id: `open-${meeting.id}`, kind: "ACTION", title: "Réunion préparée à ouvrir", subject: meeting.title, ...base, reason: "Cette réunion est prête mais n’a pas encore été ouverte.", actionLabel: "Ouvrir cette réunion", href: meetingHref, date: meeting.scheduledAt });
-        if (!authorized.length) signals.push({ id: `scope-${meeting.id}`, kind: "ACTION", title: "Réunion sans invités autorisés", subject: meeting.title, ...base, reason: "Seul l’organisateur peut actuellement ouvrir cette réunion.", actionLabel: "Définir les participants", href: meetingHref, date: meeting.scheduledAt });
+        signals.push({ id: `open-${meeting.id}`, kind: "ACTION", title: "Réunion prête à ouvrir", subject: meeting.title, ...base, reason: authorized.length ? "Cette réunion est prête mais n’a pas encore été ouverte." : "Cette réunion est prête à ouvrir. Aucun autre participant n’est actuellement autorisé.", actionLabel: "Ouvrir la réunion", href: meetingHref, ...(!authorized.length ? { secondaryActionLabel: "Définir les participants", secondaryHref: meetingHref } : {}), date: meeting.scheduledAt });
       }
       if (meeting.scheduledAt && meeting.scheduledAt > now && meeting.status !== "CANCELLED" && meeting.status !== "COMPLETED") signals.push({ id: `upcoming-${meeting.id}`, kind: "UPCOMING", title: "Réunion à venir", subject: meeting.title, ...base, reason: "Une date future est prévue dans le parcours.", actionLabel: "Ouvrir le détail", href: meetingHref, date: meeting.scheduledAt });
       if (meeting.status === "COMPLETED") signals.push({ id: `completed-${meeting.id}`, kind: "HISTORY", title: "Réunion terminée", subject: meeting.title, ...base, reason: "Réunion conservée en lecture seule dans l’historique.", actionLabel: "Consulter l’historique", href: meetingHref, date: meeting.updatedAt });

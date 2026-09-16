@@ -9,9 +9,9 @@ const roles = [
   ["JUDGE", "Juge"], ["THIRD_PARTY", "Tiers"], ["ASSOCIATION", "Association"], ["FAMILY", "Famille"],
 ] as const;
 
-type Props = { formTemplateId: string; journeyTitle: string; journeyObjective?: string | null; initialParticipantRole?: string | null; initialGovernedRole?: string; expectedRoleId?: string; contextual?: boolean };
+type Props = { formTemplateId: string; journeyTitle: string; journeyObjective?: string | null; initialParticipantRole?: string | null; initialParticipationContext?: string | null; initialGovernedRole?: string; expectedRoleId?: string; contextual?: boolean };
 
-export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitle, journeyObjective, initialParticipantRole, initialGovernedRole = "OTHER", expectedRoleId, contextual = false }: Props) {
+export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitle, journeyObjective, initialParticipantRole, initialParticipationContext, initialGovernedRole = "OTHER", expectedRoleId, contextual = false }: Props) {
   const [results, setResults] = useState<DirectorySearchResultDto[]>([]);
   const [selected, setSelected] = useState<DirectorySearchResultDto | null>(null);
   const [role, setRole] = useState(initialGovernedRole);
@@ -24,6 +24,7 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
   const panelId = useId();
   const router = useRouter();
   const participantRole = initialParticipantRole || roles.find(([value]) => value === role)?.[1] || "Participant";
+  const legacyRoleContext = initialParticipantRole === "Participant attendu";
 
   async function search(formData: FormData) {
     const query = String(formData.get("query") ?? "").trim();
@@ -59,14 +60,16 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
     catch { linkRef.current?.focus(); linkRef.current?.select(); setMessage("Sélectionnez le lien pour le copier."); }
   }
 
-  const roleControl = initialParticipantRole
-    ? <p className="mt-3 text-sm"><strong>Rôle proposé :</strong> {initialParticipantRole}</p>
-    : <label className="mt-3 block text-sm font-semibold text-slate-700">Rôle proposé<select value={role} onChange={(event) => setRole(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal">{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>;
+  const roleControl = legacyRoleContext
+    ? <p className="mt-3 text-sm"><strong>Contexte de participation :</strong> {initialParticipationContext || "Participation prévue"}</p>
+    : initialParticipantRole
+      ? <p className="mt-3 text-sm"><strong>Rôle proposé :</strong> {initialParticipantRole}</p>
+      : <label className="mt-3 block text-sm font-semibold text-slate-700">Rôle proposé<select value={role} onChange={(event) => setRole(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal">{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>;
 
   return <details id={contextual ? undefined : "add-participant"} open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className={`${contextual ? "mt-2" : "mt-4"} rounded-lg border border-[#247f88]/40 bg-white p-4`}>
     <summary aria-expanded={open} aria-controls={panelId} className="min-h-11 cursor-pointer py-2 font-bold text-[#176b73] outline-none focus-visible:ring-2 focus-visible:ring-cyan-700">{contextual ? "Choisir une personne" : "Ajouter un participant"}</summary>
     <div id={panelId}>
-    {initialParticipantRole ? <p className="mt-2 rounded-lg bg-cyan-50 p-3 text-sm font-semibold text-cyan-950">Rôle à pourvoir : {initialParticipantRole}</p> : null}
+    {initialParticipantRole ? <p className="mt-2 rounded-lg bg-cyan-50 p-3 text-sm font-semibold text-cyan-950">{legacyRoleContext ? "Participation prévue — le rôle métier n’était pas renseigné dans ces données historiques." : `Rôle à pourvoir : ${initialParticipantRole}`}</p> : null}
     <section aria-labelledby="goodissima-person-title" className="mt-4 rounded-lg border bg-slate-50 p-4">
       <h4 id="goodissima-person-title" className="font-bold text-slate-950">1. Personne déjà dans Goodissima</h4>
       <p className="mt-1 text-sm text-slate-600">Recherchez une personne publiée dans Goodissima. Aucun email n’est nécessaire et aucune notification n’est envoyée automatiquement.</p>
@@ -80,6 +83,7 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
     <section aria-labelledby="external-person-title" className="mt-4 rounded-lg border bg-slate-50 p-4">
       <h4 id="external-person-title" className="font-bold text-slate-950">2. Personne extérieure à Goodissima</h4>
       <p className="mt-1 text-sm text-slate-600">Préparez une invitation personnelle sécurisée. Aucun email ou SMS n’est obligatoire.</p>
+      <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">Cette personne pourra consulter l’invitation. Une identité Goodissima vérifiée sera nécessaire pour accepter en ligne.</p>
       <label className="mt-3 block text-sm font-semibold text-slate-700">Nom de la personne<input value={externalName} onChange={(event) => setExternalName(event.target.value)} required maxLength={120} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
       {roleControl}
       <button type="button" disabled={busy || !externalName.trim()} onClick={() => void createInvitation({ displayName: externalName.trim() })} className="mt-3 min-h-11 rounded-lg bg-[#247f88] px-4 py-2 font-bold text-white disabled:opacity-60">Créer une invitation</button>
