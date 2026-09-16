@@ -58,7 +58,7 @@ function directoryInvitationRequest() {
 test("a global participant action is independent from expected participant placeholders", () => {
   assert.match(page, /GovernedJourneyAddParticipantPanel/);
   assert.match(panel, />Ajouter un participant</);
-  assert.match(panel, /Rechercher dans Goodissima/);
+  assert.match(panel, /Personne déjà dans Goodissima/);
   assert.doesNotMatch(panel, /participants\.map|participant attendu/i);
 });
 

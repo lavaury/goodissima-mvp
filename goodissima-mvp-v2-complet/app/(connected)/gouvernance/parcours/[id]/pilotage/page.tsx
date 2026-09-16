@@ -33,6 +33,7 @@ import { meetingIsClosed, meetingListCategory, selectPrimaryMeetings } from "@/l
 import { GovernedJourneyMemorySection } from "@/components/GovernedJourneyMemorySection";
 import { GovernedJourneyAddParticipantPanel } from "@/components/GovernedJourneyAddParticipantPanel";
 import { readJourneyGovernedMemory } from "@/lib/governed-memory/runtime";
+import { meetingRsvpLabel } from "@/lib/governed-meeting-rsvp";
 
 export const dynamic = "force-dynamic";
 
@@ -407,7 +408,7 @@ function formatDate(value: Date | string | null | undefined) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export default async function GovernedJourneyPilotagePage({ params, searchParams }: { params: { id: string }; searchParams: { meetingPrepared?: string; similarMeetingId?: string; technical?: string } }) {
+export default async function GovernedJourneyPilotagePage({ params, searchParams }: { params: { id: string }; searchParams: { meetingPrepared?: string; similarMeetingId?: string; technical?: string; participantRole?: string } }) {
   const owner = await getCurrentPrismaUser();
   if (!await getTemplateReadAccess(owner, params.id)) notFound();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
@@ -514,7 +515,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       })
     : [];
   const meetingParticipants = communicationOverview.sessions.length > 0
-    ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } } })
+    ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } }, include: { rsvp: true } })
     : [];
   const activeJourneyInvitations = governedInvitations.filter((invitation) => invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && (!invitation.consent || invitation.consent.status === "ACCEPTED"));
   const unfilledRoles = participants.filter((participant) => !participantMatchesOrganizer(participant.name, owner) && !activeJourneyInvitations.some((invitation) => {
@@ -523,6 +524,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     const linkedRole = text(invitationMetadata.participantRole);
     return normalizedIdentity(linkedName) === normalizedIdentity(participant.name) && (!linkedRole || normalizedIdentity(linkedRole) === normalizedIdentity(participant.role));
   }));
+  const selectedUnfilledRole = unfilledRoles.find((participant) => participant.role === searchParams.participantRole)?.role ?? null;
   const expectedParticipantNames = new Set(participants.map((participant) => participant.name.toLocaleLowerCase("fr")));
   const additionalActiveParticipants = activeJourneyInvitations.filter((invitation) => !expectedParticipantNames.has(invitation.displayName.toLocaleLowerCase("fr")));
   const pendingReviews = governanceReviewPreparations.filter((review) => review.status !== "COMPLETED").length;
@@ -898,7 +900,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <div className="mt-4">
         <section data-boussole-id="governed-journey-participants" className="rounded-lg border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h3 className="text-lg font-bold text-slate-950">Participants du parcours</h3><p className="text-sm font-semibold text-slate-600">{1 + activeJourneyInvitations.length} actif{1 + activeJourneyInvitations.length > 1 ? "s" : ""}</p></div>
-          {attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} /> : <p className="mt-3 text-sm text-slate-600">Rattachez d’abord le parcours à un espace pour ajouter un participant.</p>}
+          {attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} initialParticipantRole={selectedUnfilledRole} initialGovernedRole={selectedUnfilledRole ? governedRoleFromParticipant(selectedUnfilledRole) : "OTHER"} /> : <p className="mt-3 text-sm text-slate-600">Rattachez d’abord le parcours à un espace pour ajouter un participant.</p>}
           {governedInvitations.length === 0 ? <p className="mt-4 text-sm text-slate-600">Aucune invitation n’a encore été créée pour ce parcours.</p> : <>
             <ul className="mt-4 divide-y rounded-lg border bg-slate-50">{governedInvitations.slice(0, 5).map((participant, index) => { const status = participant.revokedAt || participant.status === "REVOKED" ? "Accès révoqué" : participant.consent?.status === "DECLINED" ? "Invitation refusée" : participant.consent?.status === "ACCEPTED" && participant.status === "ACTIVE" ? "Participation acceptée" : participant.consent?.status === "PENDING" ? "Invitation en attente" : "Invitation historique"; return <li key={participant.id} data-boussole-id={index === 0 ? "governed-journey-participant" : undefined} className="flex min-w-0 flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words font-semibold text-slate-950">{participant.displayName}</span><span className="text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)} · {status}</span></li>; })}</ul>
             {governedInvitations.length > 5 ? <details className="mt-3 rounded-lg border bg-white"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-[#176b73]">Voir toutes les personnes ({governedInvitations.length})</summary><ul className="divide-y border-t">{governedInvitations.slice(5).map((participant) => <li key={participant.id} className="flex min-w-0 flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words font-semibold text-slate-950">{participant.displayName}</span><span className="text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)} · {participant.revokedAt || participant.status === "REVOKED" ? "Accès révoqué" : participant.consent?.status === "DECLINED" ? "Invitation refusée" : participant.consent?.status === "ACCEPTED" ? "Participation acceptée" : participant.consent?.status === "PENDING" ? "Invitation en attente" : "Invitation historique"}</span></li>)}</ul></details> : null}
@@ -906,7 +908,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
           <section id="roles-to-fill" className="mt-6 border-t pt-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h3 className="font-bold text-slate-950">Rôles à pourvoir</h3><p className="text-sm font-semibold text-slate-600">{unfilledRoles.length}</p></div>
-            {unfilledRoles.length === 0 ? <p className="mt-3 text-sm text-slate-600">Aucun rôle n’attend actuellement une personne.</p> : <details className="mt-3 rounded-lg border bg-slate-50" open={unfilledRoles.length <= 5}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-800">{unfilledRoles.length} rôle{unfilledRoles.length > 1 ? "s" : ""} à pourvoir</summary><ul className="divide-y border-t">{unfilledRoles.map((participant, index) => <li key={`${participant.name}-${index}`} className="flex min-w-0 flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="break-words font-semibold text-slate-950">{participant.role}</p><p className="text-sm text-slate-600">Aucune personne associée</p></div><a href="#add-participant" className="inline-flex min-h-11 items-center font-bold text-[#176b73] underline underline-offset-4">Choisir une personne</a></li>)}</ul></details>}
+            {unfilledRoles.length === 0 ? <p className="mt-3 text-sm text-slate-600">Aucun rôle n’attend actuellement une personne.</p> : <details className="mt-3 rounded-lg border bg-slate-50" open={unfilledRoles.length <= 5}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-800">{unfilledRoles.length} rôle{unfilledRoles.length > 1 ? "s" : ""} à pourvoir</summary><ul className="divide-y border-t">{unfilledRoles.map((participant, index) => <li key={`${participant.name}-${index}`} className="flex min-w-0 flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="break-words font-semibold text-slate-950">{participant.role || "Participant attendu"}</p><p className="text-sm text-slate-600">Aucune personne associée</p></div><Link href={`?participantRole=${encodeURIComponent(participant.role)}#add-participant`} className="inline-flex min-h-11 items-center font-bold text-[#176b73] underline underline-offset-4">Choisir une personne</Link></li>)}</ul></details>}
           </section>
 
           {searchParams.technical === "1" ? <details className="mt-6 rounded-lg border border-dashed bg-slate-50"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-700">Outils historiques de préparation</summary><div className="border-t p-3">
@@ -1287,7 +1289,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   </div>
                 ) : null}
                 {!meetingIsClosed(session) ? <>
-                <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><p className="text-sm font-bold text-emerald-950">Participants de cette réunion</p>{meetingParticipants.some((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED") ? <ul className="mt-2 space-y-2">{meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter(Boolean).map((invitation) => <li key={invitation!.id} className="text-sm text-slate-700"><strong>{invitation!.displayName}</strong> · A accès à cette réunion</li>)}</ul> : <p className="mt-2 text-sm text-slate-600">Aucun participant ajouté.</p>}</div>
+                <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><p className="text-sm font-bold text-emerald-950">Participants de cette réunion</p>{meetingParticipants.some((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED") ? <ul className="mt-2 space-y-2">{meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => ({ item, invitation: governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId) })).filter(({ invitation }) => Boolean(invitation)).map(({ item, invitation }) => <li key={invitation!.id} className="text-sm text-slate-700"><strong>{invitation!.displayName}</strong> · {meetingRsvpLabel(item.rsvp)}</li>)}</ul> : <p className="mt-2 text-sm text-slate-600">Aucun participant ajouté.</p>}</div>
                 <details className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-emerald-950">Ajouter des participants</summary>
                 <p className="mb-3 text-xs text-emerald-800">Les personnes sélectionnées auront accès à cette réunion. Être participant du parcours ne donne pas automatiquement accès à toutes les réunions.</p>
                 <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">

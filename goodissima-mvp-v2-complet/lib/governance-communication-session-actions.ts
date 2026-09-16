@@ -270,7 +270,7 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
   });
   if (duplicate && textFromForm(formData, "forceCreate") !== "true") redirect(`/gouvernance/parcours/${formTemplateId}/pilotage?similarMeetingId=${duplicate.id}#meeting-${duplicate.id}`);
 
-  const activeGovernedInvitations = await prisma.governedJourneyInvitation.findMany({ where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id, status: "ACTIVE", revokedAt: null, accessTokenExpiresAt: { gt: new Date() }, OR: [{ consent: { is: null } }, { consent: { is: { status: "ACCEPTED" } } }] } });
+  const activeGovernedInvitations = await prisma.governedJourneyInvitation.findMany({ where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id, status: "ACTIVE", revokedAt: null, accessTokenExpiresAt: { gt: new Date() }, OR: [{ consent: { is: null } }, { consent: { is: { status: "ACCEPTED" } } }] }, include: { consent: true } });
   const governedInvitationByPreparedId = new Map(expectedParticipants.map((participant) => {
     const access = activeGovernedInvitations.find((invitation) => {
       const accessMetadata = asRecord(invitation.metadata);
@@ -302,8 +302,14 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
       workflowStarted: false,
       metadata: { source: "governance-multi-actor-v1", selectedParticipantInvitationIds: normalizedSelection, selectedParticipants: expectedParticipants },
     } });
-    const authorizedInvitationIds = Array.from(governedInvitationByPreparedId.values()).filter((invitation): invitation is NonNullable<typeof invitation> => Boolean(invitation)).map((invitation) => invitation.id);
-    if (authorizedInvitationIds.length > 0) await tx.governedMeetingParticipant.createMany({ data: authorizedInvitationIds.map((invitationId) => ({ communicationSessionId: created.id, governedJourneyInvitationId: invitationId, status: "AUTHORIZED" as const, authorizedById: owner.id })) });
+    const authorizedInvitations = Array.from(governedInvitationByPreparedId.values()).filter((invitation): invitation is NonNullable<typeof invitation> => Boolean(invitation));
+    for (const invitation of authorizedInvitations) {
+      const participant = await tx.governedMeetingParticipant.create({ data: { communicationSessionId: created.id, governedJourneyInvitationId: invitation.id, status: "AUTHORIZED", authorizedById: owner.id } });
+      if (invitation.consent) {
+        const rsvp = await tx.governedMeetingRsvp.create({ data: { meetingParticipantId: participant.id, status: "PENDING", meetingRevision: created.rsvpRevision } });
+        await tx.governedMeetingRsvpEvent.create({ data: { meetingParticipantId: participant.id, rsvpId: rsvp.id, type: "INVITED", actorUserId: owner.id, actorKind: "ORGANIZER", rsvpVersion: rsvp.version, meetingRevision: created.rsvpRevision } });
+      }
+    }
     return created;
   });
 

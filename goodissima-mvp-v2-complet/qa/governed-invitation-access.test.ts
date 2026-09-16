@@ -57,6 +57,11 @@ function guestPage(state: "valid" | "revoked" | "expired" | "inactive" | "unknow
     "@/lib/access-invitations": { normalizeInvitationEmail: (email: string) => email.toLowerCase() },
     "@/lib/auth": { getCurrentUser: async () => null },
     "@/lib/governed-journey-consent-actions": { acceptJourneyInvitation() {}, declineJourneyInvitation() {} },
+    "@/lib/governed-meeting-rsvp-actions": { acceptMeetingRsvp() {}, declineMeetingRsvp() {} },
+    "@/lib/governed-meeting-rsvp": {
+      meetingRsvpLabel: (value: any) => value?.status === "ACCEPTED" ? "Participation acceptée" : value?.status === "PENDING" ? "Invitation en attente" : value?.status === "DECLINED" ? "Participation déclinée" : "Participation historique — réponse non enregistrée",
+      hasCurrentMeetingMediaAccess: (value: any) => value.status !== "REMOVED" && (!value.rsvp || (value.rsvp.status === "ACCEPTED" && value.rsvp.meetingRevision === value.communicationSession.rsvpRevision)) && value.communicationSession.status === "REQUESTED" && value.communicationSession.accessOpened && (!value.communicationSession.expiresAt || value.communicationSession.expiresAt > new Date()),
+    },
     "@/lib/governed-journey-consent": { projectJourneyConsent: () => "LEGACY_UNKNOWN", hasCurrentJourneyAccess: () => true },
     "@/lib/governed-journey-invitations": { hashJourneyInvitationToken },
     "@/lib/prisma": { prisma: {
@@ -163,7 +168,7 @@ test("guest page exposes media only for an open, unexpired authorized meeting", 
     [live, true], [{ ...live, accessOpened: false }, false],
     [{ ...live, status: "COMPLETED" }, false], [{ ...live, expiresAt: new Date(0) }, false],
   ] as const) {
-    const fixture = guestPage("valid", [{ communicationSession: session }]);
+    const fixture = guestPage("valid", [{ id: "participant-fixture", status: "AUTHORIZED", rsvp: null, communicationSession: { rsvpRevision: 1, scheduledAt: null, ...session } }]);
     const html = renderToStaticMarkup(await fixture.page({ params: { token } }));
     assert.equal(html.includes("Rejoindre la réunion"), canJoin);
   }

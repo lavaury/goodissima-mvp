@@ -36,6 +36,14 @@ function linesFromForm(formData: FormData, key: string) {
     .filter(Boolean);
 }
 
+function participantActorsFromLines(lines: string[]): GovernanceJourneyActor[] {
+  return lines.map((line) => {
+    const separator = line.lastIndexOf(" - ");
+    if (separator <= 0 || separator >= line.length - 3) return { name: line, role: "Participant attendu" };
+    return { name: line.slice(0, separator).trim(), role: line.slice(separator + 3).trim() };
+  });
+}
+
 function csvWords(value: string) {
   return value
     .split(/[\s,;:.!?()[\]"']+/)
@@ -183,6 +191,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
   if (workspaceValues.length > 1) throw new Error("Workspace invalide.");
   const workspaceId = parseCreationWorkspaceId(workspaceValues[0]);
   const participants = linesFromForm(formData, "participants");
+  const participantActors = participantActorsFromLines(participants);
   const documents = linesFromForm(formData, "documents");
   const confidentialityRules = linesFromForm(formData, "confidentialityRules");
   const firstActions = linesFromForm(formData, "firstActions");
@@ -226,7 +235,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
     intent,
     proposedBy: "AI",
     objective,
-    actors: participants.map((participant) => ({ name: participant, role: "Participant attendu" })),
+    actors: participantActors,
     expectedDocuments: documents.map((document) => ({
       name: document,
       reason: "Document attendu saisi ou valide avant creation.",
@@ -332,7 +341,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
       exitCondition: "Action traitee ou planifiee.",
     })),
   ];
-  const actors = participants.map((participant) => ({ name: participant, role: "Participant attendu" }));
+  const actors = participantActors;
   const journeyDocuments = documents.map((document) => ({ name: document, required: true, stage: 1 }));
   const design = {
     actors,

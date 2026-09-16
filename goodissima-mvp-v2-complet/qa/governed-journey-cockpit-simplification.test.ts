@@ -22,7 +22,7 @@ test("participants and template roles are distinct and remain dense", () => {
 
 test("the global directory invitation is contextual, personal and email-free", () => {
   assert.match(page, /GovernedJourneyAddParticipantPanel/);
-  assert.match(participantPanel, /Rechercher dans Goodissima/);
+  assert.match(participantPanel, /Personne déjà dans Goodissima/);
   assert.match(participantPanel, /journeyObjective/);
   assert.match(participantPanel, /destiné uniquement à cette invitation/);
   assert.match(participantPanel, /Copier le lien personnel/);
