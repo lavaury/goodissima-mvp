@@ -43,7 +43,10 @@ test("VIEW_SOURCES denial suppresses every source from the view", () => {
 test("the cockpit exposes only supported human actions and keeps history separate", () => {
   const component = readFileSync(new URL("../components/GovernedJourneyMemorySection.tsx", import.meta.url), "utf8");
   const page = readFileSync(new URL("../app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx", import.meta.url), "utf8");
-  for (const label of ["Ce que nous retenons", "Faits", "Décisions", "Sources", "À confirmer", "Proposer un fait", "Préparer une décision", "Ajouter une source", "Confirmer comme fait", "Confirmer la décision", "Contester"]) assert.match(component, new RegExp(label));
+  for (const label of ["Ce que nous retenons", "Faits", "Décisions", "Sources", "À confirmer", "Proposer un fait", "Ajouter une source", "Confirmer comme fait", "Confirmer la décision", "Contester"]) assert.match(component, new RegExp(label));
+  assert.doesNotMatch(component, /Préparer une décision|recordJourneyDecisionAction/);
+  assert.equal(page.match(/Préparer une décision/g)?.length, 1);
+  assert.match(page, /action=\{prepareGovernanceReviewAction\}/);
   for (const unsupported of ["Réviser", "Révoquer", "Résoudre la contestation", "Maintenir la contestation", "Associer une source"]) assert.doesNotMatch(component, new RegExp(unsupported));
   assert.ok(page.indexOf("<GovernedJourneyMemorySection") < page.indexOf('<section id="history"'));
   assert.doesNotMatch(component, /governanceReviewPreparations|GovernanceReview/);

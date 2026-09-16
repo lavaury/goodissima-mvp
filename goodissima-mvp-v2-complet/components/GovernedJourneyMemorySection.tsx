@@ -1,5 +1,5 @@
 import type { JourneyMemoryProjection } from "@/lib/governed-memory/contracts";
-import { disputeJourneyFactAction, establishJourneyFactAction, proposeJourneyFactAction, recordJourneyDecisionAction, registerJourneySourceAction, validateJourneyDecisionAction } from "@/lib/governed-memory/journey-actions";
+import { disputeJourneyFactAction, establishJourneyFactAction, proposeJourneyFactAction, registerJourneySourceAction, validateJourneyDecisionAction } from "@/lib/governed-memory/journey-actions";
 import { factStateLabel, projectJourneyMemoryView } from "@/lib/governed-memory/journey-view";
 
 type Props = {
@@ -69,7 +69,6 @@ export function GovernedJourneyMemorySection({ memory, context }: Props) {
 
       <div className="mt-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         {memory.capabilities.canPropose ? <details className="min-w-0 sm:w-80"><summary className={secondaryButtonClass + " cursor-pointer list-none text-center"}>Proposer un fait</summary><form action={proposeJourneyFactAction.bind(null, context)} className="mt-2 space-y-3 rounded-lg border bg-slate-50 p-3"><label className="block text-sm font-semibold text-slate-800">Quel élément souhaitez-vous retenir ?<textarea required maxLength={4000} name="statement" rows={3} className={fieldClass} /></label><button className={buttonClass} type="submit">Proposer le fait</button></form></details> : null}
-        {memory.capabilities.canRecordDecision ? <details className="min-w-0 sm:w-80"><summary className={secondaryButtonClass + " cursor-pointer list-none text-center"}>Préparer une décision</summary><form action={recordJourneyDecisionAction.bind(null, context)} className="mt-2 space-y-3 rounded-lg border bg-slate-50 p-3"><label className="block text-sm font-semibold text-slate-800">Quelle décision souhaitez-vous retenir ?<input required maxLength={300} name="title" className={fieldClass} /></label><label className="block text-sm font-semibold text-slate-800">Pourquoi ?<textarea required maxLength={4000} name="rationale" rows={3} className={fieldClass} /></label><button className={buttonClass} type="submit">Préparer la décision</button></form></details> : null}
         {memory.capabilities.canRegisterSource ? <details className="min-w-0 sm:w-80"><summary className={secondaryButtonClass + " cursor-pointer list-none text-center"}>Ajouter une source</summary><form action={registerJourneySourceAction.bind(null, context)} className="mt-2 space-y-3 rounded-lg border bg-slate-50 p-3"><label className="block text-sm font-semibold text-slate-800">Comment nommer cette source ?<input required maxLength={300} name="title" className={fieldClass} /></label><label className="block text-sm font-semibold text-slate-800">Quelle référence permet de la retrouver ?<input required maxLength={500} name="reference" className={fieldClass} /></label><button className={buttonClass} type="submit">Ajouter la source</button></form></details> : null}
       </div>
     </section>
