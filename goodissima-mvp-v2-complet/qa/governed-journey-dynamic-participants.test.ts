@@ -11,7 +11,7 @@ const route = read("app/api/gouvernance/invitations/route.ts");
 const require = createRequire(import.meta.url);
 const { NextResponse } = require("next/server");
 
-function invitationRouteFixture({ ownerCanAccess = true, duplicate = false } = {}) {
+function invitationRouteFixture({ ownerCanAccess = true, duplicate = false, profileUserId = "user-alice" } = {}) {
   const writes: any[] = [];
   const consentWrites: any[] = [];
   const eventWrites: any[] = [];
@@ -29,7 +29,7 @@ function invitationRouteFixture({ ownerCanAccess = true, duplicate = false } = {
       directoryProfile: { findFirst: async (query: any) => {
         assert.equal(query.where.publicId, "directory-person");
         assert.equal(query.where.status, "PUBLISHED");
-        return { publicId: "directory-person", publicName: "Alice Exemple", subjectIdentity: { user: { id: "user-alice" } } };
+        return { publicId: "directory-person", publicName: "Alice Exemple", subjectIdentity: { user: { id: profileUserId } } };
       } },
       governedJourneyInvitation: { create: async (query: any) => { writes.push(query); return { id: "invitation-a" }; } },
       governedJourneyConsent: { create: async (query: any) => { consentWrites.push(query); return { id: "consent-a", version: 0 }; } },
@@ -113,4 +113,13 @@ test("duplicates and another owner's Journey are rejected before mutation", asyn
   const crossOwner = invitationRouteFixture({ ownerCanAccess: false });
   assert.equal((await crossOwner.POST(directoryInvitationRequest())).status, 400);
   assert.equal(crossOwner.writes.length, 0);
+});
+
+test("an organizer can invite their own published directory identity without auto-acceptance", async () => {
+  const fixture = invitationRouteFixture({ profileUserId: "owner-a" });
+  const response = await fixture.POST(directoryInvitationRequest());
+  assert.equal(response.status, 200);
+  assert.equal(fixture.writes[0].data.inviteeUserId, "owner-a");
+  assert.equal(fixture.consentWrites[0].data.status, "PENDING");
+  assert.equal(fixture.writes[0].data.status, "PREPARED");
 });

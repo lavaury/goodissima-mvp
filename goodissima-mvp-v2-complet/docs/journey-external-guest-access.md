@@ -12,4 +12,4 @@ Une acceptation sans compte conserve donc `decidedByUserId = null` et écrit un 
 
 ## Affectation de l’organisateur à un rôle attendu
 
-La page de pilotage est actuellement réservée au propriétaire du Journey, déjà participant en qualité d’organisateur. Le modèle ne possède pas encore d’association explicite entre ce participant existant et un `expectedRoleId`. Créer une nouvelle `GovernedJourneyInvitation` produirait un doublon de participant et de consentement. L’action « M’affecter à ce rôle » reste donc un `MODEL_GAP` à traiter par une future association de rôle dédiée ; aucune auto-invitation n’est créée dans ce cas.
+La page de pilotage est actuellement réservée au propriétaire du Journey, déjà participant en qualité d’organisateur. Le modèle ne possède pas encore d’association explicite entre ce participant existant et un `expectedRoleId`. L’action « M’affecter à ce rôle » reste donc un `MODEL_GAP` à traiter par une future association de rôle dédiée. Une invitation explicite de son propre profil Annuaire reste possible et conserve un consentement `PENDING` ; elle ne vaut ni affectation directe ni auto-acceptation.

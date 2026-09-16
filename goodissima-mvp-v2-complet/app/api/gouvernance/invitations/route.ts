@@ -36,9 +36,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Parcours ou invité invalide." }, { status: 400 });
   }
   if (expectedRoleId && !expectedRole) return NextResponse.json({ error: "Rôle attendu inconnu pour ce parcours." }, { status: 400 });
-  if (directoryProfile?.subjectIdentity.user?.id === owner.id) {
-    return NextResponse.json({ error: "L’organisateur participe déjà à ce parcours." }, { status: 409 });
-  }
   const relationTemplate = form.relationTemplate;
 
   if (relationCaseId) {
