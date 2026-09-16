@@ -47,23 +47,23 @@ test("new consent flow and legacy projection never use acceptedAt", () => {
 
 test("double accept is idempotent and emits one event", async () => {
   const f = fixture();
-  const first = await decideJourneyInvitation(f.client, { token: "secret-token", user: { id: "user-a" }, decision: "ACCEPTED" });
-  const second = await decideJourneyInvitation(f.client, { token: "secret-token", user: { id: "user-a" }, decision: "ACCEPTED" });
+  const first = await decideJourneyInvitation(f.client, { token: "secret-token", userId: "user-a", decision: "ACCEPTED" });
+  const second = await decideJourneyInvitation(f.client, { token: "secret-token", userId: "user-a", decision: "ACCEPTED" });
   assert.equal(first.changed, true); assert.equal(second.changed, false); assert.equal(f.events.length, 1); assert.equal(f.invitation.status, "ACTIVE");
 });
 
 test("double decline is idempotent and never opens access", async () => {
   const f = fixture();
-  await decideJourneyInvitation(f.client, { token: "secret-token", user: { id: "user-a" }, decision: "DECLINED" });
-  const second = await decideJourneyInvitation(f.client, { token: "secret-token", user: { id: "user-a" }, decision: "DECLINED" });
+  await decideJourneyInvitation(f.client, { token: "secret-token", userId: "user-a", decision: "DECLINED" });
+  const second = await decideJourneyInvitation(f.client, { token: "secret-token", userId: "user-a", decision: "DECLINED" });
   assert.equal(second.changed, false); assert.equal(f.events.length, 1); assert.equal(f.invitation.status, "PREPARED");
 });
 
 test("accept versus decline permits one winner", async () => {
   const f = fixture();
   const results = await Promise.allSettled([
-    decideJourneyInvitation(f.client, { token: "secret-token", user: { id: "user-a" }, decision: "ACCEPTED" }),
-    decideJourneyInvitation(f.client, { token: "secret-token", user: { id: "user-a" }, decision: "DECLINED" }),
+    decideJourneyInvitation(f.client, { token: "secret-token", userId: "user-a", decision: "ACCEPTED" }),
+    decideJourneyInvitation(f.client, { token: "secret-token", userId: "user-a", decision: "DECLINED" }),
   ]);
   assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
   assert.equal(f.events.length, 1);
@@ -71,16 +71,25 @@ test("accept versus decline permits one winner", async () => {
 
 test("revocation racing with acceptance rolls the decision back and opens no access", async () => {
   const f = fixture({ revokeDuringAcceptance: true });
-  await assert.rejects(decideJourneyInvitation(f.client, { token: "secret-token", user: { id: "user-a" }, decision: "ACCEPTED" }), /indisponible/);
+  await assert.rejects(decideJourneyInvitation(f.client, { token: "secret-token", userId: "user-a", decision: "ACCEPTED" }), /indisponible/);
   assert.equal(f.consent.status, "PENDING");
   assert.equal(f.invitation.status, "REVOKED");
   assert.equal(f.events.length, 0);
 });
 
-for (const [name, options, user] of [
-  ["revoked", { revoked: true }, "user-a"], ["expired", { expired: true }, "user-a"], ["wrong directory user", {}, "user-b"], ["external identity gap", { inviteeUserId: null }, "user-a"],
+for (const [name, options, userId] of [
+  ["revoked", { revoked: true }, "user-a"], ["expired", { expired: true }, "user-a"], ["wrong directory user", {}, "user-b"],
 ] as const) test(`${name} invitation cannot be accepted`, async () => {
   const f = fixture(options);
-  await assert.rejects(decideJourneyInvitation(f.client, { token: "secret-token", user: { id: user }, decision: "ACCEPTED" }), /indisponible|externe/);
+  await assert.rejects(decideJourneyInvitation(f.client, { token: "secret-token", userId, decision: "ACCEPTED" }), /indisponible/);
   assert.equal(f.events.length, 0); assert.equal(f.invitation.status, options.revoked ? "REVOKED" : "PREPARED");
+});
+
+for (const decision of ["ACCEPTED", "DECLINED"] as const) test(`external invitation can be ${decision.toLowerCase()} without a user`, async () => {
+  const f = fixture({ inviteeUserId: null });
+  const first = await decideJourneyInvitation(f.client, { token: "secret-token", userId: null, decision });
+  const second = await decideJourneyInvitation(f.client, { token: "secret-token", userId: null, decision });
+  assert.equal(first.changed, true); assert.equal(second.changed, false); assert.equal(f.consent.decidedByUserId, null);
+  assert.equal(f.events.length, 1); assert.equal(f.events[0].actorKind, "INVITEE"); assert.equal(f.events[0].actorUserId, null);
+  assert.equal(f.invitation.status, decision === "ACCEPTED" ? "ACTIVE" : "PREPARED");
 });

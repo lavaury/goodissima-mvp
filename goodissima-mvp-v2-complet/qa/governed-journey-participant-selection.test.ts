@@ -62,14 +62,15 @@ test("legacy fallback is humanized and external identity limitation is explicit"
   assert.match(page, /Participation prévue/);
   assert.match(page, /Contexte de participation/);
   assert.match(panel, /le rôle métier n’était pas renseigné/);
-  assert.match(panel, /Une identité Goodissima vérifiée sera nécessaire pour accepter en ligne/);
+  assert.match(panel, /sans compte obligatoire/);
+  assert.match(panel, /Le lien ne vérifie pas son identité/);
 });
 
 test("business role labels survive AI proposal validation", () => {
   assert.match(actions, /participantActorsFromLines/);
   assert.match(actions, /lastIndexOf\(" - "\)/);
   assert.match(actions, /actors: participantActors/);
-  assert.match(page, /participant\.role === "Participant attendu" \? "Participation prévue"/);
+  assert.match(page, /participant\.role === "Participant attendu"\s*\? "Participation prévue"/);
   assert.match(page, /Aucune personne associée/);
 });
 

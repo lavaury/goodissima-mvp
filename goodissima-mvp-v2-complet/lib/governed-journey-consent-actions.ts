@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCurrentPrismaUser } from "@/lib/auth";
+import { normalizeInvitationEmail } from "@/lib/access-invitations";
+import { getCurrentUser } from "@/lib/auth";
 import { decideJourneyInvitation } from "@/lib/governed-journey-consent";
 import { prisma } from "@/lib/prisma";
 
@@ -13,9 +14,10 @@ function tokenFromForm(formData: FormData) {
 
 async function decide(formData: FormData, decision: "ACCEPTED" | "DECLINED") {
   const token = tokenFromForm(formData);
-  const user = await getCurrentPrismaUser();
+  const authUser = await getCurrentUser();
+  const user = authUser?.email ? await prisma.user.findUnique({ where: { email: normalizeInvitationEmail(authUser.email) }, select: { id: true } }) : null;
   try {
-    await decideJourneyInvitation(prisma, { token, user, decision });
+    await decideJourneyInvitation(prisma, { token, userId: user?.id ?? null, decision });
     redirect(`/gouvernance/invitation/${encodeURIComponent(token)}?decision=${decision.toLowerCase()}`);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;

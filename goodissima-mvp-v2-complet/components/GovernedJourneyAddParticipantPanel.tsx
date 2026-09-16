@@ -83,7 +83,7 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
     <section aria-labelledby="external-person-title" className="mt-4 rounded-lg border bg-slate-50 p-4">
       <h4 id="external-person-title" className="font-bold text-slate-950">2. Personne extérieure à Goodissima</h4>
       <p className="mt-1 text-sm text-slate-600">Préparez une invitation personnelle sécurisée. Aucun email ou SMS n’est obligatoire.</p>
-      <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">Cette personne pourra consulter l’invitation. Une identité Goodissima vérifiée sera nécessaire pour accepter en ligne.</p>
+      <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">Cette personne pourra consulter, accepter ou refuser l’invitation avec son lien personnel, sans compte obligatoire. Le lien ne vérifie pas son identité.</p>
       <label className="mt-3 block text-sm font-semibold text-slate-700">Nom de la personne<input value={externalName} onChange={(event) => setExternalName(event.target.value)} required maxLength={120} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
       {roleControl}
       <button type="button" disabled={busy || !externalName.trim()} onClick={() => void createInvitation({ displayName: externalName.trim() })} className="mt-3 min-h-11 rounded-lg bg-[#247f88] px-4 py-2 font-bold text-white disabled:opacity-60">Créer une invitation</button>
