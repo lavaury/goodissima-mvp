@@ -69,7 +69,7 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
   return <details id={contextual ? undefined : "add-participant"} open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className={`${contextual ? "mt-2" : "mt-4"} rounded-lg border border-[#247f88]/40 bg-white p-4`}>
     <summary aria-expanded={open} aria-controls={panelId} className="min-h-11 cursor-pointer py-2 font-bold text-[#176b73] outline-none focus-visible:ring-2 focus-visible:ring-cyan-700">{contextual ? "Choisir une personne" : "Ajouter un participant"}</summary>
     <div id={panelId}>
-    {initialParticipantRole ? <p className="mt-2 rounded-lg bg-cyan-50 p-3 text-sm font-semibold text-cyan-950">{legacyRoleContext ? "Participation prévue — le rôle métier n’était pas renseigné dans ces données historiques." : `Rôle à pourvoir : ${initialParticipantRole}`}</p> : null}
+    {initialParticipantRole ? <p className="mt-2 rounded-lg bg-cyan-50 p-3 text-sm font-semibold text-cyan-950">{legacyRoleContext ? "Participation prévue" : `Rôle à pourvoir : ${initialParticipantRole}`}</p> : null}
     <section aria-labelledby="goodissima-person-title" className="mt-4 rounded-lg border bg-slate-50 p-4">
       <h4 id="goodissima-person-title" className="font-bold text-slate-950">1. Personne déjà dans Goodissima</h4>
       <p className="mt-1 text-sm text-slate-600">Recherchez une personne publiée dans Goodissima. Aucun email n’est nécessaire et aucune notification n’est envoyée automatiquement.</p>

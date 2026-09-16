@@ -15,7 +15,7 @@ export function GovernedJourneyPendingInvitationActions({
   async function revoke() {
     if (
       !window.confirm(
-        "Révoquer cette invitation personnelle ? Le lien deviendra immédiatement inutilisable.",
+        "Révoquer cette invitation ?\n\nLa personne ne pourra plus utiliser son lien personnel. L’historique de l’invitation sera conservé.",
       )
     )
       return;
@@ -39,7 +39,8 @@ export function GovernedJourneyPendingInvitationActions({
         type="button"
         disabled={busy}
         onClick={revoke}
-        className="min-h-11 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-60"
+        aria-label="Révoquer cette invitation en attente"
+        className="min-h-11 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 disabled:opacity-60"
       >
         {busy ? "Révocation…" : "Révoquer l’invitation"}
       </button>

@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
   const token = createJourneyInvitationToken();
   const invitation = await prisma.$transaction(async (tx) => {
-    const existing = await tx.governedJourneyInvitation.findFirst({ where: duplicateWhere, select: { id: true } });
+    const existing = await tx.governedJourneyInvitation.findFirst({ where: duplicateWhere, select: { id: true, status: true, consent: { select: { status: true } } } });
     if (existing) return null;
     const created = await tx.governedJourneyInvitation.create({ data: {
       ownerId: owner.id, workspaceId: relationTemplate.workspaceId, relationTemplateId: relationTemplate.id, relationCaseId,
@@ -83,8 +83,14 @@ export async function POST(request: Request) {
     throw error;
   });
   if (!invitation) {
+    const existing = await prisma.governedJourneyInvitation.findFirst?.({ where: duplicateWhere, select: { status: true, consent: { select: { status: true } } } });
+    const message = existing?.consent?.status === "PENDING"
+      ? "Une invitation est déjà en attente pour cette participation."
+      : existing?.consent?.status === "ACCEPTED" || existing?.status === "ACTIVE"
+        ? "Cette personne participe déjà au parcours."
+        : "Une invitation existe déjà pour cette participation.";
     return NextResponse.json(
-      { error: "Un accès actif existe déjà pour ce participant. Révoquez-le avant d’en créer un nouveau." },
+      { error: message },
       { status: 409 },
     );
   }

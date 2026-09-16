@@ -9,6 +9,8 @@ const panel = read("components/GovernedJourneyAddParticipantPanel.tsx");
 const actions = read("lib/governance-journey-actions.ts");
 const invitationRoute = read("app/api/gouvernance/invitations/route.ts");
 const expectedRoles = read("lib/governed-journey-expected-roles.ts");
+const pendingActions = read("components/GovernedJourneyPendingInvitationActions.tsx");
+const revokeRoute = read("app/api/gouvernance/invitations/[id]/revoke/route.ts");
 
 test("participant addition exposes directory and personal external invitation", () => {
   assert.match(panel, /Personne déjà dans Goodissima/);
@@ -61,9 +63,30 @@ test("server derives the business label from the Journey role", () => {
 test("legacy fallback is humanized and external identity limitation is explicit", () => {
   assert.match(page, /Participation prévue/);
   assert.match(page, /Contexte de participation/);
-  assert.match(panel, /le rôle métier n’était pas renseigné/);
+  assert.doesNotMatch(panel, /le rôle métier n’était pas renseigné|données historiques|champ manquant|snapshot ancien/i);
+  assert.match(panel, /legacyRoleContext \? "Participation prévue"/);
   assert.match(panel, /sans compte obligatoire/);
   assert.match(panel, /Le lien ne vérifie pas son identité/);
+});
+
+test("pending duplicate is described as an invitation, not active access", () => {
+  assert.match(invitationRoute, /Une invitation est déjà en attente pour cette participation/);
+  assert.match(invitationRoute, /Cette personne participe déjà au parcours/);
+  assert.doesNotMatch(invitationRoute, /Un accès actif existe déjà/);
+});
+
+test("pending invitation is visible, manageable and safely revocable", () => {
+  assert.match(page, /Invitations en attente/);
+  assert.match(page, /invitation\.consent\?\.status === "PENDING"/);
+  assert.match(page, /GovernedJourneyPendingInvitationActions/);
+  assert.match(pendingActions, /Révoquer cette invitation en attente/);
+  assert.match(pendingActions, /L’historique de l’invitation sera conservé/);
+  assert.match(pendingActions, /focus-visible:ring-2/);
+  assert.match(pendingActions, /min-h-11/);
+  assert.match(revokeRoute, /id: params\.id, ownerId: owner\.id/);
+  assert.match(revokeRoute, /status: \{ in: \["ACTIVE", "PREPARED"\] \}/);
+  assert.match(revokeRoute, /type: "REVOKED"/);
+  assert.match(revokeRoute, /actorKind: "OWNER"/);
 });
 
 test("business role labels survive AI proposal validation", () => {
