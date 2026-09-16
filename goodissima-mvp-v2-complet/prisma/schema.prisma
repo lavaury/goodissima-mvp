@@ -37,6 +37,8 @@ model User {
   governedJourneys                                                                              GovernedJourney[]
   governedJourneyConsentDecisions                                                               GovernedJourneyConsent[]              @relation("GovernedJourneyConsentDecider")
   governedJourneyConsentEvents                                                                  GovernedJourneyConsentEvent[]         @relation("GovernedJourneyConsentEventActor")
+  governedMeetingRsvpDecisions                                                                  GovernedMeetingRsvp[]                 @relation("GovernedMeetingRsvpDecider")
+  governedMeetingRsvpEvents                                                                     GovernedMeetingRsvpEvent[]            @relation("GovernedMeetingRsvpEventActor")
   governedJourneyInvitations                                                                    GovernedJourneyInvitation[]           @relation("GovernedJourneyInvitationInvitee")
   GovernedJourneyCreationRequest                                                                GovernedJourneyCreationRequest[]
   GovernedJourneyEvent                                                                          GovernedJourneyEvent[]
@@ -223,6 +225,7 @@ model CommunicationSession {
   tokenGenerated            Boolean                      @default(false)
   accessOpened              Boolean                      @default(false)
   workflowStarted           Boolean                      @default(false)
+  rsvpRevision              Int                          @default(1)
   createdAt                 DateTime                     @default(now())
   updatedAt                 DateTime                     @updatedAt
   metadata                  Json?
@@ -253,9 +256,51 @@ model GovernedMeetingParticipant {
   authorizedBy                User?                            @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id])
   communicationSession        CommunicationSession             @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
   governedJourneyInvitation   GovernedJourneyInvitation        @relation(fields: [governedJourneyInvitationId], references: [id], onDelete: Cascade)
+  rsvp                        GovernedMeetingRsvp?
+  rsvpEvents                  GovernedMeetingRsvpEvent[]
 
   @@unique([communicationSessionId, governedJourneyInvitationId], map: "GovernedMeetingParticipant_communicationSessionId_governedJourn")
   @@index([governedJourneyInvitationId, status], map: "GovernedMeetingParticipant_governedJourneyInvitationId_status_i")
+}
+
+/// Meeting RSVP is distinct from Journey consent, technical authorization and observed presence.
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model GovernedMeetingRsvp {
+  id                   String                     @id @default(cuid())
+  meetingParticipantId String                     @unique
+  status               MeetingRsvpStatus          @default(PENDING)
+  decidedAt            DateTime?
+  decidedByUserId      String?
+  version              Int                        @default(0)
+  meetingRevision      Int
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  meetingParticipant   GovernedMeetingParticipant @relation(fields: [meetingParticipantId], references: [id], onDelete: Restrict)
+  decidedByUser        User?                      @relation("GovernedMeetingRsvpDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  events               GovernedMeetingRsvpEvent[]
+
+  @@index([status, updatedAt])
+  @@index([meetingRevision, status])
+}
+
+/// Append-only audit trail for meeting invitations and RSVP transitions.
+model GovernedMeetingRsvpEvent {
+  id                   String                       @id @default(cuid())
+  meetingParticipantId String
+  rsvpId               String?
+  type                 GovernedMeetingRsvpEventType
+  actorUserId          String?
+  actorKind            GovernedMeetingRsvpActorKind
+  occurredAt           DateTime                     @default(now())
+  rsvpVersion          Int?
+  meetingRevision      Int
+  createdAt            DateTime                     @default(now())
+  meetingParticipant   GovernedMeetingParticipant   @relation(fields: [meetingParticipantId], references: [id], onDelete: Restrict)
+  rsvp                 GovernedMeetingRsvp?         @relation(fields: [rsvpId], references: [id], onDelete: Restrict)
+  actorUser            User?                        @relation("GovernedMeetingRsvpEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([meetingParticipantId, occurredAt, id])
+  @@index([rsvpId, occurredAt, id])
 }
 
 model AccessInvitation {
@@ -2348,6 +2393,26 @@ enum CommunicationProvider {
 enum GovernedMeetingParticipantStatus {
   AUTHORIZED
   REMOVED
+}
+
+enum MeetingRsvpStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum GovernedMeetingRsvpEventType {
+  INVITED
+  ACCEPTED
+  DECLINED
+  RESET_TO_PENDING
+  MEETING_CANCELLED
+}
+
+enum GovernedMeetingRsvpActorKind {
+  INVITEE
+  ORGANIZER
+  SYSTEM
 }
 
 enum FavoriteObjectKind {

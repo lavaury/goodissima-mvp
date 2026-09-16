@@ -38,6 +38,8 @@ Les autres entrées n'ont aucune date de résolution et ne sont pas corrigées p
 | MEM-TRANSITION-MODEL-01 | Transitions mémoire sans contrat d'autorisation/idempotence complet | P1 | OPEN | Résolution de contestation, révision de fait, remplacement/annulation de décision et rattachement de source restent `MODEL_GAP` jusqu'à définition explicite des permissions et `TransitionType`. | PARCOURS-UX-02A.2c |
 | JOURNEY-CONSENT-01 | Consentement explicite au Parcours absent | P1 | OPEN | `acceptedAt` est renseigné à la première consultation du lien et ne constitue pas une acceptation explicite ; aucun état de refus ni transition serveur dédiée. Ne pas exposer Accepter/Refuser avant modèle persistant et audit d'autorisation. | Parcours consentement |
 | MEETING-RSVP-01 | RSVP de réunion absent | P1 | OPEN | `GovernedMeetingParticipant` porte uniquement AUTHORIZED/REMOVED : ce périmètre d'accès ne prouve ni invitation reçue, ni présence confirmée, ni refus. | PARCOURS-UX-03B |
+| MEETING-INVITATION-NOTIFICATION-01 | Notification d'invitation réunion absente | P1 | OPEN | Les notifications persistantes couvrent uniquement les nouveaux dossiers et messages ; aucun type ni rattachement réunion fiable. | MEETING-RSVP |
+| MEETING-PRESENCE-EVIDENCE-01 | Présence réunion seulement observée côté client | P1 | OPEN | `metadata.attendance` reçoit join/leave/media du client sans preuve serveur LiveKit et ne doit pas être assimilé au RSVP. | MEDIA-PRESENCE |
 | PARCOURS-UX-03B | Surface de réunion dédiée responsive | P2 | OPEN | La carte Journey reste une carte de pilotage ; aucune grille vidéo multipersonne ni surface RSVP n'est créée dans 03A. | PARCOURS-UX-03B |
 
 ## Preuves de résolution D-001 / D-017
