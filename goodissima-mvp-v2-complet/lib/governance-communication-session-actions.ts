@@ -270,7 +270,7 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
   });
   if (duplicate && textFromForm(formData, "forceCreate") !== "true") redirect(`/gouvernance/parcours/${formTemplateId}/pilotage?similarMeetingId=${duplicate.id}#meeting-${duplicate.id}`);
 
-  const activeGovernedInvitations = await prisma.governedJourneyInvitation.findMany({ where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id, status: "ACTIVE", revokedAt: null, accessTokenExpiresAt: { gt: new Date() } } });
+  const activeGovernedInvitations = await prisma.governedJourneyInvitation.findMany({ where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id, status: "ACTIVE", revokedAt: null, accessTokenExpiresAt: { gt: new Date() }, OR: [{ consent: { is: null } }, { consent: { is: { status: "ACCEPTED" } } }] } });
   const governedInvitationByPreparedId = new Map(expectedParticipants.map((participant) => {
     const access = activeGovernedInvitations.find((invitation) => {
       const accessMetadata = asRecord(invitation.metadata);

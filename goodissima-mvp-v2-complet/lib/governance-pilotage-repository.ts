@@ -25,7 +25,7 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
             formTemplates: { orderBy: workspaceId ? { createdAt: "asc" } : undefined, select: { id: true } },
             governedJourneyInvitations: {
               where: workspaceId ? { ownerId, workspaceId } : undefined,
-              select: { id: true, displayName: true, status: true, revokedAt: true, accessTokenExpiresAt: true, acceptedAt: true, createdAt: true },
+              select: { id: true, displayName: true, status: true, revokedAt: true, accessTokenExpiresAt: true, acceptedAt: true, createdAt: true, consent: { select: { status: true } } },
             },
             communicationSessions: {
               where: workspaceId ? { ownerId, workspaceId, relationCaseId: null,
@@ -87,7 +87,7 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
     for (const invitation of journey.governedJourneyInvitations) {
       if (invitation.revokedAt) signals.push({ id: `revoked-${invitation.id}`, kind: "ACCESS", title: "Accès révoqué", subject: invitation.displayName, ...base, reason: "Cet accès ne permet plus de rejoindre le parcours ni ses réunions.", actionLabel: "Ouvrir le parcours", href, date: invitation.revokedAt });
       else if (invitation.accessTokenExpiresAt < now) signals.push({ id: `expired-${invitation.id}`, kind: "ACCESS", title: "Accès invité expiré", subject: invitation.displayName, ...base, reason: "Un nouvel accès doit être créé manuellement si cette personne participe encore.", actionLabel: "Créer un nouvel accès", href, date: invitation.accessTokenExpiresAt });
-      else if ((invitation.status === "ACTIVE" || invitation.status === "PREPARED") && !invitation.acceptedAt) signals.push({ id: `deliver-${invitation.id}`, kind: "ACTION", title: "Lien invité à transmettre manuellement", subject: invitation.displayName, ...base, reason: "Le lien n’a pas encore été consulté. Il n’est plus réaffichable dans la salle de pilotage.", actionLabel: "Ouvrir le parcours", href, date: invitation.createdAt });
+      else if (invitation.consent?.status === "PENDING" || (!invitation.consent && (invitation.status === "ACTIVE" || invitation.status === "PREPARED") && !invitation.acceptedAt)) signals.push({ id: `deliver-${invitation.id}`, kind: "ACTION", title: "Invitation en attente", subject: invitation.displayName, ...base, reason: "La personne n’a pas encore accepté ou refusé cette invitation.", actionLabel: "Ouvrir le parcours", href, date: invitation.createdAt });
     }
     for (const meeting of journey.communicationSessions) {
       const meetingHref = `${href}#meeting-${meeting.id}`; const authorized = meeting.meetingParticipants.filter((participant) => participant.status === "AUTHORIZED");
@@ -99,7 +99,7 @@ export async function getGovernancePilotage(ownerId: string, portfolioId?: strin
       if (meeting.status === "COMPLETED") signals.push({ id: `completed-${meeting.id}`, kind: "HISTORY", title: "Réunion terminée", subject: meeting.title, ...base, reason: "Réunion conservée en lecture seule dans l’historique.", actionLabel: "Consulter l’historique", href: meetingHref, date: meeting.updatedAt });
       if (meeting.status === "CANCELLED") signals.push({ id: `cancelled-${meeting.id}`, kind: "HISTORY", title: "Réunion annulée", subject: meeting.title, ...base, reason: "Réunion annulée et conservée dans l’historique.", actionLabel: "Consulter", href: meetingHref, date: meeting.updatedAt });
       if (meeting.createdAt >= recentSince || meeting.updatedAt >= recentSince) signals.push({ id: `recent-${meeting.id}`, kind: "RECENT", title: "Communication récente", subject: meeting.title, ...base, reason: "Communication créée ou mise à jour au cours des 14 derniers jours.", actionLabel: "Ouvrir le parcours", href: meetingHref, date: meeting.updatedAt });
-      const activeNames = new Set(journey.governedJourneyInvitations.filter((item) => item.status === "ACTIVE" && !item.revokedAt && item.accessTokenExpiresAt > now).map((item) => item.displayName.toLocaleLowerCase("fr")));
+      const activeNames = new Set(journey.governedJourneyInvitations.filter((item) => item.status === "ACTIVE" && !item.revokedAt && item.accessTokenExpiresAt > now && (!item.consent || item.consent.status === "ACCEPTED")).map((item) => item.displayName.toLocaleLowerCase("fr")));
       // Workspace V1 excludes absence inferred by names from a filtered invitation set:
       // a valid historical invitation may belong to another Workspace after a move.
       if (!workspaceId) for (const participant of selectedParticipants(meeting.metadata)) if (!activeNames.has(participant.name.toLocaleLowerCase("fr"))) signals.push({ id: `missing-${meeting.id}-${participant.name}`, kind: "ACTION", title: "Participant sans accès actif", subject: participant.name, ...base, reason: `Sélectionné pour « ${meeting.title} », mais aucun accès invité actif ne correspond.`, actionLabel: "Créer ou renouveler l’accès invité", href: meetingHref, date: meeting.scheduledAt });

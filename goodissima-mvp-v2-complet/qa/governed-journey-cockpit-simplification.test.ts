@@ -10,8 +10,12 @@ test("participants and template roles are distinct and remain dense", () => {
   assert.match(page, /Participants du parcours/);
   assert.match(page, /Rôles à pourvoir/);
   assert.match(page, /Aucune personne associée/);
-  assert.match(page, /activeJourneyInvitations\.slice\(0, 5\)/);
-  assert.match(page, /Voir tous les participants/);
+  assert.match(page, /governedInvitations\.slice\(0, 5\)/);
+  assert.match(page, /Invitation en attente/);
+  assert.match(page, /Participation acceptée/);
+  assert.match(page, /Invitation refusée/);
+  assert.match(page, /Accès révoqué/);
+  assert.match(page, /Voir toutes les personnes/);
   assert.match(page, /unfilledRoles\.length <= 5/);
   assert.match(page, /Choisir une personne/);
 });

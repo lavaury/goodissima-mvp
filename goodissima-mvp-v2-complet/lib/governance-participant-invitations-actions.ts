@@ -46,7 +46,7 @@ function defaultMessageDraft(input: { journeyTitle: string; journeyObjective: st
     "Cette invitation concerne le parcours, pas automatiquement toutes ses réunions.",
     "Participer permet de consulter les éléments rendus accessibles et de contribuer selon le rôle attribué.",
     "Cette invitation n'a pas ete envoyee automatiquement par Goodissima.",
-    "L’ouverture du lien ne vaut pas consentement formel : aucun mécanisme d’acceptation ou de refus n’est encore disponible.",
+    "L’ouverture du lien ne vaut pas acceptation : vous pourrez accepter ou refuser explicitement après vous être identifié(e).",
   ].join("\n");
 }
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import * as jsx from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -10,6 +11,7 @@ import { loadTestModule } from "./helpers/load-test-module.ts";
 const require = createRequire(import.meta.url);
 const { NextRequest, NextResponse } = require("next/server");
 const token = "fixture-guest-token";
+const invitationPageSource = readFileSync(new URL("../app/gouvernance/invitation/[token]/page.tsx", import.meta.url), "utf8");
 
 function middlewareWithSession(connected: boolean) {
   let authCalls = 0;
@@ -38,9 +40,12 @@ function guestPage(state: "valid" | "revoked" | "expired" | "inactive" | "unknow
     revokedAt: state === "revoked" ? new Date() : null,
     accessTokenExpiresAt: new Date(Date.now() + (state === "expired" ? -60_000 : 60_000)),
     acceptedAt: null,
+    inviteeUserId: null,
+    consent: null,
   };
   const { default: page } = loadTestModule("app/gouvernance/invitation/[token]/page.tsx", {
     "react/jsx-runtime": jsx,
+    "next/link": { default: (props: any) => jsx.jsx("a", props) },
     "next/navigation": { notFound: () => { throw new Error("NEXT_NOT_FOUND"); } },
     "@/components/GovernedInvitationStatusRefresh": { GovernedInvitationStatusRefresh: () => null },
     "@/components/RelationLiveKitMediaRoom": { RelationLiveKitMediaRoom: (props: any) => {
@@ -49,6 +54,10 @@ function guestPage(state: "valid" | "revoked" | "expired" | "inactive" | "unknow
       return jsx.jsx("button", { children: props.joinLabel });
     } },
     "@/lib/governed-invitation-role-label": { getGovernedInvitationRoleLabel: () => "Observateur" },
+    "@/lib/access-invitations": { normalizeInvitationEmail: (email: string) => email.toLowerCase() },
+    "@/lib/auth": { getCurrentUser: async () => null },
+    "@/lib/governed-journey-consent-actions": { acceptJourneyInvitation() {}, declineJourneyInvitation() {} },
+    "@/lib/governed-journey-consent": { projectJourneyConsent: () => "LEGACY_UNKNOWN", hasCurrentJourneyAccess: () => true },
     "@/lib/governed-journey-invitations": { hashJourneyInvitationToken },
     "@/lib/prisma": { prisma: {
       governedJourneyInvitation: {
@@ -81,7 +90,7 @@ for (const connected of [false, true]) {
     const html = renderToStaticMarkup(await fixture.page({ params: { token } }));
     assert.match(html, /Invitation au parcours/);
     assert.match(html, /Fixture Owner/);
-    assert.match(html, /ne vaut pas acceptation formelle/);
+    assert.match(html, /Vous participez/);
     assert.doesNotMatch(html, />Accepter<|>Refuser</);
     assert.doesNotMatch(html, /Navigation principale|href="\/(?:dashboard|settings|administration|gouvernance)/);
     assert.equal(getCompassContext(`/gouvernance/invitation/${token}`), null);
@@ -105,7 +114,7 @@ for (const state of ["revoked", "expired", "inactive", "unknown"] as const) {
     if (state === "unknown") {
       await assert.rejects(fixture.page({ params: { token } }), /NEXT_NOT_FOUND/);
     } else {
-      assert.match(renderToStaticMarkup(await fixture.page({ params: { token } })), /Acces refuse/);
+      assert.match(renderToStaticMarkup(await fixture.page({ params: { token } })), /Accès refusé/);
     }
     assert.equal(fixture.updates.length, 0);
     assert.equal(fixture.participationQueries.length, 0);
@@ -128,6 +137,14 @@ test("only the invitation leaf bypasses authentication; other governance paths r
     assert.equal(response.headers.get("X-Robots-Tag"), "noindex, nofollow, noarchive");
   }
   assert.equal(getCompassContext("/gouvernance")?.id, "governance");
+});
+
+test("a connected wrong directory user is rejected before invitation details are rendered", () => {
+  const identityGuard = invitationPageSource.indexOf("invitation.inviteeUserId !== currentUser.id");
+  const limitedInvitation = invitationPageSource.indexOf("Vous êtes invité(e) à participer");
+  assert.ok(identityGuard >= 0);
+  assert.ok(limitedInvitation > identityGuard);
+  assert.match(invitationPageSource.slice(identityGuard, limitedInvitation), /Invitation indisponible/);
 });
 
 test("existing secure-candidate bypass and authenticated login redirect are unchanged", async () => {

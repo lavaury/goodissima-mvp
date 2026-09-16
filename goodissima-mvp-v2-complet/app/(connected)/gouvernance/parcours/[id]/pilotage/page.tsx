@@ -218,7 +218,7 @@ function defaultInvitationMessageDraft(input: { journeyTitle: string; journeyObj
     "Cette invitation concerne le parcours, pas automatiquement toutes ses réunions.",
     "Participer permet de consulter les éléments rendus accessibles et de contribuer selon le rôle attribué.",
     "Cette invitation n'a pas ete envoyee automatiquement par Goodissima.",
-    "L’ouverture du lien ne vaut pas consentement formel : aucun mécanisme d’acceptation ou de refus n’est encore disponible.",
+    "L’ouverture du lien ne vaut pas acceptation : la personne invitée pourra accepter ou refuser explicitement après s’être identifiée.",
   ].join("\n");
 }
 
@@ -507,15 +507,16 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     ? await getGovernanceCockpitConsolidation({ ownerId: owner.id, formTemplateId: formTemplate.id })
     : null;
   const governedInvitations = formTemplate.relationTemplate?.id
-    ? await prisma.governedJourneyInvitation.findMany({
+      ? await prisma.governedJourneyInvitation.findMany({
         where: { ownerId: owner.id, relationTemplateId: formTemplate.relationTemplate.id },
+        include: { consent: true },
         orderBy: { createdAt: "desc" },
       })
     : [];
   const meetingParticipants = communicationOverview.sessions.length > 0
     ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } } })
     : [];
-  const activeJourneyInvitations = governedInvitations.filter((invitation) => invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date());
+  const activeJourneyInvitations = governedInvitations.filter((invitation) => invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && (!invitation.consent || invitation.consent.status === "ACCEPTED"));
   const unfilledRoles = participants.filter((participant) => !participantMatchesOrganizer(participant.name, owner) && !activeJourneyInvitations.some((invitation) => {
     const invitationMetadata = asRecord(invitation.metadata);
     const linkedName = text(invitationMetadata.participantName) ?? invitation.displayName;
@@ -523,7 +524,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     return normalizedIdentity(linkedName) === normalizedIdentity(participant.name) && (!linkedRole || normalizedIdentity(linkedRole) === normalizedIdentity(participant.role));
   }));
   const expectedParticipantNames = new Set(participants.map((participant) => participant.name.toLocaleLowerCase("fr")));
-  const additionalActiveParticipants = governedInvitations.filter((invitation) => invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && !expectedParticipantNames.has(invitation.displayName.toLocaleLowerCase("fr")));
+  const additionalActiveParticipants = activeJourneyInvitations.filter((invitation) => !expectedParticipantNames.has(invitation.displayName.toLocaleLowerCase("fr")));
   const pendingReviews = governanceReviewPreparations.filter((review) => review.status !== "COMPLETED").length;
   const primaryMeetings = selectPrimaryMeetings(communicationOverview.sessions);
   const meetingToComplete = primaryMeetings.find((meeting) => !meetingIsClosed(meeting));
@@ -816,7 +817,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                           <div className="mt-3">
                             <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel="Ouvrir la réunion" expectedParticipants={[
                               { identity: `owner:${owner.id}`, displayName: owner.name || owner.email, roleLabel: "Organisateur", accessKind: "compte Goodissima" },
-                              ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date()).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité gouverné" })),
+                              ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && (!invitation.consent || invitation.consent.status === "ACCEPTED")).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité gouverné" })),
                             ]} />
                           </div>
                         ) : null}
@@ -898,9 +899,9 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <section data-boussole-id="governed-journey-participants" className="rounded-lg border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h3 className="text-lg font-bold text-slate-950">Participants du parcours</h3><p className="text-sm font-semibold text-slate-600">{1 + activeJourneyInvitations.length} actif{1 + activeJourneyInvitations.length > 1 ? "s" : ""}</p></div>
           {attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} /> : <p className="mt-3 text-sm text-slate-600">Rattachez d’abord le parcours à un espace pour ajouter un participant.</p>}
-          {activeJourneyInvitations.length === 0 ? <p className="mt-4 text-sm text-slate-600">Aucun autre participant n’a encore reçu d’accès à ce parcours.</p> : <>
-            <ul className="mt-4 divide-y rounded-lg border bg-slate-50">{activeJourneyInvitations.slice(0, 5).map((participant, index) => <li key={participant.id} data-boussole-id={index === 0 ? "governed-journey-participant" : undefined} className="flex min-w-0 flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words font-semibold text-slate-950">{participant.displayName}</span><span className="text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)} · Accès actif</span></li>)}</ul>
-            {activeJourneyInvitations.length > 5 ? <details className="mt-3 rounded-lg border bg-white"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-[#176b73]">Voir tous les participants ({activeJourneyInvitations.length})</summary><ul className="divide-y border-t">{activeJourneyInvitations.slice(5).map((participant) => <li key={participant.id} className="flex min-w-0 flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words font-semibold text-slate-950">{participant.displayName}</span><span className="text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)} · Accès actif</span></li>)}</ul></details> : null}
+          {governedInvitations.length === 0 ? <p className="mt-4 text-sm text-slate-600">Aucune invitation n’a encore été créée pour ce parcours.</p> : <>
+            <ul className="mt-4 divide-y rounded-lg border bg-slate-50">{governedInvitations.slice(0, 5).map((participant, index) => { const status = participant.revokedAt || participant.status === "REVOKED" ? "Accès révoqué" : participant.consent?.status === "DECLINED" ? "Invitation refusée" : participant.consent?.status === "ACCEPTED" && participant.status === "ACTIVE" ? "Participation acceptée" : participant.consent?.status === "PENDING" ? "Invitation en attente" : "Invitation historique"; return <li key={participant.id} data-boussole-id={index === 0 ? "governed-journey-participant" : undefined} className="flex min-w-0 flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words font-semibold text-slate-950">{participant.displayName}</span><span className="text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)} · {status}</span></li>; })}</ul>
+            {governedInvitations.length > 5 ? <details className="mt-3 rounded-lg border bg-white"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-[#176b73]">Voir toutes les personnes ({governedInvitations.length})</summary><ul className="divide-y border-t">{governedInvitations.slice(5).map((participant) => <li key={participant.id} className="flex min-w-0 flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words font-semibold text-slate-950">{participant.displayName}</span><span className="text-sm text-slate-600">{governedInvitationRoleLabel(participant.role)} · {participant.revokedAt || participant.status === "REVOKED" ? "Accès révoqué" : participant.consent?.status === "DECLINED" ? "Invitation refusée" : participant.consent?.status === "ACCEPTED" ? "Participation acceptée" : participant.consent?.status === "PENDING" ? "Invitation en attente" : "Invitation historique"}</span></li>)}</ul></details> : null}
           </>}
 
           <section id="roles-to-fill" className="mt-6 border-t pt-5">
@@ -932,14 +933,14 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                       (!linkedRole || linkedRole.toLowerCase() === participant.role.toLowerCase());
                   })
                   .map((access) => ({ id: access.id, displayName: access.displayName, role: access.role,
-                    status: access.status, expiresAt: access.accessTokenExpiresAt.toISOString(), relationCaseId: access.relationCaseId }));
+                    status: access.status, consentStatus: access.consent?.status ?? null, expiresAt: access.accessTokenExpiresAt.toISOString(), relationCaseId: access.relationCaseId }));
 
                 return (
                 <article key={`${participant.name}-${index}`} data-boussole-id="governed-journey-participant" data-boussole-state={invitation ? "invitation-prepared" : "expected"} className="rounded-lg border bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{participant.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{participant.role}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-700">État : {participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date()) ? "Accès actif" : invitation ? "Invitation en préparation" : "Invitation à préparer"}</p>
-                  <details className="mt-2"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-slate-700">Voir les droits</summary><div className="rounded-lg bg-white p-3 text-sm text-slate-700"><p><strong>Rôle prévu :</strong> {participant.role}</p><p className="mt-1">{participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date()) ? "Peut consulter les éléments accessibles de ce parcours avec son lien personnel." : "Aucun accès au parcours n’est encore ouvert."}</p><p className="mt-1 text-xs">L’accès à chaque réunion est géré séparément.</p></div></details>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">État : {participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date() && (item.consentStatus === null || item.consentStatus === "ACCEPTED")) ? "Participation acceptée" : participantGovernedInvitations.some((item) => item.consentStatus === "DECLINED") ? "Invitation refusée" : invitation ? "Invitation en attente" : "Invitation à préparer"}</p>
+                  <details className="mt-2"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-slate-700">Voir les droits</summary><div className="rounded-lg bg-white p-3 text-sm text-slate-700"><p><strong>Rôle prévu :</strong> {participant.role}</p><p className="mt-1">{participantGovernedInvitations.some((item) => item.status === "ACTIVE" && new Date(item.expiresAt) > new Date() && (item.consentStatus === null || item.consentStatus === "ACCEPTED")) ? "Peut consulter les éléments accessibles de ce parcours avec son lien personnel." : "Aucun accès au parcours n’est encore ouvert."}</p><p className="mt-1 text-xs">L’accès à chaque réunion est géré séparément.</p></div></details>
                   {!isOrganizer ? <details className="mt-3 rounded-lg border bg-white p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-[#247f88]">{invitation ? "Modifier l’invitation au parcours" : "Inviter au parcours"}</summary>
                   {invitation ? (
                     <div className="mt-4 space-y-3">
@@ -1267,7 +1268,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   <div className="mt-3">
                     <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel={meetingParticipants.some((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED") ? "Ouvrir la réunion" : "Ouvrir quand même"} expectedParticipants={[
                       { identity: `owner:${owner.id}`, displayName: owner.name || owner.email, roleLabel: "Organisateur", accessKind: "compte Goodissima" },
-                      ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date()).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité" })),
+                      ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && (!invitation.consent || invitation.consent.status === "ACCEPTED")).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité" })),
                     ]} />
                   </div>
                 ) : null}
@@ -1302,7 +1303,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                         const invitationMetadata = asRecord(invitation.metadata);
                         const selectedPreviously = governedMeetingSelectedPreparedIds(session.metadata, session.note).some((preparedId) => participantInvitations.some((prepared) => prepared.invitationId === preparedId && prepared.participantName.toLocaleLowerCase("fr") === invitation.displayName.toLocaleLowerCase("fr") && (!text(invitationMetadata.participantRole) || prepared.participantRole.toLocaleLowerCase("fr") === text(invitationMetadata.participantRole)?.toLocaleLowerCase("fr"))));
                         const expired = invitation.accessTokenExpiresAt <= new Date();
-                        const unavailable = invitation.status !== "ACTIVE" || Boolean(invitation.revokedAt) || expired;
+                        const unavailable = invitation.status !== "ACTIVE" || Boolean(invitation.revokedAt) || expired || Boolean(invitation.consent && invitation.consent.status !== "ACCEPTED");
                         const authorized = assignment?.status === "AUTHORIZED" && !unavailable;
                         const status = invitation.revokedAt || invitation.status === "REVOKED" ? "Accès retiré" : expired || invitation.status === "EXPIRED" ? "Accès expiré" : authorized ? "Accès à la réunion" : selectedPreviously ? "Participant prévu · accès à ouvrir" : "Sans accès à cette réunion";
                         return <div key={invitation.id} className="flex flex-col gap-2 rounded-lg border bg-white p-2 sm:flex-row sm:items-center sm:justify-between">

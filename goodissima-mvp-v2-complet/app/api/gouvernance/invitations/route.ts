@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { createJourneyInvitationToken, hashJourneyInvitationToken } from "@/lib/governed-journey-invitations";
 import { prisma } from "@/lib/prisma";
@@ -34,49 +35,54 @@ export async function POST(request: Request) {
   if (directoryProfile?.subjectIdentity.user?.id === owner.id) {
     return NextResponse.json({ error: "L’organisateur participe déjà à ce parcours." }, { status: 409 });
   }
+  const relationTemplate = form.relationTemplate;
 
   if (relationCaseId) {
     const allowedCase = await prisma.relationCase.findFirst({ where: { id: relationCaseId, ownerId: owner.id, templateId: form.relationTemplate.id }, select: { id: true } });
     if (!allowedCase) return NextResponse.json({ error: "Dossier relationnel non autorisé pour ce parcours." }, { status: 400 });
   }
 
-  const existing = await prisma.governedJourneyInvitation.findFirst({
-    where: {
+  const duplicateWhere = {
       ownerId: owner.id,
-      relationTemplateId: form.relationTemplate.id,
+      relationTemplateId: relationTemplate.id,
       ...(directoryPublicId
-        ? { OR: [{ metadata: { path: ["directoryPublicId"], equals: directoryPublicId } }, { displayName: resolvedDisplayName }] }
+        ? { OR: [{ inviteeUserId: directoryProfile?.subjectIdentity.user?.id }, { metadata: { path: ["directoryPublicId"], equals: directoryPublicId } }] }
         : { displayName: resolvedDisplayName }),
-      status: "ACTIVE",
+      status: { in: ["PREPARED", "ACTIVE"] },
       accessTokenExpiresAt: { gt: new Date() },
-    },
-    select: { id: true },
+  } satisfies Prisma.GovernedJourneyInvitationWhereInput;
+
+  const token = createJourneyInvitationToken();
+  const invitation = await prisma.$transaction(async (tx) => {
+    const existing = await tx.governedJourneyInvitation.findFirst({ where: duplicateWhere, select: { id: true } });
+    if (existing) return null;
+    const created = await tx.governedJourneyInvitation.create({ data: {
+      ownerId: owner.id, workspaceId: relationTemplate.workspaceId, relationTemplateId: relationTemplate.id, relationCaseId,
+      displayName: resolvedDisplayName, role, status: "PREPARED", inviteeUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
+      accessTokenHash: hashJourneyInvitationToken(token), accessTokenExpiresAt: new Date(Date.now() + expiresInDays * 86400000),
+      metadata: {
+        participantName: participantName || resolvedDisplayName, participantRole, preparedEmail, directoryPublicId,
+        subjectUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
+        deliveryMode: "MANUAL_OUT_OF_BAND", automaticEmailSent: false, automaticNotificationSent: false,
+        mediaStarted: false, liveKitRoomCreated: false,
+      },
+    }});
+    const consent = await tx.governedJourneyConsent.create({ data: { invitationId: created.id, status: "PENDING" } });
+    await tx.governedJourneyConsentEvent.create({ data: {
+      invitationId: created.id, consentId: consent.id, type: "CREATED", actorUserId: owner.id,
+      actorKind: "OWNER", occurredAt: new Date(), consentVersion: consent.version, roleSnapshot: created.role,
+    }});
+    return created;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).catch((error: unknown) => {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return null;
+    throw error;
   });
-  if (existing) {
+  if (!invitation) {
     return NextResponse.json(
       { error: "Un accès actif existe déjà pour ce participant. Révoquez-le avant d’en créer un nouveau." },
       { status: 409 },
     );
   }
-
-  const token = createJourneyInvitationToken();
-  const invitation = await prisma.governedJourneyInvitation.create({ data: {
-    ownerId: owner.id, workspaceId: form.relationTemplate.workspaceId, relationTemplateId: form.relationTemplate.id, relationCaseId,
-    displayName: resolvedDisplayName, role, status: "ACTIVE", accessTokenHash: hashJourneyInvitationToken(token),
-    accessTokenExpiresAt: new Date(Date.now() + expiresInDays * 86400000),
-    metadata: {
-      participantName: participantName || resolvedDisplayName,
-      participantRole,
-      preparedEmail,
-      directoryPublicId,
-      subjectUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
-      deliveryMode: "MANUAL_OUT_OF_BAND",
-      automaticEmailSent: false,
-      automaticNotificationSent: false,
-      mediaStarted: false,
-      liveKitRoomCreated: false,
-    },
-  }});
   const origin = new URL(request.url).origin;
   return NextResponse.json({ id: invitation.id, link: `${origin}/gouvernance/invitation/${token}` });
 }

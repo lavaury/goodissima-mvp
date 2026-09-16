@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasCurrentJourneyAccess } from "@/lib/governed-journey-consent";
 
 async function governedMeetingScope(formData: FormData) {
   const owner = await getCurrentPrismaUser();
@@ -12,7 +13,7 @@ async function governedMeetingScope(formData: FormData) {
   const [form, session, invitation] = await Promise.all([
     prisma.formTemplate.findFirst({ where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } }, select: { relationTemplateId: true } }),
     prisma.communicationSession.findFirst({ where: { id: communicationSessionId, ownerId: owner.id }, select: { id: true, relationTemplateId: true, status: true, expiresAt: true } }),
-    prisma.governedJourneyInvitation.findFirst({ where: { id: invitationId, ownerId: owner.id } }),
+    prisma.governedJourneyInvitation.findFirst({ where: { id: invitationId, ownerId: owner.id }, include: { consent: true } }),
   ]);
   if (!form?.relationTemplateId || !session || session.relationTemplateId !== form.relationTemplateId || !invitation || invitation.relationTemplateId !== form.relationTemplateId) throw new Error("Réunion ou invitation hors du parcours gouverné.");
   if (session.status === "COMPLETED" || session.status === "CANCELLED" || (session.expiresAt && session.expiresAt <= new Date())) throw new Error("Le périmètre de cette réunion est verrouillé.");
@@ -21,7 +22,7 @@ async function governedMeetingScope(formData: FormData) {
 
 export async function authorizeGuestForGovernedMeetingAction(formData: FormData) {
   const { owner, formTemplateId, session, invitation } = await governedMeetingScope(formData);
-  if (invitation.status !== "ACTIVE" || invitation.revokedAt || invitation.accessTokenExpiresAt <= new Date()) throw new Error("Cette invitation est révoquée ou expirée.");
+  if (!hasCurrentJourneyAccess(invitation)) throw new Error("Cette invitation n’a pas encore été acceptée, ou elle est révoquée ou expirée.");
   await prisma.governedMeetingParticipant.upsert({ where: { communicationSessionId_governedJourneyInvitationId: { communicationSessionId: session.id, governedJourneyInvitationId: invitation.id } }, create: { communicationSessionId: session.id, governedJourneyInvitationId: invitation.id, status: "AUTHORIZED", authorizedById: owner.id }, update: { status: "AUTHORIZED", authorizedAt: new Date(), removedAt: null, authorizedById: owner.id } });
   revalidatePath(`/gouvernance/parcours/${formTemplateId}/pilotage`);
 }

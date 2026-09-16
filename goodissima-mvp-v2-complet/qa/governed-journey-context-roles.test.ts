@@ -34,12 +34,13 @@ test("l'invitation est contextualisée et la garde serveur propriétaire précè
 test("Journey et réunion restent distincts sans faux consentement ni faux RSVP", () => {
   const page = read("app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx");
   const guest = read("app/gouvernance/invitation/[token]/page.tsx");
-  const combined = `${page}\n${guest}`;
   assert.match(page, /Participants prévus/);
   assert.match(page, /ne vaut ni acceptation du parcours ni confirmation de présence/);
   assert.match(page, /Participants ayant accès à cette réunion/);
   assert.match(page, /ne signifie pas que la personne a confirmé sa présence/);
-  assert.doesNotMatch(combined, />Accepter<|>Refuser<|>Participer<|>Décliner</);
+  assert.doesNotMatch(page, />Accepter<|>Refuser<|>Participer<|>Décliner</);
+  assert.match(guest, /Accepter de participer/);
+  assert.match(guest, />Refuser</);
 });
 
 test("les MODEL_GAP et la future surface 03B sont enregistrés sans schéma", () => {

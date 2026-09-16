@@ -3,11 +3,14 @@ import { hashJourneyInvitationToken } from "@/lib/governed-journey-invitations";
 import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
 import { createLiveKitParticipantToken } from "@/lib/media/livekit-token-service";
 import { prisma } from "@/lib/prisma";
+import { hasCurrentJourneyAccess } from "@/lib/governed-journey-consent";
+import { invitationIdentityMatches } from "@/lib/governed-journey-invitation-identity";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const invitation = await prisma.governedJourneyInvitation.findUnique({ where: { accessTokenHash: hashJourneyInvitationToken(params.id) } });
-    if (!invitation || invitation.status !== "ACTIVE" || invitation.revokedAt || invitation.accessTokenExpiresAt <= new Date()) return NextResponse.json({ error: "Accès invité inconnu, expiré ou révoqué." }, { status: 403 });
+    const invitation = await prisma.governedJourneyInvitation.findUnique({ where: { accessTokenHash: hashJourneyInvitationToken(params.id) }, include: { consent: true } });
+    if (!invitation || !hasCurrentJourneyAccess(invitation)) return NextResponse.json({ error: "Accès invité inconnu, expiré ou révoqué." }, { status: 403 });
+    if (invitation.consent && !await invitationIdentityMatches(invitation.inviteeUserId)) return NextResponse.json({ error: "Accès invité inconnu, expiré ou révoqué." }, { status: 403 });
     if (!getLiveKitConfigStatus().configured) return NextResponse.json({ error: "La salle sécurisée n'est pas disponible pour le moment." }, { status: 503 });
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const communicationSessionId = typeof body.preferredSessionId === "string" ? body.preferredSessionId : "";
