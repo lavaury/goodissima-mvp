@@ -3,7 +3,7 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 
-const { decideJourneyInvitation, hasCurrentJourneyAccess, projectJourneyConsent } = loadTestModule("lib/governed-journey-consent.ts", {
+const { decideJourneyInvitation, hasCurrentJourneyAccess, projectJourneyConsent, projectJourneyParticipationState } = loadTestModule("lib/governed-journey-consent.ts", {
   "@/lib/governed-journey-invitations": { hashJourneyInvitationToken: (token: string) => createHash("sha256").update(token).digest("hex") },
 });
 
@@ -83,6 +83,15 @@ for (const [name, options, userId] of [
   const f = fixture(options);
   await assert.rejects(decideJourneyInvitation(f.client, { token: "secret-token", userId, decision: "ACCEPTED" }), /indisponible/);
   assert.equal(f.events.length, 0); assert.equal(f.invitation.status, options.revoked ? "REVOKED" : "PREPARED");
+});
+
+test("participation projection follows consent and never the presence of a user", () => {
+  const base = { status: "PREPARED", revokedAt: null, inviteeUserId: null } as any;
+  assert.equal(projectJourneyParticipationState({ ...base, consent: { status: "PENDING" } }), "PENDING");
+  assert.equal(projectJourneyParticipationState({ ...base, consent: { status: "ACCEPTED" } }), "ACCEPTED");
+  assert.equal(projectJourneyParticipationState({ ...base, consent: { status: "DECLINED" } }), "DECLINED");
+  assert.equal(projectJourneyParticipationState({ ...base, status: "REVOKED", consent: { status: "PENDING" } }), "REVOKED");
+  assert.equal(projectJourneyParticipationState({ ...base, consent: null }), "LEGACY_UNKNOWN");
 });
 
 for (const decision of ["ACCEPTED", "DECLINED"] as const) test(`external invitation can be ${decision.toLowerCase()} without a user`, async () => {

@@ -11,6 +11,7 @@ const invitationRoute = read("app/api/gouvernance/invitations/route.ts");
 const expectedRoles = read("lib/governed-journey-expected-roles.ts");
 const pendingActions = read("components/GovernedJourneyPendingInvitationActions.tsx");
 const revokeRoute = read("app/api/gouvernance/invitations/[id]/revoke/route.ts");
+const roleLabels = read("lib/governed-invitation-role-label.ts");
 
 test("participant addition exposes directory and personal external invitation", () => {
   assert.match(panel, /Personne déjà dans Goodissima/);
@@ -77,7 +78,7 @@ test("pending duplicate is described as an invitation, not active access", () =>
 
 test("pending invitation is visible, manageable and safely revocable", () => {
   assert.match(page, /Invitations en attente/);
-  assert.match(page, /invitation\.consent\?\.status === "PENDING"/);
+  assert.match(page, /projectJourneyParticipationState\(invitation\) === "PENDING"/);
   assert.match(page, /GovernedJourneyPendingInvitationActions/);
   assert.match(pendingActions, /Révoquer cette invitation en attente/);
   assert.match(pendingActions, /L’historique de l’invitation sera conservé/);
@@ -100,4 +101,14 @@ test("business role labels survive AI proposal validation", () => {
 test("participant UX does not mutate consent or meeting RSVP semantics", () => {
   assert.doesNotMatch(panel, /governedJourneyConsent|governedMeetingRsvp|MeetingRsvpStatus/);
   assert.doesNotMatch(actions, /governedMeetingRsvp/);
+});
+
+test("guest status lists share consent truth and hide generic role fallbacks", () => {
+  assert.match(page, /projectJourneyParticipationState\(invitation\) === "ACCEPTED"/);
+  assert.match(page, /projectJourneyParticipationState\(invitation\) === "PENDING"/);
+  assert.match(page, /Participant externe/);
+  assert.match(page, /rawContext !== "Participant attendu"/);
+  assert.match(roleLabels, /businessRole !== "Participant attendu"/);
+  assert.match(roleLabels, /businessRole !== "Participant invité"/);
+  assert.doesNotMatch(roleLabels, /OTHER: "Participant invité"/);
 });
