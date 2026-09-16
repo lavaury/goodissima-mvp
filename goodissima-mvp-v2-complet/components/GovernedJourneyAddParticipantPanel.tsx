@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DirectorySearchResultDto } from "@/lib/directory/directory-search-contracts";
 
@@ -9,9 +9,9 @@ const roles = [
   ["JUDGE", "Juge"], ["THIRD_PARTY", "Tiers"], ["ASSOCIATION", "Association"], ["FAMILY", "Famille"],
 ] as const;
 
-type Props = { formTemplateId: string; journeyTitle: string; journeyObjective?: string | null; initialParticipantRole?: string | null; initialGovernedRole?: string };
+type Props = { formTemplateId: string; journeyTitle: string; journeyObjective?: string | null; initialParticipantRole?: string | null; initialGovernedRole?: string; expectedRoleId?: string; contextual?: boolean };
 
-export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitle, journeyObjective, initialParticipantRole, initialGovernedRole = "OTHER" }: Props) {
+export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitle, journeyObjective, initialParticipantRole, initialGovernedRole = "OTHER", expectedRoleId, contextual = false }: Props) {
   const [results, setResults] = useState<DirectorySearchResultDto[]>([]);
   const [selected, setSelected] = useState<DirectorySearchResultDto | null>(null);
   const [role, setRole] = useState(initialGovernedRole);
@@ -19,20 +19,11 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
   const [link, setLink] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
   const linkRef = useRef<HTMLInputElement>(null);
-  const panelRef = useRef<HTMLDetailsElement>(null);
-  const summaryRef = useRef<HTMLElement>(null);
+  const panelId = useId();
   const router = useRouter();
   const participantRole = initialParticipantRole || roles.find(([value]) => value === role)?.[1] || "Participant";
-
-  useEffect(() => {
-    if (!initialParticipantRole || !panelRef.current) return;
-    panelRef.current.open = true;
-    requestAnimationFrame(() => {
-      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      summaryRef.current?.focus({ preventScroll: true });
-    });
-  }, [initialParticipantRole]);
 
   async function search(formData: FormData) {
     const query = String(formData.get("query") ?? "").trim();
@@ -52,7 +43,7 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
     setBusy(true); setMessage(null); setLink(null);
     try {
       const response = await fetch("/api/gouvernance/invitations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-        formTemplateId, displayName: input.displayName, directoryPublicId: input.directoryPublicId,
+        formTemplateId, displayName: input.displayName, directoryPublicId: input.directoryPublicId, expectedRoleId,
         role, participantName: input.displayName, participantRole, expiresInDays: 7,
       }) });
       const data = await response.json();
@@ -72,8 +63,9 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
     ? <p className="mt-3 text-sm"><strong>Rôle proposé :</strong> {initialParticipantRole}</p>
     : <label className="mt-3 block text-sm font-semibold text-slate-700">Rôle proposé<select value={role} onChange={(event) => setRole(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal">{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>;
 
-  return <details ref={panelRef} id="add-participant" className="mt-4 rounded-lg border border-[#247f88]/40 bg-white p-4">
-    <summary ref={summaryRef} tabIndex={-1} className="min-h-11 cursor-pointer py-2 font-bold text-[#176b73] outline-none focus-visible:ring-2 focus-visible:ring-cyan-700">Ajouter un participant</summary>
+  return <details id={contextual ? undefined : "add-participant"} open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className={`${contextual ? "mt-2" : "mt-4"} rounded-lg border border-[#247f88]/40 bg-white p-4`}>
+    <summary aria-expanded={open} aria-controls={panelId} className="min-h-11 cursor-pointer py-2 font-bold text-[#176b73] outline-none focus-visible:ring-2 focus-visible:ring-cyan-700">{contextual ? "Choisir une personne" : "Ajouter un participant"}</summary>
+    <div id={panelId}>
     {initialParticipantRole ? <p className="mt-2 rounded-lg bg-cyan-50 p-3 text-sm font-semibold text-cyan-950">Rôle à pourvoir : {initialParticipantRole}</p> : null}
     <section aria-labelledby="goodissima-person-title" className="mt-4 rounded-lg border bg-slate-50 p-4">
       <h4 id="goodissima-person-title" className="font-bold text-slate-950">1. Personne déjà dans Goodissima</h4>
@@ -95,5 +87,6 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
     </section>
     {link ? <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3"><p className="mb-2 text-sm font-semibold text-emerald-950">Ce lien personnel est destiné uniquement à cette invitation.</p><input ref={linkRef} readOnly value={link} onFocus={(event) => event.currentTarget.select()} aria-label="Lien personnel d’invitation" className="w-full rounded border bg-white px-3 py-2 text-sm" /><button type="button" onClick={() => void copyLink()} className="mt-2 min-h-11 rounded-lg bg-emerald-800 px-4 py-2 font-bold text-white">Copier le lien personnel</button></div> : null}
     {message ? <p role="status" className="mt-3 text-sm font-semibold text-slate-700">{message}</p> : null}
+    </div>
   </details>;
 }

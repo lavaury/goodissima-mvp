@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { parseCreationWorkspaceId } from "@/lib/object-creation";
 
 type GovernanceJourneyActor = {
+  roleId?: string;
   name: string;
   role: string;
 };
@@ -37,10 +38,10 @@ function linesFromForm(formData: FormData, key: string) {
 }
 
 function participantActorsFromLines(lines: string[]): GovernanceJourneyActor[] {
-  return lines.map((line) => {
+  return lines.map((line, index) => {
     const separator = line.lastIndexOf(" - ");
-    if (separator <= 0 || separator >= line.length - 3) return { name: line, role: "Participant attendu" };
-    return { name: line.slice(0, separator).trim(), role: line.slice(separator + 3).trim() };
+    if (separator <= 0 || separator >= line.length - 3) return { roleId: `expected-role-${index + 1}`, name: line, role: "Participant attendu" };
+    return { roleId: `expected-role-${index + 1}`, name: line.slice(0, separator).trim(), role: line.slice(separator + 3).trim() };
   });
 }
 

@@ -20,6 +20,7 @@ function invitationRouteFixture({ ownerCanAccess = true, duplicate = false } = {
     "@prisma/client": { Prisma: { TransactionIsolationLevel: { Serializable: "Serializable" }, PrismaClientKnownRequestError: class extends Error {} } },
     "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: "owner-a" }) },
     "@/lib/governed-journey-invitations": { createJourneyInvitationToken: () => "secure-token", hashJourneyInvitationToken: () => "secure-hash" },
+    "@/lib/governed-journey-expected-roles": { expectedRolesFromSnapshot: () => [] },
     "@/lib/prisma": { prisma: {
       formTemplate: { findFirst: async (query: any) => {
         assert.deepEqual(query.where, { id: "journey-a", relationTemplate: { workspace: { ownerId: "owner-a" } } });
@@ -57,7 +58,7 @@ function directoryInvitationRequest() {
 
 test("a global participant action is independent from expected participant placeholders", () => {
   assert.match(page, /GovernedJourneyAddParticipantPanel/);
-  assert.match(panel, />Ajouter un participant</);
+  assert.match(panel, /Ajouter un participant/);
   assert.match(panel, /Personne déjà dans Goodissima/);
   assert.doesNotMatch(panel, /participants\.map|participant attendu/i);
 });

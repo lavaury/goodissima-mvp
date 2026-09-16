@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { createJourneyInvitationToken, hashJourneyInvitationToken } from "@/lib/governed-journey-invitations";
 import { prisma } from "@/lib/prisma";
+import { expectedRolesFromSnapshot } from "@/lib/governed-journey-expected-roles";
 
 const roles = new Set(["EXPERT", "JUDGE", "THIRD_PARTY", "ASSOCIATION", "FAMILY", "OBSERVER", "OTHER"]);
 
@@ -15,12 +16,13 @@ export async function POST(request: Request) {
   const participantRole = typeof body.participantRole === "string" ? body.participantRole.trim() : "";
   const preparedEmail = typeof body.preparedEmail === "string" && body.preparedEmail.trim() ? body.preparedEmail.trim() : null;
   const directoryPublicId = typeof body.directoryPublicId === "string" && body.directoryPublicId.trim() ? body.directoryPublicId.trim() : null;
+  const expectedRoleId = typeof body.expectedRoleId === "string" && body.expectedRoleId.trim() ? body.expectedRoleId.trim() : null;
   const relationCaseId = typeof body.relationCaseId === "string" && body.relationCaseId.trim() ? body.relationCaseId.trim() : null;
   const role = roles.has(body.role) ? body.role : "OTHER";
   const expiresInDays = Math.min(30, Math.max(1, Number(body.expiresInDays) || 7));
   const form = await prisma.formTemplate.findFirst({
     where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } },
-    select: { relationTemplate: { select: { id: true, workspaceId: true } } },
+    select: { relationTemplate: { select: { id: true, workspaceId: true, versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } } } } },
   });
   const directoryProfile = directoryPublicId
     ? await prisma.directoryProfile.findFirst({
@@ -29,9 +31,11 @@ export async function POST(request: Request) {
       })
     : null;
   const resolvedDisplayName = directoryProfile?.publicName ?? displayName;
+  const expectedRole = expectedRoleId ? expectedRolesFromSnapshot(form?.relationTemplate?.versions[0]?.snapshot).find((item) => item.id === expectedRoleId) : null;
   if (!form?.relationTemplate || !resolvedDisplayName || (directoryPublicId && !directoryProfile?.subjectIdentity.user)) {
     return NextResponse.json({ error: "Parcours ou invité invalide." }, { status: 400 });
   }
+  if (expectedRoleId && !expectedRole) return NextResponse.json({ error: "Rôle attendu inconnu pour ce parcours." }, { status: 400 });
   if (directoryProfile?.subjectIdentity.user?.id === owner.id) {
     return NextResponse.json({ error: "L’organisateur participe déjà à ce parcours." }, { status: 409 });
   }
@@ -61,7 +65,7 @@ export async function POST(request: Request) {
       displayName: resolvedDisplayName, role, status: "PREPARED", inviteeUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
       accessTokenHash: hashJourneyInvitationToken(token), accessTokenExpiresAt: new Date(Date.now() + expiresInDays * 86400000),
       metadata: {
-        participantName: participantName || resolvedDisplayName, participantRole, preparedEmail, directoryPublicId,
+        participantName: participantName || resolvedDisplayName, participantRole: expectedRole?.label ?? participantRole, expectedRoleId, preparedEmail, directoryPublicId,
         subjectUserId: directoryProfile?.subjectIdentity.user?.id ?? null,
         deliveryMode: "MANUAL_OUT_OF_BAND", automaticEmailSent: false, automaticNotificationSent: false,
         mediaStarted: false, liveKitRoomCreated: false,

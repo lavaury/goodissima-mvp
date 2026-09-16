@@ -17,7 +17,7 @@ test("participants and template roles are distinct and remain dense", () => {
   assert.match(page, /Accès révoqué/);
   assert.match(page, /Voir toutes les personnes/);
   assert.match(page, /unfilledRoles\.length <= 5/);
-  assert.match(page, /Choisir une personne/);
+  assert.match(participantPanel, /Choisir une personne/);
 });
 
 test("the global directory invitation is contextual, personal and email-free", () => {
