@@ -3,7 +3,7 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 
-const { decideJourneyInvitation, hasCurrentJourneyAccess, projectJourneyConsent, projectJourneyParticipationState } = loadTestModule("lib/governed-journey-consent.ts", {
+const { decideJourneyInvitation, decideReceivedJourneyInvitation, hasCurrentJourneyAccess, projectJourneyConsent, projectJourneyParticipationState } = loadTestModule("lib/governed-journey-consent.ts", {
   "@/lib/governed-journey-invitations": { hashJourneyInvitationToken: (token: string) => createHash("sha256").update(token).digest("hex") },
 });
 
@@ -14,6 +14,7 @@ function fixture(options: { expired?: boolean; revoked?: boolean; revokeDuringAc
   const tx: any = {
     governedJourneyInvitation: {
       findUnique: async ({ where }: any) => where.accessTokenHash === invitation.accessTokenHash ? invitation : null,
+      findFirst: async ({ where }: any) => where.id === invitation.id && where.inviteeUserId === invitation.inviteeUserId ? invitation : null,
       updateMany: async ({ where, data }: any) => {
         if (options.revokeDuringAcceptance) { invitation.status = "REVOKED"; invitation.revokedAt = new Date(); return { count: 0 }; }
         if (where.id !== invitation.id || invitation.status !== "PREPARED" || invitation.revokedAt || invitation.accessTokenExpiresAt <= where.accessTokenExpiresAt.gt) return { count: 0 };
@@ -101,4 +102,19 @@ for (const decision of ["ACCEPTED", "DECLINED"] as const) test(`external invitat
   assert.equal(first.changed, true); assert.equal(second.changed, false); assert.equal(f.consent.decidedByUserId, null);
   assert.equal(f.events.length, 1); assert.equal(f.events[0].actorKind, "INVITEE"); assert.equal(f.events[0].actorUserId, null);
   assert.equal(f.invitation.status, decision === "ACCEPTED" ? "ACTIVE" : "PREPARED");
+});
+
+for (const decision of ["ACCEPTED", "DECLINED"] as const) test(`received account invitation can be ${decision.toLowerCase()} without its raw token`, async () => {
+  const f = fixture();
+  const first = await decideReceivedJourneyInvitation(f.client, { invitationId: "invitation-a", userId: "user-a", decision });
+  const second = await decideReceivedJourneyInvitation(f.client, { invitationId: "invitation-a", userId: "user-a", decision });
+  assert.equal(first.changed, true); assert.equal(second.changed, false); assert.equal(f.events.length, 1);
+  assert.equal(f.consent.decidedByUserId, "user-a");
+  assert.equal(f.invitation.status, decision === "ACCEPTED" ? "ACTIVE" : "PREPARED");
+});
+
+test("received invitation rejects another user", async () => {
+  const f = fixture();
+  await assert.rejects(decideReceivedJourneyInvitation(f.client, { invitationId: "invitation-a", userId: "user-b", decision: "ACCEPTED" }), /indisponible/);
+  assert.equal(f.events.length, 0);
 });

@@ -66,9 +66,11 @@ test("page authenticates before loading, removes old cards and preserves existin
   const page = (authenticated: boolean) => loadTestModule("app/(connected)/gouvernance/page.tsx", { "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel,
     "next/cache": { unstable_noStore() {} }, "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "a" }; } },
     "@/lib/notification-projection": { getUnreadCaseAttentionForUser: async () => [] },
+    "@/lib/governed-journey-inbox": { getReceivedJourneyInvitations: async (id: string) => { assert.equal(id, "a"); return []; } },
     "@/lib/spaces-repository": { getSpacesTree: async (id: string) => { assert.equal(id, "a"); reads++; return { portfolios: [], roots: [], unavailableParentCount: 0 }; } },
     "@/components/SpacesTreeView": { SpacesTreeView }, "@/components/SpacesCreateActions": { SpacesCreateActions: () => null },
     "@/components/SpacesExistingAttachments": { SpacesExistingAttachments: () => null },
+    "@/components/ReceivedJourneyInvitations": { ReceivedJourneyInvitations: () => null },
   });
   await assert.rejects(page(false).default({}), /LOGIN/); assert.equal(reads, 0);
   const html = renderToStaticMarkup(await page(true).default({}));
@@ -80,7 +82,7 @@ test("page authenticates before loading, removes old cards and preserves existin
 test("Boussole versions change only for revised journeys; Workspace focus remains outside collection guide", () => {
   for (const id of ["understand-governance", "governance-summary", "understand-workspaces"]) assert.equal(getBoussoleJourneyVersion(id), 2);
   assert.equal(getBoussoleJourneyVersion("organize-unassigned"), 2);
-  assert.equal(getCompassContext("/gouvernance/workspaces/w1"), null);
+  assert.equal(getCompassContext("/gouvernance/workspaces/w1")?.id, "workspace");
   assert.equal(getCompassContext("/gouvernance")?.pageName, "Comprendre Mes espaces");
 });
 test("1000 Workspaces retain a constant two-query tree contract", async () => {

@@ -9,3 +9,7 @@ Les niveaux d’assurance restent distincts :
 - `VERIFIED_ATTRIBUTES` : identité ou attributs vérifiés par une source dédiée, par exemple EUDI.
 
 Une acceptation sans compte conserve donc `decidedByUserId = null` et écrit un événement `INVITEE` avec `actorUserId = null`. Les accès qui exigent une identité authentifiée, notamment les contrôles actuels des réunions et médias, ne sont pas ouverts par cette seule acceptation.
+
+## Affectation de l’organisateur à un rôle attendu
+
+La page de pilotage est actuellement réservée au propriétaire du Journey, déjà participant en qualité d’organisateur. Le modèle ne possède pas encore d’association explicite entre ce participant existant et un `expectedRoleId`. Créer une nouvelle `GovernedJourneyInvitation` produirait un doublon de participant et de consentement. L’action « M’affecter à ce rôle » reste donc un `MODEL_GAP` à traiter par une future association de rôle dédiée ; aucune auto-invitation n’est créée dans ce cas.
