@@ -29,6 +29,7 @@ function fixture(options: { expired?: boolean; revoked?: boolean; revokeDuringAc
       findUnique: async () => consent,
     },
     governedJourneyConsentEvent: { create: async ({ data }: any) => { events.push(data); return data; } },
+    governedJourneyExpectedRoleAssignment: { updateMany: async () => ({ count: 1 }) },
   };
   return { client: { $transaction: async (run: any) => {
     const invitationBefore = { ...invitation };

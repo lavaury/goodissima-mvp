@@ -10,7 +10,8 @@ const actions = read("lib/governed-journey-inbox-actions.ts");
 const service = read("lib/governed-journey-consent.ts");
 const governance = read("app/(connected)/gouvernance/page.tsx");
 const panel = read("components/ReceivedJourneyInvitations.tsx");
-const modelGap = read("docs/journey-external-guest-access.md");
+const roleActions = read("lib/governed-journey-role-assignment-actions.ts");
+const participantPanel = read("components/GovernedJourneyAddParticipantPanel.tsx");
 
 test("received invitations use inviteeUserId as their only recipient identity", () => {
   assert.match(repository, /where: \{ inviteeUserId: userId \}/);
@@ -68,9 +69,9 @@ test("the authenticated invitation page reuses Journey Consent transitions", () 
   assert.match(service, /type: input\.decision/);
 });
 
-test("self assignment stops at the documented model gap without directory workaround", () => {
-  assert.match(modelGap, /MODEL_GAP/);
-  assert.match(modelGap, /expectedRoleId/);
-  assert.match(modelGap, /invitation explicite de son propre profil Annuaire reste possible/);
-  assert.match(modelGap, /consentement `PENDING`/);
+test("self assignment is direct and does not manufacture an invitation or consent", () => {
+  assert.match(participantPanel, /1\. Moi-même/);
+  assert.match(participantPanel, /assignCurrentUserToExpectedRoleAction/);
+  assert.match(roleActions, /assigneeUserId: owner\.id/);
+  assert.doesNotMatch(roleActions, /governedJourneyInvitation\.create|governedJourneyConsent\.create/);
 });

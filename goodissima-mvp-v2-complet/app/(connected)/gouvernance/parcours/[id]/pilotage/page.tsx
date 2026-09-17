@@ -38,6 +38,8 @@ import { meetingRsvpLabel } from "@/lib/governed-meeting-rsvp";
 import { projectJourneyParticipationState } from "@/lib/governed-journey-consent";
 import { getGovernedInvitationRoleLabel } from "@/lib/governed-invitation-role-label";
 import { projectCompactJourneyPeople } from "@/lib/governed-journey-people";
+import { projectExpectedRoleAssignment } from "@/lib/governed-journey-role-assignments";
+import { revokeCurrentUserExpectedRoleAction } from "@/lib/governed-journey-role-assignment-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -520,19 +522,15 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         orderBy: { createdAt: "desc" },
       })
     : [];
+  const roleJourney = await prisma.governedJourney.findFirst({ where: { relationTemplateId: formTemplate.relationTemplate.id, authorityUserId: owner.id }, select: { expectedRoleAssignments: { where: { revokedAt: null }, orderBy: { assignedAt: "desc" }, include: { assigneeUser: { select: { id: true, name: true, email: true } }, assigneeInvitation: { include: { consent: true } } } } } });
+  const roleProjections = participants.map(participant => { const assignment = roleJourney?.expectedRoleAssignments.find(item => item.expectedRoleId === participant.id); return { participant, assignment, state: projectExpectedRoleAssignment(assignment) }; });
   const meetingParticipants = communicationOverview.sessions.length > 0
     ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } }, include: { rsvp: true } })
     : [];
   const activeJourneyInvitations = governedInvitations.filter((invitation) => invitation.accessTokenExpiresAt > new Date() && (projectJourneyParticipationState(invitation) === "ACCEPTED" || (projectJourneyParticipationState(invitation) === "LEGACY_UNKNOWN" && invitation.status === "ACTIVE")));
   const pendingJourneyInvitations = governedInvitations.filter((invitation) => invitation.accessTokenExpiresAt > new Date() && projectJourneyParticipationState(invitation) === "PENDING");
   const peopleProjection = projectCompactJourneyPeople(activeJourneyInvitations, pendingJourneyInvitations);
-  const unfilledRoles = participants.filter((participant) => !participantMatchesOrganizer(participant.name, owner) && !activeJourneyInvitations.some((invitation) => {
-    const invitationMetadata = asRecord(invitation.metadata);
-    if (text(invitationMetadata.expectedRoleId) === participant.id) return true;
-    const linkedName = text(invitationMetadata.participantName) ?? invitation.displayName;
-    const linkedRole = text(invitationMetadata.participantRole);
-    return normalizedIdentity(linkedName) === normalizedIdentity(participant.name) && (!linkedRole || normalizedIdentity(linkedRole) === normalizedIdentity(participant.role));
-  }));
+  const unfilledRoles = roleProjections.filter(item => item.state === "UNASSIGNED" && !participantMatchesOrganizer(item.participant.name, owner)).map(item => item.participant);
   const expectedParticipantNames = new Set(participants.map((participant) => participant.name.toLocaleLowerCase("fr")));
   const additionalActiveParticipants = activeJourneyInvitations.filter((invitation) => !expectedParticipantNames.has(invitation.displayName.toLocaleLowerCase("fr")));
   const pendingReviews = governanceReviewPreparations.filter((review) => review.status !== "COMPLETED").length;
@@ -915,7 +913,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
           <section id="roles-to-fill" className="mt-6 border-t pt-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h3 className="font-bold text-slate-950">Rôles à pourvoir</h3><p className="text-sm font-semibold text-slate-600">{unfilledRoles.length}</p></div>
-            {unfilledRoles.length === 0 ? <p className="mt-3 text-sm text-slate-600">Aucun rôle n’attend actuellement une personne.</p> : <details className="mt-3 rounded-lg border bg-slate-50" open={unfilledRoles.length <= 5}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-800">{unfilledRoles.length} rôle{unfilledRoles.length > 1 ? "s" : ""} à pourvoir</summary><ul className="divide-y border-t">{unfilledRoles.map((participant) => <li key={participant.id} className="min-w-0 p-3"><div className="min-w-0"><p className="break-words font-semibold text-slate-950">{participant.role === "Participant attendu" ? "Participation prévue" : participant.role || "Participation prévue"}</p>{participant.role === "Participant attendu" && participant.name !== participant.role ? <p className="text-sm text-slate-600">Contexte de participation : {participant.name}</p> : null}<p className="text-sm text-slate-600">Aucune personne associée</p></div>{attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} expectedRoleId={participant.id} initialParticipantRole={participant.role} initialParticipationContext={participant.name} initialGovernedRole={governedRoleFromParticipant(participant.role)} contextual /> : null}</li>)}</ul></details>}
+            {roleProjections.length === 0 ? <p className="mt-3 text-sm text-slate-600">Aucun rôle attendu n’est défini.</p> : <details className="mt-3 rounded-lg border bg-slate-50" open={roleProjections.length <= 5}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-800">{unfilledRoles.length} rôle{unfilledRoles.length > 1 ? "s" : ""} à pourvoir</summary><ul className="divide-y border-t">{roleProjections.map(({ participant, assignment, state }) => { const assigneeName = assignment?.assigneeUser ? assignment.assigneeUser.name || assignment.assigneeUser.email : assignment?.assigneeInvitation?.displayName; return <li key={participant.id} className="min-w-0 p-3"><div className="min-w-0"><p className="break-words font-semibold text-slate-950">{participant.role === "Participant attendu" ? "Participation prévue" : participant.role || "Participation prévue"}</p>{participant.role === "Participant attendu" && participant.name !== participant.role ? <p className="text-sm text-slate-600">Contexte de participation : {participant.name}</p> : null}<p className="text-sm text-slate-600">{state === "ASSIGNED" ? `${assigneeName} · Rôle pourvu` : state === "PENDING_INVITATION" ? `${assigneeName} · Invitation en attente` : "Aucune personne associée"}</p></div>{state === "UNASSIGNED" && attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} expectedRoleId={participant.id} initialParticipantRole={participant.role} initialParticipationContext={participant.name} initialGovernedRole={governedRoleFromParticipant(participant.role)} contextual /> : null}{state === "ASSIGNED" && assignment?.assigneeUserId === owner.id ? <form action={revokeCurrentUserExpectedRoleAction} className="mt-2"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="assignmentId" value={assignment.id} /><button className="min-h-11 text-sm font-bold text-red-800 underline">Retirer de ce rôle</button></form> : null}</li>; })}</ul></details>}
           </section>
 
           {searchParams.technical === "1" ? <details className="mt-6 rounded-lg border border-dashed bg-slate-50"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-700">Outils historiques de préparation</summary><div className="border-t p-3">

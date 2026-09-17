@@ -4,6 +4,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { createJourneyInvitationToken, hashJourneyInvitationToken } from "@/lib/governed-journey-invitations";
 import { prisma } from "@/lib/prisma";
 import { expectedRolesFromSnapshot } from "@/lib/governed-journey-expected-roles";
+import { releaseUnavailableExpectedRoleAssignment } from "@/lib/governed-journey-role-assignments";
 
 const roles = new Set(["EXPERT", "JUDGE", "THIRD_PARTY", "ASSOCIATION", "FAMILY", "OBSERVER", "OTHER"]);
 
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
   const expiresInDays = Math.min(30, Math.max(1, Number(body.expiresInDays) || 7));
   const form = await prisma.formTemplate.findFirst({
     where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } },
-    select: { relationTemplate: { select: { id: true, workspaceId: true, versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } } } } },
+    select: { relationTemplate: { select: { id: true, workspaceId: true, governedJourney: { where: { authorityUserId: owner.id, status: { notIn: ["CLOSED", "CANCELLED"] } }, take: 1, select: { id: true } }, versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } } } } },
   });
   const directoryProfile = directoryPublicId
     ? await prisma.directoryProfile.findFirst({
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
   }
   if (expectedRoleId && !expectedRole) return NextResponse.json({ error: "Rôle attendu inconnu pour ce parcours." }, { status: 400 });
   const relationTemplate = form.relationTemplate;
+  const governedJourney = relationTemplate.governedJourney?.[0];
+  if (expectedRoleId && !governedJourney) return NextResponse.json({ error: "Parcours gouverné indisponible pour cette affectation." }, { status: 400 });
 
   if (relationCaseId) {
     const allowedCase = await prisma.relationCase.findFirst({ where: { id: relationCaseId, ownerId: owner.id, templateId: form.relationTemplate.id }, select: { id: true } });
@@ -55,6 +58,11 @@ export async function POST(request: Request) {
 
   const token = createJourneyInvitationToken();
   const invitation = await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    if (expectedRoleId && governedJourney) {
+      const current = await releaseUnavailableExpectedRoleAssignment(tx, { governedJourneyId: governedJourney.id, expectedRoleId, actorUserId: owner.id, now });
+      if (current) throw new Error("ROLE_OCCUPIED");
+    }
     const existing = await tx.governedJourneyInvitation.findFirst({ where: duplicateWhere, select: { id: true, status: true, consent: { select: { status: true } } } });
     if (existing) return null;
     const created = await tx.governedJourneyInvitation.create({ data: {
@@ -74,12 +82,18 @@ export async function POST(request: Request) {
       invitationId: created.id, consentId: consent.id, type: "CREATED", actorUserId: owner.id,
       actorKind: "OWNER", occurredAt: new Date(), consentVersion: consent.version, roleSnapshot: created.role,
     }});
+    if (expectedRoleId && governedJourney) await tx.governedJourneyExpectedRoleAssignment.create({ data: { governedJourneyId: governedJourney.id, relationTemplateId: relationTemplate.id, expectedRoleId, assigneeInvitationId: created.id, assignedByUserId: owner.id, assignedAt: now } });
     return created;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).catch((error: unknown) => {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return null;
+    if (error instanceof Error && error.message === "ROLE_OCCUPIED") return null;
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2002" || error.code === "P2034")) return null;
     throw error;
   });
   if (!invitation) {
+    if (expectedRoleId && governedJourney) {
+      const occupied = await prisma.governedJourneyExpectedRoleAssignment.findFirst({ where: { governedJourneyId: governedJourney.id, expectedRoleId, revokedAt: null }, select: { id: true } });
+      if (occupied) return NextResponse.json({ error: "Ce rôle est déjà associé à une personne." }, { status: 409 });
+    }
     const existing = await prisma.governedJourneyInvitation.findFirst?.({ where: duplicateWhere, select: { status: true, consent: { select: { status: true } } } });
     const message = existing?.consent?.status === "PENDING"
       ? "Une invitation est déjà en attente pour cette participation."

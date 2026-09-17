@@ -11,6 +11,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     const now = new Date();
     const result = await tx.governedJourneyInvitation.updateMany({ where: { id: invitation.id, ownerId: owner.id, status: { in: ["ACTIVE", "PREPARED"] }, revokedAt: null }, data: { status: "REVOKED", revokedAt: now } });
     if (result.count !== 1) return false;
+    await tx.governedJourneyExpectedRoleAssignment.updateMany({ where: { assigneeInvitationId: invitation.id, revokedAt: null }, data: { revokedAt: now, revokedByUserId: owner.id } });
     if (invitation.consent) await tx.governedJourneyConsentEvent.create({ data: { invitationId: invitation.id, consentId: invitation.consent.id, type: "REVOKED", actorUserId: owner.id, actorKind: "OWNER", occurredAt: now, consentVersion: invitation.consent.version, roleSnapshot: invitation.role } });
     return true;
   });

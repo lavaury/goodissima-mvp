@@ -15,7 +15,7 @@ test("participants and template roles are distinct and remain dense", () => {
   assert.match(page, /Invitation en attente/);
   assert.match(page, /Participation acceptée/);
   assert.match(page, /Voir toutes les personnes/);
-  assert.match(page, /unfilledRoles\.length <= 5/);
+  assert.match(page, /roleProjections\.length <= 5/);
   assert.match(participantPanel, /Choisir une personne/);
 });
 

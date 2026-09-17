@@ -21,6 +21,7 @@ function invitationRouteFixture({ ownerCanAccess = true, duplicate = false, prof
     "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: "owner-a" }) },
     "@/lib/governed-journey-invitations": { createJourneyInvitationToken: () => "secure-token", hashJourneyInvitationToken: () => "secure-hash" },
     "@/lib/governed-journey-expected-roles": { expectedRolesFromSnapshot: () => [] },
+    "@/lib/governed-journey-role-assignments": { releaseUnavailableExpectedRoleAssignment: async () => null },
     "@/lib/prisma": { prisma: {
       formTemplate: { findFirst: async (query: any) => {
         assert.deepEqual(query.where, { id: "journey-a", relationTemplate: { workspace: { ownerId: "owner-a" } } });

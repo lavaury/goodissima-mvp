@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DirectorySearchResultDto } from "@/lib/directory/directory-search-contracts";
+import { assignCurrentUserToExpectedRoleAction } from "@/lib/governed-journey-role-assignment-actions";
 
 const roles = [
   ["OTHER", "Participant"], ["OBSERVER", "Observateur"], ["EXPERT", "Expert"],
@@ -70,8 +71,9 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
     <summary aria-expanded={open} aria-controls={panelId} className="min-h-11 cursor-pointer py-2 font-bold text-[#176b73] outline-none focus-visible:ring-2 focus-visible:ring-cyan-700">{contextual ? "Choisir une personne" : "Ajouter un participant"}</summary>
     <div id={panelId}>
     {initialParticipantRole ? <p className="mt-2 rounded-lg bg-cyan-50 p-3 text-sm font-semibold text-cyan-950">{legacyRoleContext ? "Participation prévue" : `Rôle à pourvoir : ${initialParticipantRole}`}</p> : null}
+    {expectedRoleId ? <section aria-labelledby={`${panelId}-self-title`} className="mt-4 rounded-lg border bg-slate-50 p-4"><h4 id={`${panelId}-self-title`} className="font-bold text-slate-950">1. Moi-même</h4><p className="mt-1 text-sm text-slate-600">Affectez-vous directement à ce rôle, sans invitation ni consentement.</p><form action={assignCurrentUserToExpectedRoleAction} className="mt-3"><input type="hidden" name="formTemplateId" value={formTemplateId} /><input type="hidden" name="expectedRoleId" value={expectedRoleId} /><button className="min-h-11 rounded-lg bg-[#247f88] px-4 py-2 font-bold text-white">M’affecter à ce rôle</button></form></section> : null}
     <section aria-labelledby="goodissima-person-title" className="mt-4 rounded-lg border bg-slate-50 p-4">
-      <h4 id="goodissima-person-title" className="font-bold text-slate-950">1. Personne déjà dans Goodissima</h4>
+      <h4 id="goodissima-person-title" className="font-bold text-slate-950">{expectedRoleId ? "2" : "1"}. Personne déjà dans Goodissima</h4>
       <p className="mt-1 text-sm text-slate-600">Recherchez une personne publiée dans Goodissima. Aucun email n’est nécessaire et aucune notification n’est envoyée automatiquement.</p>
       <form action={search} className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row">
         <label className="min-w-0 flex-1 text-sm font-semibold text-slate-700">Nom, métier ou compétence<input name="query" required minLength={2} maxLength={80} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" placeholder="Nom, métier ou compétence" /></label>
@@ -81,7 +83,7 @@ export function GovernedJourneyAddParticipantPanel({ formTemplateId, journeyTitl
       {selected ? <div className="mt-4 rounded-lg border bg-white p-4"><p className="font-bold text-slate-950">Inviter {selected.publicName} au parcours « {journeyTitle} »</p>{journeyObjective ? <p className="mt-1 text-sm text-slate-600">Objectif : {journeyObjective}</p> : null}{roleControl}<button type="button" disabled={busy} onClick={() => void createInvitation({ displayName: selected.publicName, directoryPublicId: selected.publicId })} className="mt-3 min-h-11 rounded-lg bg-[#247f88] px-4 py-2 font-bold text-white disabled:opacity-60">Inviter au parcours</button><p className="mt-2 text-xs text-slate-600">Prévu ≠ invité ≠ accès actif ≠ participation acceptée. La personne choisit explicitement depuis son invitation.</p></div> : null}
     </section>
     <section aria-labelledby="external-person-title" className="mt-4 rounded-lg border bg-slate-50 p-4">
-      <h4 id="external-person-title" className="font-bold text-slate-950">2. Personne extérieure à Goodissima</h4>
+      <h4 id="external-person-title" className="font-bold text-slate-950">{expectedRoleId ? "3" : "2"}. Personne extérieure à Goodissima</h4>
       <p className="mt-1 text-sm text-slate-600">Préparez une invitation personnelle sécurisée. Aucun email ou SMS n’est obligatoire.</p>
       <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">Cette personne pourra consulter, accepter ou refuser l’invitation avec son lien personnel, sans compte obligatoire. Le lien ne vérifie pas son identité.</p>
       <label className="mt-3 block text-sm font-semibold text-slate-700">Nom de la personne<input value={externalName} onChange={(event) => setExternalName(event.target.value)} required maxLength={120} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>

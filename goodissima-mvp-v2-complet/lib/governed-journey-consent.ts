@@ -70,6 +70,7 @@ export async function decideJourneyInvitation(
       if (activation.count !== 1) throw new Error("Invitation indisponible.");
     }
 
+    if (input.decision === "DECLINED") await tx.governedJourneyExpectedRoleAssignment.updateMany({ where: { assigneeInvitationId: invitation.id, revokedAt: null }, data: { revokedAt: now, revokedByUserId: actorUserId } });
     await tx.governedJourneyConsentEvent.create({
       data: {
         invitationId: invitation.id,
@@ -112,6 +113,7 @@ export async function decideReceivedJourneyInvitation(
       const activation = await tx.governedJourneyInvitation.updateMany({ where: { id: invitation.id, status: "PREPARED", revokedAt: null, accessTokenExpiresAt: { gt: now } }, data: { status: "ACTIVE" } });
       if (activation.count !== 1) throw new Error("Invitation indisponible.");
     }
+    if (input.decision === "DECLINED") await tx.governedJourneyExpectedRoleAssignment.updateMany({ where: { assigneeInvitationId: invitation.id, revokedAt: null }, data: { revokedAt: now, revokedByUserId: input.userId } });
     await tx.governedJourneyConsentEvent.create({ data: { invitationId: invitation.id, consentId: invitation.consent.id, type: input.decision, actorUserId: input.userId, actorKind: "INVITEE", occurredAt: now, consentVersion: nextVersion, roleSnapshot: invitation.role } });
     return { changed: true, consent: { ...invitation.consent, status: input.decision, version: nextVersion } };
   });
