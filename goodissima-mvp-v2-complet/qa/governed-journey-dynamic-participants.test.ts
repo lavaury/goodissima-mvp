@@ -57,6 +57,12 @@ function directoryInvitationRequest() {
   }) });
 }
 
+function externalInvitationRequest() {
+  return new Request("https://preview.invalid/api/gouvernance/invitations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+    formTemplateId: "journey-a", displayName: "Pierre Durand", role: "OTHER", participantRole: "Joueur", expiresInDays: 7,
+  }) });
+}
+
 test("a global participant action is independent from expected participant placeholders", () => {
   assert.match(page, /GovernedJourneyAddParticipantPanel/);
   assert.match(panel, /Ajouter un participant/);
@@ -105,6 +111,17 @@ test("the server creates an owner-scoped dynamic invitation without a placeholde
   assert.equal(fixture.eventWrites[0].data.type, "CREATED");
   assert.equal(fixture.writes[0].data.metadata.preparedEmail, null);
   assert.equal((await response.json()).link, "https://preview.invalid/gouvernance/invitation/secure-token");
+});
+
+test("global directory and external invitations create consent but no role assignment", async () => {
+  for (const request of [directoryInvitationRequest(), externalInvitationRequest()]) {
+    const fixture = invitationRouteFixture();
+    const response = await fixture.POST(request);
+    assert.equal(response.status, 200);
+    assert.equal(fixture.writes.length, 1);
+    assert.equal(fixture.consentWrites.length, 1);
+    assert.equal(fixture.writes[0].data.metadata.expectedRoleId, null);
+  }
 });
 
 test("duplicates and another owner's Journey are rejected before mutation", async () => {

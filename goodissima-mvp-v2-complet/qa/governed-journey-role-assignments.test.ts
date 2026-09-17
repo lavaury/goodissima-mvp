@@ -67,3 +67,20 @@ test("existing participant assignment derives the XOR target on the server", () 
   assert.match(actions, /assigneeInvitationId: participant\.inviteeUserId \? null : participant\.id/);
   assert.doesNotMatch(actions, /governedJourneyInvitation\.create|governedJourneyConsent\.create/);
 });
+
+test("role assignments are opt-in and never inferred from Journey participation", () => {
+  const invitationRoute = read("app/api/gouvernance/invitations/route.ts");
+  const consent = read("lib/governed-journey-consent.ts");
+  const actions = read("lib/governed-journey-role-assignment-actions.ts");
+  assert.match(invitationRoute, /if \(expectedRoleId && governedJourney\) await tx\.governedJourneyExpectedRoleAssignment\.create/);
+  assert.doesNotMatch(consent, /governedJourneyExpectedRoleAssignment\.create/);
+  assert.doesNotMatch(consent, /expectedRoleId/);
+  assert.match(actions, /assignJourneyParticipantToExpectedRoleAction/);
+  assert.doesNotMatch(actions, /governedJourneyInvitation\.create|governedJourneyConsent\.create/);
+});
+
+test("generic participation labels never manufacture expected roles", () => {
+  const invitationRoute = read("app/api/gouvernance/invitations/route.ts");
+  assert.doesNotMatch(invitationRoute, /expectedRoleId\s*\?\?\s*(?:"Participant"|"Joueur"|"Participant attendu")/);
+  assert.match(invitationRoute, /expectedRoleId = typeof body\.expectedRoleId/);
+});
