@@ -119,7 +119,9 @@ for (const state of ["revoked", "expired", "inactive", "unknown"] as const) {
     if (state === "unknown") {
       await assert.rejects(fixture.page({ params: { token } }), /NEXT_NOT_FOUND/);
     } else {
-      assert.match(renderToStaticMarkup(await fixture.page({ params: { token } })), /Accès refusé/);
+      const html = renderToStaticMarkup(await fixture.page({ params: { token } }));
+      assert.match(html, /Accès refusé/);
+      assert.match(html, /Invité par.*Fixture Owner/);
     }
     assert.equal(fixture.updates.length, 0);
     assert.equal(fixture.participationQueries.length, 0);

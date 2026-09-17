@@ -20,11 +20,11 @@ export default async function GuestJourneyPage({ params, searchParams }: { param
     include: { consent: true, relationTemplate: { select: { name: true, description: true } } },
   });
   if (!invitation) notFound();
+  const inviter = await prisma.user.findUnique({ where: { id: invitation.ownerId }, select: { name: true } });
   if (invitation.status === "REVOKED" || invitation.revokedAt || invitation.accessTokenExpiresAt <= new Date()) {
-    return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold">Accès refusé</h1><p className="mt-3">Ce lien est expiré ou a été révoqué.</p></main>;
+    return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold">Accès refusé</h1><p className="mt-3">Ce lien est expiré ou a été révoqué.</p><p className="mt-3"><strong>Invité par :</strong> {inviter?.name || "L’organisateur du parcours"}</p></main>;
   }
 
-  const inviter = await prisma.user.findUnique({ where: { id: invitation.ownerId }, select: { name: true } });
   const authUser = await getCurrentUser();
   const currentUser = authUser?.email ? await prisma.user.findUnique({ where: { email: normalizeInvitationEmail(authUser.email) }, select: { id: true } }) : null;
   const consentFlow = projectJourneyConsent(invitation) === "NEW_CONSENT_FLOW";
@@ -32,7 +32,7 @@ export default async function GuestJourneyPage({ params, searchParams }: { param
   await prisma.governedJourneyInvitation.update({ where: { id: invitation.id }, data: consentFlow ? { lastAccessedAt: new Date() } : { acceptedAt: invitation.acceptedAt ?? new Date(), lastAccessedAt: new Date() } });
 
   if (consentFlow && invitation.consent?.status === "DECLINED") {
-    return <main className="mx-auto max-w-2xl p-8"><p className="text-sm font-semibold text-[#247f88]">Invitation au parcours</p><h1 className="mt-2 text-2xl font-bold">Vous avez refusé cette invitation.</h1><p className="mt-3 text-slate-600">Aucun accès au parcours ou à ses réunions n’a été ouvert.</p></main>;
+    return <main className="mx-auto max-w-2xl p-8"><p className="text-sm font-semibold text-[#247f88]">Invitation au parcours</p><h1 className="mt-2 text-2xl font-bold">Vous avez refusé cette invitation.</h1><p className="mt-3"><strong>Invité par :</strong> {inviter?.name || "L’organisateur du parcours"}</p><p className="mt-3 text-slate-600">Aucun accès au parcours ou à ses réunions n’a été ouvert.</p></main>;
   }
 
   if (consentFlow && currentUser && invitation.inviteeUserId && invitation.inviteeUserId !== currentUser.id) {

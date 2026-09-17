@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { projectCompactJourneyPeople } from "../lib/governed-journey-people.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx");
@@ -10,14 +11,32 @@ test("participants and template roles are distinct and remain dense", () => {
   assert.match(page, /Participants du parcours/);
   assert.match(page, /Rôles à pourvoir/);
   assert.match(page, /Aucune personne associée/);
-  assert.match(page, /governedInvitations\.slice\(0, 5\)/);
+  assert.match(page, /peopleProjection\.visibleActive/);
   assert.match(page, /Invitation en attente/);
   assert.match(page, /Participation acceptée/);
-  assert.match(page, /Invitation refusée/);
-  assert.match(page, /Accès révoqué/);
   assert.match(page, /Voir toutes les personnes/);
   assert.match(page, /unfilledRoles\.length <= 5/);
   assert.match(participantPanel, /Choisir une personne/);
+});
+
+test("people remain compact and fully accessible across active and pending states", () => {
+  for (const count of [1, 5, 6, 20, 100]) {
+    const active = Array.from({ length: count }, (_, index) => `active-${index}`);
+    const projection = projectCompactJourneyPeople(active, []);
+    assert.equal(projection.visibleActive.length, Math.min(count, 5));
+    assert.equal(projection.hasOverflow, count > 5);
+    assert.deepEqual([...projection.visibleActive, ...projection.remainingActive], active);
+  }
+
+  const active = Array.from({ length: 20 }, (_, index) => `active-${index}`);
+  const pending = Array.from({ length: 20 }, (_, index) => `pending-${index}`);
+  const mixed = projectCompactJourneyPeople(active, pending);
+  assert.equal(mixed.visibleActive.length, 5);
+  assert.equal(mixed.visiblePending.length, 5);
+  assert.equal(mixed.totalActive, 20);
+  assert.equal(mixed.totalPending, 20);
+  assert.deepEqual([...mixed.visibleActive, ...mixed.remainingActive], active);
+  assert.deepEqual([...mixed.visiblePending, ...mixed.remainingPending], pending);
 });
 
 test("the global directory invitation is contextual, personal and email-free", () => {

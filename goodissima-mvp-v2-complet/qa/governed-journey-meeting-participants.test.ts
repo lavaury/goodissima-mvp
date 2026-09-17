@@ -25,7 +25,8 @@ test("la liste complète classe les réunions sans confondre préparation et cou
 
 test("participants et date sont des actions visibles sans faux RSVP", () => {
   const page = readFileSync(new URL("../app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx", import.meta.url), "utf8");
-  for (const label of ["Ajouter des participants", "Les personnes sélectionnées auront accès", "Participants de cette réunion", "A accès à cette réunion", "Retirer l’accès à cette réunion", "Définir la date", "Ouvrir quand même", "Voir toutes les réunions", "En préparation", "À venir", "Terminées"]) assert.match(page, new RegExp(label));
+  for (const label of ["Ajouter des participants", "Les personnes sélectionnées auront accès", "Participants de cette réunion", "Participants ayant accès à cette réunion", "Accès à la réunion", "Donner accès à cette réunion", "Retirer l’accès à cette réunion", "Définir la date", "Ouvrir quand même", "Voir toutes les réunions", "En préparation", "À venir", "Terminées"]) assert.match(page, new RegExp(label));
+  assert.match(page, /Cet accès ne signifie pas que la personne a confirmé sa présence/);
   assert.match(page, /Invitation au parcours en attente/);
   assert.match(page, /Inviter d’abord au parcours/);
   assert.match(page, /Goodissima ne suit pas encore la réponse/);

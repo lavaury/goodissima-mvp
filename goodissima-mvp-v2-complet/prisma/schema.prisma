@@ -20,68 +20,71 @@ model PersonalFavorite {
 }
 
 model User {
-  id                                                                                            String                                @id @default(cuid())
-  email                                                                                         String                                @unique
+  id                                                                                            String                                  @id @default(cuid())
+  email                                                                                         String                                  @unique
   name                                                                                          String?
-  role                                                                                          String                                @default("OWNER")
-  createdAt                                                                                     DateTime                              @default(now())
-  goodissimaIdentityId                                                                          String?                               @unique
+  role                                                                                          String                                  @default("OWNER")
+  createdAt                                                                                     DateTime                                @default(now())
+  goodissimaIdentityId                                                                          String?                                 @unique
   aiEvents                                                                                      AIEvent[]
   communicationSessions                                                                         CommunicationSession[]
-  ContactRequest_ContactRequest_decidedByUserIdToUser                                           ContactRequest[]                      @relation("ContactRequest_decidedByUserIdToUser")
-  ContactRequest_ContactRequest_requesterOwnerIdToUser                                          ContactRequest[]                      @relation("ContactRequest_requesterOwnerIdToUser")
-  ContactRequest_ContactRequest_targetOwnerIdToUser                                             ContactRequest[]                      @relation("ContactRequest_targetOwnerIdToUser")
+  ContactRequest_ContactRequest_decidedByUserIdToUser                                           ContactRequest[]                        @relation("ContactRequest_decidedByUserIdToUser")
+  ContactRequest_ContactRequest_requesterOwnerIdToUser                                          ContactRequest[]                        @relation("ContactRequest_requesterOwnerIdToUser")
+  ContactRequest_ContactRequest_targetOwnerIdToUser                                             ContactRequest[]                        @relation("ContactRequest_targetOwnerIdToUser")
   contactRequestEvents                                                                          ContactRequestEvent[]
   directoryProfilesManaged                                                                      DirectoryProfileManager[]
   links                                                                                         GLink[]
   governedJourneys                                                                              GovernedJourney[]
-  governedJourneyConsentDecisions                                                               GovernedJourneyConsent[]              @relation("GovernedJourneyConsentDecider")
-  governedJourneyConsentEvents                                                                  GovernedJourneyConsentEvent[]         @relation("GovernedJourneyConsentEventActor")
-  governedMeetingRsvpDecisions                                                                  GovernedMeetingRsvp[]                 @relation("GovernedMeetingRsvpDecider")
-  governedMeetingRsvpEvents                                                                     GovernedMeetingRsvpEvent[]            @relation("GovernedMeetingRsvpEventActor")
-  governedJourneyInvitations                                                                    GovernedJourneyInvitation[]           @relation("GovernedJourneyInvitationInvitee")
+  governedJourneyConsentDecisions                                                               GovernedJourneyConsent[]                @relation("GovernedJourneyConsentDecider")
+  governedJourneyConsentEvents                                                                  GovernedJourneyConsentEvent[]           @relation("GovernedJourneyConsentEventActor")
+  governedMeetingRsvpDecisions                                                                  GovernedMeetingRsvp[]                   @relation("GovernedMeetingRsvpDecider")
+  governedMeetingRsvpEvents                                                                     GovernedMeetingRsvpEvent[]              @relation("GovernedMeetingRsvpEventActor")
+  governedJourneyInvitations                                                                    GovernedJourneyInvitation[]             @relation("GovernedJourneyInvitationInvitee")
+  expectedRoleAssignments                                                                       GovernedJourneyExpectedRoleAssignment[] @relation("ExpectedRoleAssignmentAssignee")
+  expectedRoleAssignmentsCreated                                                                GovernedJourneyExpectedRoleAssignment[] @relation("ExpectedRoleAssignmentAssignedBy")
+  expectedRoleAssignmentsRevoked                                                                GovernedJourneyExpectedRoleAssignment[] @relation("ExpectedRoleAssignmentRevokedBy")
   GovernedJourneyCreationRequest                                                                GovernedJourneyCreationRequest[]
   GovernedJourneyEvent                                                                          GovernedJourneyEvent[]
-  GovernedJourneyMemoryRoleAssignment_GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser GovernedJourneyMemoryRoleAssignment[] @relation("GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser")
-  GovernedJourneyMemoryRoleAssignment_GovernedJourneyMemoryRoleAssignment_userIdToUser          GovernedJourneyMemoryRoleAssignment[] @relation("GovernedJourneyMemoryRoleAssignment_userIdToUser")
+  GovernedJourneyMemoryRoleAssignment_GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser GovernedJourneyMemoryRoleAssignment[]   @relation("GovernedJourneyMemoryRoleAssignment_grantedByUserIdToUser")
+  GovernedJourneyMemoryRoleAssignment_GovernedJourneyMemoryRoleAssignment_userIdToUser          GovernedJourneyMemoryRoleAssignment[]   @relation("GovernedJourneyMemoryRoleAssignment_userIdToUser")
   GovernedJourneyRelationCase                                                                   GovernedJourneyRelationCase[]
-  authorizedMeetingParticipants                                                                 GovernedMeetingParticipant[]          @relation("MeetingParticipantAuthorizer")
-  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_grantedByUserIdToUser                     GovernedMemoryAccessGrant[]           @relation("GovernedMemoryAccessGrant_grantedByUserIdToUser")
-  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_revokedByUserIdToUser                     GovernedMemoryAccessGrant[]           @relation("GovernedMemoryAccessGrant_revokedByUserIdToUser")
-  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_subjectUserIdToUser                       GovernedMemoryAccessGrant[]           @relation("GovernedMemoryAccessGrant_subjectUserIdToUser")
+  authorizedMeetingParticipants                                                                 GovernedMeetingParticipant[]            @relation("MeetingParticipantAuthorizer")
+  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_grantedByUserIdToUser                     GovernedMemoryAccessGrant[]             @relation("GovernedMemoryAccessGrant_grantedByUserIdToUser")
+  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_revokedByUserIdToUser                     GovernedMemoryAccessGrant[]             @relation("GovernedMemoryAccessGrant_revokedByUserIdToUser")
+  GovernedMemoryAccessGrant_GovernedMemoryAccessGrant_subjectUserIdToUser                       GovernedMemoryAccessGrant[]             @relation("GovernedMemoryAccessGrant_subjectUserIdToUser")
   GovernedMemoryCreationRequest                                                                 GovernedMemoryCreationRequest[]
-  GovernedMemoryDecision_GovernedMemoryDecision_decidedByUserIdToUser                           GovernedMemoryDecision[]              @relation("GovernedMemoryDecision_decidedByUserIdToUser")
-  GovernedMemoryDecision_GovernedMemoryDecision_validatedByUserIdToUser                         GovernedMemoryDecision[]              @relation("GovernedMemoryDecision_validatedByUserIdToUser")
-  GovernedMemoryDispute_GovernedMemoryDispute_raisedByUserIdToUser                              GovernedMemoryDispute[]               @relation("GovernedMemoryDispute_raisedByUserIdToUser")
-  GovernedMemoryDispute_GovernedMemoryDispute_resolvedByUserIdToUser                            GovernedMemoryDispute[]               @relation("GovernedMemoryDispute_resolvedByUserIdToUser")
+  GovernedMemoryDecision_GovernedMemoryDecision_decidedByUserIdToUser                           GovernedMemoryDecision[]                @relation("GovernedMemoryDecision_decidedByUserIdToUser")
+  GovernedMemoryDecision_GovernedMemoryDecision_validatedByUserIdToUser                         GovernedMemoryDecision[]                @relation("GovernedMemoryDecision_validatedByUserIdToUser")
+  GovernedMemoryDispute_GovernedMemoryDispute_raisedByUserIdToUser                              GovernedMemoryDispute[]                 @relation("GovernedMemoryDispute_raisedByUserIdToUser")
+  GovernedMemoryDispute_GovernedMemoryDispute_resolvedByUserIdToUser                            GovernedMemoryDispute[]                 @relation("GovernedMemoryDispute_resolvedByUserIdToUser")
   memoryEvents                                                                                  GovernedMemoryEvent[]
-  GovernedMemoryFact_GovernedMemoryFact_authorUserIdToUser                                      GovernedMemoryFact[]                  @relation("GovernedMemoryFact_authorUserIdToUser")
-  GovernedMemoryFact_GovernedMemoryFact_establishedByUserIdToUser                               GovernedMemoryFact[]                  @relation("GovernedMemoryFact_establishedByUserIdToUser")
+  GovernedMemoryFact_GovernedMemoryFact_authorUserIdToUser                                      GovernedMemoryFact[]                    @relation("GovernedMemoryFact_authorUserIdToUser")
+  GovernedMemoryFact_GovernedMemoryFact_establishedByUserIdToUser                               GovernedMemoryFact[]                    @relation("GovernedMemoryFact_establishedByUserIdToUser")
   createdMemoryRelations                                                                        GovernedMemoryRelation[]
-  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_assignedByUserIdToUser              GovernedMemoryRoleAssignment[]        @relation("GovernedMemoryRoleAssignment_assignedByUserIdToUser")
-  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_revokedByUserIdToUser               GovernedMemoryRoleAssignment[]        @relation("GovernedMemoryRoleAssignment_revokedByUserIdToUser")
-  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_userIdToUser                        GovernedMemoryRoleAssignment[]        @relation("GovernedMemoryRoleAssignment_userIdToUser")
+  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_assignedByUserIdToUser              GovernedMemoryRoleAssignment[]          @relation("GovernedMemoryRoleAssignment_assignedByUserIdToUser")
+  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_revokedByUserIdToUser               GovernedMemoryRoleAssignment[]          @relation("GovernedMemoryRoleAssignment_revokedByUserIdToUser")
+  GovernedMemoryRoleAssignment_GovernedMemoryRoleAssignment_userIdToUser                        GovernedMemoryRoleAssignment[]          @relation("GovernedMemoryRoleAssignment_userIdToUser")
   GovernedMemorySource                                                                          GovernedMemorySource[]
-  GovernedMemoryTransitionRequest_GovernedMemoryTransitionRequest_requesterUserIdToUser         GovernedMemoryTransitionRequest[]     @relation("GovernedMemoryTransitionRequest_requesterUserIdToUser")
-  GovernedMemoryTransitionRequest_GovernedMemoryTransitionRequest_targetUserIdToUser            GovernedMemoryTransitionRequest[]     @relation("GovernedMemoryTransitionRequest_targetUserIdToUser")
+  GovernedMemoryTransitionRequest_GovernedMemoryTransitionRequest_requesterUserIdToUser         GovernedMemoryTransitionRequest[]       @relation("GovernedMemoryTransitionRequest_requesterUserIdToUser")
+  GovernedMemoryTransitionRequest_GovernedMemoryTransitionRequest_targetUserIdToUser            GovernedMemoryTransitionRequest[]       @relation("GovernedMemoryTransitionRequest_targetUserIdToUser")
   memoryValidations                                                                             GovernedMemoryValidation[]
   manualTemplateEditAudits                                                                      ManualTemplateEditAudit[]
   matchingExecutionLeases                                                                       MatchingExecutionLease[]
-  matchingRuns                                                                                  MatchingRun[]                         @relation("MatchingRunOwner")
+  matchingRuns                                                                                  MatchingRun[]                           @relation("MatchingRunOwner")
   notifications                                                                                 Notification[]
   personalFavorites                                                                             PersonalFavorite[]
-  portfolios                                                                                    Portfolio[]                           @relation("OwnerPortfolios")
+  portfolios                                                                                    Portfolio[]                             @relation("OwnerPortfolios")
   productFeedback                                                                               ProductFeedback[]
-  cases                                                                                         RelationCase[]                        @relation("OwnerCases")
+  cases                                                                                         RelationCase[]                          @relation("OwnerCases")
   Representation                                                                                Representation[]
   RepresentationContact                                                                         RepresentationContact[]
   representationContactEvents                                                                   RepresentationContactEvent[]
   templateCriticReports                                                                         TemplateCriticReport[]
   templateGenerations                                                                           TemplateGeneration[]
   templateOptimizations                                                                         TemplateOptimization[]
-  goodissimaIdentity                                                                            GoodissimaIdentity?                   @relation(fields: [goodissimaIdentityId], references: [id])
+  goodissimaIdentity                                                                            GoodissimaIdentity?                     @relation(fields: [goodissimaIdentityId], references: [id])
   notificationPreferences                                                                       UserNotificationPreference?
-  workspaces                                                                                    Workspace[]                           @relation("OwnerWorkspaces")
+  workspaces                                                                                    Workspace[]                             @relation("OwnerWorkspaces")
 
   @@unique([id, goodissimaIdentityId])
 }
@@ -135,31 +138,33 @@ model Workspace {
 }
 
 model GovernedJourneyInvitation {
-  id                   String                          @id @default(cuid())
-  ownerId              String
-  workspaceId          String?
-  relationTemplateId   String
-  relationCaseId       String?
-  displayName          String
-  role                 GovernedJourneyInvitationRole
-  status               GovernedJourneyInvitationStatus @default(ACTIVE)
-  accessTokenHash      String                          @unique
-  accessTokenExpiresAt DateTime
-  revokedAt            DateTime?
-  acceptedAt           DateTime?
-  lastAccessedAt       DateTime?
-  inviteeUserId        String?
-  metadata             Json?
-  createdAt            DateTime                        @default(now())
-  updatedAt            DateTime                        @updatedAt
-  relationCase         RelationCase?                   @relation(fields: [relationCaseId], references: [id])
-  relationTemplate     RelationTemplate                @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
-  workspace            Workspace?                      @relation(fields: [workspaceId], references: [id])
-  inviteeUser          User?                           @relation("GovernedJourneyInvitationInvitee", fields: [inviteeUserId], references: [id], onDelete: SetNull)
-  consent              GovernedJourneyConsent?
-  consentEvents        GovernedJourneyConsentEvent[]
-  meetingParticipants  GovernedMeetingParticipant[]
+  id                      String                                  @id @default(cuid())
+  ownerId                 String
+  workspaceId             String?
+  relationTemplateId      String
+  relationCaseId          String?
+  displayName             String
+  role                    GovernedJourneyInvitationRole
+  status                  GovernedJourneyInvitationStatus         @default(ACTIVE)
+  accessTokenHash         String                                  @unique
+  accessTokenExpiresAt    DateTime
+  revokedAt               DateTime?
+  acceptedAt              DateTime?
+  lastAccessedAt          DateTime?
+  inviteeUserId           String?
+  metadata                Json?
+  createdAt               DateTime                                @default(now())
+  updatedAt               DateTime                                @updatedAt
+  relationCase            RelationCase?                           @relation(fields: [relationCaseId], references: [id])
+  relationTemplate        RelationTemplate                        @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
+  workspace               Workspace?                              @relation(fields: [workspaceId], references: [id])
+  inviteeUser             User?                                   @relation("GovernedJourneyInvitationInvitee", fields: [inviteeUserId], references: [id], onDelete: SetNull)
+  consent                 GovernedJourneyConsent?
+  consentEvents           GovernedJourneyConsentEvent[]
+  meetingParticipants     GovernedMeetingParticipant[]
+  expectedRoleAssignments GovernedJourneyExpectedRoleAssignment[]
 
+  @@unique([id, relationTemplateId])
   @@index([ownerId, relationTemplateId, status])
   @@index([accessTokenExpiresAt, status])
   @@index([inviteeUserId, status, createdAt])
@@ -1246,27 +1251,27 @@ model ContactRequestRequestedChannel {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model GovernedJourney {
-  id                             String                                @id
+  id                             String                                  @id
   relationCaseId                 String?
   formTemplateId                 String?
-  relationTemplateId             String                                @unique
+  relationTemplateId             String                                  @unique
   createdFromTemplateVersionId   String
   title                          String
-  status                         GovernedJourneyStatus                 @default(DRAFT)
+  status                         GovernedJourneyStatus                   @default(DRAFT)
   authorityUserId                String
   currentStepKey                 String?
   startedAt                      DateTime?
   suspendedAt                    DateTime?
   closedAt                       DateTime?
   cancelledAt                    DateTime?
-  createdAt                      DateTime                              @default(now())
+  createdAt                      DateTime                                @default(now())
   updatedAt                      DateTime
-  version                        Int                                   @default(1)
-  authority                      User                                  @relation(fields: [authorityUserId], references: [id], onUpdate: Restrict)
-  createdFromTemplateVersion     TemplateVersion                       @relation(fields: [createdFromTemplateVersionId, relationTemplateId], references: [id, templateId], onUpdate: Restrict, map: "GovernedJourney_createdFromTemplateVersionId_relationTemplateId")
-  formTemplate                   FormTemplate?                         @relation(fields: [formTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  relationCase                   RelationCase?                         @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  relationTemplate               RelationTemplate                      @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
+  version                        Int                                     @default(1)
+  authority                      User                                    @relation(fields: [authorityUserId], references: [id], onUpdate: Restrict)
+  createdFromTemplateVersion     TemplateVersion                         @relation(fields: [createdFromTemplateVersionId, relationTemplateId], references: [id, templateId], onUpdate: Restrict, map: "GovernedJourney_createdFromTemplateVersionId_relationTemplateId")
+  formTemplate                   FormTemplate?                           @relation(fields: [formTemplateId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationCase                   RelationCase?                           @relation(fields: [relationCaseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  relationTemplate               RelationTemplate                        @relation(fields: [relationTemplateId], references: [id], onUpdate: Restrict)
   creationRequest                GovernedJourneyCreationRequest?
   events                         GovernedJourneyEvent[]
   memoryRoleAssignments          GovernedJourneyMemoryRoleAssignment[]
@@ -1279,6 +1284,7 @@ model GovernedJourney {
   GovernedMemorySource           GovernedMemorySource[]
   memoryTransitionRequests       GovernedMemoryTransitionRequest[]
   memoryValidations              GovernedMemoryValidation[]
+  expectedRoleAssignments        GovernedJourneyExpectedRoleAssignment[]
 
   @@unique([id, relationCaseId, authorityUserId])
   @@unique([id, relationCaseId])
@@ -1287,6 +1293,35 @@ model GovernedJourney {
   @@index([formTemplateId])
   @@index([relationCaseId, status, createdAt])
   @@index([relationCaseId, status, updatedAt])
+}
+
+/// Expected-role assignment history is separate from invitation delivery and Journey consent.
+/// This table contains check constraints and a partial unique index that require SQL migration support.
+model GovernedJourneyExpectedRoleAssignment {
+  id                   String                     @id @default(cuid())
+  governedJourneyId    String
+  relationTemplateId   String
+  expectedRoleId       String
+  assigneeUserId       String?
+  assigneeInvitationId String?
+  assignedAt           DateTime                   @default(now())
+  assignedByUserId     String?
+  revokedAt            DateTime?
+  revokedByUserId      String?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  governedJourney      GovernedJourney            @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "ExpectedRoleAssignment_journey_fkey")
+  assigneeUser         User?                      @relation("ExpectedRoleAssignmentAssignee", fields: [assigneeUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assigneeInvitation   GovernedJourneyInvitation? @relation(fields: [assigneeInvitationId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "ExpectedRoleAssignment_invitation_fkey")
+  assignedByUser       User?                      @relation("ExpectedRoleAssignmentAssignedBy", fields: [assignedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revokedByUser        User?                      @relation("ExpectedRoleAssignmentRevokedBy", fields: [revokedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([governedJourneyId])
+  @@index([relationTemplateId])
+  @@index([assigneeUserId])
+  @@index([assigneeInvitationId, relationTemplateId], map: "ExpectedRoleAssignment_invitation_template_idx")
+  @@index([assignedByUserId])
+  @@index([revokedByUserId])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

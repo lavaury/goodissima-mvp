@@ -50,6 +50,8 @@ test("Mes espaces exposes a compact invitation inbox with real states", () => {
   assert.match(governance, /ReceivedJourneyInvitations/);
   assert.match(panel, /Invitations reçues/);
   assert.match(panel, /invitation.*à examiner/);
+  assert.match(panel, /Invité par/);
+  assert.doesNotMatch(panel, /ownerId|userId/);
   assert.match(panel, /Voir l’invitation/);
   for (const label of ["Invitation à laquelle répondre", "Participation acceptée", "Invitation refusée", "Invitation révoquée", "Invitation expirée"]) assert.match(repository, new RegExp(label));
 });
@@ -60,6 +62,8 @@ test("the authenticated invitation page reuses Journey Consent transitions", () 
   assert.match(page, /declineReceivedJourneyInvitation/);
   assert.match(page, /Accepter de participer/);
   assert.match(page, /Refuser/);
+  assert.match(page, /Invité par/);
+  assert.match(page, /select: \{ name: true \}/);
   assert.match(service, /status: "PENDING", version: invitation\.consent\.version/);
   assert.match(service, /type: input\.decision/);
 });
