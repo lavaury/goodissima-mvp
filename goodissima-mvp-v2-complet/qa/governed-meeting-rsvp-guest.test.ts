@@ -18,7 +18,7 @@ function fixture(overrides: Record<string, any> = {}) {
     id: "participant-new",
     governedJourneyInvitationId: "invite-new",
     status: "AUTHORIZED",
-    rsvp: { id: "rsvp-new", status: "PENDING", version: 0, meetingRevision: 2, decidedByUserId: null },
+    rsvp: { id: "rsvp-new", status: "PENDING", version: 0, meetingRevision: 2, decidedByUserId: null, decidedByInvitationId: null },
     governedJourneyInvitation: {
       id: "invite-new", inviteeUserId: null, status: "ACTIVE", revokedAt: null,
       accessTokenExpiresAt: new Date("2026-09-19T10:00:00.000Z"), ownerId: "owner-1",
@@ -67,10 +67,15 @@ test("external guest accepts or declines through the exact invitation capability
   await decide(accepted, { kind: "INVITATION_GUEST", invitationId: "invite-new" });
   assert.equal(accepted.saved().status, "ACCEPTED");
   assert.equal(accepted.saved().decidedByUserId, null);
+  assert.equal(accepted.saved().decidedByInvitationId, "invite-new");
   assert.equal(accepted.events.length, 1);
+  assert.equal(accepted.events[0].actorUserId, null);
+  assert.equal(accepted.events[0].actorInvitationId, "invite-new");
   const declined = fixture();
   await decide(declined, { kind: "INVITATION_GUEST", invitationId: "invite-new" }, "DECLINED");
   assert.equal(declined.saved().status, "DECLINED");
+  assert.equal(declined.saved().decidedByInvitationId, "invite-new");
+  assert.equal(declined.events[0].actorInvitationId, "invite-new");
   assert.equal(declined.events.length, 1);
 });
 
@@ -104,7 +109,7 @@ test("guest RSVP preserves consent, authorization, revision, lifecycle and scope
 
 test("double guest ACCEPT and DECLINE are idempotent and append no duplicate event", async () => {
   for (const decision of ["ACCEPTED", "DECLINED"] as const) {
-    const setup = fixture({ rsvp: { id: "rsvp-new", status: decision, version: 1, meetingRevision: 2, decidedByUserId: null } });
+    const setup = fixture({ rsvp: { id: "rsvp-new", status: decision, version: 1, meetingRevision: 2, decidedByUserId: null, decidedByInvitationId: "invite-new" } });
     const result = await decide(setup, { kind: "INVITATION_GUEST", invitationId: "invite-new" }, decision);
     assert.equal(result.changed, false);
     assert.equal(setup.events.length, 0);

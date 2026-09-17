@@ -148,9 +148,12 @@ export async function decideMeetingRsvpInTransaction(
     throw new Error("Une nouvelle réponse est requise.");
   const actorUserId =
     input.actor.kind === "AUTHENTICATED_USER" ? input.actor.userId : null;
+  const actorInvitationId =
+    input.actor.kind === "INVITATION_GUEST" ? input.actor.invitationId : null;
   if (
     participant.rsvp.status === input.decision &&
-    participant.rsvp.decidedByUserId === actorUserId
+    participant.rsvp.decidedByUserId === actorUserId &&
+    participant.rsvp.decidedByInvitationId === actorInvitationId
   )
     return { changed: false, rsvp: participant.rsvp };
   if (participant.rsvp.status !== "PENDING")
@@ -166,6 +169,7 @@ export async function decideMeetingRsvpInTransaction(
       status: input.decision,
       decidedAt: now,
       decidedByUserId: actorUserId,
+      decidedByInvitationId: actorInvitationId,
       version: { increment: 1 },
     },
   });
@@ -175,7 +179,8 @@ export async function decideMeetingRsvpInTransaction(
     });
     if (
       current?.status === input.decision &&
-      current.decidedByUserId === actorUserId
+      current.decidedByUserId === actorUserId &&
+      current.decidedByInvitationId === actorInvitationId
     )
       return { changed: false, rsvp: current };
     throw new Error("Cette invitation a déjà reçu une réponse.");
@@ -189,6 +194,7 @@ export async function decideMeetingRsvpInTransaction(
       rsvpId: rsvp.id,
       type: input.decision,
       actorUserId,
+      actorInvitationId,
       actorKind: "INVITEE",
       rsvpVersion: rsvp.version,
       meetingRevision: rsvp.meetingRevision,

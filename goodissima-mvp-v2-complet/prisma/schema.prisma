@@ -163,6 +163,8 @@ model GovernedJourneyInvitation {
   consentEvents           GovernedJourneyConsentEvent[]
   meetingParticipants     GovernedMeetingParticipant[]
   expectedRoleAssignments GovernedJourneyExpectedRoleAssignment[]
+  meetingRsvpDecisions    GovernedMeetingRsvp[]                     @relation("GovernedMeetingRsvpInvitationDecider")
+  meetingRsvpEvents       GovernedMeetingRsvpEvent[]                @relation("GovernedMeetingRsvpEventInvitationActor")
 
   @@unique([id, relationTemplateId])
   @@index([ownerId, relationTemplateId, status])
@@ -276,12 +278,14 @@ model GovernedMeetingRsvp {
   status               MeetingRsvpStatus          @default(PENDING)
   decidedAt            DateTime?
   decidedByUserId      String?
+  decidedByInvitationId String?
   version              Int                        @default(0)
   meetingRevision      Int
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
   meetingParticipant   GovernedMeetingParticipant @relation(fields: [meetingParticipantId], references: [id], onDelete: Restrict)
   decidedByUser        User?                      @relation("GovernedMeetingRsvpDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  decidedByInvitation  GovernedJourneyInvitation? @relation("GovernedMeetingRsvpInvitationDecider", fields: [decidedByInvitationId], references: [id], onDelete: Restrict)
   events               GovernedMeetingRsvpEvent[]
 
   @@index([status, updatedAt])
@@ -295,6 +299,7 @@ model GovernedMeetingRsvpEvent {
   rsvpId               String?
   type                 GovernedMeetingRsvpEventType
   actorUserId          String?
+  actorInvitationId    String?
   actorKind            GovernedMeetingRsvpActorKind
   occurredAt           DateTime                     @default(now())
   rsvpVersion          Int?
@@ -303,6 +308,7 @@ model GovernedMeetingRsvpEvent {
   meetingParticipant   GovernedMeetingParticipant   @relation(fields: [meetingParticipantId], references: [id], onDelete: Restrict)
   rsvp                 GovernedMeetingRsvp?         @relation(fields: [rsvpId], references: [id], onDelete: Restrict)
   actorUser            User?                        @relation("GovernedMeetingRsvpEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorInvitation      GovernedJourneyInvitation?   @relation("GovernedMeetingRsvpEventInvitationActor", fields: [actorInvitationId], references: [id], onDelete: Restrict)
 
   @@index([meetingParticipantId, occurredAt, id])
   @@index([rsvpId, occurredAt, id])

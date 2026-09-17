@@ -41,7 +41,7 @@ export async function updateGovernedMeetingScheduleAction(formData: FormData) {
     if (!isSubstantial) return;
     const rsvps = await tx.governedMeetingRsvp.findMany({ where: { meetingParticipant: { communicationSessionId: session.id } } });
     for (const rsvp of rsvps) {
-      const reset = await tx.governedMeetingRsvp.update({ where: { id: rsvp.id }, data: { status: "PENDING", decidedAt: null, decidedByUserId: null, version: { increment: 1 }, meetingRevision: updated.rsvpRevision } });
+      const reset = await tx.governedMeetingRsvp.update({ where: { id: rsvp.id }, data: { status: "PENDING", decidedAt: null, decidedByUserId: null, decidedByInvitationId: null, version: { increment: 1 }, meetingRevision: updated.rsvpRevision } });
       await tx.governedMeetingRsvpEvent.create({ data: { meetingParticipantId: rsvp.meetingParticipantId, rsvpId: rsvp.id, type: "RESET_TO_PENDING", actorUserId: owner.id, actorKind: "ORGANIZER", rsvpVersion: reset.version, meetingRevision: updated.rsvpRevision } });
     }
   });

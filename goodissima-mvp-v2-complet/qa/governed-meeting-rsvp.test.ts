@@ -51,6 +51,7 @@ test("lifecycle reset and cancellation are transactional and preserve RSVP histo
   const source = readFileSync(new URL("../lib/governed-meeting-lifecycle-actions.ts", import.meta.url), "utf8");
   assert.match(source, /rsvpRevision: isSubstantial \? \{ increment: 1 \}/);
   assert.match(source, /type: "RESET_TO_PENDING"/);
+  assert.match(source, /decidedByInvitationId: null/);
   assert.match(source, /type: "MEETING_CANCELLED"/);
   assert.doesNotMatch(source, /governedMeetingRsvp\.delete/);
 });

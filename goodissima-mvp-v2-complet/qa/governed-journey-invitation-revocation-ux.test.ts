@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const component = read("components/GovernedJourneyPendingInvitationActions.tsx");
 const route = read("app/api/gouvernance/invitations/[id]/revoke/route.ts");
+const service = read("lib/governed-journey-guest-access.ts");
 
 test("revocation uses an inline human confirmation without native popup", () => {
   assert.doesNotMatch(component, /window\.confirm|\bconfirm\s*\(/);
@@ -42,6 +43,7 @@ test("inline confirmation remains keyboard, focus and mobile friendly", () => {
 test("existing owner-scoped server revocation and assignment release are reused", () => {
   assert.match(component, /\/api\/gouvernance\/invitations\/\$\{invitationId\}\/revoke/);
   assert.match(route, /ownerId: owner\.id/);
-  assert.match(route, /governedJourneyExpectedRoleAssignment\.updateMany/);
-  assert.match(route, /type: "REVOKED"/);
+  assert.match(route, /revokeGovernedJourneyInvitationAccess/);
+  assert.match(service, /governedJourneyExpectedRoleAssignment\.updateMany/);
+  assert.match(service, /type: "REVOKED"/);
 });
