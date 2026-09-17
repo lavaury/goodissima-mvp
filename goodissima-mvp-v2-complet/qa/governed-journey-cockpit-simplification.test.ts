@@ -9,7 +9,8 @@ const participantPanel = read("components/GovernedJourneyAddParticipantPanel.tsx
 
 test("participants and template roles are distinct and remain dense", () => {
   assert.match(page, /Participants du parcours/);
-  assert.match(page, /Rôles à pourvoir/);
+  assert.match(page, /Rôles du parcours/);
+  assert.match(page, /\{unfilledRoles\.length\} à pourvoir/);
   assert.match(page, /Aucune personne associée/);
   assert.match(page, /peopleProjection\.visibleActive/);
   assert.match(page, /Invitation en attente/);
