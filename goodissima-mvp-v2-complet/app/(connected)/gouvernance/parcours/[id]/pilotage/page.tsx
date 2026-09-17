@@ -4,7 +4,6 @@ import { navigationWorkspaceSelect, objectBreadcrumb } from "@/lib/spatial-navig
 import { notFound } from "next/navigation";
 import { GovernedJourneyGuestAccessPanel } from "@/components/GovernedJourneyGuestAccessPanel";
 import { GovernedJourneyPendingInvitationActions } from "@/components/GovernedJourneyPendingInvitationActions";
-import { RelationLiveKitMediaRoom } from "@/components/RelationLiveKitMediaRoom";
 import { GovernedMeetingSubmitButton } from "@/components/GovernedMeetingSubmitButton";
 import { ConfirmMeetingCancellationButton } from "@/components/ConfirmMeetingCancellationButton";
 import { GovernanceReviewAIAssistant } from "@/components/GovernanceReviewAIAssistant";
@@ -828,10 +827,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                         </p>
                         {session.status !== "COMPLETED" && session.status !== "CANCELLED" ? (
                           <div className="mt-3">
-                            <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel="Ouvrir la réunion" expectedParticipants={[
-                              { identity: `owner:${owner.id}`, displayName: owner.name || owner.email, roleLabel: "Organisateur", accessKind: "compte Goodissima" },
-                              ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && (!invitation.consent || invitation.consent.status === "ACCEPTED")).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité gouverné" })),
-                            ]} />
+                            <Link data-boussole-id="governed-journey-media-room" href={`/gouvernance/parcours/${formTemplate.id}/reunions/${session.id}`} className="inline-flex min-h-11 items-center rounded-xl bg-[#247f88] px-4 py-2 font-semibold text-white">Ouvrir la salle dédiée</Link>
                           </div>
                         ) : null}
                       </article>
@@ -1274,10 +1270,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 {meetingParticipants.every((item) => item.communicationSessionId !== session.id || item.status !== "AUTHORIZED") && !meetingIsClosed(session) ? <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">Aucun autre participant n’est prévu pour cette réunion. Vous pouvez en ajouter ou ouvrir quand même.</p> : null}
                 {session.status !== "COMPLETED" && session.status !== "CANCELLED" && !(session.expiresAt && session.expiresAt <= new Date()) ? (
                   <div className="mt-3">
-                    <RelationLiveKitMediaRoom contextKind="governedJourney" governedJourneyId={formTemplate.id} actorKind="owner" available preferredSessionId={session.id} joinLabel={meetingParticipants.some((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED") ? "Ouvrir la réunion" : "Ouvrir quand même"} expectedParticipants={[
-                      { identity: `owner:${owner.id}`, displayName: owner.name || owner.email, roleLabel: "Organisateur", accessKind: "compte Goodissima" },
-                      ...meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId)).filter((invitation) => invitation?.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > new Date() && (!invitation.consent || invitation.consent.status === "ACCEPTED")).map((invitation) => ({ identity: `guest:${invitation!.id}`, displayName: invitation!.displayName, roleLabel: governedInvitationRoleLabel(invitation!.role), accessKind: "invité" })),
-                    ]} />
+                    <Link data-boussole-id="governed-journey-media-room" href={`/gouvernance/parcours/${formTemplate.id}/reunions/${session.id}`} className="inline-flex min-h-11 items-center rounded-xl bg-[#247f88] px-4 py-2 font-semibold text-white">{meetingParticipants.some((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED") ? "Ouvrir la salle" : "Ouvrir quand même"}</Link>
                   </div>
                 ) : null}
                 {governedMeetingUserNote(session.note) ? <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950">Note : {governedMeetingUserNote(session.note)}</p> : null}
@@ -1295,7 +1288,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   </div>
                 ) : null}
                 {!meetingIsClosed(session) ? <>
-                <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><p className="text-sm font-bold text-emerald-950">Participants de cette réunion</p>{meetingParticipants.some((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED") ? <ul className="mt-2 space-y-2">{meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => ({ item, invitation: governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId) })).filter(({ invitation }) => Boolean(invitation)).map(({ item, invitation }) => <li key={invitation!.id} className="text-sm text-slate-700"><strong>{invitation!.displayName}</strong> · {meetingRsvpLabel(item.rsvp)}</li>)}</ul> : <p className="mt-2 text-sm text-slate-600">Aucun participant ajouté.</p>}</div>
+                <div data-boussole-id="governed-journey-meeting-participants" className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><p className="text-sm font-bold text-emerald-950">Participants de cette réunion</p>{meetingParticipants.some((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED") ? <ul className="mt-2 space-y-2">{meetingParticipants.filter((item) => item.communicationSessionId === session.id && item.status === "AUTHORIZED").map((item) => ({ item, invitation: governedInvitations.find((invitation) => invitation.id === item.governedJourneyInvitationId) })).filter(({ invitation }) => Boolean(invitation)).map(({ item, invitation }) => <li key={invitation!.id} className="text-sm text-slate-700"><strong>{invitation!.displayName}</strong> · {meetingRsvpLabel(item.rsvp)}</li>)}</ul> : <p className="mt-2 text-sm text-slate-600">Aucun participant ajouté.</p>}</div>
                 <details className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-emerald-950">Ajouter des participants</summary>
                 <p className="mb-3 text-xs text-emerald-800">Les personnes sélectionnées auront accès à cette réunion. Être participant du parcours ne donne pas automatiquement accès à toutes les réunions.</p>
                 <div className="mt-3 rounded-lg border border-emerald-200 bg-white/80 p-3">

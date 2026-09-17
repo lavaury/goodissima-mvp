@@ -19,7 +19,7 @@ test("provides six contextual micro-journeys for the real cockpit", () => {
 });
 
 test("resolves every target against the real cockpit", () => {
-  const renderedComponents = `${cockpit}\n${read("components/GovernedJourneyGuestAccessPanel.tsx")}\n${read("components/RelationLiveKitMediaRoom.tsx")}`;
+  const renderedComponents = `${cockpit}\n${read("components/GovernedJourneyGuestAccessPanel.tsx")}`;
   for (const target of new Set(governedJourneySteps.map((step) => step.targetId))) {
     assert.ok(target && renderedComponents.includes(target), `missing cockpit target ${target}`);
   }
@@ -54,17 +54,15 @@ test("keeps the guide explanatory, glossary-backed and business-action free", ()
   assert.match(guide, /ne (?:modifie|change|lance|copie|remplit)/i);
 });
 
-test("explains personal guest links, prepared meetings and explicit media controls", () => {
+test("explains personal guest links and prepared meetings without targeting the dedicated room", () => {
   const guide = read("lib/boussole-governed-journey.ts");
   const access = read("components/GovernedJourneyGuestAccessPanel.tsx");
-  const media = read("components/RelationLiveKitMediaRoom.tsx");
   assert.match(guide, /Chaque participant externe reçoit un lien personnel différent/);
   assert.match(guide, /Préparer organise la réunion sans la démarrer/);
-  assert.match(guide, /microphone, sa caméra ou le partage d’écran/);
+  assert.doesNotMatch(guide, /governed-journey-media-controls/);
   assert.match(access, /Chaque participant reçoit son propre lien personnel/);
-  assert.match(media, /governed-journey-media-room/);
-  assert.match(media, /governed-journey-media-controls/);
-  assert.match(media, /governed-journey-meeting-participants/);
+  assert.match(cockpit, /governed-journey-media-room/);
+  assert.match(cockpit, /governed-journey-meeting-participants/);
 });
 
 test("does not add or alter cockpit business actions", () => {

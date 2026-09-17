@@ -177,6 +177,7 @@ test("declares every important Boussole target on a real UI element", () => {
     read("components/MatchingOptInPanel.tsx"),
     read("components/MatchingPanel.tsx"),
     read("components/RelationLiveKitMediaRoom.tsx"),
+    read("components/media/GoodissimaMediaRoom.tsx"),
   ].join("\n");
 
   for (const targetId of [

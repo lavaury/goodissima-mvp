@@ -81,6 +81,7 @@
     "admin:promote": "node --experimental-strip-types scripts/promote-admin.ts"
   },
   "dependencies": {
+    "@livekit/track-processors": "^0.5.7",
     "@prisma/client": "^5.22.0",
     "@react-email/components": "^1.0.12",
     "@supabase/ssr": "^0.10.3",

@@ -6,6 +6,7 @@ const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.
 const launcher = source("components/DossierCommunicationLauncher.tsx");
 const workspace = source("components/RelationCaseWorkspace.tsx");
 const livekit = source("components/RelationLiveKitMediaRoom.tsx");
+const mediaRoom = source("components/media/GoodissimaMediaRoom.tsx");
 const tabs = source("components/DossierWorkspaceTabs.tsx");
 const boussole = source("components/ContextualBoussole.tsx");
 
@@ -25,9 +26,11 @@ test("media opens in an accessible local window without automatic device activat
   assert.match(launcher, /event\.key === "Tab"/);
   assert.match(launcher, /setMode\(item\.id\)/);
   assert.doesNotMatch(launcher, /setMicrophoneEnabled|setCameraEnabled|setScreenShareEnabled|getUserMedia|getDisplayMedia/);
-  assert.match(livekit, /onClick=\{\(\) => toggleMedia\("microphone"\)\}/);
-  assert.match(livekit, /onClick=\{\(\) => toggleMedia\("camera"\)\}/);
-  assert.match(livekit, /onClick=\{\(\) => toggleMedia\("screen"\)\}/);
+  assert.match(livekit, /GoodissimaMediaRoom/);
+  assert.match(mediaRoom, /toggle\("microphone"\)/);
+  assert.match(mediaRoom, /toggle\("camera"\)/);
+  assert.match(mediaRoom, /toggle\("screen"\)/);
+  assert.match(mediaRoom, /Aucun média ne démarre sans votre action/);
 });
 
 test("non-active governance keeps history readable and disables new communication", () => {

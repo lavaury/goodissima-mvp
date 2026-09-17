@@ -45,7 +45,7 @@ function guestPage(state: "valid" | "revoked" | "expired" | "inactive" | "unknow
   };
   const { default: page } = loadTestModule("app/gouvernance/invitation/[token]/page.tsx", {
     "react/jsx-runtime": jsx,
-    "next/link": { default: (props: any) => jsx.jsx("a", props) },
+    "next/link": (props: any) => jsx.jsx("a", props),
     "next/navigation": { notFound: () => { throw new Error("NEXT_NOT_FOUND"); } },
     "@/components/GovernedInvitationStatusRefresh": { GovernedInvitationStatusRefresh: () => null },
     "@/components/RelationLiveKitMediaRoom": { RelationLiveKitMediaRoom: (props: any) => {
@@ -172,6 +172,6 @@ test("guest page exposes media only for an open, unexpired authorized meeting", 
   ] as const) {
     const fixture = guestPage("valid", [{ id: "participant-fixture", status: "AUTHORIZED", rsvp: null, communicationSession: { rsvpRevision: 1, scheduledAt: null, ...session } }]);
     const html = renderToStaticMarkup(await fixture.page({ params: { token } }));
-    assert.equal(html.includes("Rejoindre la réunion"), canJoin);
+    assert.equal(html.includes("Rejoindre la salle"), canJoin);
   }
 });
