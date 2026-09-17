@@ -94,7 +94,7 @@ test("business role labels survive AI proposal validation", () => {
   assert.match(actions, /participantActorsFromLines/);
   assert.match(actions, /lastIndexOf\(" - "\)/);
   assert.match(actions, /actors: participantActors/);
-  assert.match(page, /participant\.role === "Participant attendu"\s*\? "Participation prévue"/);
+  assert.match(page, /participant\.role === "Participant attendu" && participant\.name !== participant\.role \? participant\.name/);
   assert.match(page, /Aucune personne associée/);
 });
 
