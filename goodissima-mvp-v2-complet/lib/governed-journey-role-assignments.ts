@@ -2,6 +2,12 @@ import type { Prisma } from "@prisma/client";
 
 export type ExpectedRoleAssignmentProjection = "UNASSIGNED" | "PENDING_INVITATION" | "ASSIGNED";
 export type ProjectableExpectedRoleAssignment = { id: string; expectedRoleId: string; assigneeUserId: string | null; revokedAt: Date | null; assigneeUser?: { id: string; name: string | null; email: string } | null; assigneeInvitation?: { id: string; displayName: string; status: string; revokedAt: Date | null; accessTokenExpiresAt: Date; consent?: { status: string } | null } | null };
+type ParticipantInvitation = { id: string; ownerId: string; inviteeUserId: string | null; displayName: string; status: string; revokedAt: Date | null; accessTokenExpiresAt: Date; consent?: { status: string } | null };
+
+export function projectAssignableJourneyParticipants(invitations: ParticipantInvitation[], input: { ownerId: string; currentUserId: string; now?: Date }) {
+  const now = input.now ?? new Date();
+  return invitations.filter(invitation => invitation.ownerId === input.ownerId && invitation.inviteeUserId !== input.currentUserId && invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > now && invitation.consent?.status === "ACCEPTED").map(invitation => ({ invitationId: invitation.id, displayName: invitation.displayName, identified: Boolean(invitation.inviteeUserId) }));
+}
 
 export function projectExpectedRoleAssignment(assignment: ProjectableExpectedRoleAssignment | undefined, now = new Date()): ExpectedRoleAssignmentProjection {
   if (!assignment || assignment.revokedAt) return "UNASSIGNED";
