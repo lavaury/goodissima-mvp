@@ -42,7 +42,7 @@ test("legacy compatibility is explicit and cannot reopen historical closed meeti
 
 test("decision transition uses optimistic concurrency and creates one event only after winning", () => {
   const source = readFileSync(new URL("../lib/governed-meeting-rsvp.ts", import.meta.url), "utf8");
-  assert.match(source, /status: "PENDING", version: participant\.rsvp\.version, meetingRevision: session\.rsvpRevision/);
+  assert.match(source, /status: "PENDING",[\s\S]*version: participant\.rsvp\.version,[\s\S]*meetingRevision: session\.rsvpRevision/);
   assert.match(source, /if \(updated\.count !== 1\)/);
   assert.ok(source.lastIndexOf("governedMeetingRsvpEvent.create") > source.indexOf("if (updated.count !== 1)"));
 });
