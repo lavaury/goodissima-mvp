@@ -20,7 +20,7 @@ export default async function GuestMeetingRoomPage({
   });
   if (!invitation || !hasCurrentJourneyAccess(invitation)) notFound();
   if (
-    invitation.consent &&
+    invitation.inviteeUserId &&
     !(await invitationIdentityMatches(invitation.inviteeUserId))
   )
     notFound();
@@ -29,12 +29,20 @@ export default async function GuestMeetingRoomPage({
       communicationSessionId: params.meetingId,
       governedJourneyInvitationId: invitation.id,
       status: "AUTHORIZED",
+      communicationSession: {
+        ownerId: invitation.ownerId,
+        relationTemplateId: invitation.relationTemplateId,
+        relationCaseId: null,
+        provider: "LIVEKIT_PENDING",
+        status: "REQUESTED",
+        accessOpened: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
     },
     include: { rsvp: true, communicationSession: true },
   });
-  const available = Boolean(
-    authorization && hasCurrentMeetingMediaAccess(authorization),
-  );
+  if (!authorization || !hasCurrentMeetingMediaAccess(authorization))
+    notFound();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -49,7 +57,7 @@ export default async function GuestMeetingRoomPage({
           contextKind="governedJourney"
           governedJourneyId={invitation.relationTemplateId}
           actorKind="guest"
-          available={available}
+          available
           guestAccessToken={params.token}
           preferredSessionId={params.meetingId}
           joinLabel="Rejoindre la réunion"

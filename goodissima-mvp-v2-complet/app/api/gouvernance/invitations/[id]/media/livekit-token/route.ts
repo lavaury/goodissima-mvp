@@ -11,7 +11,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   try {
     const invitation = await prisma.governedJourneyInvitation.findUnique({ where: { accessTokenHash: hashJourneyInvitationToken(params.id) }, include: { consent: true } });
     if (!invitation || !hasCurrentJourneyAccess(invitation)) return NextResponse.json({ error: "Accès invité inconnu, expiré ou révoqué." }, { status: 403 });
-    if (invitation.consent && !await invitationIdentityMatches(invitation.inviteeUserId)) return NextResponse.json({ error: "Accès invité inconnu, expiré ou révoqué." }, { status: 403 });
+    if (invitation.inviteeUserId && !await invitationIdentityMatches(invitation.inviteeUserId)) return NextResponse.json({ error: "Accès invité inconnu, expiré ou révoqué." }, { status: 403 });
     if (!getLiveKitConfigStatus().configured) return NextResponse.json({ error: "La salle sécurisée n'est pas disponible pour le moment." }, { status: 503 });
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const communicationSessionId = typeof body.preferredSessionId === "string" ? body.preferredSessionId : "";
