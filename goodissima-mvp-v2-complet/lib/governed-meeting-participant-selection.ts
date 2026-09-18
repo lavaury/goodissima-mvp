@@ -116,7 +116,7 @@ export function formatMeetingSelectionResultCount(
   singular: string,
   plural: string,
 ) {
-  return `${count} ${count === 1 ? singular : plural}`;
+  return `${count} ${count > 1 ? plural : singular}`;
 }
 
 export function isJourneyMemberSelectable(eligibility: GovernedParticipantSelectionEligibility) {

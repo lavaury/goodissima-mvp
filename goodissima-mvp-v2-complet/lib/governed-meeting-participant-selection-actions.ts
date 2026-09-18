@@ -303,6 +303,7 @@ export async function validateJourneyMemberSelectionAction(input: SelectionInput
       let alreadyPresent = 0;
       for (const entry of revalidated) {
         let participant = entry.existing;
+        const createdBySelection = !participant;
         if (participant) {
           alreadyPresent += 1;
         } else {
@@ -314,12 +315,15 @@ export async function validateJourneyMemberSelectionAction(input: SelectionInput
           });
           added += 1;
         }
-        if (entry.invitation?.consent && !participant.rsvp) {
+        if (createdBySelection && entry.invitation?.consent && !participant.rsvp) {
           await createPendingMeetingRsvp(tx, { meetingParticipantId: participant.id, meetingRevision: loaded.scope.session.rsvpRevision, actorUserId: owner.id });
         }
         await tx.governedParticipantSelectionItem.update({
           where: { id: entry.item.id },
-          data: { observedEligibility: entry.existing ? "ALREADY_PRESENT" : "ELIGIBLE", materializedMeetingParticipantId: participant.id },
+          data: {
+            observedEligibility: entry.existing ? "ALREADY_PRESENT" : "ELIGIBLE",
+            materializedMeetingParticipantId: createdBySelection ? participant.id : null,
+          },
         });
       }
       const summary: MaterializationSummary = { retained: included.length, added, alreadyPresent, errors: 0 };
@@ -336,6 +340,12 @@ export async function validateJourneyMemberSelectionAction(input: SelectionInput
     revalidatePath(cockpitPath(input.formTemplateId));
     return result;
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Validation des participants impossible." };
+    const technical = error instanceof Error && (/Invalid `?prisma/i.test(error.message) || /Unique constraint failed/i.test(error.message) || error.name.startsWith("PrismaClient"));
+    return {
+      ok: false,
+      error: technical
+        ? "La sélection n'a pas pu être validée. Aucun participant n'a été ajouté. Vous pouvez réessayer."
+        : error instanceof Error ? error.message : "Validation des participants impossible.",
+    };
   }
 }

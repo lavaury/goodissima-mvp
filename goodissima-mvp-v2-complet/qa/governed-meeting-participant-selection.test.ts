@@ -117,12 +117,18 @@ test("summarizes human inclusions and exclusions", () => {
 });
 
 test("formats materialized result counts for zero, one and several", () => {
-  assert.equal(formatMeetingSelectionResultCount(0, "personne retenue", "personnes retenues"), "0 personnes retenues");
+  assert.equal(formatMeetingSelectionResultCount(0, "personne retenue", "personnes retenues"), "0 personne retenue");
   assert.equal(formatMeetingSelectionResultCount(1, "personne retenue", "personnes retenues"), "1 personne retenue");
   assert.equal(formatMeetingSelectionResultCount(2, "personne retenue", "personnes retenues"), "2 personnes retenues");
   assert.equal(formatMeetingSelectionResultCount(1, "ajoutée à la réunion", "ajoutées à la réunion"), "1 ajoutée à la réunion");
   assert.equal(formatMeetingSelectionResultCount(2, "déjà présente", "déjà présentes"), "2 déjà présentes");
   assert.equal(formatMeetingSelectionResultCount(2, "erreur", "erreurs"), "2 erreurs");
+  assert.equal(formatMeetingSelectionResultCount(0, "exclu", "exclus"), "0 exclu");
+  assert.equal(formatMeetingSelectionResultCount(1, "exclu", "exclus"), "1 exclu");
+  assert.equal(formatMeetingSelectionResultCount(2, "exclu", "exclus"), "2 exclus");
+  assert.equal(formatMeetingSelectionResultCount(0, "candidat", "candidats"), "0 candidat");
+  assert.equal(formatMeetingSelectionResultCount(1, "déjà présent", "déjà présents"), "1 déjà présent");
+  assert.equal(formatMeetingSelectionResultCount(0, "erreur", "erreurs"), "0 erreur");
 });
 
 const actions = readFileSync("lib/governed-meeting-participant-selection-actions.ts", "utf8");
@@ -151,6 +157,8 @@ test("materialization is scoped, versioned, atomic and reuses RSVP primitives", 
   assert.ok(actions.indexOf("if (changed.length)") < actions.indexOf("governedMeetingParticipant.upsert"));
   assert.match(actions, /governedMeetingParticipant\.upsert/);
   assert.match(actions, /createPendingMeetingRsvp/);
+  assert.match(actions, /createdBySelection && entry\.invitation\?\.consent/);
+  assert.match(actions, /materializedMeetingParticipantId: createdBySelection \? participant\.id : null/);
   assert.match(meetingRsvp, /createPendingMeetingRsvp[\s\S]*status: "PENDING"[\s\S]*type: "INVITED"/);
   assert.match(actions, /type: "VALIDATED"/);
   assert.match(actions, /type: "MATERIALIZED"/);
@@ -183,9 +191,10 @@ test("Boussole targets the real EMPTY, POPULATED and FOCUSED selection surface",
   assert.match(boussoleRegistry, /"governed-communications": 4/);
 });
 
-function runtimeFixture(options: { revoked?: boolean; materialized?: boolean; crossOwner?: boolean; crossJourney?: boolean; crossMeeting?: boolean; concurrent?: boolean } = {}) {
-  const writes = { participants: 0, rsvps: 0, events: [] as string[], selectionStatuses: [] as string[] };
+function runtimeFixture(options: { revoked?: boolean; materialized?: boolean; crossOwner?: boolean; crossJourney?: boolean; crossMeeting?: boolean; concurrent?: boolean; alreadyPresent?: boolean; excluded?: boolean; technicalError?: boolean } = {}) {
+  const writes = { participants: 0, rsvps: 0, events: [] as string[], selectionStatuses: [] as string[], itemUpdates: [] as Array<{ id: string; data: Record<string, unknown> }> };
   const currentInvitation = invitation("runtime", { inviteeUserId: "runtime-user", ...(options.revoked ? { status: "REVOKED", revokedAt: now } : {}) });
+  const excludedInvitation = invitation("excluded", { inviteeUserId: "excluded-user" });
   const selection = {
     id: "selection",
     ownerId: "owner",
@@ -197,7 +206,10 @@ function runtimeFixture(options: { revoked?: boolean; materialized?: boolean; cr
     status: options.materialized ? "MATERIALIZED" : "UNDER_REVIEW",
     version: options.materialized ? 3 : 1,
     materializationSummary: options.materialized ? { retained: 1, added: 1, alreadyPresent: 0, errors: 0 } : null,
-    items: [{ id: "item", sourceInvitationId: "runtime", canonicalUserId: "runtime-user", canonicalInvitationId: null, snapshotDisplayName: "Runtime User", observedEligibility: "ELIGIBLE", decision: "INCLUDED" }],
+    items: [
+      { id: "item", sourceInvitationId: "runtime", canonicalUserId: "runtime-user", canonicalInvitationId: null, snapshotDisplayName: "Runtime User", observedEligibility: options.alreadyPresent ? "ALREADY_PRESENT" : "ELIGIBLE", decision: "INCLUDED" },
+      ...(options.excluded ? [{ id: "excluded-item", sourceInvitationId: "excluded", canonicalUserId: "excluded-user", canonicalInvitationId: null, snapshotDisplayName: "Excluded User", observedEligibility: "ELIGIBLE", decision: "UNDECIDED" as const }] : []),
+    ],
   };
   const tx: any = {
     formTemplate: { findFirst: async () => options.crossOwner ? null : { relationTemplateId: "template" } },
@@ -212,12 +224,16 @@ function runtimeFixture(options: { revoked?: boolean; materialized?: boolean; cr
       },
       update: async ({ data }: any) => { writes.selectionStatuses.push(data.status); return { ...selection, ...data }; },
     },
-    governedParticipantSelectionItem: { update: async () => ({}) },
+    governedParticipantSelectionItem: { update: async ({ where, data }: any) => { writes.itemUpdates.push({ id: where.id, data }); return {}; } },
     governedParticipantSelectionEvent: { create: async ({ data }: any) => { writes.events.push(data.type); return data; } },
-    governedJourneyInvitation: { findMany: async () => [currentInvitation] },
+    governedJourneyInvitation: { findMany: async () => [currentInvitation, excludedInvitation] },
     governedMeetingParticipant: {
-      findMany: async () => [],
-      upsert: async () => { writes.participants += 1; return { id: "participant", rsvp: null, governedJourneyInvitation: currentInvitation }; },
+      findMany: async () => options.alreadyPresent ? [{ id: "participant", status: "AUTHORIZED", governedJourneyInvitationId: "runtime", rsvp: null, governedJourneyInvitation: currentInvitation }] : [],
+      upsert: async () => {
+        if (options.technicalError) throw new Error("Invalid `prisma.governedMeetingParticipant.upsert()` invocation: Unique constraint failed");
+        writes.participants += 1;
+        return { id: "participant", rsvp: null, governedJourneyInvitation: currentInvitation };
+      },
     },
   };
   const prisma = { $transaction: async (operation: any) => operation(tx) };
@@ -256,6 +272,43 @@ test("successful validation materializes once, delegates RSVP and records both e
   assert.equal(writes.participants, 1);
   assert.equal(writes.rsvps, 1);
   assert.deepEqual(writes.events, ["VALIDATED", "MATERIALIZED"]);
+  assert.equal(writes.itemUpdates.filter((update) => update.id === "item").at(-1)?.data.materializedMeetingParticipantId, "participant");
+});
+
+test("a later selection includes an existing participant without claiming its materialization or creating RSVP", async () => {
+  const previous = runtimeFixture();
+  const previousResult = await previous.actionsModule.validateJourneyMemberSelectionAction(runtimeInput);
+  assert.equal(previousResult.ok, true);
+  assert.equal(previous.writes.itemUpdates.filter((update) => update.id === "item").at(-1)?.data.materializedMeetingParticipantId, "participant");
+
+  const later = runtimeFixture({ alreadyPresent: true });
+  const laterResult = await later.actionsModule.validateJourneyMemberSelectionAction(runtimeInput);
+  assert.equal(laterResult.ok, true);
+  assert.deepEqual(laterResult.summary, { retained: 1, added: 0, alreadyPresent: 1, errors: 0 });
+  assert.equal(later.writes.participants, 0);
+  assert.equal(later.writes.rsvps, 0);
+  assert.equal(later.writes.itemUpdates.filter((update) => update.id === "item").at(-1)?.data.materializedMeetingParticipantId, null);
+});
+
+test("an excluded reason is persisted and never participates in materialization", async () => {
+  const fixture = runtimeFixture({ excluded: true });
+  const result = await fixture.actionsModule.validateJourneyMemberSelectionAction({
+    ...runtimeInput,
+    exclusionReasons: { "excluded-item": "Pas disponible" },
+  });
+  assert.equal(result.ok, true);
+  const excludedDecision = fixture.writes.itemUpdates.find((update) => update.id === "excluded-item");
+  assert.equal(excludedDecision?.data.decision, "EXCLUDED");
+  assert.equal(excludedDecision?.data.decisionReason, "Pas disponible");
+  assert.equal(fixture.writes.itemUpdates.filter((update) => update.id === "excluded-item").some((update) => "materializedMeetingParticipantId" in update.data), false);
+});
+
+test("raw Prisma failures are replaced by a rollback-safe human message", async () => {
+  const fixture = runtimeFixture({ technicalError: true });
+  const result = await fixture.actionsModule.validateJourneyMemberSelectionAction(runtimeInput);
+  assert.equal(result.ok, false);
+  assert.equal(result.error, "La sélection n'a pas pu être validée. Aucun participant n'a été ajouté. Vous pouvez réessayer.");
+  assert.doesNotMatch(result.error, /Invalid prisma|Unique constraint/i);
 });
 
 test("cross-owner scope writes nothing and materialized retry is idempotent", async () => {

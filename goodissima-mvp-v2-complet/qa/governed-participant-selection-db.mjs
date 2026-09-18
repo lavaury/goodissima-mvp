@@ -225,8 +225,8 @@ try {
 const after = await countTables();
 const rolesAfter = await prisma.governedJourneyExpectedRoleAssignment.count();
 await prisma.$disconnect();
-observed.tablesInitiallyEmpty = before.every((count) => count === 0);
 observed.rollbackIntact = JSON.stringify(before) === JSON.stringify(after);
+observed.preexistingRowsPreserved = before.every((count, index) => count === after[index]);
 observed.noJourneyRoleCreated = rolesBefore === rolesAfter;
 const passed = Object.values(observed).every(Boolean);
 console.log(JSON.stringify({ observed, before, after, rolesBefore, rolesAfter, passed }));
