@@ -14,6 +14,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prepareGovernanceMultiActorCommunicationAction } from "@/lib/governance-communication-session-actions";
 import { authorizeGuestForGovernedMeetingAction, removeGuestFromGovernedMeetingAction } from "@/lib/governed-meeting-participant-actions";
 import { cancelGovernedMeetingAction, updateGovernedMeetingScheduleAction } from "@/lib/governed-meeting-lifecycle-actions";
+import { reusePastGovernedMeetingAction } from "@/lib/governed-meeting-history-actions";
 import { declareDocumentReceptionAction } from "@/lib/governance-document-receptions-actions";
 import { prepareParticipantInvitationAction } from "@/lib/governance-participant-invitations-actions";
 import { prepareGovernanceReviewAction, transitionGovernanceReviewAction } from "@/lib/governance-review-preparations-actions";
@@ -36,7 +37,7 @@ import { GovernedJourneyMemorySection } from "@/components/GovernedJourneyMemory
 import { GovernedJourneyAddParticipantPanel } from "@/components/GovernedJourneyAddParticipantPanel";
 import { readJourneyGovernedMemory } from "@/lib/governed-memory/runtime";
 import { meetingRsvpLabel } from "@/lib/governed-meeting-rsvp";
-import { projectJourneyParticipationState } from "@/lib/governed-journey-consent";
+import { hasCurrentJourneyAccess, projectJourneyParticipationState } from "@/lib/governed-journey-consent";
 import { getGovernedInvitationRoleLabel } from "@/lib/governed-invitation-role-label";
 import { projectCanonicalJourneyPeople, projectCompactJourneyPeople } from "@/lib/governed-journey-people";
 import { projectAssignableJourneyParticipants, projectExpectedRoleAssignment } from "@/lib/governed-journey-role-assignments";
@@ -417,6 +418,10 @@ function formatDate(value: Date | string | null | undefined) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
+function meetingRsvpEventLabel(type: string) {
+  return ({ INVITED: "Invitation envoyée", ACCEPTED: "Participation acceptée", DECLINED: "Participation déclinée", RESET_TO_PENDING: "Réponse réinitialisée", MEETING_CANCELLED: "Réunion annulée" } as Record<string, string>)[type] ?? "Événement RSVP";
+}
+
 export default async function GovernedJourneyPilotagePage({ params, searchParams }: { params: { id: string }; searchParams: { meetingPrepared?: string; similarMeetingId?: string; technical?: string; meetingAction?: string; meetingId?: string } }) {
   const owner = await getCurrentPrismaUser();
   if (!await getTemplateReadAccess(owner, params.id)) notFound();
@@ -525,7 +530,11 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     : [];
   const roleJourney = await prisma.governedJourney.findFirst({ where: { relationTemplateId: formTemplate.relationTemplate.id, authorityUserId: owner.id }, select: { id: true, expectedRoleAssignments: { where: { revokedAt: null }, orderBy: { assignedAt: "desc" }, include: { assigneeUser: { select: { id: true, name: true, email: true } }, assigneeInvitation: { include: { consent: true } } } } } });
   const meetingParticipants = communicationOverview.sessions.length > 0
-    ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } }, include: { rsvp: true } })
+    ? await prisma.governedMeetingParticipant.findMany({ where: { communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } }, include: {
+        governedJourneyInvitation: { include: { consent: true, inviteeUser: { select: { name: true, email: true } } } },
+        rsvp: { include: { decidedByUser: { select: { name: true, email: true } }, decidedByInvitation: { select: { displayName: true } } } },
+        rsvpEvents: { orderBy: [{ occurredAt: "asc" }, { id: "asc" }], include: { actorUser: { select: { name: true, email: true } }, actorInvitation: { select: { displayName: true } } } },
+      } })
     : [];
   const activeJourneyInvitations = governedInvitations.filter((invitation) => invitation.accessTokenExpiresAt > new Date() && (projectJourneyParticipationState(invitation) === "ACCEPTED" || (projectJourneyParticipationState(invitation) === "LEGACY_UNKNOWN" && invitation.status === "ACTIVE")));
   const pendingJourneyInvitations = governedInvitations.filter((invitation) => invitation.accessTokenExpiresAt > new Date() && projectJourneyParticipationState(invitation) === "PENDING");
@@ -1346,7 +1355,30 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
           <details className="mt-4 rounded-lg border bg-slate-50"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-cyan-900">Voir toutes les réunions ({communicationOverview.sessions.length})</summary><div className="space-y-5 border-t p-4">
             {(["En préparation", "À venir", "Terminées"] as const).map((category) => {
               const meetings = communicationOverview.sessions.filter((meeting) => meetingListCategory(meeting) === category);
-              return meetings.length > 0 ? <section key={category}><h4 className="font-bold text-slate-900">{category}</h4><ul className="mt-2 space-y-2">{meetings.map((meeting) => <li key={meeting.id} className="flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words"><strong>{meeting.title}</strong>{meeting.scheduledAt ? ` · ${formatDate(meeting.scheduledAt)}` : " · Date non définie"}</span><span className="text-xs font-semibold text-slate-600">{meeting.statusLabel}</span></li>)}</ul></section> : null;
+              return meetings.length > 0 ? <section key={category}><h4 className="font-bold text-slate-900">{category}</h4><div className="mt-2 space-y-2">{meetings.map((meeting) => {
+                const historical = meetingIsClosed(meeting);
+                const historicalParticipants = meetingParticipants.filter((participant) => participant.communicationSessionId === meeting.id);
+                if (!historical) return <div key={meeting.id} className="flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words"><strong>{meeting.title}</strong>{meeting.scheduledAt ? ` · ${formatDate(meeting.scheduledAt)}` : " · Date non définie"}</span><span className="text-xs font-semibold text-slate-600">{meeting.statusLabel}</span></div>;
+                const reusableHistoricalIds = new Set(historicalParticipants.filter((participant) => hasCurrentJourneyAccess(participant.governedJourneyInvitation)).map((participant) => participant.governedJourneyInvitationId));
+                const reusableCount = reusableHistoricalIds.size;
+                const attentionCount = historicalParticipants.length - reusableCount;
+                return <details key={meeting.id} className="rounded-lg border bg-white"><summary className="flex min-h-11 cursor-pointer list-none flex-col gap-1 p-3 text-sm sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0 break-words"><strong>{meeting.title}</strong>{meeting.scheduledAt ? ` · ${formatDate(meeting.scheduledAt)}` : " · Date non définie"}</span><span className="text-xs font-semibold text-slate-600">{meeting.statusLabel}</span></summary><div className="space-y-4 border-t p-4 text-sm text-slate-700">
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    <div><dt className="font-semibold text-slate-900">Date prévue</dt><dd>{meeting.scheduledAt ? formatDate(meeting.scheduledAt) : "Non planifiée"}</dd></div>
+                    <div><dt className="font-semibold text-slate-900">Expiration</dt><dd>{meeting.expiresAt ? formatDate(meeting.expiresAt) : "Sans expiration enregistrée"}</dd></div>
+                    <div><dt className="font-semibold text-slate-900">Objectif</dt><dd>{meeting.purpose ?? "Non renseigné"}</dd></div>
+                    <div><dt className="font-semibold text-slate-900">Note</dt><dd className="whitespace-pre-wrap">{governedMeetingUserNote(meeting.note) ?? "Non renseignée"}</dd></div>
+                  </dl>
+                  <section><h5 className="font-bold text-slate-950">Participants de cette réunion</h5>{historicalParticipants.length > 0 ? <ul className="mt-2 space-y-3">{historicalParticipants.map((participant) => {
+                    const invitation = participant.governedJourneyInvitation;
+                    const rsvpActor = participant.rsvp?.decidedByUser?.name ?? participant.rsvp?.decidedByUser?.email ?? participant.rsvp?.decidedByInvitation?.displayName ?? null;
+                    return <li key={participant.id} className="rounded-lg bg-slate-50 p-3"><p><strong>{invitation.inviteeUser?.name ?? invitation.inviteeUser?.email ?? invitation.displayName}</strong></p><p className="mt-1">Autorisation historique : {participant.status === "AUTHORIZED" ? "accordée" : "retirée"}{participant.removedAt ? ` le ${formatDate(participant.removedAt)}` : ` le ${formatDate(participant.authorizedAt)}`}</p><p className="mt-1">RSVP : {meetingRsvpLabel(participant.rsvp)}{participant.rsvp?.decidedAt ? ` le ${formatDate(participant.rsvp.decidedAt)}` : ""}{rsvpActor ? ` par ${rsvpActor}` : ""}</p>{participant.rsvpEvents.length > 0 ? <details className="mt-2"><summary className="cursor-pointer font-semibold text-cyan-900">Historique RSVP ({participant.rsvpEvents.length})</summary><ol className="mt-2 space-y-1 border-l pl-3">{participant.rsvpEvents.map((event) => <li key={event.id}>{meetingRsvpEventLabel(event.type)} · {event.actorUser?.name ?? event.actorUser?.email ?? event.actorInvitation?.displayName ?? (event.actorKind === "ORGANIZER" ? "Organisateur" : event.actorKind === "SYSTEM" ? "Système" : "Invité")} · {formatDate(event.occurredAt)}</li>)}</ol></details> : <p className="mt-2 text-xs text-slate-500">Aucun historique RSVP enregistré.</p>}</li>;
+                  })}</ul> : <p className="mt-2 text-slate-500">Aucun participant historique enregistré.</p>}</section>
+                  <section><h5 className="font-bold text-slate-950">Présence observée</h5>{meeting.attendance.length > 0 ? <ul className="mt-2 space-y-2">{meeting.attendance.map((presence) => <li key={presence.participantKey} className="rounded-lg bg-slate-50 p-3"><strong>{presence.displayName}</strong><p>Arrivée observée : {formatDate(presence.joinedAt)}</p><p>{presence.leftAt ? `Départ observé : ${formatDate(presence.leftAt)}` : "Départ non observé"}</p><p>Médias observés : {[presence.mediaUsed.audio ? "audio" : null, presence.mediaUsed.video ? "vidéo" : null, presence.mediaUsed.screen ? "partage d’écran" : null].filter(Boolean).join(", ") || "aucun"}</p></li>)}</ul> : <p className="mt-2 text-slate-500">Aucune présence observée.</p>}<p className="mt-2 text-xs text-slate-500">Observation technique, distincte du RSVP et ne constituant pas une preuve certifiée de présence.</p></section>
+                  <dl className="grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-slate-50 p-3"><dt className="font-semibold text-slate-900">Enregistrement</dt><dd>Aucun contenu conservé</dd></div><div className="rounded-lg bg-slate-50 p-3"><dt className="font-semibold text-slate-900">Transcription</dt><dd>Aucun contenu conservé</dd></div></dl>
+                  <details className="rounded-lg border border-cyan-200 bg-cyan-50"><summary className="min-h-11 cursor-pointer px-4 py-3 font-bold text-cyan-950">Réutiliser cette réunion</summary><form action={reusePastGovernedMeetingAction} className="space-y-4 border-t border-cyan-200 p-4"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="sourceSessionId" value={meeting.id} /><p className="text-xs text-cyan-900">Une nouvelle réunion sera créée. Cette réunion historique restera inchangée.</p><div className="grid gap-3 sm:grid-cols-2"><label className="font-semibold">Titre<input name="title" required defaultValue={meeting.title} className="mt-1 block w-full rounded-lg border bg-white px-3 py-2 font-normal" /></label><label className="font-semibold">Nouvelle date<input name="scheduledAt" required type="datetime-local" className="mt-1 block w-full rounded-lg border bg-white px-3 py-2 font-normal" /></label><label className="font-semibold sm:col-span-2">Objectif<input name="purpose" defaultValue={meeting.purpose ?? ""} className="mt-1 block w-full rounded-lg border bg-white px-3 py-2 font-normal" /></label><label className="font-semibold sm:col-span-2">Note<textarea name="note" defaultValue={governedMeetingUserNote(meeting.note) ?? ""} className="mt-1 block min-h-20 w-full rounded-lg border bg-white px-3 py-2 font-normal" /></label></div><div><p className="font-semibold">Participants proposés</p><p className="mt-1 text-xs text-cyan-900">{reusableCount} participant(s) historique(s) peuvent être repris · {attentionCount} nécessitent votre attention.</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{governedInvitations.map((invitation) => { const reusable = hasCurrentJourneyAccess(invitation); const wasParticipant = historicalParticipants.some((participant) => participant.governedJourneyInvitationId === invitation.id); const state = reusable ? "Réutilisable immédiatement" : invitation.revokedAt || invitation.status === "REVOKED" ? "Accès Journey perdu ou révoqué" : invitation.accessTokenExpiresAt <= new Date() ? "Invitation expirée ou invalide" : "Action humaine nécessaire"; return <label key={invitation.id} className={`rounded-lg border p-3 ${reusable ? "bg-white" : "bg-slate-100 text-slate-500"}`}><input type="checkbox" name="invitationIds" value={invitation.id} defaultChecked={wasParticipant && reusable} disabled={!reusable} className="mr-2" /><strong>{invitation.inviteeUser?.name ?? invitation.inviteeUser?.email ?? invitation.displayName}</strong><span className="mt-1 block text-xs">{state}</span></label>; })}</div></div><div className="rounded-lg bg-white p-3 text-xs"><strong>Réglages proposés :</strong> salle non ouverte, aucun token média, aucun enregistrement, aucune transcription, nouveaux RSVP en attente lorsque requis.</div><button type="submit" className="min-h-11 rounded-lg bg-cyan-900 px-4 py-2 font-bold text-white">Créer la nouvelle réunion</button></form></details>
+                </div></details>;
+              })}</div></section> : null;
             })}
           </div></details>
           </>
