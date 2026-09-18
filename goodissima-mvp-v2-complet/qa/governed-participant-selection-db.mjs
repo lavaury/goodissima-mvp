@@ -55,6 +55,7 @@ try {
         ownerId: target.ownerId,
         governedJourneyId: target.journeyId,
         relationTemplateId: target.relationTemplateId,
+        targetType: "MEETING",
         communicationSessionId: target.sessionId,
         source: "JOURNEY_MEMBERS",
         criteria: { status: "ACTIVE" },
@@ -67,7 +68,6 @@ try {
       data: [
         {
           selectionId: selection.id,
-          communicationSessionId: target.sessionId,
           relationTemplateId: target.relationTemplateId,
           canonicalUserId: secondUser.id,
           snapshotDisplayName: "Same public name",
@@ -75,7 +75,6 @@ try {
         },
         {
           selectionId: selection.id,
-          communicationSessionId: target.sessionId,
           relationTemplateId: target.relationTemplateId,
           canonicalUserId: thirdUser.id,
           snapshotDisplayName: "Same public name",
@@ -83,7 +82,6 @@ try {
         },
         {
           selectionId: selection.id,
-          communicationSessionId: target.sessionId,
           relationTemplateId: target.relationTemplateId,
           canonicalInvitationId: invitation.id,
           sourceInvitationId: invitation.id,
@@ -95,12 +93,12 @@ try {
     observed.sameNameDifferentIds = (await tx.governedParticipantSelectionItem.count({ where: { selectionId: selection.id } })) === 3;
     observed.guestIdentity = Boolean(await tx.governedParticipantSelectionItem.findFirst({ where: { selectionId: selection.id, canonicalInvitationId: invitation.id } }));
 
-    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_insert_blocked(selection_id text, session_id text, template_id text, user_id text, item_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelectionItem" ("id","selectionId","communicationSessionId","relationTemplateId","canonicalUserId","snapshotDisplayName","observedEligibility","decision","createdAt","updatedAt") VALUES (item_id,selection_id,session_id,template_id,user_id,'Different display name','ELIGIBLE','UNDECIDED',now(),now()); RETURN false; EXCEPTION WHEN unique_violation THEN RETURN true; END; END $fn$;`);
-    const [duplicateResult] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_insert_blocked($1,$2,$3,$4,$5) AS blocked`, selection.id, target.sessionId, target.relationTemplateId, secondUser.id, randomUUID());
+    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_insert_blocked(selection_id text, template_id text, user_id text, item_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelectionItem" ("id","selectionId","relationTemplateId","canonicalUserId","snapshotDisplayName","observedEligibility","decision","createdAt","updatedAt") VALUES (item_id,selection_id,template_id,user_id,'Different display name','ELIGIBLE','UNDECIDED',now(),now()); RETURN false; EXCEPTION WHEN unique_violation THEN RETURN true; END; END $fn$;`);
+    const [duplicateResult] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_insert_blocked($1,$2,$3,$4) AS blocked`, selection.id, target.relationTemplateId, secondUser.id, randomUUID());
     observed.duplicateIdentityBlocked = duplicateResult?.blocked === true;
 
-    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_xor_blocked(selection_id text, session_id text, template_id text, user_id text, invitation_id text, item_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelectionItem" ("id","selectionId","communicationSessionId","relationTemplateId","canonicalUserId","canonicalInvitationId","snapshotDisplayName","observedEligibility","decision","createdAt","updatedAt") VALUES (item_id,selection_id,session_id,template_id,user_id,invitation_id,'Invalid dual identity','ELIGIBLE','UNDECIDED',now(),now()); RETURN false; EXCEPTION WHEN check_violation THEN RETURN true; END; END $fn$;`);
-    const [xorResult] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_xor_blocked($1,$2,$3,$4,$5,$6) AS blocked`, selection.id, target.sessionId, target.relationTemplateId, fourthUser.id, invitation.id, randomUUID());
+    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_xor_blocked(selection_id text, template_id text, user_id text, invitation_id text, item_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelectionItem" ("id","selectionId","relationTemplateId","canonicalUserId","canonicalInvitationId","snapshotDisplayName","observedEligibility","decision","createdAt","updatedAt") VALUES (item_id,selection_id,template_id,user_id,invitation_id,'Invalid dual identity','ELIGIBLE','UNDECIDED',now(),now()); RETURN false; EXCEPTION WHEN check_violation THEN RETURN true; END; END $fn$;`);
+    const [xorResult] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_xor_blocked($1,$2,$3,$4,$5) AS blocked`, selection.id, target.relationTemplateId, fourthUser.id, invitation.id, randomUUID());
     observed.identityXorBlocked = xorResult?.blocked === true;
 
     const meetingParticipant = await tx.governedMeetingParticipant.create({
@@ -119,8 +117,8 @@ try {
       where: { id: guestItem.id },
       data: { materializedMeetingParticipantId: meetingParticipant.id },
     });
-    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_materialization_blocked(selection_id text, session_id text, template_id text, user_id text, participant_id text, item_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelectionItem" ("id","selectionId","communicationSessionId","relationTemplateId","canonicalUserId","snapshotDisplayName","observedEligibility","decision","materializedMeetingParticipantId","createdAt","updatedAt") VALUES (item_id,selection_id,session_id,template_id,user_id,'Duplicate materialization','ELIGIBLE','UNDECIDED',participant_id,now(),now()); RETURN false; EXCEPTION WHEN unique_violation THEN RETURN true; END; END $fn$;`);
-    const [materializationResult] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_materialization_blocked($1,$2,$3,$4,$5,$6) AS blocked`, selection.id, target.sessionId, target.relationTemplateId, fourthUser.id, meetingParticipant.id, randomUUID());
+    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_materialization_blocked(selection_id text, template_id text, user_id text, participant_id text, item_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelectionItem" ("id","selectionId","relationTemplateId","canonicalUserId","snapshotDisplayName","observedEligibility","decision","materializedMeetingParticipantId","createdAt","updatedAt") VALUES (item_id,selection_id,template_id,user_id,'Duplicate materialization','ELIGIBLE','UNDECIDED',participant_id,now(),now()); RETURN false; EXCEPTION WHEN unique_violation THEN RETURN true; END; END $fn$;`);
+    const [materializationResult] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_materialization_blocked($1,$2,$3,$4,$5) AS blocked`, selection.id, target.relationTemplateId, fourthUser.id, meetingParticipant.id, randomUUID());
     observed.materializedParticipantUnique = materializationResult?.blocked === true;
 
     await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_event_mutation(target_id text, operation text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN IF operation='update' THEN UPDATE "GovernedParticipantSelectionEvent" SET "occurredAt"="occurredAt" WHERE "id"=target_id; ELSE DELETE FROM "GovernedParticipantSelectionEvent" WHERE "id"=target_id; END IF; RETURN false; EXCEPTION WHEN OTHERS THEN RETURN SQLERRM='GovernedParticipantSelectionEvent is append-only'; END; END $fn$;`);
@@ -130,9 +128,93 @@ try {
     observed.eventAppendOnly = updateResult?.blocked === true && deleteResult?.blocked === true;
 
     const otherOwner = secondUser.id;
-    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_cross_owner_blocked(selection_id text, owner_id text, journey_id text, template_id text, session_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelection" ("id","ownerId","governedJourneyId","relationTemplateId","communicationSessionId","source","status","criteria","createdByUserId","version","createdAt","updatedAt") VALUES (selection_id,owner_id,journey_id,template_id,session_id,'JOURNEY_MEMBERS','DRAFT','{}'::jsonb,owner_id,0,now(),now()); RETURN false; EXCEPTION WHEN foreign_key_violation THEN RETURN true; END; END $fn$;`);
+    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_cross_owner_blocked(selection_id text, owner_id text, journey_id text, template_id text, session_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelection" ("id","ownerId","governedJourneyId","relationTemplateId","targetType","communicationSessionId","source","status","criteria","createdByUserId","version","createdAt","updatedAt") VALUES (selection_id,owner_id,journey_id,template_id,'MEETING',session_id,'JOURNEY_MEMBERS','DRAFT','{}'::jsonb,owner_id,0,now(),now()); RETURN false; EXCEPTION WHEN foreign_key_violation THEN RETURN true; END; END $fn$;`);
     const [crossOwnerResult] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_cross_owner_blocked($1,$2,$3,$4,$5) AS blocked`, randomUUID(), otherOwner, target.journeyId, target.relationTemplateId, target.sessionId);
     observed.crossOwnerBlocked = crossOwnerResult?.blocked === true;
+
+    observed.meetingTargetValid = selection.targetType === "MEETING" && selection.communicationSessionId === target.sessionId;
+    const journeySelection = await tx.governedParticipantSelection.create({
+      data: {
+        ownerId: target.ownerId,
+        governedJourneyId: target.journeyId,
+        relationTemplateId: target.relationTemplateId,
+        targetType: "JOURNEY",
+        source: "DIRECTORY",
+        criteria: { status: "PUBLISHED" },
+        createdByUserId: target.ownerId,
+      },
+    });
+    observed.journeyTargetWithoutSessionValid = journeySelection.communicationSessionId === null;
+
+    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_target_blocked(target_type "GovernedParticipantSelectionTargetType", session_id text, selection_id text, owner_id text, journey_id text, template_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelection" ("id","ownerId","governedJourneyId","relationTemplateId","targetType","communicationSessionId","source","status","criteria","createdByUserId","version","createdAt","updatedAt") VALUES (selection_id,owner_id,journey_id,template_id,target_type,session_id,'DIRECTORY','DRAFT','{}'::jsonb,owner_id,0,now(),now()); RETURN false; EXCEPTION WHEN check_violation THEN RETURN true; END; END $fn$;`);
+    const [journeyWithMeeting] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_target_blocked('JOURNEY',$1,$2,$3,$4,$5) AS blocked`, target.sessionId, randomUUID(), target.ownerId, target.journeyId, target.relationTemplateId);
+    const [meetingWithoutMeeting] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_target_blocked('MEETING',NULL,$1,$2,$3,$4) AS blocked`, randomUUID(), target.ownerId, target.journeyId, target.relationTemplateId);
+    observed.targetXorBlocked = journeyWithMeeting?.blocked === true && meetingWithoutMeeting?.blocked === true;
+
+    const journeyMaterialized = await tx.governedParticipantSelectionItem.create({
+      data: {
+        selectionId: journeySelection.id,
+        relationTemplateId: target.relationTemplateId,
+        canonicalInvitationId: invitation.id,
+        sourceInvitationId: invitation.id,
+        snapshotDisplayName: "Journey materialization fixture",
+        observedEligibility: "ELIGIBLE",
+        materializedJourneyInvitationId: invitation.id,
+      },
+    });
+    observed.journeyMaterializationValid = journeyMaterialized.materializedJourneyInvitationId === invitation.id;
+
+    const secondInvitation = await tx.governedJourneyInvitation.create({
+      data: {
+        ownerId: target.ownerId,
+        relationTemplateId: target.relationTemplateId,
+        displayName: "Second selection guest fixture",
+        role: "OBSERVER",
+        accessTokenHash: randomUUID().replaceAll("-", ""),
+        accessTokenExpiresAt: new Date(Date.now() + 60_000),
+      },
+      select: { id: true },
+    });
+    const otherSession = await tx.communicationSession.create({
+      data: {
+        ownerId: target.ownerId,
+        relationTemplateId: target.relationTemplateId,
+        channelType: "VIDEO_IP",
+        provider: "NONE",
+        status: "PREPARED_NOT_STARTED",
+        title: "Other selection meeting",
+      },
+      select: { id: true },
+    });
+    const otherMeetingParticipant = await tx.governedMeetingParticipant.create({
+      data: { communicationSessionId: otherSession.id, governedJourneyInvitationId: secondInvitation.id, authorizedById: target.ownerId },
+      select: { id: true },
+    });
+
+    await tx.$executeRawUnsafe(`CREATE FUNCTION pg_temp.selection_item_blocked(selection_id text, template_id text, user_id text, journey_invitation_id text, meeting_participant_id text, item_id text) RETURNS boolean LANGUAGE plpgsql AS $fn$ BEGIN BEGIN INSERT INTO "GovernedParticipantSelectionItem" ("id","selectionId","relationTemplateId","canonicalUserId","snapshotDisplayName","observedEligibility","decision","materializedJourneyInvitationId","materializedMeetingParticipantId","createdAt","updatedAt") VALUES (item_id,selection_id,template_id,user_id,'Target guard fixture','ELIGIBLE','UNDECIDED',journey_invitation_id,meeting_participant_id,now(),now()); RETURN false; EXCEPTION WHEN check_violation OR raise_exception OR foreign_key_violation OR unique_violation THEN RETURN true; END; END $fn$;`);
+    const [journeyToMeeting] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_item_blocked($1,$2,$3,NULL,$4,$5) AS blocked`, journeySelection.id, target.relationTemplateId, fourthUser.id, meetingParticipant.id, randomUUID());
+    const [meetingToJourney] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_item_blocked($1,$2,$3,$4,NULL,$5) AS blocked`, selection.id, target.relationTemplateId, fourthUser.id, secondInvitation.id, randomUUID());
+    const [dualMaterialization] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_item_blocked($1,$2,$3,$4,$5,$6) AS blocked`, journeySelection.id, target.relationTemplateId, fourthUser.id, secondInvitation.id, meetingParticipant.id, randomUUID());
+    const [crossMeeting] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_item_blocked($1,$2,$3,NULL,$4,$5) AS blocked`, selection.id, target.relationTemplateId, fourthUser.id, otherMeetingParticipant.id, randomUUID());
+    const [crossJourney] = await tx.$queryRawUnsafe(`SELECT pg_temp.selection_item_blocked($1,$2,$3,NULL,NULL,$4) AS blocked`, journeySelection.id, `${target.relationTemplateId}-outside`, fourthUser.id, randomUUID());
+    observed.targetMaterializationBlocked = journeyToMeeting?.blocked === true && meetingToJourney?.blocked === true;
+    observed.dualMaterializationBlocked = dualMaterialization?.blocked === true;
+    observed.crossMeetingBlocked = crossMeeting?.blocked === true;
+    observed.crossJourneyBlocked = crossJourney?.blocked === true;
+
+    const directoryProfile = await tx.directoryProfile.findFirst({ select: { id: true } });
+    if (!directoryProfile) throw new Error("No Staging DirectoryProfile available for provenance test");
+    const provenanceItem = await tx.governedParticipantSelectionItem.create({
+      data: {
+        selectionId: journeySelection.id,
+        relationTemplateId: target.relationTemplateId,
+        canonicalUserId: fourthUser.id,
+        sourceDirectoryProfileId: directoryProfile.id,
+        snapshotDisplayName: "Directory provenance fixture",
+        observedEligibility: "ELIGIBLE",
+      },
+    });
+    observed.userIdentityDirectoryProvenance = provenanceItem.canonicalUserId === fourthUser.id && provenanceItem.sourceDirectoryProfileId === directoryProfile.id;
 
     throw new Error("ROLLBACK_GOVERNED_PARTICIPANT_SELECTION");
   });

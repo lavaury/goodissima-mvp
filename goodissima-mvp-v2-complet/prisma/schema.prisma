@@ -172,6 +172,7 @@ model GovernedJourneyInvitation {
   meetingRsvpEvents                  GovernedMeetingRsvpEvent[]              @relation("GovernedMeetingRsvpEventInvitationActor")
   participantSelectionItemsCanonical GovernedParticipantSelectionItem[]      @relation("GovernedParticipantSelectionItemCanonicalInvitation")
   participantSelectionItemsSource    GovernedParticipantSelectionItem[]      @relation("GovernedParticipantSelectionItemSourceInvitation")
+  participantSelectionItemsMaterialized GovernedParticipantSelectionItem[]   @relation("GovernedParticipantSelectionItemMaterializedInvitation")
 
   @@unique([id, relationTemplateId])
   @@index([ownerId, relationTemplateId, status])
@@ -1317,14 +1318,15 @@ model GovernedJourney {
   @@index([relationCaseId, status, updatedAt])
 }
 
-/// Durable, human-governed candidate selection scoped to one Journey meeting.
+/// Durable, human-governed candidate selection scoped to a Journey or one of its meetings.
 /// Database checks and append-only event protection require the accompanying SQL migration.
 model GovernedParticipantSelection {
   id                     String                              @id @default(cuid())
   ownerId                String
   governedJourneyId      String
   relationTemplateId     String
-  communicationSessionId String
+  targetType             GovernedParticipantSelectionTargetType
+  communicationSessionId String?
   source                 GovernedParticipantSelectionSource
   status                 GovernedParticipantSelectionStatus  @default(DRAFT)
   criteria               Json
@@ -1341,17 +1343,17 @@ model GovernedParticipantSelection {
   cancelledAt            DateTime?
   owner                  User                                @relation("GovernedParticipantSelectionOwner", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   governedJourney        GovernedJourney                     @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelection_journey_fkey")
-  communicationSession   CommunicationSession                @relation(fields: [communicationSessionId, ownerId, relationTemplateId], references: [id, ownerId, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelection_session_fkey")
+  communicationSession   CommunicationSession?               @relation(fields: [communicationSessionId, ownerId, relationTemplateId], references: [id, ownerId, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelection_session_fkey")
   createdByUser          User                                @relation("GovernedParticipantSelectionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   validatedByUser        User?                               @relation("GovernedParticipantSelectionValidator", fields: [validatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   items                  GovernedParticipantSelectionItem[]
   events                 GovernedParticipantSelectionEvent[]
 
-  @@unique([id, communicationSessionId, relationTemplateId], map: "GovernedParticipantSelection_item_scope_key")
-  @@index([ownerId, governedJourneyId, communicationSessionId], map: "GovernedParticipantSelection_scope_idx")
+  @@index([ownerId, governedJourneyId, targetType], map: "GovernedParticipantSelection_scope_idx")
   @@index([ownerId, status, createdAt])
   @@index([governedJourneyId, status, createdAt], map: "GovernedParticipantSelection_governedJourneyId_status_createdAt")
   @@index([communicationSessionId, status, createdAt], map: "GovernedParticipantSelection_communicationSessionId_status_crea")
+  @@index([source, status, createdAt], map: "GovernedParticipantSelection_source_status_createdAt_idx")
 }
 
 /// One candidate observed in the frozen selection snapshot. Display name is audit-only.
@@ -1359,7 +1361,6 @@ model GovernedParticipantSelection {
 model GovernedParticipantSelectionItem {
   id                               String                                  @id @default(cuid())
   selectionId                      String
-  communicationSessionId           String
   relationTemplateId               String
   canonicalUserId                  String?
   canonicalInvitationId            String?
@@ -1372,19 +1373,21 @@ model GovernedParticipantSelectionItem {
   observedEligibility              GovernedParticipantSelectionEligibility
   decision                         GovernedParticipantSelectionDecision    @default(UNDECIDED)
   decisionReason                   String?
+  materializedJourneyInvitationId  String?                                 @unique(map: "GovernedParticipantSelectionItem_materializedJourneyInvitationI")
   materializedMeetingParticipantId String?                                 @unique(map: "GovernedParticipantSelectionItem_materializedMeetingParticipant")
   createdAt                        DateTime                                @default(now())
   updatedAt                        DateTime                                @updatedAt
   decidedAt                        DateTime?
-  selection                        GovernedParticipantSelection            @relation(fields: [selectionId, communicationSessionId, relationTemplateId], references: [id, communicationSessionId, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_selection_fkey")
+  selection                        GovernedParticipantSelection            @relation(fields: [selectionId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_selection_fkey")
   canonicalUser                    User?                                   @relation("GovernedParticipantSelectionItemCanonicalUser", fields: [canonicalUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   canonicalInvitation              GovernedJourneyInvitation?              @relation("GovernedParticipantSelectionItemCanonicalInvitation", fields: [canonicalInvitationId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_canonical_invitation_fkey")
   canonicalDirectoryProfile        DirectoryProfile?                       @relation("GovernedParticipantSelectionItemCanonicalDirectoryProfile", fields: [canonicalDirectoryProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_canonicalDirectoryProfileId_fk")
   sourceInvitation                 GovernedJourneyInvitation?              @relation("GovernedParticipantSelectionItemSourceInvitation", fields: [sourceInvitationId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_source_invitation_fkey")
   sourceDirectoryProfile           DirectoryProfile?                       @relation("GovernedParticipantSelectionItemSourceDirectoryProfile", fields: [sourceDirectoryProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   sourceMatchingResult             MatchingResult?                         @relation("GovernedParticipantSelectionItemSourceMatchingResult", fields: [sourceMatchingResultId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  sourceMeetingParticipant         GovernedMeetingParticipant?             @relation("GovernedParticipantSelectionItemSourceParticipant", fields: [sourceMeetingParticipantId, communicationSessionId], references: [id, communicationSessionId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_source_participant_fkey")
-  materializedMeetingParticipant   GovernedMeetingParticipant?             @relation("GovernedParticipantSelectionItemMaterializedParticipant", fields: [materializedMeetingParticipantId, communicationSessionId], references: [id, communicationSessionId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_materialized_participant_fkey")
+  sourceMeetingParticipant         GovernedMeetingParticipant?             @relation("GovernedParticipantSelectionItemSourceParticipant", fields: [sourceMeetingParticipantId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_source_participant_fkey")
+  materializedJourneyInvitation    GovernedJourneyInvitation?              @relation("GovernedParticipantSelectionItemMaterializedInvitation", fields: [materializedJourneyInvitationId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_materialized_invitation_fkey")
+  materializedMeetingParticipant   GovernedMeetingParticipant?             @relation("GovernedParticipantSelectionItemMaterializedParticipant", fields: [materializedMeetingParticipantId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_materialized_participant_fkey")
 
   @@index([selectionId, decision])
   @@index([selectionId, observedEligibility], map: "GovernedParticipantSelectionItem_selectionId_observedEligibilit")
@@ -2554,6 +2557,11 @@ enum GovernedParticipantSelectionSource {
   DIRECTORY
   MATCHING
   MEETING_HISTORY
+}
+
+enum GovernedParticipantSelectionTargetType {
+  JOURNEY
+  MEETING
 }
 
 enum GovernedParticipantSelectionStatus {

@@ -8,7 +8,8 @@ const migration = readFileSync(
   "utf8",
 );
 
-test("selection foundation exposes the four sources and six lifecycle states", () => {
+test("selection foundation exposes both targets, four sources and six lifecycle states", () => {
+  for (const value of ["JOURNEY", "MEETING"]) assert.match(schema, new RegExp(`\\b${value}\\b`));
   for (const value of ["JOURNEY_MEMBERS", "DIRECTORY", "MATCHING", "MEETING_HISTORY"]) {
     assert.match(schema, new RegExp(`\\b${value}\\b`));
   }
@@ -17,11 +18,16 @@ test("selection foundation exposes the four sources and six lifecycle states", (
   }
 });
 
-test("selection is scoped by owner, Journey and meeting", () => {
-  assert.match(schema, /model GovernedParticipantSelection \{[\s\S]*ownerId\s+String[\s\S]*governedJourneyId\s+String[\s\S]*communicationSessionId\s+String/);
+test("selection is rooted in a Journey and has an explicit optional meeting target", () => {
+  assert.match(schema, /model GovernedParticipantSelection \{[\s\S]*ownerId\s+String[\s\S]*governedJourneyId\s+String[\s\S]*targetType\s+GovernedParticipantSelectionTargetType[\s\S]*communicationSessionId\s+String\?/);
   assert.match(migration, /GovernedParticipantSelection_session_fkey/);
   assert.match(migration, /FOREIGN KEY \("communicationSessionId", "ownerId", "relationTemplateId"\)/);
   assert.match(migration, /GovernedParticipantSelection_journey_fkey/);
+  const correction = readFileSync("prisma/migrations/20260918220000_generalize_governed_participant_selection_target/migration.sql", "utf8");
+  assert.match(correction, /GovernedParticipantSelection_target_check/);
+  assert.match(correction, /'JOURNEY' AND "communicationSessionId" IS NULL/);
+  assert.match(correction, /'MEETING' AND "communicationSessionId" IS NOT NULL/);
+  assert.match(correction, /FOREIGN KEY \("selectionId"\) REFERENCES "GovernedParticipantSelection"\("id"\)/);
 });
 
 test("canonical identity is separate from provenance and never uses display name", () => {
@@ -41,9 +47,16 @@ test("one canonical identity per selection is enforced with partial unique index
   assert.match(migration, /selection_directory_key[\s\S]*WHERE "canonicalDirectoryProfileId" IS NOT NULL/);
 });
 
-test("materialization is traceable but this lot creates no runtime materializer", () => {
+test("Journey and meeting materializations are exclusive and target-checked", () => {
+  const correction = readFileSync("prisma/migrations/20260918220000_generalize_governed_participant_selection_target/migration.sql", "utf8");
+  assert.match(schema, /materializedJourneyInvitationId\s+String\?\s+@unique/);
   assert.match(schema, /materializedMeetingParticipantId\s+String\?\s+@unique(?:\([^\n]+\))?/);
-  assert.match(migration, /materialized_participant_fkey/);
+  assert.match(correction, /materialization_xor_check/);
+  assert.match(correction, /num_nonnulls\("materializedJourneyInvitationId", "materializedMeetingParticipantId"\) <= 1/);
+  assert.match(correction, /Journey invitation materialization requires a JOURNEY target/);
+  assert.match(correction, /Meeting participant materialization requires a MEETING target/);
+  assert.match(correction, /Meeting participant materialization is outside the target meeting/);
+  assert.match(correction, /GovernedParticipantSelectionItem is outside the target Journey/);
   const roleAssignmentModel = schema.match(/model GovernedJourneyExpectedRoleAssignment \{[\s\S]*?\n\}/)?.[0] ?? "";
   assert.doesNotMatch(roleAssignmentModel, /participantSelection/);
 });
