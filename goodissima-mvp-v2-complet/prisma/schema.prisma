@@ -39,6 +39,11 @@ model User {
   governedJourneyConsentEvents                                                                  GovernedJourneyConsentEvent[]           @relation("GovernedJourneyConsentEventActor")
   governedMeetingRsvpDecisions                                                                  GovernedMeetingRsvp[]                   @relation("GovernedMeetingRsvpDecider")
   governedMeetingRsvpEvents                                                                     GovernedMeetingRsvpEvent[]              @relation("GovernedMeetingRsvpEventActor")
+  governedParticipantSelectionsOwned                                                            GovernedParticipantSelection[]          @relation("GovernedParticipantSelectionOwner")
+  governedParticipantSelectionsCreated                                                          GovernedParticipantSelection[]          @relation("GovernedParticipantSelectionCreator")
+  governedParticipantSelectionsValidated                                                        GovernedParticipantSelection[]          @relation("GovernedParticipantSelectionValidator")
+  governedParticipantSelectionItems                                                             GovernedParticipantSelectionItem[]      @relation("GovernedParticipantSelectionItemCanonicalUser")
+  governedParticipantSelectionEvents                                                            GovernedParticipantSelectionEvent[]     @relation("GovernedParticipantSelectionEventActor")
   governedJourneyInvitations                                                                    GovernedJourneyInvitation[]             @relation("GovernedJourneyInvitationInvitee")
   expectedRoleAssignments                                                                       GovernedJourneyExpectedRoleAssignment[] @relation("ExpectedRoleAssignmentAssignee")
   expectedRoleAssignmentsCreated                                                                GovernedJourneyExpectedRoleAssignment[] @relation("ExpectedRoleAssignmentAssignedBy")
@@ -138,33 +143,35 @@ model Workspace {
 }
 
 model GovernedJourneyInvitation {
-  id                      String                                  @id @default(cuid())
-  ownerId                 String
-  workspaceId             String?
-  relationTemplateId      String
-  relationCaseId          String?
-  displayName             String
-  role                    GovernedJourneyInvitationRole
-  status                  GovernedJourneyInvitationStatus         @default(ACTIVE)
-  accessTokenHash         String                                  @unique
-  accessTokenExpiresAt    DateTime
-  revokedAt               DateTime?
-  acceptedAt              DateTime?
-  lastAccessedAt          DateTime?
-  inviteeUserId           String?
-  metadata                Json?
-  createdAt               DateTime                                @default(now())
-  updatedAt               DateTime                                @updatedAt
-  relationCase            RelationCase?                           @relation(fields: [relationCaseId], references: [id])
-  relationTemplate        RelationTemplate                        @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
-  workspace               Workspace?                              @relation(fields: [workspaceId], references: [id])
-  inviteeUser             User?                                   @relation("GovernedJourneyInvitationInvitee", fields: [inviteeUserId], references: [id], onDelete: SetNull)
-  consent                 GovernedJourneyConsent?
-  consentEvents           GovernedJourneyConsentEvent[]
-  meetingParticipants     GovernedMeetingParticipant[]
-  expectedRoleAssignments GovernedJourneyExpectedRoleAssignment[]
-  meetingRsvpDecisions    GovernedMeetingRsvp[]                     @relation("GovernedMeetingRsvpInvitationDecider")
-  meetingRsvpEvents       GovernedMeetingRsvpEvent[]                @relation("GovernedMeetingRsvpEventInvitationActor")
+  id                                 String                                  @id @default(cuid())
+  ownerId                            String
+  workspaceId                        String?
+  relationTemplateId                 String
+  relationCaseId                     String?
+  displayName                        String
+  role                               GovernedJourneyInvitationRole
+  status                             GovernedJourneyInvitationStatus         @default(ACTIVE)
+  accessTokenHash                    String                                  @unique
+  accessTokenExpiresAt               DateTime
+  revokedAt                          DateTime?
+  acceptedAt                         DateTime?
+  lastAccessedAt                     DateTime?
+  inviteeUserId                      String?
+  metadata                           Json?
+  createdAt                          DateTime                                @default(now())
+  updatedAt                          DateTime                                @updatedAt
+  relationCase                       RelationCase?                           @relation(fields: [relationCaseId], references: [id])
+  relationTemplate                   RelationTemplate                        @relation(fields: [relationTemplateId], references: [id], onDelete: Cascade)
+  workspace                          Workspace?                              @relation(fields: [workspaceId], references: [id])
+  inviteeUser                        User?                                   @relation("GovernedJourneyInvitationInvitee", fields: [inviteeUserId], references: [id], onDelete: SetNull)
+  consent                            GovernedJourneyConsent?
+  consentEvents                      GovernedJourneyConsentEvent[]
+  meetingParticipants                GovernedMeetingParticipant[]
+  expectedRoleAssignments            GovernedJourneyExpectedRoleAssignment[]
+  meetingRsvpDecisions               GovernedMeetingRsvp[]                   @relation("GovernedMeetingRsvpInvitationDecider")
+  meetingRsvpEvents                  GovernedMeetingRsvpEvent[]              @relation("GovernedMeetingRsvpEventInvitationActor")
+  participantSelectionItemsCanonical GovernedParticipantSelectionItem[]      @relation("GovernedParticipantSelectionItemCanonicalInvitation")
+  participantSelectionItemsSource    GovernedParticipantSelectionItem[]      @relation("GovernedParticipantSelectionItemSourceInvitation")
 
   @@unique([id, relationTemplateId])
   @@index([ownerId, relationTemplateId, status])
@@ -211,37 +218,39 @@ model GovernedJourneyConsentEvent {
 }
 
 model CommunicationSession {
-  id                        String                       @id @default(cuid())
-  ownerId                   String
-  workspaceId               String?
-  relationTemplateId        String?
-  relationCaseId            String?
-  channelType               CommunicationChannelType
-  provider                  CommunicationProvider
-  status                    CommunicationSessionStatus
-  title                     String
-  purpose                   String?
-  note                      String?
-  externalUrl               String?
-  scheduledAt               DateTime?
-  expiresAt                 DateTime?
-  transcriptionRequested    Boolean                      @default(false)
-  transcriptionConsented    Boolean                      @default(false)
-  recordingEnabled          Boolean                      @default(false)
-  automaticNotificationSent Boolean                      @default(false)
-  tokenGenerated            Boolean                      @default(false)
-  accessOpened              Boolean                      @default(false)
-  workflowStarted           Boolean                      @default(false)
-  rsvpRevision              Int                          @default(1)
-  createdAt                 DateTime                     @default(now())
-  updatedAt                 DateTime                     @updatedAt
-  metadata                  Json?
-  owner                     User                         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  relationCase              RelationCase?                @relation(fields: [relationCaseId], references: [id])
-  relationTemplate          RelationTemplate?            @relation(fields: [relationTemplateId], references: [id])
-  workspace                 Workspace?                   @relation(fields: [workspaceId], references: [id])
-  meetingParticipants       GovernedMeetingParticipant[]
+  id                            String                         @id @default(cuid())
+  ownerId                       String
+  workspaceId                   String?
+  relationTemplateId            String?
+  relationCaseId                String?
+  channelType                   CommunicationChannelType
+  provider                      CommunicationProvider
+  status                        CommunicationSessionStatus
+  title                         String
+  purpose                       String?
+  note                          String?
+  externalUrl                   String?
+  scheduledAt                   DateTime?
+  expiresAt                     DateTime?
+  transcriptionRequested        Boolean                        @default(false)
+  transcriptionConsented        Boolean                        @default(false)
+  recordingEnabled              Boolean                        @default(false)
+  automaticNotificationSent     Boolean                        @default(false)
+  tokenGenerated                Boolean                        @default(false)
+  accessOpened                  Boolean                        @default(false)
+  workflowStarted               Boolean                        @default(false)
+  rsvpRevision                  Int                            @default(1)
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
+  metadata                      Json?
+  owner                         User                           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  relationCase                  RelationCase?                  @relation(fields: [relationCaseId], references: [id])
+  relationTemplate              RelationTemplate?              @relation(fields: [relationTemplateId], references: [id])
+  workspace                     Workspace?                     @relation(fields: [workspaceId], references: [id])
+  meetingParticipants           GovernedMeetingParticipant[]
+  governedParticipantSelections GovernedParticipantSelection[]
 
+  @@unique([id, ownerId, relationTemplateId], map: "CommunicationSession_selection_scope_key")
   @@index([ownerId, status, createdAt])
   @@index([workspaceId, status])
   @@index([relationTemplateId, status])
@@ -250,43 +259,46 @@ model CommunicationSession {
 }
 
 model GovernedMeetingParticipant {
-  id                          String                           @id @default(cuid())
-  communicationSessionId      String
-  governedJourneyInvitationId String
-  status                      GovernedMeetingParticipantStatus @default(AUTHORIZED)
-  authorizedAt                DateTime                         @default(now())
-  removedAt                   DateTime?
-  authorizedById              String?
-  metadata                    Json?
-  createdAt                   DateTime                         @default(now())
-  updatedAt                   DateTime                         @updatedAt
-  authorizedBy                User?                            @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id])
-  communicationSession        CommunicationSession             @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
-  governedJourneyInvitation   GovernedJourneyInvitation        @relation(fields: [governedJourneyInvitationId], references: [id], onDelete: Cascade)
-  rsvp                        GovernedMeetingRsvp?
-  rsvpEvents                  GovernedMeetingRsvpEvent[]
+  id                                    String                             @id @default(cuid())
+  communicationSessionId                String
+  governedJourneyInvitationId           String
+  status                                GovernedMeetingParticipantStatus   @default(AUTHORIZED)
+  authorizedAt                          DateTime                           @default(now())
+  removedAt                             DateTime?
+  authorizedById                        String?
+  metadata                              Json?
+  createdAt                             DateTime                           @default(now())
+  updatedAt                             DateTime                           @updatedAt
+  authorizedBy                          User?                              @relation("MeetingParticipantAuthorizer", fields: [authorizedById], references: [id])
+  communicationSession                  CommunicationSession               @relation(fields: [communicationSessionId], references: [id], onDelete: Cascade)
+  governedJourneyInvitation             GovernedJourneyInvitation          @relation(fields: [governedJourneyInvitationId], references: [id], onDelete: Cascade)
+  rsvp                                  GovernedMeetingRsvp?
+  rsvpEvents                            GovernedMeetingRsvpEvent[]
+  participantSelectionItemsMaterialized GovernedParticipantSelectionItem[] @relation("GovernedParticipantSelectionItemMaterializedParticipant")
+  participantSelectionItemsSource       GovernedParticipantSelectionItem[] @relation("GovernedParticipantSelectionItemSourceParticipant")
 
   @@unique([communicationSessionId, governedJourneyInvitationId], map: "GovernedMeetingParticipant_communicationSessionId_governedJourn")
+  @@unique([id, communicationSessionId], map: "GovernedMeetingParticipant_selection_scope_key")
   @@index([governedJourneyInvitationId, status], map: "GovernedMeetingParticipant_governedJourneyInvitationId_status_i")
 }
 
 /// Meeting RSVP is distinct from Journey consent, technical authorization and observed presence.
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model GovernedMeetingRsvp {
-  id                   String                     @id @default(cuid())
-  meetingParticipantId String                     @unique
-  status               MeetingRsvpStatus          @default(PENDING)
-  decidedAt            DateTime?
-  decidedByUserId      String?
+  id                    String                     @id @default(cuid())
+  meetingParticipantId  String                     @unique
+  status                MeetingRsvpStatus          @default(PENDING)
+  decidedAt             DateTime?
+  decidedByUserId       String?
   decidedByInvitationId String?
-  version              Int                        @default(0)
-  meetingRevision      Int
-  createdAt            DateTime                   @default(now())
-  updatedAt            DateTime                   @updatedAt
-  meetingParticipant   GovernedMeetingParticipant @relation(fields: [meetingParticipantId], references: [id], onDelete: Restrict)
-  decidedByUser        User?                      @relation("GovernedMeetingRsvpDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
-  decidedByInvitation  GovernedJourneyInvitation? @relation("GovernedMeetingRsvpInvitationDecider", fields: [decidedByInvitationId], references: [id], onDelete: Restrict)
-  events               GovernedMeetingRsvpEvent[]
+  version               Int                        @default(0)
+  meetingRevision       Int
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  meetingParticipant    GovernedMeetingParticipant @relation(fields: [meetingParticipantId], references: [id], onDelete: Restrict)
+  decidedByUser         User?                      @relation("GovernedMeetingRsvpDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  decidedByInvitation   GovernedJourneyInvitation? @relation("GovernedMeetingRsvpInvitationDecider", fields: [decidedByInvitationId], references: [id], onDelete: Restrict)
+  events                GovernedMeetingRsvpEvent[]
 
   @@index([status, updatedAt])
   @@index([meetingRevision, status])
@@ -503,9 +515,10 @@ model MatchingResult {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
-  run          MatchingRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
-  targetGLink  GLink         @relation("MatchingResultTargetGLink", fields: [targetGLinkId], references: [id], onDelete: Restrict)
-  relationCase RelationCase? @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  run                       MatchingRun                        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  targetGLink               GLink                              @relation("MatchingResultTargetGLink", fields: [targetGLinkId], references: [id], onDelete: Restrict)
+  relationCase              RelationCase?                      @relation(fields: [relationCaseId], references: [id], onDelete: SetNull)
+  participantSelectionItems GovernedParticipantSelectionItem[] @relation("GovernedParticipantSelectionItemSourceMatchingResult")
 
   @@unique([runId, targetGLinkId])
   @@index([runId, status])
@@ -836,10 +849,12 @@ model DirectoryProfile {
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 
-  subjectIdentity GoodissimaIdentity        @relation(fields: [subjectIdentityId], references: [id], onDelete: Restrict)
-  managers        DirectoryProfileManager[]
-  attributes      DirectoryAttribute[]
-  auditEvents     DirectoryAuditEvent[]
+  subjectIdentity                    GoodissimaIdentity                 @relation(fields: [subjectIdentityId], references: [id], onDelete: Restrict)
+  managers                           DirectoryProfileManager[]
+  attributes                         DirectoryAttribute[]
+  auditEvents                        DirectoryAuditEvent[]
+  participantSelectionItemsCanonical GovernedParticipantSelectionItem[] @relation("GovernedParticipantSelectionItemCanonicalDirectoryProfile")
+  participantSelectionItemsSource    GovernedParticipantSelectionItem[] @relation("GovernedParticipantSelectionItemSourceDirectoryProfile")
 
   @@index([status, actorType, publishedAt, id])
   @@index([actorType, status, normalizedName])
@@ -1291,6 +1306,7 @@ model GovernedJourney {
   memoryTransitionRequests       GovernedMemoryTransitionRequest[]
   memoryValidations              GovernedMemoryValidation[]
   expectedRoleAssignments        GovernedJourneyExpectedRoleAssignment[]
+  participantSelections          GovernedParticipantSelection[]
 
   @@unique([id, relationCaseId, authorityUserId])
   @@unique([id, relationCaseId])
@@ -1299,6 +1315,103 @@ model GovernedJourney {
   @@index([formTemplateId])
   @@index([relationCaseId, status, createdAt])
   @@index([relationCaseId, status, updatedAt])
+}
+
+/// Durable, human-governed candidate selection scoped to one Journey meeting.
+/// Database checks and append-only event protection require the accompanying SQL migration.
+model GovernedParticipantSelection {
+  id                     String                              @id @default(cuid())
+  ownerId                String
+  governedJourneyId      String
+  relationTemplateId     String
+  communicationSessionId String
+  source                 GovernedParticipantSelectionSource
+  status                 GovernedParticipantSelectionStatus  @default(DRAFT)
+  criteria               Json
+  materializationSummary Json?
+  createdByUserId        String
+  validatedByUserId      String?
+  version                Int                                 @default(0)
+  createdAt              DateTime                            @default(now())
+  updatedAt              DateTime                            @updatedAt
+  reviewStartedAt        DateTime?
+  validatedAt            DateTime?
+  materializedAt         DateTime?
+  failedAt               DateTime?
+  cancelledAt            DateTime?
+  owner                  User                                @relation("GovernedParticipantSelectionOwner", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  governedJourney        GovernedJourney                     @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelection_journey_fkey")
+  communicationSession   CommunicationSession                @relation(fields: [communicationSessionId, ownerId, relationTemplateId], references: [id, ownerId, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelection_session_fkey")
+  createdByUser          User                                @relation("GovernedParticipantSelectionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  validatedByUser        User?                               @relation("GovernedParticipantSelectionValidator", fields: [validatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  items                  GovernedParticipantSelectionItem[]
+  events                 GovernedParticipantSelectionEvent[]
+
+  @@unique([id, communicationSessionId, relationTemplateId], map: "GovernedParticipantSelection_item_scope_key")
+  @@index([ownerId, governedJourneyId, communicationSessionId], map: "GovernedParticipantSelection_scope_idx")
+  @@index([ownerId, status, createdAt])
+  @@index([governedJourneyId, status, createdAt], map: "GovernedParticipantSelection_governedJourneyId_status_createdAt")
+  @@index([communicationSessionId, status, createdAt], map: "GovernedParticipantSelection_communicationSessionId_status_crea")
+}
+
+/// One candidate observed in the frozen selection snapshot. Display name is audit-only.
+/// Canonical identity and source provenance are deliberately modeled independently.
+model GovernedParticipantSelectionItem {
+  id                               String                                  @id @default(cuid())
+  selectionId                      String
+  communicationSessionId           String
+  relationTemplateId               String
+  canonicalUserId                  String?
+  canonicalInvitationId            String?
+  canonicalDirectoryProfileId      String?
+  sourceInvitationId               String?
+  sourceDirectoryProfileId         String?
+  sourceMatchingResultId           String?
+  sourceMeetingParticipantId       String?
+  snapshotDisplayName              String
+  observedEligibility              GovernedParticipantSelectionEligibility
+  decision                         GovernedParticipantSelectionDecision    @default(UNDECIDED)
+  decisionReason                   String?
+  materializedMeetingParticipantId String?                                 @unique(map: "GovernedParticipantSelectionItem_materializedMeetingParticipant")
+  createdAt                        DateTime                                @default(now())
+  updatedAt                        DateTime                                @updatedAt
+  decidedAt                        DateTime?
+  selection                        GovernedParticipantSelection            @relation(fields: [selectionId, communicationSessionId, relationTemplateId], references: [id, communicationSessionId, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_selection_fkey")
+  canonicalUser                    User?                                   @relation("GovernedParticipantSelectionItemCanonicalUser", fields: [canonicalUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  canonicalInvitation              GovernedJourneyInvitation?              @relation("GovernedParticipantSelectionItemCanonicalInvitation", fields: [canonicalInvitationId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_canonical_invitation_fkey")
+  canonicalDirectoryProfile        DirectoryProfile?                       @relation("GovernedParticipantSelectionItemCanonicalDirectoryProfile", fields: [canonicalDirectoryProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_canonicalDirectoryProfileId_fk")
+  sourceInvitation                 GovernedJourneyInvitation?              @relation("GovernedParticipantSelectionItemSourceInvitation", fields: [sourceInvitationId, relationTemplateId], references: [id, relationTemplateId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_source_invitation_fkey")
+  sourceDirectoryProfile           DirectoryProfile?                       @relation("GovernedParticipantSelectionItemSourceDirectoryProfile", fields: [sourceDirectoryProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceMatchingResult             MatchingResult?                         @relation("GovernedParticipantSelectionItemSourceMatchingResult", fields: [sourceMatchingResultId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceMeetingParticipant         GovernedMeetingParticipant?             @relation("GovernedParticipantSelectionItemSourceParticipant", fields: [sourceMeetingParticipantId, communicationSessionId], references: [id, communicationSessionId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_source_participant_fkey")
+  materializedMeetingParticipant   GovernedMeetingParticipant?             @relation("GovernedParticipantSelectionItemMaterializedParticipant", fields: [materializedMeetingParticipantId, communicationSessionId], references: [id, communicationSessionId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedParticipantSelectionItem_materialized_participant_fkey")
+
+  @@index([selectionId, decision])
+  @@index([selectionId, observedEligibility], map: "GovernedParticipantSelectionItem_selectionId_observedEligibilit")
+  @@index([canonicalUserId])
+  @@index([canonicalInvitationId])
+  @@index([canonicalDirectoryProfileId], map: "GovernedParticipantSelectionItem_canonicalDirectoryProfileId_id")
+  @@index([sourceInvitationId])
+  @@index([sourceDirectoryProfileId])
+  @@index([sourceMatchingResultId])
+  @@index([sourceMeetingParticipantId])
+}
+
+/// Append-only audit journal for governed participant selection transitions.
+model GovernedParticipantSelectionEvent {
+  id          String                                @id @default(cuid())
+  selectionId String
+  type        GovernedParticipantSelectionEventType
+  actorUserId String?
+  occurredAt  DateTime                              @default(now())
+  version     Int
+  summary     Json?
+  createdAt   DateTime                              @default(now())
+  selection   GovernedParticipantSelection          @relation(fields: [selectionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actorUser   User?                                 @relation("GovernedParticipantSelectionEventActor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([selectionId, occurredAt, id])
+  @@index([actorUserId, occurredAt])
 }
 
 /// Expected-role assignment history is separate from invitation delivery and Journey consent.
@@ -2434,6 +2547,47 @@ enum CommunicationProvider {
 enum GovernedMeetingParticipantStatus {
   AUTHORIZED
   REMOVED
+}
+
+enum GovernedParticipantSelectionSource {
+  JOURNEY_MEMBERS
+  DIRECTORY
+  MATCHING
+  MEETING_HISTORY
+}
+
+enum GovernedParticipantSelectionStatus {
+  DRAFT
+  UNDER_REVIEW
+  VALIDATED
+  MATERIALIZED
+  FAILED
+  CANCELLED
+}
+
+enum GovernedParticipantSelectionEligibility {
+  ELIGIBLE
+  ALREADY_PRESENT
+  PENDING_CONSENT
+  DECLINED
+  REVOKED
+  EXPIRED
+  INELIGIBLE
+}
+
+enum GovernedParticipantSelectionDecision {
+  UNDECIDED
+  INCLUDED
+  EXCLUDED
+}
+
+enum GovernedParticipantSelectionEventType {
+  CREATED
+  REVIEW_STARTED
+  VALIDATED
+  MATERIALIZED
+  FAILED
+  CANCELLED
 }
 
 enum MeetingRsvpStatus {
