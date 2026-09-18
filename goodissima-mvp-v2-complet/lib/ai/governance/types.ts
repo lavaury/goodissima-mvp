@@ -123,11 +123,18 @@ export type AIGovernanceErrorCode =
   | "AI_POLICY_DENIED"
   | "AI_PROVIDER_UNAVAILABLE"
   | "AI_OUTPUT_INVALID"
-  | "AI_CONTEXT_NOT_AUTHORIZED";
+  | "AI_CONTEXT_NOT_AUTHORIZED"
+  | "AI_CONTEXT_TOO_LARGE"
+  | "AI_CONTEXT_INVALID"
+  | "AI_SOURCE_ACCESS_DENIED"
+  | "AI_CONTEXT_CLASSIFICATION_UNSUPPORTED";
 
 export class AIGovernanceError extends Error {
-  constructor(public readonly code: AIGovernanceErrorCode, options?: { cause?: unknown }) {
+  readonly code: AIGovernanceErrorCode;
+
+  constructor(code: AIGovernanceErrorCode, options?: { cause?: unknown }) {
     super(code, options);
+    this.code = code;
     this.name = "AIGovernanceError";
   }
 }
