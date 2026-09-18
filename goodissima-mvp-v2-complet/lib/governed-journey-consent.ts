@@ -1,7 +1,8 @@
-import type { GovernedJourneyConsent, GovernedJourneyInvitation, PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { hashJourneyInvitationToken } from "@/lib/governed-journey-invitations";
-
-type ConsentAwareInvitation = GovernedJourneyInvitation & { consent?: GovernedJourneyConsent | null };
+import type { ConsentAwareInvitation } from "@/lib/governed-journey-access";
+import { hasCurrentJourneyAccess } from "@/lib/governed-journey-access";
+export { hasCurrentJourneyAccess };
 
 export type JourneyConsentProjection = "NEW_CONSENT_FLOW" | "LEGACY_UNKNOWN";
 export type JourneyParticipationState = "PENDING" | "ACCEPTED" | "DECLINED" | "REVOKED" | "LEGACY_UNKNOWN";
@@ -13,11 +14,6 @@ export function projectJourneyConsent(invitation: ConsentAwareInvitation): Journ
 export function projectJourneyParticipationState(invitation: ConsentAwareInvitation): JourneyParticipationState {
   if (invitation.status === "REVOKED" || invitation.revokedAt) return "REVOKED";
   return invitation.consent?.status ?? "LEGACY_UNKNOWN";
-}
-
-export function hasCurrentJourneyAccess(invitation: ConsentAwareInvitation, now = new Date()) {
-  if (invitation.status !== "ACTIVE" || invitation.revokedAt || invitation.accessTokenExpiresAt <= now) return false;
-  return projectJourneyConsent(invitation) === "LEGACY_UNKNOWN" || invitation.consent?.status === "ACCEPTED";
 }
 
 type DecisionClient = Pick<PrismaClient, "$transaction">;

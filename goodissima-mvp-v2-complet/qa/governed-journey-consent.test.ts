@@ -5,6 +5,7 @@ import { loadTestModule } from "./helpers/load-test-module.ts";
 
 const { decideJourneyInvitation, decideReceivedJourneyInvitation, hasCurrentJourneyAccess, projectJourneyConsent, projectJourneyParticipationState } = loadTestModule("lib/governed-journey-consent.ts", {
   "@/lib/governed-journey-invitations": { hashJourneyInvitationToken: (token: string) => createHash("sha256").update(token).digest("hex") },
+  "@/lib/governed-journey-access": { hasCurrentJourneyAccess: (invitation: any, now = new Date()) => invitation.status === "ACTIVE" && !invitation.revokedAt && invitation.accessTokenExpiresAt > now && (!invitation.consent || invitation.consent.status === "ACCEPTED") },
 });
 
 function fixture(options: { expired?: boolean; revoked?: boolean; revokeDuringAcceptance?: boolean; inviteeUserId?: string | null } = {}) {

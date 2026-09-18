@@ -42,6 +42,8 @@ import { getGovernedInvitationRoleLabel } from "@/lib/governed-invitation-role-l
 import { projectCanonicalJourneyPeople, projectCompactJourneyPeople } from "@/lib/governed-journey-people";
 import { projectAssignableJourneyParticipants, projectExpectedRoleAssignment } from "@/lib/governed-journey-role-assignments";
 import { revokeExpectedRoleAssignmentAction } from "@/lib/governed-journey-role-assignment-actions";
+import { projectJourneyMemberCandidates } from "@/lib/governed-meeting-participant-selection";
+import { GovernedMeetingParticipantSelection } from "@/components/GovernedMeetingParticipantSelection";
 
 export const dynamic = "force-dynamic";
 
@@ -543,6 +545,23 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const publicNamesByUserId = new Map(publicProfiles.flatMap(profile => profile.subjectIdentity.user ? [[profile.subjectIdentity.user.id, profile.publicName] as const] : []));
   const canonicalPeople = projectCanonicalJourneyPeople({ organizer: { id: owner.id, name: owner.name || owner.email }, participants: activeJourneyInvitations, publicNamesByUserId });
   const peopleProjection = projectCompactJourneyPeople(canonicalPeople, pendingJourneyInvitations);
+  const participantSelections = communicationOverview.sessions.length > 0 ? await prisma.governedParticipantSelection.findMany({
+    where: { ownerId: owner.id, targetType: "MEETING", source: "JOURNEY_MEMBERS", communicationSessionId: { in: communicationOverview.sessions.map((session) => session.id) } },
+    include: { items: { orderBy: [{ snapshotDisplayName: "asc" }, { id: "asc" }] } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  }) : [];
+  const latestSelectionBySession = new Map<string, (typeof participantSelections)[number]>();
+  for (const selection of participantSelections) {
+    if (selection.communicationSessionId && !latestSelectionBySession.has(selection.communicationSessionId)) {
+      latestSelectionBySession.set(selection.communicationSessionId, selection);
+    }
+  }
+  const candidateCountBySession = new Map(communicationOverview.sessions.map((session) => [session.id, projectJourneyMemberCandidates({
+    organizer: { id: owner.id, displayName: publicNamesByUserId.get(owner.id) ?? owner.name ?? owner.email },
+    invitations: governedInvitations,
+    meetingParticipants: meetingParticipants.filter((participant) => participant.communicationSessionId === session.id),
+    publicNamesByUserId,
+  }).length]));
   const assignableJourneyParticipants = projectAssignableJourneyParticipants(governedInvitations, { ownerId: owner.id, currentUserId: owner.id }).map(participant => { const invitation = governedInvitations.find(item => item.id === participant.invitationId); return { ...participant, displayName: invitation?.inviteeUserId ? publicNamesByUserId.get(invitation.inviteeUserId) ?? invitation.inviteeUser?.name ?? invitation.inviteeUser?.email ?? participant.displayName : participant.displayName }; });
   const roleProjections = participants.map(participant => { const assignment = roleJourney?.expectedRoleAssignments.find(item => item.expectedRoleId === participant.id); return { participant, assignment, state: projectExpectedRoleAssignment(assignment) }; });
   const unfilledRoles = roleProjections.filter(item => item.state === "UNASSIGNED" && !participantMatchesOrganizer(item.participant.name, owner)).map(item => item.participant);
@@ -1335,7 +1354,24 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     const metadata = asRecord(invitation.metadata);
                     return (text(metadata.participantName) ?? invitation.displayName).toLocaleLowerCase("fr") === prepared.participantName.toLocaleLowerCase("fr");
                   })).map((prepared) => <div key={prepared.invitationId} className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3"><p className="font-semibold text-slate-900">{prepared.participantName}</p><p className="text-xs text-amber-900">{prepared.participantRole} · Invitation au parcours en attente · Pas encore ajoutable à la réunion</p><a href="#people" className="mt-2 inline-flex min-h-11 items-center text-xs font-bold text-amber-950 underline">Inviter d’abord au parcours</a></div>)}
-                  <p className="mt-3 text-xs text-slate-500">Goodissima ne suit pas encore la réponse des participants à cette réunion.</p>
+                  <GovernedMeetingParticipantSelection
+                    key={latestSelectionBySession.get(session.id) ? `${latestSelectionBySession.get(session.id)!.id}:${latestSelectionBySession.get(session.id)!.version}` : "empty"}
+                    formTemplateId={formTemplate.id}
+                    communicationSessionId={session.id}
+                    candidateCount={candidateCountBySession.get(session.id) ?? 0}
+                    selection={(() => {
+                      const selection = latestSelectionBySession.get(session.id);
+                      if (!selection) return null;
+                      const rawSummary = asRecord(selection.materializationSummary);
+                      return {
+                        id: selection.id,
+                        status: selection.status,
+                        version: selection.version,
+                        items: selection.items.map((item) => ({ id: item.id, snapshotDisplayName: item.snapshotDisplayName, observedEligibility: item.observedEligibility, decision: item.decision, decisionReason: item.decisionReason })),
+                        materializationSummary: selection.materializationSummary ? { retained: Number(rawSummary.retained ?? 0), added: Number(rawSummary.added ?? 0), alreadyPresent: Number(rawSummary.alreadyPresent ?? 0), errors: Number(rawSummary.errors ?? 0) } : null,
+                      };
+                    })()}
+                  />
                 </div>
                 </details>
                 {session.status === "PREPARED_NOT_STARTED" ? <details id={`meeting-schedule-${session.id}`} open={searchParams.meetingAction === "schedule" && searchParams.meetingId === session.id} className="mt-3 rounded-lg border border-slate-200 bg-white/80 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-emerald-950">{session.scheduledAt ? "Modifier la date" : "Définir la date"}</summary><div className="grid gap-3 border-t pt-3">

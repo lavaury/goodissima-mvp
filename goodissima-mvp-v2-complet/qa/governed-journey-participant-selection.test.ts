@@ -11,6 +11,7 @@ const invitationRoute = read("app/api/gouvernance/invitations/route.ts");
 const expectedRoles = read("lib/governed-journey-expected-roles.ts");
 const pendingActions = read("components/GovernedJourneyPendingInvitationActions.tsx");
 const revokeRoute = read("app/api/gouvernance/invitations/[id]/revoke/route.ts");
+const guestAccess = read("lib/governed-journey-guest-access.ts");
 const roleLabels = read("lib/governed-invitation-role-label.ts");
 
 test("participant addition exposes directory and personal external invitation", () => {
@@ -84,10 +85,10 @@ test("pending invitation is visible, manageable and safely revocable", () => {
   assert.match(pendingActions, /L’historique de l’invitation sera conservé/);
   assert.match(pendingActions, /focus-visible:ring-2/);
   assert.match(pendingActions, /min-h-11/);
-  assert.match(revokeRoute, /id: params\.id, ownerId: owner\.id/);
-  assert.match(revokeRoute, /status: \{ in: \["ACTIVE", "PREPARED"\] \}/);
-  assert.match(revokeRoute, /type: "REVOKED"/);
-  assert.match(revokeRoute, /actorKind: "OWNER"/);
+  assert.match(revokeRoute, /revokeGovernedJourneyInvitationAccess\(tx, \{ invitationId: params\.id, ownerId: owner\.id/);
+  assert.match(guestAccess, /status: \{ in: \["ACTIVE", "PREPARED"\] \}/);
+  assert.match(guestAccess, /type: "REVOKED"/);
+  assert.match(guestAccess, /actorKind: "OWNER"/);
 });
 
 test("business role labels survive AI proposal validation", () => {

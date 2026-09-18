@@ -48,7 +48,8 @@ test("participants et date sont des actions visibles sans faux RSVP", () => {
   assert.match(page, /Cet accès ne signifie pas que la personne a confirmé sa présence/);
   assert.match(page, /Invitation au parcours en attente/);
   assert.match(page, /Inviter d’abord au parcours/);
-  assert.match(page, /Goodissima ne suit pas encore la réponse/);
+  assert.match(page, /meetingRsvpLabel\(item\.rsvp\)/);
+  assert.doesNotMatch(page, /Goodissima ne suit pas encore la réponse/);
   assert.doesNotMatch(page, /Invitation acceptée|Participation confirmée|>Accepter<|>Décliner</);
   assert.match(page, /min-h-11/);
 });

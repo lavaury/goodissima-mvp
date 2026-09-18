@@ -19,7 +19,7 @@ test("provides six contextual micro-journeys for the real cockpit", () => {
 });
 
 test("resolves every target against the real cockpit", () => {
-  const renderedComponents = `${cockpit}\n${read("components/GovernedJourneyGuestAccessPanel.tsx")}`;
+  const renderedComponents = `${cockpit}\n${read("components/GovernedJourneyGuestAccessPanel.tsx")}\n${read("components/GovernedMeetingParticipantSelection.tsx")}`;
   for (const target of new Set(governedJourneySteps.map((step) => step.targetId))) {
     assert.ok(target && renderedComponents.includes(target), `missing cockpit target ${target}`);
   }
@@ -63,6 +63,7 @@ test("explains personal guest links and prepared meetings without targeting the 
   assert.match(access, /Chaque participant reçoit son propre lien personnel/);
   assert.match(cockpit, /governed-journey-media-room/);
   assert.match(cockpit, /governed-journey-meeting-participants/);
+  assert.match(read("components/GovernedMeetingParticipantSelection.tsx"), /governed-meeting-participant-selection/);
 });
 
 test("does not add or alter cockpit business actions", () => {
