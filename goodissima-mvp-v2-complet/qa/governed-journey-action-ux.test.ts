@@ -18,12 +18,15 @@ test("un parcours riche priorise les interventions et borne la densité", () => 
   const interventions = Array.from({ length: 6 }, (_, index) => ({ label: `Action ${index}`, detail: "Situation réelle", href: `/cases/${index}` }));
   const view = projectGovernedJourneyExperience({ humanValidated: true, totalParticipants: 4, preparedInvitations: 0, totalDocuments: 3, receivedDocuments: 0, pendingReviews: 2, interventions });
   assert.equal(view.actions.length, 5);
+  assert.equal(view.totalActionCount, 9);
+  assert.match(view.situation, /^9 actions/);
   assert.ok(view.actions.every((item) => item.label.startsWith("Action")));
 });
 
 test("la page expose la grammaire utilisateur et garde les surfaces legacy séparées", () => {
   const page = readFileSync(new URL("../app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx", import.meta.url), "utf8");
-  for (const heading of ["Où en sommes-nous ?", "À faire maintenant", "Les personnes", "Le travail", "Les décisions", "Historique"]) assert.match(page, new RegExp(heading));
+  const currentState = readFileSync(new URL("../components/GovernedJourneyCurrentState.tsx", import.meta.url), "utf8");
+  for (const heading of ["Où en sommes-nous ?", "À faire maintenant", "Les personnes", "Le travail", "Les décisions", "Historique"]) assert.match(`${page}\n${currentState}`, new RegExp(heading));
   assert.doesNotMatch(page, /Pilotage V1 · préparation read-only|Synthèse du parcours gouverné|Workspace du parcours|Metadata-first/);
   assert.match(page, /classification !== "JOURNEY"/);
   assert.match(page, /HistoricalTemplateCompatibilityView/);
@@ -34,14 +37,16 @@ test("les réunions exigent une préparation explicite et utilisent des actions 
   const page = readFileSync(new URL("../app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx", import.meta.url), "utf8");
   const guest = readFileSync(new URL("../app/gouvernance/invitation/[token]/page.tsx", import.meta.url), "utf8");
   const media = readFileSync(new URL("../components/RelationLiveKitMediaRoom.tsx", import.meta.url), "utf8");
+  const mediaRoom = readFileSync(new URL("../components/media/GoodissimaMediaRoom.tsx", import.meta.url), "utf8");
   assert.match(page, /Préparer une réunion/);
-  assert.match(page, /joinLabel=\{[\s\S]*?"Ouvrir la réunion"[\s\S]*?"Ouvrir quand même"\}/);
+  assert.match(page, /\? "Ouvrir la salle" : "Ouvrir quand même"/);
   assert.doesNotMatch(page, /VOICE_IP|SCREEN_SHARE/);
   assert.doesNotMatch(page, /actorKind="owner" available \/>/);
   assert.match(guest, /meetings\.length > 0/);
-  assert.match(guest, /joinLabel="Rejoindre la réunion"/);
+  assert.match(guest, /Rejoindre la salle/);
   assert.doesNotMatch(guest, /Rejoindre la salle securisee/);
-  assert.match(media, /Audio, vidéo et partage d&apos;écran sont disponibles dans cette réunion/);
+  assert.match(media, /GoodissimaMediaRoom/);
+  assert.match(mediaRoom, /Track\.Source\.ScreenShare/);
 });
 
 test("le parcours s'appuie sur la navigation spatiale sans retour technique", () => {

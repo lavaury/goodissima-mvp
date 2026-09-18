@@ -28,7 +28,7 @@ const journeyVersions: Record<string, number> = {
   ...Object.fromEntries(governanceSequences.map((journey) => [journey.id, 1])),
   ...Object.fromEntries(newGovernedJourneySequences.map((journey) => [journey.id, 1])),
   ...Object.fromEntries(governedJourneySequences.map((journey) => [journey.id, 1])),
-  "discover-governed-journey": 3,
+  "discover-governed-journey": 4,
   "participants-access": 2,
   "governed-communications": 4,
   "governance-review": 2,

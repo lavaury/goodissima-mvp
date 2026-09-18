@@ -44,6 +44,9 @@ import { projectAssignableJourneyParticipants, projectExpectedRoleAssignment } f
 import { revokeExpectedRoleAssignmentAction } from "@/lib/governed-journey-role-assignment-actions";
 import { projectJourneyMemberCandidates } from "@/lib/governed-meeting-participant-selection";
 import { GovernedMeetingParticipantSelection } from "@/components/GovernedMeetingParticipantSelection";
+import { GovernedJourneyCurrentStateView } from "@/components/GovernedJourneyCurrentState";
+import { projectGovernedJourneyCurrentState } from "@/lib/governed-journey-current-state";
+import { readGovernedJourneyCurrentStateMemoryCounts } from "@/lib/governed-journey-current-state-memory";
 
 export const dynamic = "force-dynamic";
 
@@ -597,6 +600,21 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     select: { id: true, relationCaseId: true, relationCaseContexts: { select: { relationCaseId: true }, take: 1 } },
   });
   const governedMemory = governedMemoryJourney ? await readJourneyGovernedMemory(governedMemoryJourney.id) : null;
+  const currentStateNow = new Date();
+  const currentStateMemory = governedMemoryJourney ? await readGovernedJourneyCurrentStateMemoryCounts(governedMemoryJourney.id, currentStateNow) : null;
+  const currentState = projectGovernedJourneyCurrentState({
+    memory: currentStateMemory,
+    participantCount: canonicalPeople.length,
+    activeRoleCount: roleProjections.filter((item) => item.state === "ASSIGNED").length,
+    vacantRoleCount: unfilledRoles.length,
+    expectedDocumentCount: summary.totalDocuments,
+    receivedDocumentCount: summary.declaredReceptionsCount,
+    pendingReviewCount: pendingReviews,
+    unscheduledMeetingCount: communicationOverview.sessions.filter(canScheduleGovernedMeeting).length,
+    meetingWithoutParticipantCount: communicationOverview.sessions.filter((session) => !meetingIsClosed(session, currentStateNow) && meetingParticipants.every((participant) => participant.communicationSessionId !== session.id || participant.status !== "AUTHORIZED")).length,
+    meetings: communicationOverview.sessions,
+    now: currentStateNow,
+  });
   const memoryRights = governedMemory ? [
     ...(governedMemory.capabilities.canPropose ? ["Peut proposer des faits"] : []),
     ...(governedMemory.capabilities.canRecordDecision ? ["Peut préparer des décisions"] : []),
@@ -606,7 +624,6 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
     ...(governedMemory.capabilities.canDispute ? ["Peut contester des faits"] : []),
   ] : [];
   const currentActions = experience.actions;
-  const journeySituation = experience.situation;
   const journeyHistory = orderJourneyHistory([
     ...(version?.createdAt ? [{ key: `journey-${version.id}`, occurredAt: version.createdAt.toISOString(), text: "Le parcours a été créé.", source: "journey" as const }] : []),
     ...participantInvitations.map((item) => ({ key: `invitation-${item.invitationId}`, occurredAt: item.preparedAt, text: `Une invitation au parcours a été préparée pour ${item.participantName}.`, source: "invitation" as const })),
@@ -661,14 +678,11 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </details>
       </section>
 
-      <section data-boussole-id="governed-journey-summary" className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-950">Où en sommes-nous ?</h2>
-        <p className="mt-3 text-base text-slate-700">{journeySituation}</p>
-        <p className="mt-2 text-sm text-slate-600">{summary.preparedInvitationsCount} invitation(s) préparée(s) · {summary.declaredReceptionsCount} document(s) reçu(s) · {summary.preparedReviewsCount} décision(s) préparée(s)</p>
-      </section>
+      <GovernedJourneyCurrentStateView state={currentState} />
 
       <section data-boussole-id="governed-journey-human-interventions" data-boussole-state={currentActions.length > 0 ? "pending" : "empty"} className="mt-6 rounded-2xl border-2 border-cyan-700 bg-cyan-50 p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-slate-950">À faire maintenant</h2>
+        {experience.totalActionCount > currentActions.length ? <p className="mt-2 text-sm font-semibold text-cyan-950">{experience.totalActionCount} actions demandent votre attention. Les {currentActions.length} premières sont affichées.</p> : null}
         {currentActions.length ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{currentActions.map((action, index) => <a key={`${action.href}-${index}`} data-boussole-id={index === 0 ? "governed-journey-human-intervention" : undefined} href={action.href} className="min-h-11 rounded-xl border bg-white p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-800"><span className="font-bold text-slate-950">{action.label}</span><span className="mt-1 block text-sm text-slate-600">{action.detail}</span></a>)}</div> : <p className="mt-3 text-sm text-slate-700">Vous pouvez poursuivre le travail ou consulter l’historique quand vous en avez besoin.</p>}
       </section>
 
