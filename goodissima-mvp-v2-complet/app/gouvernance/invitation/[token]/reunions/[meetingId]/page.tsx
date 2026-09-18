@@ -61,6 +61,7 @@ export default async function GuestMeetingRoomPage({
           guestAccessToken={params.token}
           preferredSessionId={params.meetingId}
           joinLabel="Rejoindre la réunion"
+          returnHref={`/gouvernance/invitation/${params.token}`}
         />
       </div>
     </div>

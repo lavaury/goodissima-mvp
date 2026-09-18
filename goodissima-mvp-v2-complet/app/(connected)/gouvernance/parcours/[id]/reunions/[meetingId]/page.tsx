@@ -53,6 +53,7 @@ export default async function GovernedJourneyMeetingRoomPage({
           available={available}
           preferredSessionId={meeting.id}
           joinLabel="Entrer dans la réunion"
+          returnHref={`/gouvernance/parcours/${params.id}/pilotage#meeting-${meeting.id}`}
         />
       </div>
     </div>

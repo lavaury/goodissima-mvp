@@ -31,6 +31,7 @@ export type MediaRoomCapabilities = {
   usageEndpoint?: string;
   attendanceEndpoint?: string;
   endEndpoint?: string;
+  returnHref?: string;
 };
 export type MediaRoomExpectedPerson = {
   identity: string;
@@ -179,11 +180,13 @@ export function GoodissimaMediaRoom({
   expectedPeople = [],
   title = "Réunion",
   joinLabel = "Rejoindre la réunion",
+  onEnded,
 }: {
   capabilities: MediaRoomCapabilities;
   expectedPeople?: MediaRoomExpectedPerson[];
   title?: string;
   joinLabel?: string;
+  onEnded?: () => void;
 }) {
   const roomRef = useRef<Room | null>(null);
   const previewTrackRef = useRef<LocalVideoTrack | null>(null);
@@ -193,6 +196,8 @@ export function GoodissimaMediaRoom({
   const [joined, setJoined] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [pending, setPending] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [roomEnded, setRoomEnded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaSettings>(() =>
     loadMediaSettings(typeof window === "undefined" ? undefined : window.localStorage),
@@ -359,8 +364,10 @@ export function GoodissimaMediaRoom({
       room.on(RoomEvent.Disconnected, (reason) => {
         setJoined(false);
         updateMedia({ cameraEnabled: false, microphoneEnabled: false });
-        if (reason === DisconnectReason.ROOM_DELETED)
-          setError("Cette réunion est terminée.");
+        if (reason === DisconnectReason.ROOM_DELETED) {
+          setRoomEnded(true);
+          setError("La réunion a été terminée par l’organisateur.");
+        }
         refresh();
       });
       await room.connect(payload.livekitUrl, payload.token, {
@@ -489,25 +496,41 @@ export function GoodissimaMediaRoom({
   }
   async function leave() {
     await attendance("leave");
-    roomRef.current?.disconnect();
+    disconnectLocalRoom();
     updateMedia({ cameraEnabled: false, microphoneEnabled: false });
     setJoined(false);
   }
+  function disconnectLocalRoom() {
+    const room = roomRef.current;
+    previewTrackRef.current?.detach();
+    previewTrackRef.current?.stop();
+    previewTrackRef.current = null;
+    if (room) {
+      for (const publication of room.localParticipant.trackPublications.values()) publication.track?.stop();
+      room.disconnect();
+    }
+    roomRef.current = null;
+    setScreenEnabled(false);
+    updateMedia({ cameraEnabled: false, microphoneEnabled: false });
+  }
   async function end() {
-    if (!capabilities.endEndpoint || !sessionRef.current || pending) return;
-    setPending(true);
+    if (!capabilities.endEndpoint || !sessionRef.current || pending || ending) return;
+    setEnding(true);
+    setError(null);
     try {
       const response = await request(capabilities.endEndpoint, {
         sessionId: sessionRef.current,
         reason: "Réunion terminée explicitement par l’organisateur.",
       });
-      if (!response.ok) throw new Error();
-      roomRef.current?.disconnect();
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "end-failed");
+      disconnectLocalRoom();
       setJoined(false);
-    } catch {
-      setError("La réunion n’a pas pu être terminée.");
+      onEnded?.();
+    } catch (cause) {
+      setError(cause instanceof Error && cause.message !== "end-failed" ? cause.message : "La réunion n’a pas pu être terminée. Vous pouvez réessayer.");
     } finally {
-      setPending(false);
+      setEnding(false);
     }
   }
   async function chooseImage(file: File | undefined) {
@@ -793,11 +816,11 @@ export function GoodissimaMediaRoom({
             </button>
             {capabilities.canEnd ? (
               <button
-                disabled={pending}
+                disabled={pending || ending}
                 onClick={() => void end()}
                 className="min-h-11 rounded bg-rose-700 px-3"
               >
-                Terminer la réunion
+                {ending ? "Terminaison…" : "Terminer la réunion"}
               </button>
             ) : null}
           </nav>
@@ -845,6 +868,7 @@ export function GoodissimaMediaRoom({
           {error}
         </p>
       ) : null}
+      {roomEnded && capabilities.returnHref ? <a href={capabilities.returnHref} className="mt-3 inline-flex min-h-11 items-center rounded border border-cyan-300 px-4 font-semibold text-cyan-100">Retour au Parcours</a> : null}
       <p className="mt-4 text-xs text-slate-400">
         Aucun enregistrement ni transcription automatique. Les effets
         d’arrière-plan sont traités localement sur cet appareil.

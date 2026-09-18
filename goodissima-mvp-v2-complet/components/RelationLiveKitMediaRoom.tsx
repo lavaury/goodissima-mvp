@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   GoodissimaMediaRoom,
   type MediaRoomExpectedPerson,
@@ -18,6 +19,7 @@ export function RelationLiveKitMediaRoom({
   guestAccessToken,
   preferredSessionId,
   joinLabel,
+  returnHref,
   expectedParticipants = [],
 }: {
   caseId?: string;
@@ -29,8 +31,10 @@ export function RelationLiveKitMediaRoom({
   guestAccessToken?: string;
   preferredSessionId?: string;
   joinLabel?: string;
+  returnHref?: string;
   expectedParticipants?: ExpectedMeetingParticipant[];
 }) {
+  const router = useRouter();
   const journey = contextKind === "governedJourney";
   const root = journey
     ? actorKind === "guest"
@@ -68,9 +72,11 @@ export function RelationLiveKitMediaRoom({
                 ? `${root}/end`
                 : `${root}/protected-call/end`
               : undefined,
+          returnHref,
         }}
         expectedPeople={expectedParticipants}
         joinLabel={joinLabel}
+        onEnded={returnHref ? () => { router.replace(returnHref); router.refresh(); } : undefined}
       />
     </div>
   );

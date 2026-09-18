@@ -14,9 +14,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (!form?.relationTemplateId || !sessionId) return NextResponse.json({ error: "Session ou parcours invalide." }, { status: 400 });
     const session = await prisma.communicationSession.findFirst({ where: { id: sessionId, ownerId: owner.id, relationTemplateId: form.relationTemplateId, relationCaseId: null }, select: { id: true, provider: true } });
     if (!session) return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
-    if (session.provider === "LIVEKIT_PENDING") { const { livekitUrl, apiKey, apiSecret } = getLiveKitConfig(); await new RoomServiceClient(livekitUrl, apiKey, apiSecret).deleteRoom(createLiveKitRoomName(session.id)); }
-    await prisma.communicationSession.update({ where: { id: session.id }, data: { status: "COMPLETED", accessOpened: false, note: "Session terminée explicitement par l'organisateur du parcours." } });
+    await prisma.communicationSession.update({ where: { id: session.id }, data: { status: "COMPLETED", accessOpened: false } });
     revalidatePath(`/gouvernance/parcours/${params.id}/pilotage`);
+    if (session.provider === "LIVEKIT_PENDING") {
+      try { const { livekitUrl, apiKey, apiSecret } = getLiveKitConfig(); await new RoomServiceClient(livekitUrl, apiKey, apiSecret).deleteRoom(createLiveKitRoomName(session.id)); } catch { /* DB state remains authoritative and prevents every new media token. */ }
+    }
     return NextResponse.json({ state: "ended" });
   } catch { return NextResponse.json({ error: "Impossible de terminer la session." }, { status: 500 }); }
 }
