@@ -12,6 +12,10 @@ export function meetingIsClosed(meeting: JourneyMeetingSummary, now = new Date()
   return meeting.status === "COMPLETED" || meeting.status === "CANCELLED" || Boolean(meeting.expiresAt && meeting.expiresAt <= now);
 }
 
+export function canScheduleGovernedMeeting(meeting: Pick<JourneyMeetingSummary, "status" | "scheduledAt">) {
+  return meeting.status === "PREPARED_NOT_STARTED" && meeting.scheduledAt === null;
+}
+
 export function meetingListCategory(meeting: JourneyMeetingSummary, now = new Date()): "En préparation" | "À venir" | "Terminées" {
   if (meetingIsClosed(meeting, now)) return "Terminées";
   if (meeting.accessOpened || Boolean(meeting.scheduledAt && meeting.scheduledAt > now)) return "À venir";

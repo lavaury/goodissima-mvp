@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { meetingListCategory, selectPrimaryMeetings } from "../lib/governed-journey-meetings.ts";
+import { canScheduleGovernedMeeting, meetingListCategory, selectPrimaryMeetings } from "../lib/governed-journey-meetings.ts";
 
 const now = new Date("2026-09-15T12:00:00.000Z");
 function meeting(id: string, overrides: Partial<{ status: string; accessOpened: boolean; scheduledAt: Date | null; expiresAt: Date | null; createdAt: Date; updatedAt: Date }> = {}) {
@@ -21,6 +21,25 @@ test("la liste complète classe les réunions sans confondre préparation et cou
   assert.equal(meetingListCategory(meeting("preparing"), now), "En préparation");
   assert.equal(meetingListCategory(meeting("upcoming", { scheduledAt: new Date("2026-09-16T09:00:00.000Z") }), now), "À venir");
   assert.equal(meetingListCategory(meeting("done", { status: "COMPLETED" }), now), "Terminées");
+});
+
+test("Fixer la date n'est proposé que pour une réunion préparée non planifiée", () => {
+  assert.equal(canScheduleGovernedMeeting(meeting("prepared")), true);
+  assert.equal(canScheduleGovernedMeeting(meeting("prepared-dated", { scheduledAt: new Date("2026-09-16T09:00:00.000Z") })), false);
+  assert.equal(canScheduleGovernedMeeting(meeting("open", { status: "REQUESTED" })), false);
+  assert.equal(canScheduleGovernedMeeting(meeting("open-dated", { status: "REQUESTED", scheduledAt: new Date("2026-09-16T09:00:00.000Z") })), false);
+  assert.equal(canScheduleGovernedMeeting(meeting("completed", { status: "COMPLETED" })), false);
+  assert.equal(canScheduleGovernedMeeting(meeting("cancelled", { status: "CANCELLED" })), false);
+});
+
+test("l'attention cible la bonne réunion et ouvre son éditeur de date", () => {
+  const page = readFileSync(new URL("../app/(connected)/gouvernance/parcours/[id]/pilotage/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /primaryMeetings\.find\(canScheduleGovernedMeeting\)/);
+  assert.match(page, /\?meetingAction=schedule&meetingId=\$\{encodeURIComponent\(meetingToSchedule\.id\)\}#meeting-\$\{meetingToSchedule\.id\}/);
+  assert.match(page, /open=\{searchParams\.meetingAction === "schedule" && searchParams\.meetingId === session\.id\}/);
+  assert.match(page, /session\.status === "PREPARED_NOT_STARTED" \? <details id=\{`meeting-schedule-/);
+  assert.match(page, /Date prévue/);
+  assert.match(page, /Non planifiée/);
 });
 
 test("participants et date sont des actions visibles sans faux RSVP", () => {

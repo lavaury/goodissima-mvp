@@ -31,7 +31,7 @@ import { HistoricalTemplateCompatibilityView } from "@/components/HistoricalTemp
 import { projectGovernedJourneyExperience } from "@/lib/governed-journey-experience";
 import { equivalentJourneyText } from "@/lib/governed-journey-ux";
 import { JOURNEY_HISTORY_INITIAL_COUNT, orderJourneyHistory } from "@/lib/governed-journey-history";
-import { meetingIsClosed, meetingListCategory, selectPrimaryMeetings } from "@/lib/governed-journey-meetings";
+import { canScheduleGovernedMeeting, meetingIsClosed, meetingListCategory, selectPrimaryMeetings } from "@/lib/governed-journey-meetings";
 import { GovernedJourneyMemorySection } from "@/components/GovernedJourneyMemorySection";
 import { GovernedJourneyAddParticipantPanel } from "@/components/GovernedJourneyAddParticipantPanel";
 import { readJourneyGovernedMemory } from "@/lib/governed-memory/runtime";
@@ -417,7 +417,7 @@ function formatDate(value: Date | string | null | undefined) {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export default async function GovernedJourneyPilotagePage({ params, searchParams }: { params: { id: string }; searchParams: { meetingPrepared?: string; similarMeetingId?: string; technical?: string } }) {
+export default async function GovernedJourneyPilotagePage({ params, searchParams }: { params: { id: string }; searchParams: { meetingPrepared?: string; similarMeetingId?: string; technical?: string; meetingAction?: string; meetingId?: string } }) {
   const owner = await getCurrentPrismaUser();
   if (!await getTemplateReadAccess(owner, params.id)) notFound();
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
@@ -542,11 +542,12 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
   const pendingReviews = governanceReviewPreparations.filter((review) => review.status !== "COMPLETED").length;
   const primaryMeetings = selectPrimaryMeetings(communicationOverview.sessions);
   const meetingToComplete = primaryMeetings.find((meeting) => !meetingIsClosed(meeting));
+  const meetingToSchedule = primaryMeetings.find(canScheduleGovernedMeeting);
   const meetingParticipantCount = meetingToComplete ? meetingParticipants.filter((item) => item.communicationSessionId === meetingToComplete.id && item.status === "AUTHORIZED").length : 0;
   const meetingActions = meetingToComplete && meetingParticipantCount === 0
     ? [{ label: `Invitez les participants à la réunion « ${meetingToComplete.title} »`, detail: "Aucun autre participant n’a encore accès à cette réunion.", href: `#meeting-${meetingToComplete.id}` }]
-    : meetingToComplete && !meetingToComplete.scheduledAt
-      ? [{ label: `Fixez la date de la réunion « ${meetingToComplete.title} »`, detail: "Cette réunion préparée n’a pas encore de date.", href: `#meeting-${meetingToComplete.id}` }]
+    : meetingToSchedule
+      ? [{ label: `Fixez la date de la réunion « ${meetingToSchedule.title} »`, detail: "Cette réunion préparée n’a pas encore de date.", href: `?meetingAction=schedule&meetingId=${encodeURIComponent(meetingToSchedule.id)}#meeting-${meetingToSchedule.id}` }]
       : [];
   const rolesAction = unfilledRoles.length === 1
     ? [{ label: `Choisir ${unfilledRoles[0].name}`, detail: unfilledRoles[0].role, href: "#roles-to-fill" }]
@@ -1328,13 +1329,13 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   <p className="mt-3 text-xs text-slate-500">Goodissima ne suit pas encore la réponse des participants à cette réunion.</p>
                 </div>
                 </details>
-                {session.status === "PREPARED_NOT_STARTED" ? <div className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white/80 p-3">
+                {session.status === "PREPARED_NOT_STARTED" ? <details id={`meeting-schedule-${session.id}`} open={searchParams.meetingAction === "schedule" && searchParams.meetingId === session.id} className="mt-3 rounded-lg border border-slate-200 bg-white/80 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-emerald-950">{session.scheduledAt ? "Modifier la date" : "Définir la date"}</summary><div className="grid gap-3 border-t pt-3">
                   <form action={updateGovernedMeetingScheduleAction} className="flex flex-wrap items-end gap-2"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><label className="text-xs font-semibold text-slate-600">{session.scheduledAt ? "Reporter / modifier la date" : "Définir la date"}<input required name="scheduledAt" type="datetime-local" className="mt-1 block min-h-11 rounded-lg border px-3 py-2 text-sm font-normal" /></label><button type="submit" className="min-h-11 rounded-lg border px-3 py-2 text-xs font-bold text-slate-700">Enregistrer la date</button></form>
                   <form action={cancelGovernedMeetingAction}><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="communicationSessionId" value={session.id} /><ConfirmMeetingCancellationButton /></form>
-                </div> : null}
+                </div></details> : null}
                 </> : session.status === "CANCELLED" ? <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-semibold text-slate-700">Réunion annulée. Périmètre conservé pour historique.</p> : null}
                 <dl className="mt-3 grid gap-2 rounded-lg bg-white/80 p-3 text-xs text-emerald-950 sm:grid-cols-2">
-                  <div><dt className="font-semibold">Date</dt><dd>{session.scheduledAt ? formatDate(session.scheduledAt) : "À définir"}</dd></div>
+                  <div><dt className="font-semibold">Date prévue</dt><dd>{session.scheduledAt ? formatDate(session.scheduledAt) : "Non planifiée"}</dd></div>
                   <div><dt className="font-semibold">Accès</dt><dd>{session.accessOpened ? "Disponible" : meetingIsClosed(session) ? "Fermé" : "Pas encore ouvert"}</dd></div>
                   <div><dt className="font-semibold">Enregistrement</dt><dd>Non</dd></div>
                   <div><dt className="font-semibold">Transcription</dt><dd>Non</dd></div>
