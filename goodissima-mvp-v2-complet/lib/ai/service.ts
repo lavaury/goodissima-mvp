@@ -42,11 +42,11 @@ export function getConfiguredAIProvider(): AIProvider {
 }
 
 function summarizeOutputForAudit(summary: AISummary) {
-  return summary.summary.slice(0, 500);
+  return `summary_generated;points=${summary.keyPoints.length};risks=${summary.risks.length};actions=${summary.suggestedActions.length}`;
 }
 
 function summarizeTimelineForAudit(timeline: AITimelineIntelligence) {
-  return timeline.timelineStatus.slice(0, 500);
+  return `timeline_generated;blockers=${timeline.blockers.length};actions=${timeline.nextBestActions.length};alerts=${timeline.alerts.length}`;
 }
 
 function summarizeDraftForAudit(draft: AIDraft) {

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAIProvider } from "@/lib/ai-runtime";
-import { getConfiguredAIProvider } from "@/lib/ai/service";
+import { routeAI } from "@/lib/ai/governance/router";
 import { requireCurrentUser } from "@/lib/auth";
 import { compassAIContext } from "@/lib/boussole";
 import { isCompassPageName } from "@/lib/boussole-context";
@@ -17,13 +16,10 @@ export async function POST(request: Request) {
   if (!question) return NextResponse.json({ error: "Posez une question sur la navigation Goodissima." }, { status: 400 });
   if (sensitivePattern.test(question)) return NextResponse.json({ error: "N’indiquez aucune donnée personnelle, adresse, URL, clé ou token dans votre question." }, { status: 400 });
   if (!navigationTerms.test(question)) return NextResponse.json({ answer: "La Boussole répond uniquement aux questions sur la page courante, les actions visibles et la navigation Goodissima." });
-  if (getAIProvider() !== "mistral" || !process.env.MISTRAL_API_KEY) return NextResponse.json({ error: "Assistance IA indisponible dans cet environnement." }, { status: 503 });
-
-  const provider = getConfiguredAIProvider();
-  if (provider.name !== "mistral") return NextResponse.json({ error: "Assistance IA indisponible dans cet environnement." }, { status: 503 });
-
   try {
-    const result = await provider.chat({
+    const result = await routeAI({
+      capability: "boussoleNavigation", classification: "PUBLIC", purpose: "boussole_navigation",
+      promptVersion: "boussole-navigation-v1", context: { type: "boussole-reference", data: { reference: compassAIContext(), currentPage: pageName } },
       system: [
         "Tu es la Boussole Goodissima V1, une aide strictement limitée à la compréhension de la page courante, de ses actions visibles et de la navigation.",
         "Réponds en français en 2 à 5 phrases courtes, uniquement à partir du référentiel JSON fourni.",
@@ -33,10 +29,10 @@ export async function POST(request: Request) {
         "Tu ne déclenches et ne prétends déclencher aucune action, création, publication, invitation, communication, notification, réunion ou décision.",
         "Rappelle la validation humaine lorsque la question porte sur une action.",
       ].join("\n"),
-      prompt: JSON.stringify({ reference: compassAIContext(), currentPage: pageName, question }),
-      metadata: { feature: "boussole_navigation", promptVersion: "boussole-navigation-v1" },
+      prompt: { question },
+      validateOutput: (output) => output.replace(/\s+/g, " ").trim().slice(0, 1200),
     });
-    const answer = result.output.replace(/\s+/g, " ").trim().slice(0, 1200);
+    const answer = result.output;
     return NextResponse.json({ answer: answer || "La Boussole ne sait pas répondre à cette question." });
   } catch {
     return NextResponse.json({ error: "Assistance IA indisponible dans cet environnement." }, { status: 503 });

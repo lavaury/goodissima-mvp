@@ -11,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "qa:ai": "node scripts/qa-ai.mjs",
+    "qa:ai-governance": "node --experimental-strip-types --test qa/ai-governance-foundation.test.ts",
     "qa:ai:scenarios": "node scripts/qa-ai-scenarios.mjs",
     "qa:mistral": "node scripts/qa-mistral.mjs",
     "qa:scenarios": "npm run qa:ai:scenarios",
