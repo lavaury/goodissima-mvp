@@ -6,6 +6,7 @@ import * as jsx from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import { hashJourneyInvitationToken } from "../lib/governed-journey-invitations.ts";
 import { getCompassContext } from "../lib/boussole-context.ts";
+import * as guestMeetingProjection from "../lib/governed-meeting-guest-projection.ts";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 
 const require = createRequire(import.meta.url);
@@ -58,6 +59,7 @@ function guestPage(state: "valid" | "revoked" | "expired" | "inactive" | "unknow
     "@/lib/auth": { getCurrentUser: async () => null },
     "@/lib/governed-journey-consent-actions": { acceptJourneyInvitation() {}, declineJourneyInvitation() {} },
     "@/lib/governed-meeting-rsvp-actions": { acceptMeetingRsvp() {}, declineMeetingRsvp() {} },
+    "@/lib/governed-meeting-guest-projection": guestMeetingProjection,
     "@/lib/governed-meeting-rsvp": {
       meetingRsvpLabel: (value: any) => value?.status === "ACCEPTED" ? "Participation acceptée" : value?.status === "PENDING" ? "Invitation en attente" : value?.status === "DECLINED" ? "Participation déclinée" : "Participation historique — réponse non enregistrée",
       hasCurrentMeetingMediaAccess: (value: any) => value.status !== "REMOVED" && (!value.rsvp || (value.rsvp.status === "ACCEPTED" && value.rsvp.meetingRevision === value.communicationSession.rsvpRevision)) && value.communicationSession.status === "REQUESTED" && value.communicationSession.accessOpened && (!value.communicationSession.expiresAt || value.communicationSession.expiresAt > new Date()),

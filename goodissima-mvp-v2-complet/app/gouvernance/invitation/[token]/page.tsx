@@ -20,8 +20,8 @@ import {
 } from "@/lib/governed-meeting-rsvp-actions";
 import {
   hasCurrentMeetingMediaAccess,
-  meetingRsvpLabel,
 } from "@/lib/governed-meeting-rsvp";
+import { guestMeetingAvailabilityMessage, guestMeetingRsvpLabel, guestMeetingStateLabel, projectGuestMeetingState } from "@/lib/governed-meeting-guest-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -289,36 +289,37 @@ export default async function GuestJourneyPage({
           <h2 className="text-xl font-bold">Réunions</h2>
           {meetings.map((participant) => {
             const session = participant.communicationSession;
+            const meetingState = projectGuestMeetingState(session);
+            const past = meetingState === "EXPIRED" || meetingState === "COMPLETED" || meetingState === "CANCELLED";
             const live =
+              meetingState === "OPEN" &&
               hasCurrentMeetingMediaAccess(participant) &&
               session.provider === "LIVEKIT_PENDING";
-            const ended =
-              session.status === "COMPLETED" || session.status === "CANCELLED";
             return (
               <article
                 key={session.id}
                 className="mt-3 rounded-lg border bg-white p-4"
               >
                 <h3 className="font-bold">{session.title}</h3>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{guestMeetingStateLabel(meetingState)}</p>
                 <p className="mt-1 text-sm text-slate-600">
                   <strong>Objectif :</strong>{" "}
                   {session.purpose || "Participer à cette réunion du Parcours."}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  <strong>Date :</strong>{" "}
+                  <strong>Date prévue :</strong>{" "}
                   {session.scheduledAt
                     ? session.scheduledAt.toLocaleString("fr-FR")
-                    : "Date à définir"}
+                    : "non définie"}
                 </p>
+                {meetingState === "EXPIRED" && session.expiresAt ? <p className="mt-1 text-sm text-slate-600"><strong>Expiration :</strong> {session.expiresAt.toLocaleString("fr-FR")}</p> : null}
                 <p className="mt-1 text-sm text-slate-600">
                   <strong>Parcours :</strong> {invitation.relationTemplate.name}
                 </p>
                 <p className="mt-2 text-sm font-semibold">
-                  {participant.rsvp?.status === "ACCEPTED"
-                    ? "Participation confirmée"
-                    : meetingRsvpLabel(participant.rsvp)}
+                  {guestMeetingRsvpLabel(participant.rsvp?.status, meetingState)}
                 </p>
-                {participant.rsvp?.status === "PENDING" && !ended ? (
+                {participant.rsvp?.status === "PENDING" && !past ? (
                   <div className="mt-4">
                     <p className="mb-3 font-semibold">
                       Vous êtes invité(e) à cette réunion.
@@ -372,13 +373,7 @@ export default async function GuestJourneyPage({
                   </>
                 ) : (
                   <p className="mt-3 rounded bg-slate-50 p-3 text-sm text-slate-600">
-                    {ended
-                      ? "Cette réunion est terminée et n’est plus accessible."
-                      : participant.rsvp?.status === "DECLINED"
-                        ? "Vous avez décliné cette réunion."
-                        : participant.rsvp?.status === "ACCEPTED"
-                          ? "La salle sera disponible lorsque l’organisateur ouvrira la réunion."
-                          : "L’accès média sera disponible après votre acceptation et l’ouverture de la réunion."}
+                    {guestMeetingAvailabilityMessage(meetingState, participant.rsvp?.status)}
                   </p>
                 )}
               </article>
