@@ -6,6 +6,7 @@ import * as selectionDomain from "../lib/governed-meeting-participant-selection.
 import { hasCurrentJourneyAccess } from "../lib/governed-journey-access.ts";
 import {
   classifyJourneyMemberEligibility,
+  formatMeetingSelectionResultCount,
   GOVERNED_PARTICIPANT_SELECTION_LIMIT,
   isJourneyMemberSelectable,
   projectJourneyMemberCandidates,
@@ -62,6 +63,25 @@ test("an old revoked Hao Ping representation never creates a second candidate", 
   assert.deepEqual(candidates.map((candidate) => [candidate.key, candidate.sourceInvitationId, candidate.eligibility]), [["user:hao-user", "hao-active", "ELIGIBLE"]]);
 });
 
+test("a revoked guest representation is excluded before canonicalization even when an active guest has the same name", () => {
+  const candidates = project([
+    invitation("hao-guest-revoked", { inviteeUserId: null, displayName: "Hao Ping", inviteeUser: null, revokedAt: now, status: "REVOKED" }),
+    invitation("hao-guest-active", { inviteeUserId: null, displayName: "Hao Ping", inviteeUser: null }),
+    invitation("different-active", { inviteeUserId: null, displayName: "Hao Ping", inviteeUser: null }),
+  ]);
+  assert.deepEqual(candidates.map((candidate) => candidate.canonicalInvitationId), ["different-active", "hao-guest-active"]);
+  assert.equal(candidates.some((candidate) => candidate.canonicalInvitationId === "hao-guest-revoked"), false);
+});
+
+test("declined and expired historical invitations are not current Journey members", () => {
+  const candidates = project([
+    invitation("declined-history", { consent: { status: "DECLINED" } }),
+    invitation("expired-history", { status: "EXPIRED", accessTokenExpiresAt: past }),
+    invitation("current"),
+  ]);
+  assert.deepEqual(candidates.map((candidate) => candidate.sourceInvitationId), ["current"]);
+});
+
 test("classifies every eligibility and only allows eligible/current participants", () => {
   const cases = [
     [invitation("eligible"), false, "ELIGIBLE"],
@@ -94,6 +114,15 @@ test("summarizes human inclusions and exclusions", () => {
     { decision: "INCLUDED", observedEligibility: "ALREADY_PRESENT" },
     { decision: "EXCLUDED", observedEligibility: "ELIGIBLE" },
   ]), { observed: 3, retained: 2, excluded: 1, toAdd: 1, alreadyPresent: 1 });
+});
+
+test("formats materialized result counts for zero, one and several", () => {
+  assert.equal(formatMeetingSelectionResultCount(0, "personne retenue", "personnes retenues"), "0 personnes retenues");
+  assert.equal(formatMeetingSelectionResultCount(1, "personne retenue", "personnes retenues"), "1 personne retenue");
+  assert.equal(formatMeetingSelectionResultCount(2, "personne retenue", "personnes retenues"), "2 personnes retenues");
+  assert.equal(formatMeetingSelectionResultCount(1, "ajoutée à la réunion", "ajoutées à la réunion"), "1 ajoutée à la réunion");
+  assert.equal(formatMeetingSelectionResultCount(2, "déjà présente", "déjà présentes"), "2 déjà présentes");
+  assert.equal(formatMeetingSelectionResultCount(2, "erreur", "erreurs"), "2 erreurs");
 });
 
 const actions = readFileSync("lib/governed-meeting-participant-selection-actions.ts", "utf8");
@@ -137,6 +166,13 @@ test("cockpit keeps individual access and adds the compact governed selection UX
   assert.match(component, /items\.filter\(\(item\) => item\.observedEligibility === "ELIGIBLE"\)/);
   assert.match(component, /router\.refresh\(\)/);
   assert.doesNotMatch(actions, /source:\s*"(?:DIRECTORY|MATCHING)"/);
+});
+
+test("materialized selection is a read-only result with optional retained-person detail", () => {
+  const materialized = component.slice(component.indexOf('selection?.status === "MATERIALIZED"'), component.indexOf('selection && (selection.status === "DRAFT"'));
+  assert.match(materialized, /Sélection validée/);
+  assert.match(materialized, /Voir les personnes retenues/);
+  assert.doesNotMatch(materialized, /type="checkbox"|Valider les participants|Examiner la sélection/);
 });
 
 test("Boussole targets the real EMPTY, POPULATED and FOCUSED selection surface", () => {

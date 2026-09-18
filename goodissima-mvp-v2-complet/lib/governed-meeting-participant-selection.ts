@@ -68,7 +68,15 @@ export function projectJourneyMemberCandidates(input: {
   const authorized = input.meetingParticipants.filter((participant) => participant.status === "AUTHORIZED");
   const candidates = new Map<string, JourneyMemberCandidate>();
 
-  for (const invitation of input.invitations) {
+  const currentInvitations = input.invitations.filter((invitation) =>
+    !invitation.revokedAt
+    && invitation.status !== "REVOKED"
+    && invitation.status !== "EXPIRED"
+    && invitation.accessTokenExpiresAt > now
+    && invitation.consent?.status !== "DECLINED",
+  );
+
+  for (const invitation of currentInvitations) {
     const key = invitation.inviteeUserId ? `user:${invitation.inviteeUserId}` : `guest:${invitation.id}`;
     const existingParticipant = authorized.find((participant) => {
       if (participant.governedJourneyInvitationId === invitation.id) return true;
@@ -101,6 +109,14 @@ export function projectJourneyMemberCandidates(input: {
   return [...candidates.values()].sort((left, right) =>
     left.displayName.localeCompare(right.displayName, "fr", { sensitivity: "base" }) || left.key.localeCompare(right.key),
   );
+}
+
+export function formatMeetingSelectionResultCount(
+  count: number,
+  singular: string,
+  plural: string,
+) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 export function isJourneyMemberSelectable(eligibility: GovernedParticipantSelectionEligibility) {

@@ -8,6 +8,7 @@ import {
   reviewJourneyMemberSelectionAction,
   validateJourneyMemberSelectionAction,
 } from "@/lib/governed-meeting-participant-selection-actions";
+import { formatMeetingSelectionResultCount } from "@/lib/governed-meeting-participant-selection";
 
 type SelectionItem = {
   id: string;
@@ -122,7 +123,15 @@ export function GovernedMeetingParticipantSelection({
 
       {selection?.status === "MATERIALIZED" ? (() => {
         const summary = selection.materializationSummary ?? {};
-        return <div className="mt-3 rounded-lg border border-emerald-200 bg-white p-3 text-sm text-emerald-950"><p className="font-bold">Sélection matérialisée</p><p className="mt-1">{summary.retained ?? 0} personnes retenues</p><p>{summary.added ?? 0} ajoutées à la réunion</p><p>{summary.alreadyPresent ?? 0} déjà présentes</p><p>{summary.errors ?? 0} erreur</p></div>;
+        const retainedItems = items.filter((item) => item.decision === "INCLUDED");
+        return <div className="mt-3 rounded-lg border border-emerald-200 bg-white p-3 text-sm text-emerald-950">
+          <p className="font-bold">Sélection validée</p>
+          <p className="mt-1">{formatMeetingSelectionResultCount(summary.retained ?? 0, "personne retenue", "personnes retenues")}</p>
+          <p>{formatMeetingSelectionResultCount(summary.added ?? 0, "ajoutée à la réunion", "ajoutées à la réunion")}</p>
+          <p>{formatMeetingSelectionResultCount(summary.alreadyPresent ?? 0, "déjà présente", "déjà présentes")}</p>
+          <p>{formatMeetingSelectionResultCount(summary.errors ?? 0, "erreur", "erreurs")}</p>
+          {retainedItems.length ? <details className="mt-3 border-t border-emerald-100 pt-3"><summary className="min-h-10 cursor-pointer py-2 font-semibold">Voir les personnes retenues</summary><ul className="mt-1 space-y-1">{retainedItems.map((item) => <li key={item.id}>{item.snapshotDisplayName} · {item.observedEligibility === "ALREADY_PRESENT" ? "Déjà présente" : "Ajoutée à la réunion"}</li>)}</ul></details> : null}
+        </div>;
       })() : null}
 
       {selection && (selection.status === "DRAFT" || selection.status === "UNDER_REVIEW") ? (
