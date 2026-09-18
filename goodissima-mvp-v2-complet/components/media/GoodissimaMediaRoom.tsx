@@ -16,6 +16,12 @@ import {
   type Participant,
   type TrackPublication,
 } from "livekit-client";
+import {
+  loadMediaSettings,
+  persistMediaPreferences,
+  type MediaBackgroundMode,
+  type MediaSettings,
+} from "@/lib/media/media-settings";
 
 export type MediaRoomCapabilities = {
   canJoin: boolean;
@@ -38,8 +44,6 @@ type TokenResponse = {
   communicationSessionId?: string;
   error?: string;
 };
-type BackgroundMode = "none" | "blur" | "image";
-
 function humanMediaError(error: unknown) {
   const name = error instanceof DOMException ? error.name : "";
   if (name === "NotAllowedError")
@@ -190,38 +194,49 @@ export function GoodissimaMediaRoom({
   const [connecting, setConnecting] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cameraWanted, setCameraWanted] = useState(false);
-  const [microphoneWanted, setMicrophoneWanted] = useState(false);
-  const [cameraEnabled, setCameraEnabled] = useState(false);
-  const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
+  const [media, setMedia] = useState<MediaSettings>(() =>
+    loadMediaSettings(typeof window === "undefined" ? undefined : window.localStorage),
+  );
   const [screenEnabled, setScreenEnabled] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [cameraId, setCameraId] = useState("");
-  const [microphoneId, setMicrophoneId] = useState("");
-  const [speakerId, setSpeakerId] = useState("");
-  const [background, setBackground] = useState<BackgroundMode>(() =>
-    typeof window === "undefined"
-      ? "none"
-      : (localStorage.getItem(
-          "goodissima.media.background",
-        ) as BackgroundMode) || "none",
-  );
   const [backgroundAvailable, setBackgroundAvailable] = useState(false);
   const [, render] = useState(0);
 
   useEffect(() => {
     setBackgroundAvailable(supportsBackgroundProcessors());
-    navigator.mediaDevices
-      ?.enumerateDevices()
-      .then(setDevices)
+    const refreshDevices = () => navigator.mediaDevices?.enumerateDevices()
+      .then((available) => {
+        setDevices(available);
+        setMedia((current) => ({
+          ...current,
+          preferredCameraDeviceId: available.some((item) => item.kind === "videoinput" && item.deviceId === current.preferredCameraDeviceId) ? current.preferredCameraDeviceId : "",
+          preferredMicrophoneDeviceId: available.some((item) => item.kind === "audioinput" && item.deviceId === current.preferredMicrophoneDeviceId) ? current.preferredMicrophoneDeviceId : "",
+          preferredAudioOutputDeviceId: available.some((item) => item.kind === "audiooutput" && item.deviceId === current.preferredAudioOutputDeviceId) ? current.preferredAudioOutputDeviceId : "",
+        }));
+      })
       .catch(() => setDevices([]));
+    void refreshDevices();
+    navigator.mediaDevices?.addEventListener?.("devicechange", refreshDevices);
     return () => {
+      navigator.mediaDevices?.removeEventListener?.("devicechange", refreshDevices);
       roomRef.current?.disconnect();
       previewTrackRef.current?.stop();
       if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
     };
   }, []);
+  useEffect(() => {
+    persistMediaPreferences(window.localStorage, media);
+  }, [media.preferredCameraDeviceId, media.preferredMicrophoneDeviceId, media.preferredAudioOutputDeviceId, media.backgroundMode]);
+  const cameraId = media.preferredCameraDeviceId;
+  const microphoneId = media.preferredMicrophoneDeviceId;
+  const speakerId = media.preferredAudioOutputDeviceId;
+  const cameraEnabled = media.cameraEnabled;
+  const microphoneEnabled = media.microphoneEnabled;
+  const background = media.backgroundMode;
+  function updateMedia(patch: Partial<MediaSettings>) {
+    setMedia((current) => ({ ...current, ...patch }));
+  }
   function refresh() {
     render((value) => value + 1);
   }
@@ -248,23 +263,32 @@ export function GoodissimaMediaRoom({
       }).catch(() => null);
   }
 
-  async function applyBackground(mode: BackgroundMode, imageUrl?: string) {
+  async function applyBackground(mode: MediaBackgroundMode, imageUrl?: string) {
     const publication = roomRef.current?.localParticipant.getTrackPublication(
       Track.Source.Camera,
     );
     const track = publication?.track ?? previewTrackRef.current;
-    if (!(track instanceof LocalVideoTrack)) return;
-    if (mode === "none") await track.stopProcessor();
-    else if (!backgroundAvailable) throw new Error("background-unavailable");
-    else
+    if (!(track instanceof LocalVideoTrack)) {
+      updateMedia({ backgroundMode: mode });
+      return;
+    }
+    try {
+      await track.stopProcessor();
+      if (mode === "NONE") {
+        updateMedia({ backgroundMode: mode });
+        return;
+      }
+      if (!backgroundAvailable) throw new Error("background-unavailable");
+      const currentImageUrl = imageUrl ?? imageUrlRef.current;
+      if (mode === "IMAGE" && !currentImageUrl) throw new Error("background-image-missing");
       await track.setProcessor(
-        mode === "blur" ? BackgroundBlur(10) : VirtualBackground(imageUrl!),
+        mode === "BLUR" ? BackgroundBlur(10) : VirtualBackground(currentImageUrl!),
       );
-    setBackground(mode);
-    localStorage.setItem(
-      "goodissima.media.background",
-      mode === "image" ? "none" : mode,
-    );
+      updateMedia({ backgroundMode: mode });
+    } catch (cause) {
+      updateMedia({ backgroundMode: "NONE" });
+      throw cause;
+    }
   }
 
   async function togglePreview() {
@@ -273,7 +297,7 @@ export function GoodissimaMediaRoom({
       previewTrackRef.current.detach();
       previewTrackRef.current.stop();
       previewTrackRef.current = null;
-      setCameraWanted(false);
+      updateMedia({ cameraEnabled: false });
       return;
     }
     try {
@@ -281,15 +305,15 @@ export function GoodissimaMediaRoom({
         cameraId ? { deviceId: cameraId } : undefined,
       );
       previewTrackRef.current = track;
-      setCameraWanted(true);
+      updateMedia({ cameraEnabled: true });
       if (previewElementRef.current) track.attach(previewElementRef.current);
-      if (background !== "none") await applyBackground(background);
+      if (background !== "NONE") await applyBackground(background);
       navigator.mediaDevices
         .enumerateDevices()
         .then(setDevices)
         .catch(() => null);
     } catch (cause) {
-      setCameraWanted(false);
+      updateMedia({ cameraEnabled: false });
       setError(humanMediaError(cause));
     }
   }
@@ -298,9 +322,9 @@ export function GoodissimaMediaRoom({
     if (connecting || joined) return;
     setConnecting(true);
     setError(null);
+    const previewTrack = previewTrackRef.current;
     try {
       previewTrackRef.current?.detach();
-      previewTrackRef.current?.stop();
       previewTrackRef.current = null;
       const response = await request(
         capabilities.tokenEndpoint,
@@ -317,6 +341,10 @@ export function GoodissimaMediaRoom({
       const room = new Room({ adaptiveStream: true, dynacast: true });
       roomRef.current = room;
       sessionRef.current = payload.communicationSessionId;
+      const syncLiveState = () => updateMedia({
+        cameraEnabled: Boolean(room.localParticipant.getTrackPublication(Track.Source.Camera) && !room.localParticipant.getTrackPublication(Track.Source.Camera)?.isMuted),
+        microphoneEnabled: Boolean(room.localParticipant.getTrackPublication(Track.Source.Microphone) && !room.localParticipant.getTrackPublication(Track.Source.Microphone)?.isMuted),
+      });
       [
         RoomEvent.ParticipantConnected,
         RoomEvent.ParticipantDisconnected,
@@ -325,11 +353,12 @@ export function GoodissimaMediaRoom({
         RoomEvent.ActiveSpeakersChanged,
         RoomEvent.TrackMuted,
         RoomEvent.TrackUnmuted,
-      ].forEach((event) => room.on(event, refresh));
+        RoomEvent.LocalTrackPublished,
+        RoomEvent.LocalTrackUnpublished,
+      ].forEach((event) => room.on(event, () => { syncLiveState(); refresh(); }));
       room.on(RoomEvent.Disconnected, (reason) => {
         setJoined(false);
-        setCameraEnabled(false);
-        setMicrophoneEnabled(false);
+        updateMedia({ cameraEnabled: false, microphoneEnabled: false });
         if (reason === DisconnectReason.ROOM_DELETED)
           setError("Cette réunion est terminée.");
         refresh();
@@ -337,29 +366,32 @@ export function GoodissimaMediaRoom({
       await room.connect(payload.livekitUrl, payload.token, {
         autoSubscribe: true,
       });
-      if (microphoneWanted) {
+      if (microphoneEnabled) {
         await room.localParticipant.setMicrophoneEnabled(
           true,
           microphoneId ? { deviceId: microphoneId } : undefined,
         );
-        setMicrophoneEnabled(true);
+        updateMedia({ microphoneEnabled: true });
         await markUsage("audio");
       }
-      if (cameraWanted) {
-        await room.localParticipant.setCameraEnabled(
-          true,
-          cameraId ? { deviceId: cameraId } : undefined,
-        );
-        setCameraEnabled(true);
+      if (cameraEnabled) {
+        if (previewTrack) await room.localParticipant.publishTrack(previewTrack, { source: Track.Source.Camera });
+        else await room.localParticipant.setCameraEnabled(
+            true,
+            cameraId ? { deviceId: cameraId } : undefined,
+          );
+        updateMedia({ cameraEnabled: true });
         await markUsage("video");
-        if (background !== "none") await applyBackground(background);
+        if (!previewTrack && background !== "NONE") await applyBackground(background);
       }
       if (speakerId) await room.switchActiveDevice("audiooutput", speakerId);
       setJoined(true);
       await attendance("join");
       refresh();
     } catch (cause) {
+      previewTrack?.stop();
       roomRef.current?.disconnect();
+      updateMedia({ cameraEnabled: false, microphoneEnabled: false });
       setError(humanMediaError(cause));
     } finally {
       setConnecting(false);
@@ -378,7 +410,7 @@ export function GoodissimaMediaRoom({
           next,
           microphoneId ? { deviceId: microphoneId } : undefined,
         );
-        setMicrophoneEnabled(next);
+        updateMedia({ microphoneEnabled: next });
         if (next) await markUsage("audio");
       } else if (kind === "camera") {
         const next = !cameraEnabled;
@@ -386,10 +418,10 @@ export function GoodissimaMediaRoom({
           next,
           cameraId ? { deviceId: cameraId } : undefined,
         );
-        setCameraEnabled(next);
+        updateMedia({ cameraEnabled: next });
         if (next) {
           await markUsage("video");
-          if (background !== "none") await applyBackground(background);
+          if (background !== "NONE") await applyBackground(background);
         }
       } else {
         const next = !screenEnabled;
@@ -404,9 +436,61 @@ export function GoodissimaMediaRoom({
       setPending(false);
     }
   }
+  async function changeDevice(
+    kind: "videoinput" | "audioinput" | "audiooutput",
+    deviceId: string,
+  ) {
+    const key = kind === "videoinput"
+      ? "preferredCameraDeviceId"
+      : kind === "audioinput"
+        ? "preferredMicrophoneDeviceId"
+        : "preferredAudioOutputDeviceId";
+    updateMedia({ [key]: deviceId });
+    const room = roomRef.current;
+    const resolvedDeviceId = deviceId || devices.find((device) => device.kind === kind)?.deviceId || "";
+    if (!room && kind === "videoinput" && previewTrackRef.current && resolvedDeviceId) {
+      setPending(true);
+      setError(null);
+      try {
+        previewTrackRef.current.detach();
+        previewTrackRef.current.stop();
+        const track = await createLocalVideoTrack({ deviceId: resolvedDeviceId });
+        previewTrackRef.current = track;
+        if (previewElementRef.current) track.attach(previewElementRef.current);
+        if (background !== "NONE") await applyBackground(background);
+      } catch (cause) {
+        previewTrackRef.current = null;
+        updateMedia({ cameraEnabled: false, [key]: "" });
+        setError(humanMediaError(cause));
+      } finally {
+        setPending(false);
+      }
+      return;
+    }
+    if (!room || !resolvedDeviceId) return;
+    setPending(true);
+    setError(null);
+    try {
+      await room.switchActiveDevice(kind, resolvedDeviceId, false);
+      if (kind === "videoinput" && background !== "NONE") {
+        try {
+          await applyBackground(background);
+        } catch {
+          setError("L’arrière-plan n’a pas pu être réappliqué à la nouvelle caméra.");
+        }
+      }
+      refresh();
+    } catch (cause) {
+      updateMedia({ [key]: "" });
+      setError(humanMediaError(cause));
+    } finally {
+      setPending(false);
+    }
+  }
   async function leave() {
     await attendance("leave");
     roomRef.current?.disconnect();
+    updateMedia({ cameraEnabled: false, microphoneEnabled: false });
     setJoined(false);
   }
   async function end() {
@@ -438,7 +522,7 @@ export function GoodissimaMediaRoom({
     if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
     imageUrlRef.current = URL.createObjectURL(file);
     try {
-      await applyBackground("image", imageUrlRef.current);
+      await applyBackground("IMAGE", imageUrlRef.current);
     } catch {
       setError("Le fond virtuel n’est pas disponible sur cet appareil.");
     }
@@ -471,31 +555,31 @@ export function GoodissimaMediaRoom({
             autoPlay
             muted
             playsInline
-            className={`mt-4 aspect-video w-full rounded-xl bg-slate-900 object-contain ${cameraWanted ? "block" : "hidden"}`}
+            className={`mt-4 aspect-video w-full rounded-xl bg-slate-900 object-contain ${cameraEnabled ? "block" : "hidden"}`}
             aria-label="Aperçu de votre caméra"
           />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <button
               type="button"
-              aria-pressed={cameraWanted}
+              aria-pressed={cameraEnabled}
               onClick={() => void togglePreview()}
               className="min-h-11 rounded-lg border px-3"
             >
-              Caméra {cameraWanted ? "activée" : "désactivée"}
+              Caméra {cameraEnabled ? "activée" : "désactivée"}
             </button>
             <button
               type="button"
-              aria-pressed={microphoneWanted}
-              onClick={() => setMicrophoneWanted((value) => !value)}
+              aria-pressed={microphoneEnabled}
+              onClick={() => updateMedia({ microphoneEnabled: !microphoneEnabled })}
               className="min-h-11 rounded-lg border px-3"
             >
-              Micro {microphoneWanted ? "activé à l’entrée" : "désactivé"}
+              Micro {microphoneEnabled ? "activé à l’entrée" : "désactivé"}
             </button>
             <label>
               Caméra
               <select
                 value={cameraId}
-                onChange={(event) => setCameraId(event.target.value)}
+                onChange={(event) => void changeDevice("videoinput", event.target.value)}
                 className="mt-1 min-h-11 w-full rounded border"
               >
                 <option value="">Par défaut</option>
@@ -510,7 +594,7 @@ export function GoodissimaMediaRoom({
               Micro
               <select
                 value={microphoneId}
-                onChange={(event) => setMicrophoneId(event.target.value)}
+                onChange={(event) => void changeDevice("audioinput", event.target.value)}
                 className="mt-1 min-h-11 w-full rounded border"
               >
                 <option value="">Par défaut</option>
@@ -526,7 +610,7 @@ export function GoodissimaMediaRoom({
                 Haut-parleur
                 <select
                   value={speakerId}
-                  onChange={(event) => setSpeakerId(event.target.value)}
+                  onChange={(event) => void changeDevice("audiooutput", event.target.value)}
                   className="mt-1 min-h-11 w-full rounded border"
                 >
                   <option value="">Par défaut</option>
@@ -544,13 +628,9 @@ export function GoodissimaMediaRoom({
                 value={background}
                 disabled={!backgroundAvailable}
                 onChange={(event) => {
-                  const mode = event.target.value as BackgroundMode;
-                  setBackground(mode);
-                  localStorage.setItem(
-                    "goodissima.media.background",
-                    mode === "image" ? "none" : mode,
-                  );
-                  if (cameraWanted)
+                  const mode = event.target.value as MediaBackgroundMode;
+                  updateMedia({ backgroundMode: mode });
+                  if (cameraEnabled)
                     void applyBackground(mode).catch(() =>
                       setError(
                         "Le flou d’arrière-plan n’est pas disponible sur cet appareil.",
@@ -559,9 +639,19 @@ export function GoodissimaMediaRoom({
                 }}
                 className="mt-1 min-h-11 w-full rounded border"
               >
-                <option value="none">Aucun</option>
-                <option value="blur">Flou</option>
+                <option value="NONE">Aucun</option>
+                <option value="BLUR">Flou</option>
               </select>
+            </label>
+            <label className="block min-h-11 py-2">
+              Image d’arrière-plan
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={!backgroundAvailable}
+                onChange={(event) => void chooseImage(event.target.files?.[0])}
+                className="block w-full text-xs"
+              />
             </label>
           </div>
           {!backgroundAvailable ? (
@@ -631,19 +721,47 @@ export function GoodissimaMediaRoom({
             </button>
             <details className="relative">
               <summary className="min-h-11 cursor-pointer rounded border px-3 py-2">
+                Réglages
+              </summary>
+              <div className="absolute bottom-12 right-0 z-20 grid w-72 gap-3 rounded bg-white p-3 text-slate-900 shadow-xl">
+                <label>
+                  Caméra
+                  <select value={cameraId} disabled={pending} onChange={(event) => void changeDevice("videoinput", event.target.value)} className="mt-1 min-h-11 w-full rounded border">
+                    <option value="">Par défaut</option>
+                    {cameras.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || "Caméra disponible"}</option>)}
+                  </select>
+                </label>
+                <label>
+                  Micro
+                  <select value={microphoneId} disabled={pending} onChange={(event) => void changeDevice("audioinput", event.target.value)} className="mt-1 min-h-11 w-full rounded border">
+                    <option value="">Par défaut</option>
+                    {microphones.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || "Micro disponible"}</option>)}
+                  </select>
+                </label>
+                {speakers.length ? <label>
+                  Haut-parleur
+                  <select value={speakerId} disabled={pending} onChange={(event) => void changeDevice("audiooutput", event.target.value)} className="mt-1 min-h-11 w-full rounded border">
+                    <option value="">Par défaut</option>
+                    {speakers.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || "Haut-parleur disponible"}</option>)}
+                  </select>
+                </label> : <p className="text-sm text-slate-600">Le choix du haut-parleur n’est pas disponible dans ce navigateur.</p>}
+              </div>
+            </details>
+            <details className="relative">
+              <summary className="min-h-11 cursor-pointer rounded border px-3 py-2">
                 Arrière-plan
               </summary>
               <div className="absolute bottom-12 right-0 z-10 w-64 rounded bg-white p-3 text-slate-900">
                 <button
-                  onClick={() => void applyBackground("none")}
+                  onClick={() => void applyBackground("NONE")}
                   className="min-h-11 w-full text-left"
                 >
                   Aucun
                 </button>
                 <button
-                  disabled={!backgroundAvailable || !cameraEnabled}
+                  disabled={!backgroundAvailable}
                   onClick={() =>
-                    void applyBackground("blur").catch(() =>
+                    void applyBackground("BLUR").catch(() =>
                       setError(
                         "Le flou d’arrière-plan n’est pas disponible sur cet appareil.",
                       ),
@@ -658,7 +776,7 @@ export function GoodissimaMediaRoom({
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    disabled={!backgroundAvailable || !cameraEnabled}
+                    disabled={!backgroundAvailable}
                     onChange={(event) =>
                       void chooseImage(event.target.files?.[0])
                     }
