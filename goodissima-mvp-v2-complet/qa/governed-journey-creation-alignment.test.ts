@@ -41,6 +41,34 @@ test("product subject explicitly supplied by the user remains a valid business t
   assert.match(ai.validateJourneyStructure(JSON.stringify(proposal), need).objective, /Goodissima/);
 });
 
+test("v3 names the real-world subject, not the process of creating it", () => {
+  assert.equal(ai.JOURNEY_STRUCTURE_PROMPT_VERSION, "governed-journey-structure-v3");
+  const examples = [
+    ["Je veux créer un comité de voyage couvrant l'Europe et l'Asie.", "Comité de voyage Europe-Asie"],
+    ["Je veux préparer un congrès européen de cardiologie.", "Congrès européen de cardiologie"],
+    ["Je veux créer un groupe de travail cybersécurité.", "Groupe de travail cybersécurité"],
+    ["Je veux lancer une mission d'audit sécurité.", "Mission d'audit sécurité"],
+    ["Je veux organiser un programme d'échange universitaire franco-allemand.", "Programme d'échange universitaire franco-allemand"],
+    ["Je veux créer un parcours sur la création d'entreprise.", "Création d'entreprise"],
+  ] as const;
+  for (const [need, name] of examples) {
+    assert.ok(ai.JOURNEY_STRUCTURE_SYSTEM.includes(name), `prompt example missing: ${name}`);
+    assert.equal(ai.validateJourneyStructure(JSON.stringify({ name, objective: "Objectif métier", actors: [], documents: [], firstActions: [] }), need).name, name);
+  }
+  assert.match(ai.JOURNEY_STRUCTURE_SYSTEM, /N'ajoute aucune date, région, organisation ou qualification absente du besoin/);
+});
+
+test("v3 rejects unrequested administrative name prefixes without rewriting legitimate business terms", () => {
+  const need = "Je veux créer un comité de voyage couvrant l'Europe et l'Asie.";
+  for (const name of [
+    "Cadrage initial pour la création d'un comité de voyage Europe-Asie",
+    "Mise en place d'un comité de voyage Europe-Asie",
+    "Création d'un comité de voyage Europe-Asie",
+  ]) assert.throws(() => ai.validateJourneyStructure(JSON.stringify({ name, objective: "Objectif métier", actors: [], documents: [], firstActions: [] }), need), /AI_OUTPUT_INVALID/);
+  const businessNeed = "Je veux créer un parcours sur la création d'entreprise.";
+  assert.equal(ai.validateJourneyStructure(JSON.stringify({ name: "Création d'entreprise", objective: "Accompagner la création d'entreprise", actors: [], documents: [], firstActions: [] }), businessNeed).name, "Création d'entreprise");
+});
+
 test("provider details stay in provenance, never in unrequested business content", () => {
   const assistant = read("app/(connected)/gouvernance/nouveau/GovernanceJourneyAssistant.tsx");
   assert.match(assistant, /Proposition IA : \{provenance\.provider\} \/ \{provenance\.model\}/);

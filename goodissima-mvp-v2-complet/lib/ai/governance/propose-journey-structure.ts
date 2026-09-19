@@ -2,7 +2,9 @@ import { routeAI } from "./router.ts";
 import { AIGovernanceError } from "./types.ts";
 import type { AIExecutionProvenance, AIDataClassification } from "./types.ts";
 
-export const JOURNEY_STRUCTURE_PROMPT_VERSION = "governed-journey-structure-v2";
+export const JOURNEY_STRUCTURE_PROMPT_VERSION = "governed-journey-structure-v3";
+
+export const JOURNEY_STRUCTURE_SYSTEM = "Propose en français un cadrage initial centré sur l'activité réelle décrite par l'utilisateur, et non sur le logiciel utilisé pour la gérer. Réponds uniquement en JSON strict : {name,objective,actors:[{name,role}],documents:[{name,required}],firstActions:[{title,owner}]}. Le champ name doit nommer directement et brièvement le comité, projet, mission, groupe, programme, événement ou autre sujet réel. Ne nomme pas l'acte de créer, cadrer, préparer, organiser ou mettre en place ce sujet ; évite les préfixes administratifs comme « Cadrage initial pour », « Création de », « Mise en place de », « Préparation de », « Organisation de », « Projet de création de » ou « Démarrage de », sauf s'ils font réellement partie du sujet demandé. Exemples de noms : comité de voyage couvrant l'Europe et l'Asie → « Comité de voyage Europe-Asie » ; congrès européen de cardiologie → « Congrès européen de cardiologie » ; groupe de travail cybersécurité → « Groupe de travail cybersécurité » ; mission d'audit sécurité → « Mission d'audit sécurité » ; programme d'échange universitaire franco-allemand → « Programme d'échange universitaire franco-allemand ». Pour un parcours sur la création d'entreprise, « Création d'entreprise » est correct car la création est le sujet métier. N'ajoute aucune date, région, organisation ou qualification absente du besoin. Les actors sont des rôles, profils ou responsabilités à prévoir, jamais des personnes identifiées. Dans les champs métier générés, ne mentionne ni Goodissima, ni la plateforme, ni ses valeurs, ni son architecture, ni ses mécanismes de gouvernance, ni ses modules, workflows, providers ou modèles IA, sauf si le besoin utilisateur les mentionne explicitement ou porte précisément sur le fonctionnement du produit. Le résultat est un plan initial soumis à validation humaine ; ne prétends créer ni invitation, ni accès, ni document reçu, ni règle technique.";
 
 type Structure = {
   name: string;
@@ -31,6 +33,13 @@ function records(value: unknown, max: number): Record<string, unknown>[] {
 // These are product/infrastructure markers, not a dictionary of forbidden business terms.
 // A marker is legitimate when it is part of the user's own stated need.
 const internalMarkers = /goodissima|mistral|openai|chatgpt|prisma|governedjourney|journeyconsent|roledefinition|communicationsession|governedmemory|mémoire gouvernée|plateforme|workflow|module|provider|deployment|architecture interne|gouvernance interne/gi;
+const proceduralNamePrefix = /^(?:cadrage initial (?:pour|de)|mise en place (?:de|du|d['’])|préparation (?:de|du|d['’])|organisation (?:de|du|d['’])|projet de création (?:de|du|d['’])|démarrage (?:de|du|d['’])|création (?:de|du|d['’]))/i;
+
+function assertBusinessName(name: string, requestedNeed: string) {
+  if (proceduralNamePrefix.test(name) && !requestedNeed.toLocaleLowerCase("fr").includes(name.toLocaleLowerCase("fr"))) {
+    throw new AIGovernanceError("AI_OUTPUT_INVALID");
+  }
+}
 
 function assertNoUnrequestedInternalContent(structure: Structure, requestedNeed: string) {
   const requested = requestedNeed.toLocaleLowerCase("fr");
@@ -59,6 +68,7 @@ export function validateJourneyStructure(output: string, requestedNeed = ""): St
     documents: records(value.documents, 30).map((document) => ({ name: text(document.name, 160), required: document.required === true })),
     firstActions: records(value.firstActions, 20).map((action) => ({ title: text(action.title, 240), owner: text(action.owner, 160) })),
   };
+  assertBusinessName(structure.name, requestedNeed);
   assertNoUnrequestedInternalContent(structure, requestedNeed);
   return structure;
 }
@@ -77,7 +87,7 @@ export async function proposeJourneyStructure(description: string, actorId: stri
     capability: "proposeJourneyStructure", context: { type: "JOURNEY_CREATION_NEED", data: {} },
     classification: prepared.classification, actorId, ownerId: actorId,
     purpose: "propose_governed_journey_structure", promptVersion: JOURNEY_STRUCTURE_PROMPT_VERSION,
-    system: "Propose en français un cadrage initial centré sur l'activité réelle décrite par l'utilisateur, et non sur le logiciel utilisé pour la gérer. Réponds uniquement en JSON strict : {name,objective,actors:[{name,role}],documents:[{name,required}],firstActions:[{title,owner}]}. Les actors sont des rôles, profils ou responsabilités à prévoir, jamais des personnes identifiées. Dans les champs métier générés, ne mentionne ni Goodissima, ni la plateforme, ni ses valeurs, ni son architecture, ni ses mécanismes de gouvernance, ni ses modules, workflows, providers ou modèles IA, sauf si le besoin utilisateur les mentionne explicitement ou porte précisément sur le fonctionnement du produit. Le résultat est un plan initial soumis à validation humaine ; ne prétends créer ni invitation, ni accès, ni document reçu, ni règle technique.",
+    system: JOURNEY_STRUCTURE_SYSTEM,
     prompt: { need: prepared.need }, responseFormat: { type: "json_object" },
     validateOutput: (output) => validateJourneyStructure(output, prepared.need),
   });
