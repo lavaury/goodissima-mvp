@@ -1,4 +1,5 @@
 import type { GovernedJourneyCurrentState } from "@/lib/governed-journey-current-state";
+import { GovernedJourneyCurrentStateExplanation } from "@/components/GovernedJourneyCurrentStateExplanation";
 
 function plural(count: number, singular: string, pluralForm: string) {
   return `${count} ${count === 1 ? singular : pluralForm}`;
@@ -8,7 +9,7 @@ function CurrentStateBlock({ title, detail, href, linkLabel }: { title: string; 
   return <article className="rounded-xl border border-slate-200 bg-slate-50 p-4"><h3 className="font-bold text-slate-950">{title}</h3><p className="mt-1 text-sm text-slate-700">{detail}</p><a href={href} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-cyan-900 underline underline-offset-4">{linkLabel}</a></article>;
 }
 
-export function GovernedJourneyCurrentStateView({ state }: { state: GovernedJourneyCurrentState }) {
+export function GovernedJourneyCurrentStateView({ state, journeyId }: { state: GovernedJourneyCurrentState; journeyId?: string }) {
   const hasState = Boolean(state.decisions || state.facts || state.sources || state.peopleAndRoles || state.clarifications.length || state.nextMeeting);
   return <section data-boussole-id="governed-journey-summary" className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
     <h2 className="text-xl font-bold text-slate-950">Où en sommes-nous ?</h2>
@@ -20,5 +21,6 @@ export function GovernedJourneyCurrentStateView({ state }: { state: GovernedJour
       {state.clarifications.length ? <article className="rounded-xl border border-amber-200 bg-amber-50 p-4"><h3 className="font-bold text-amber-950">À clarifier</h3><ul className="mt-2 space-y-1 text-sm text-amber-950">{state.clarifications.map(item => <li key={item.kind}>{item.label}</li>)}</ul></article> : null}
       {state.nextMeeting ? <article className="rounded-xl border border-cyan-200 bg-cyan-50 p-4"><h3 className="font-bold text-cyan-950">Prochaine étape</h3><p className="mt-1 text-sm text-cyan-950">Réunion « {state.nextMeeting.title} » le {new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(state.nextMeeting.scheduledAt)}</p><a href={state.nextMeeting.href} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-cyan-900 underline underline-offset-4">Voir la réunion</a></article> : null}
     </div>}
+    {journeyId ? <GovernedJourneyCurrentStateExplanation journeyId={journeyId} /> : null}
   </section>;
 }

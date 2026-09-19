@@ -27,7 +27,15 @@ test("refuses absent Journey access, foreign owner, foreign Journey and forged c
 test("builds explainCurrentState from the unchanged deterministic projection only", async () => {
   const prepared = await service().build({ journeyId: "journey-a", actorId: "actor-a", capability: "explainCurrentState" });
   const data = prepared.context.data as any;
-  assert.deepEqual(data.TRUSTED_SYSTEM_CONTEXT.currentState, projectGovernedJourneyCurrentState(currentStateInput));
+  const projected = projectGovernedJourneyCurrentState(currentStateInput);
+  assert.deepEqual(data.TRUSTED_SYSTEM_CONTEXT.currentState, {
+    decisions: projected.decisions ? { count: projected.decisions.count } : null,
+    facts: projected.facts ? { establishedCount: projected.facts.establishedCount, disputedCount: projected.facts.disputedCount } : null,
+    sources: projected.sources ? { activeCount: projected.sources.activeCount } : null,
+    peopleAndRoles: projected.peopleAndRoles ? { participantCount: projected.peopleAndRoles.participantCount, activeRoleCount: projected.peopleAndRoles.activeRoleCount, vacantRoleCount: projected.peopleAndRoles.vacantRoleCount } : null,
+    clarifications: projected.clarifications,
+    nextMeeting: null,
+  });
   assert.deepEqual(data.GOVERNED_FACTS, []);
   assert.deepEqual(data.GOVERNED_DECISIONS, []);
   assert.deepEqual(data.UNTRUSTED_SOURCE_CONTENT, []);

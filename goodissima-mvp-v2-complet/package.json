@@ -13,6 +13,7 @@
     "qa:ai": "node scripts/qa-ai.mjs",
     "qa:ai-governance": "node --experimental-strip-types --test qa/ai-governance-foundation.test.ts",
     "qa:ai-context": "node --experimental-strip-types --test qa/governed-memory-ai-context.test.ts",
+    "qa:ai-explain": "node --experimental-strip-types --test qa/governed-memory-ai-explain.test.ts",
     "qa:ai:scenarios": "node scripts/qa-ai-scenarios.mjs",
     "qa:mistral": "node scripts/qa-mistral.mjs",
     "qa:scenarios": "npm run qa:ai:scenarios",

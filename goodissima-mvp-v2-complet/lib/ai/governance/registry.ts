@@ -4,7 +4,7 @@ import type { AIProviderDeployment } from "@/lib/ai/governance/types";
 import { mockAIProvider } from "@/lib/ai/providers/mock";
 import { createMistralProvider } from "@/lib/ai/providers/mistral";
 
-const realCapabilities = ["governancePilotage", "governanceReview", "boussoleNavigation"] as const;
+const realCapabilities = ["governancePilotage", "governanceReview", "boussoleNavigation", "explainCurrentState"] as const;
 
 export function getAIProviderDeployments(): AIProviderDeployment[] {
   const requested = (process.env.AI_PROVIDER ?? "").toLowerCase();

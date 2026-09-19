@@ -678,7 +678,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </details>
       </section>
 
-      <GovernedJourneyCurrentStateView state={currentState} />
+      <GovernedJourneyCurrentStateView state={currentState} journeyId={governedMemoryJourney?.id} />
 
       <section data-boussole-id="governed-journey-human-interventions" data-boussole-state={currentActions.length > 0 ? "pending" : "empty"} className="mt-6 rounded-2xl border-2 border-cyan-700 bg-cyan-50 p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-slate-950">À faire maintenant</h2>

@@ -121,9 +121,17 @@ export class GovernedMemoryAIContextService {
     const objectCount = (required.currentState ? 1 : 0) + facts.length + decisions.length + sources.length;
     if (objectCount > budget.maxObjects || sources.length > budget.maxSources) throw new AIGovernanceError("AI_CONTEXT_TOO_LARGE");
 
-    const currentState: GovernedJourneyCurrentState | undefined = required.currentState
+    const projection: GovernedJourneyCurrentState | undefined = required.currentState
       ? projectGovernedJourneyCurrentState(snapshot.currentStateInput)
       : undefined;
+    const currentState = projection ? {
+      decisions: projection.decisions ? { count: projection.decisions.count } : null,
+      facts: projection.facts ? { establishedCount: projection.facts.establishedCount, disputedCount: projection.facts.disputedCount } : null,
+      sources: projection.sources ? { activeCount: projection.sources.activeCount } : null,
+      peopleAndRoles: projection.peopleAndRoles ? { participantCount: projection.peopleAndRoles.participantCount, activeRoleCount: projection.peopleAndRoles.activeRoleCount, vacantRoleCount: projection.peopleAndRoles.vacantRoleCount } : null,
+      clarifications: projection.clarifications.map(({ kind, count, label }) => ({ kind, count, label: cleanUntrustedText(label, 200) })),
+      nextMeeting: projection.nextMeeting ? { scheduledAt: projection.nextMeeting.scheduledAt.toISOString() } : null,
+    } : undefined;
     const data = {
       TRUSTED_SYSTEM_CONTEXT: { capability: input.capability, currentState },
       GOVERNED_FACTS: facts.map(({ handle, value }) => ({ handle, statement: cleanUntrustedText(value.statement, 2_000), status: value.status, effectiveFrom: value.effectiveFrom.toISOString(), effectiveUntil: value.effectiveUntil?.toISOString() ?? null })),

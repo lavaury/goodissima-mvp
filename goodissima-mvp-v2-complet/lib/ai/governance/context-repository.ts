@@ -37,7 +37,8 @@ export class PrismaGovernedMemoryAIContextRepository implements GovernedMemoryAI
     const roleGrantsMemory = Boolean(access?.roles.length);
     const canViewMemory = Boolean(access && (roleGrantsMemory || access.permissions.includes("VIEW_MEMORY")));
     const canViewSources = Boolean(canViewMemory && access && (roleGrantsMemory || access.permissions.includes("VIEW_SOURCES")));
-    const records = canViewMemory && access
+    const needsMemoryObjects = input.capability !== "explainCurrentState";
+    const records = needsMemoryObjects && canViewMemory && access
       ? await memoryRepository.readJourneyMemory(access.journeyId, access.relationCaseIds, access.wholeJourney, canViewSources)
       : { facts: [], decisions: [], sources: [], disputes: [], validations: [], relations: [], events: [], transitionRequests: [] };
 
