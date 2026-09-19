@@ -23,10 +23,25 @@ const internalTerms = /goodissima|mistral|openai|chatgpt|prisma|governedjourney|
 const unsafeOutput = /(?:https?:\/\/|www\.|\/api\/|\/gouvernance\/|\/annuaire\b|\brm\s+-rf\b|\bdrop\s+table\b|\bcurl\s+https?:)/i;
 const creationIntents = new Set<HomeIntent>(["CREATE_GOVERNED_JOURNEY", "CREATE_SIMPLE_LINK", "CREATE_OPPORTUNITY"]);
 
+function normalizedIntentText(text: string): string {
+  return text.normalize("NFKC").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("fr").replace(/[’']/g, "'").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "").trim();
+}
+
 function isClearResumeWorkRequest(text: string): boolean {
-  const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr").replace(/[’']/g, "'").trim();
-  return /^(?:je (?:veux|souhaite) )?(?:reprendre|continuer) (?:la ou |ou )?j'en etais[.!?]?$/i.test(normalized)
-    || /^(?:je (?:veux|souhaite) )?(?:reprendre|continuer) (?:ma derniere activite|mon travail)[.!?]?$/i.test(normalized);
+  const normalized = normalizedIntentText(text);
+  return /^(?:je (?:veux|souhaite) )?(?:reprendre|continuer) (?:la ou |ou )?j'en etais$/.test(normalized)
+    || /^(?:je (?:veux|souhaite) )?(?:reprendre|continuer) (?:ma derniere activite|mon travail)$/.test(normalized);
+}
+
+export function resolveCanonicalHomeIntent(userText: string): InterpretedHomeIntent | null {
+  const normalized = normalizedIntentText(userText);
+  if (isClearResumeWorkRequest(userText)) return { intent: "RESUME_WORK", reformulation: userText, confidenceBand: "HIGH", proposedParameters: {} };
+  const promotion = /^chercher les anciens de ma promo (\d{4})$/.exec(normalized);
+  if (promotion) return { intent: "SEARCH_DIRECTORY", reformulation: `Retrouver des personnes de votre promotion ${promotion[1]}.`, confidenceBand: "HIGH", proposedParameters: { query: userText } };
+  if (normalized === "creer un comite de voyage") return { intent: "CREATE_GOVERNED_JOURNEY", reformulation: userText, confidenceBand: "HIGH", proposedParameters: { need: userText } };
+  if (/^creer un lien avec [a-z]+(?:[-'][a-z]+)*$/.test(normalized)) return { intent: "CREATE_SIMPLE_LINK", reformulation: userText, confidenceBand: "HIGH", proposedParameters: { need: userText } };
+  return null;
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -79,7 +94,10 @@ export function validateHomeIntentOutput(output: string, userText: string): Inte
 
 export const HOME_INTENT_SYSTEM = "Interprète une seule intention d'accueil en français. Réponds uniquement en JSON strict : {intent,reformulation,confidenceBand,proposedParameters,ambiguityOptions?}. intent doit être l'un de RESUME_WORK, CREATE_GOVERNED_JOURNEY, CREATE_SIMPLE_LINK, CREATE_OPPORTUNITY, SEARCH_DIRECTORY, OPEN_MY_SPACES, OPEN_EXISTING_OBJECT, UNKNOWN, AMBIGUOUS. confidenceBand est HIGH, MEDIUM ou LOW. proposedParameters contient uniquement need pour une création, query pour SEARCH_DIRECTORY, objectQuery pour OPEN_EXISTING_OBJECT, ou est vide. AMBIGUOUS fournit 2 ou 3 ambiguityOptions parmi les intentions fonctionnelles connues ; ne choisis pas arbitrairement. Ne fournis jamais URL, route, objectId, commande ni permission. Reformule fidèlement dans le langage métier de l'utilisateur : clarifie l'intention sans ajouter de fait, de relation, de critère ou de contexte non exprimé. N'ajoute pas de nom de produit, module ou provider, sauf s'il l'a demandé. RESUME_WORK couvre les demandes de reprendre ou continuer son activité ou son travail, notamment « Reprendre où j'en étais », « Reprendre là où j'en étais », « Reprendre ma dernière activité », « Continuer où j'en étais », « Continuer mon travail » et « Reprendre mon travail ». Ne suppose pas quel objet était le dernier : la destination V1 est Mes espaces. Exemples : « Créer un comité de voyage Europe-Asie » → CREATE_GOVERNED_JOURNEY ; « Chercher les anciens de ma promo 1957 » → SEARCH_DIRECTORY, reformulation « Retrouver des personnes de votre promotion 1957 », query textuelle, sans supposer que ces personnes ont suivi la même formation que l'utilisateur ou qu'un critère promotion existe ; « Créer un lien avec Paul » → CREATE_SIMPLE_LINK ; « Je cherche un expert cybersécurité » → SEARCH_DIRECTORY ; « Je veux trouver des experts et travailler avec eux » → AMBIGUOUS avec SEARCH_DIRECTORY et CREATE_OPPORTUNITY. En cas d'incertitude réelle, choisis UNKNOWN.";
 
-export async function interpretHomeIntent(text: string, actorId: string): Promise<{ interpretation: InterpretedHomeIntent; provenance: AIExecutionProvenance }> {
+export async function interpretHomeIntent(text: string, actorId: string): Promise<{ interpretation: InterpretedHomeIntent; provenance?: AIExecutionProvenance }> {
+  if (typeof text !== "string" || text.trim().length < 3 || text.length > 500) throw new AIGovernanceError("AI_CONTEXT_INVALID");
+  const canonical = resolveCanonicalHomeIntent(text);
+  if (canonical) return { interpretation: canonical };
   const prepared = prepareHomeIntentText(text);
   const result = await routeAI({
     capability: "interpretHomeIntent", context: { type: "HOME_INTENT", data: {} }, classification: prepared.classification,

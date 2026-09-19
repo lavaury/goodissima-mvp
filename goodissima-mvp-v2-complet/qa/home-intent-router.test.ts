@@ -84,13 +84,51 @@ test("home AI uses a minimized classified capability, policy/router and no priva
   const prepared = ai.prepareHomeIntentText("Chercher jean@example.test avec token=abc123");
   assert.equal(prepared.classification, "CONFIDENTIAL");
   assert.doesNotMatch(prepared.text, /jean@example|abc123/);
-  const result = await ai.interpretHomeIntent("Chercher les anciens de ma promo 1957", "user-1");
+  const result = await ai.interpretHomeIntent("Trouver des contacts en Bretagne", "user-1");
   assert.equal(result.interpretation.intent, "SEARCH_DIRECTORY");
   assert.equal(result.provenance.capability, "interpretHomeIntent");
   const source = read("lib/ai/governance/interpret-home-intent.ts");
   assert.match(source, /context: \{ type: "HOME_INTENT", data: \{\} \}/);
   assert.match(source, /await routeAI\(/);
   assert.doesNotMatch(source, /getConfiguredAIProvider|MISTRAL_API_KEY|prisma\./);
+});
+
+test("UI examples and explicit resume variants resolve before a failing provider", async () => {
+  let calls = 0;
+  const offline = loadTestModule<any>("lib/ai/governance/interpret-home-intent.ts", {
+    "./router.ts": { routeAI: async () => { calls++; throw Error("PROVIDER_UNAVAILABLE"); } },
+    "./types.ts": { AIGovernanceError: GovernanceError },
+    "../../home-intent.ts": { HOME_INTENTS: ["RESUME_WORK", "CREATE_GOVERNED_JOURNEY", "CREATE_SIMPLE_LINK", "CREATE_OPPORTUNITY", "SEARCH_DIRECTORY", "OPEN_MY_SPACES", "OPEN_EXISTING_OBJECT", "UNKNOWN", "AMBIGUOUS"] },
+  });
+  for (const text of ["Reprendre où j'en étais", "Reprendre où j’en étais", "Reprendre là où j'en étais", "Reprendre ma dernière activité", "Reprendre mon travail", "Continuer où j'en étais", "Continuer là où j'en étais", "Continuer mon travail"]) {
+    const result = await offline.interpretHomeIntent(text, "user-1");
+    assert.equal(result.interpretation.intent, "RESUME_WORK", text);
+    assert.equal(result.interpretation.reformulation, text);
+    assert.equal(homeIntentChoice(result.interpretation.intent).label, "Ouvrir Mes espaces");
+    assert.equal(result.provenance, undefined);
+  }
+  const directory = await offline.interpretHomeIntent("Chercher les anciens de ma promo 1957", "user-1");
+  assert.equal(directory.interpretation.intent, "SEARCH_DIRECTORY");
+  assert.equal(directory.interpretation.proposedParameters.query, "Chercher les anciens de ma promo 1957");
+  assert.doesNotMatch(directory.interpretation.reformulation, /même formation|même école|même établissement/i);
+  assert.equal((await offline.interpretHomeIntent("Créer un comité de voyage", "user-1")).interpretation.intent, "CREATE_GOVERNED_JOURNEY");
+  assert.equal((await offline.interpretHomeIntent("Créer un lien avec Paul", "user-1")).interpretation.intent, "CREATE_SIMPLE_LINK");
+  const spaced = "  REPRENDRE   où  j’en étais ?  ";
+  assert.equal((await offline.interpretHomeIntent(spaced, "user-1")).interpretation.reformulation, spaced);
+  for (const text of ["Reprendre où j'en étais /gouvernance", "Créer un lien avec Paul pour une opportunité", "Je ne veux pas reprendre mon travail"]) assert.equal(offline.resolveCanonicalHomeIntent(text), null);
+  for (const text of ["Reprendre où j'en étais", "Créer un comité de voyage", "Chercher les anciens de ma promo 1957"]) {
+    const result = offline.resolveCanonicalHomeIntent(text);
+    assert.ok(result);
+    assert.deepEqual(Object.keys(result.proposedParameters).sort(), result.intent === "RESUME_WORK" ? [] : [result.intent === "SEARCH_DIRECTORY" ? "query" : "need"]);
+    assert.equal("href" in result, false);
+    assert.equal("objectId" in result, false);
+    assert.equal("permission" in result, false);
+  }
+  assert.equal(calls, 0);
+  await assert.rejects(offline.interpretHomeIntent("Je cherche des experts en cybersécurité pour travailler avec eux", "user-1"), /PROVIDER_UNAVAILABLE/);
+  assert.equal(calls, 1);
+  const ui = read("components/HomeIntentEntry.tsx");
+  for (const example of ["Reprendre où j’en étais", "Créer un comité de voyage", "Chercher les anciens de ma promo 1957"]) assert.ok(ui.includes(example));
 });
 
 test("one-use prefill never puts the need in a URL and never starts business work", () => {
