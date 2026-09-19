@@ -7,6 +7,7 @@ import type { ManagedDirectoryAttributeDto, ManagedDirectoryProfileDto } from "@
 import type { DirectorySearchCriteria, DirectorySearchFilterKind, DirectorySearchPageDto } from "@/lib/directory/directory-search-contracts";
 import * as actions from "@/app/(connected)/annuaire/actions";
 import { DirectoryProfileCard } from "./DirectoryProfileCard";
+import { consumeHomeIntentPrefill } from "@/lib/home-intent-prefill";
 
 const filters = [["professions", "Métier"], ["skills", "Compétence"], ["languages", "Langue"], ["locations", "Localisation"], ["qualifications", "Qualification"], ["certifications", "Certification"]] as const;
 const kinds = [["PROFESSION", "Métier"], ["SKILL", "Compétence"], ["LANGUAGE", "Langue"], ["LOCATION", "Localisation"], ["QUALIFICATION", "Qualification"], ["CERTIFICATION", "Certification"]] as const;
@@ -43,6 +44,7 @@ function DirectorySearch() {
   const [page, setPage] = useState<DirectorySearchPageDto | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  useEffect(() => { const prefill = consumeHomeIntentPrefill("SEARCH_DIRECTORY"); if (prefill) setNaturalQuery(prefill); }, []);
   async function interpret() {
     if (!naturalQuery.trim()) return;
     setInterpreting(true); setInterpretError(""); setUnsupported([]);

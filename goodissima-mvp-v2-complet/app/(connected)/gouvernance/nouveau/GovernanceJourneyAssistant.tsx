@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { consumeHomeIntentPrefill } from "@/lib/home-intent-prefill";
 import {
   createGovernedJourneyAction,
   proposeGovernedJourneyAction,
@@ -75,6 +76,8 @@ export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWor
   const [usedFallback, setUsedFallback] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => { const prefill = consumeHomeIntentPrefill("CREATE_GOVERNED_JOURNEY"); if (prefill) setNeed(prefill); }, []);
 
   const canGenerate = need.trim().length >= 10 && !isPending;
   const canCreate = Boolean(proposal && name.trim() && objective.trim() && need.trim()) && !isPending;

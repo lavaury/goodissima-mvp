@@ -10,7 +10,7 @@ import * as spatial from "../lib/spatial-navigation.ts";
 
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, prefetch: _, ...props }: any) => jsx.jsx("a", { ...props, children }) };
 const list = loadTestModule("components/FactualAttentionList.tsx", { ...common, "@/components/NotificationLink": { NotificationLink: ({ children, ...props }: any) => jsx.jsx("button", { ...props, children }) } });
-const home = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": list });
+const home = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": list, "@/components/HomeIntentEntry": { HomeIntentEntry: () => jsx.jsx("section", { "aria-label": "Décrire mon intention" }) } });
 test("compact commands have explicit accessible names, titles and keyboard focus", () => {
   const html = renderShellFixture();
   for (const [href, label] of [["/favoris", "Favoris"], ["/recherche", "Recherche Goodissima"]]) {
@@ -55,6 +55,7 @@ test("home uses the existing bounded resolver with session scope before showing 
     } },
     "@/lib/personal-favorite-target": targets, "@/lib/object-creation": classification,
     "@/lib/spatial-navigation": spatial, "@/lib/relation-template-access": access,
+    "@/lib/business-object-classification": { classifyGLink: () => "SIMPLE_LINK", classifyRelationTemplate: () => "JOURNEY", businessObjectLabel: () => "Objet" },
   });
   const page = loadTestModule("app/(connected)/dashboard/page.tsx", {
     ...common, "next/cache": { unstable_noStore() {} },

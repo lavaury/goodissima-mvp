@@ -6,6 +6,7 @@ export const AI_CAPABILITIES = [
   "boussoleNavigation",
   "explainCurrentState",
   "proposeJourneyStructure",
+  "interpretHomeIntent",
   "summarizeAuthorizedMemory",
   "compareObjects",
   "detectPotentialContradiction",

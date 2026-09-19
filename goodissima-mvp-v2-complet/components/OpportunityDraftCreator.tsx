@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { consumeHomeIntentPrefill } from "@/lib/home-intent-prefill";
 import { useRouter } from "next/navigation";
 import type { OpportunityDay, OpportunityType } from "@/lib/opportunities/contracts";
 import type { OpportunityIntent } from "@/lib/opportunities/opportunity-intent";
@@ -20,6 +21,8 @@ export function OpportunityDraftCreator() {
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => { const prefill = consumeHomeIntentPrefill("CREATE_OPPORTUNITY"); if (prefill) setPhrase(prefill); }, []);
 
   function update(next: OpportunityIntent) {
     setIntent(next);

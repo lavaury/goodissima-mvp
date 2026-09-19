@@ -15,7 +15,7 @@ export const dashboardSequences: BoussoleSequence[] = [
     step("dashboard-menu", "Navigation principale", "La navigation donne accès aux trois grandes destinations. Montrer cette zone ne change pas de page."),
     step("open-boussole-from-dashboard", "Comprendre avec la Boussole", "La Boussole aide à comprendre les possibilités et à choisir comment commencer. L’ouverture reste votre choix."),
     step("dashboard-open-directory", "Trouver dans l’Annuaire", "L’Annuaire permet de trouver des personnes et organisations. Ce guide ne lance aucune recherche."),
-    step("dashboard-open-spaces", "Travailler dans Mes espaces", "Mes espaces rassemble vos Portfolios et Workspaces. Vous choisissez vous-même l’espace à ouvrir."),
+    step("dashboard-open-spaces", "Travailler dans Mes espaces", "Mes espaces rassemble vos liens, opportunités, parcours et espaces de travail. Vous choisissez vous-même où aller."),
   ] },
   { id: "activité", title: "Lire l’activité récente", description: "Rouvrir le contexte de quelques événements réels.", applicableStates: ["POPULATED"], steps: [
     step("dashboard-recent-activity", "Événements récents", "Cette liste limitée présente des créations de liens, ouvertures de dossiers et dépôts de documents datés. Elle ne représente pas toute l’activité ni une mémoire gouvernée. Ouvrir un objet demande votre clic."),

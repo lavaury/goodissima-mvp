@@ -9,7 +9,7 @@ import * as spatial from "../lib/spatial-navigation.ts";
 
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, prefetch: _, ...props }: any) => jsx.jsx("a", { ...props, children }) };
 const list = loadTestModule("components/FactualAttentionList.tsx", { ...common, "@/components/NotificationLink": { NotificationLink: ({ children, ...props }: any) => jsx.jsx("button", { ...props, children }) } });
-const home = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": list });
+const home = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": list, "@/components/HomeIntentEntry": { HomeIntentEntry: () => jsx.jsx("section", { "aria-label": "Décrire mon intention" }) } });
 function repository(rows: any[] = []) {
   const calls: any[] = [];
   const module = loadTestModule("lib/factual-attention.ts", { "@/lib/spatial-navigation": spatial, "@/lib/prisma": { prisma: { relationCase: {

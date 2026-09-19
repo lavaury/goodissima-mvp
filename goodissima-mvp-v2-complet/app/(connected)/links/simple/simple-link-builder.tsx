@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { consumeHomeIntentPrefill } from "@/lib/home-intent-prefill";
 import { describeSimpleFieldRule, type SimpleFieldRule, type SimpleRuleOperator } from "@/lib/simple-field-rules";
 import {
   simpleLinkTemplateCategories,
@@ -58,6 +59,7 @@ export function SimpleLinkBuilder({ workspaceId }: { workspaceId?: string }) {
   const [showAi, setShowAi] = useState(false);
   const [aiFieldsAdded, setAiFieldsAdded] = useState(false);
   const [aiNeed, setAiNeed] = useState("");
+  useEffect(() => { const prefill = consumeHomeIntentPrefill("CREATE_SIMPLE_LINK"); if (prefill) { setAiNeed(prefill); setShowAi(true); } }, []);
   const [expiresAt, setExpiresAt] = useState("");
   const [admissionMode, setAdmissionMode] = useState<"OPEN" | "VERIFIED_ONLY">("OPEN");
   const [allowDocument, setAllowDocument] = useState(false);

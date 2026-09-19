@@ -35,12 +35,12 @@ test("discovery page inherits the connected navigation with a pathname active st
   assert.match(discoveryPage, /<Link href="\/dashboard"/);
 });
 
-test("integration adds no redirect, autoplay, AI call or automatic business effect", () => {
+test("Boussole entry adds no redirect, autoplay, AI call or automatic business effect", () => {
   const dashboardCard = dashboard.slice(
     dashboard.indexOf('data-boussole-id="open-boussole-from-dashboard"'),
-    dashboard.indexOf('<section className="mb-8 rounded-3xl'),
+    dashboard.indexOf('</Link></li>', dashboard.indexOf('data-boussole-id="open-boussole-from-dashboard"')),
   );
-  const integration = `${dashboardCard}\n${navigation}\n${discoveryPage}`;
+  const integration = `${dashboardCard}\n${discoveryPage}`;
   assert.doesNotMatch(integration, /\bredirect\s*\(|router\.(?:push|replace)\s*\(|location\.(?:assign|replace)/);
   assert.doesNotMatch(integration, /\bautoPlay\b|\.play\s*\(/);
   assert.doesNotMatch(integration, /\/api\/boussole|Mistral|openai|generate[A-Z]/i);

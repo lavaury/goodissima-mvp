@@ -10,7 +10,7 @@ import { getBoussoleJourneyVersion } from "../lib/boussole/registry.ts";
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, prefetch: _, ...props }: any) => jsx.jsx("a", { ...props, children }) };
 const attentionView = loadTestModule("components/FactualAttentionList.tsx", { ...common, "@/components/NotificationLink": { NotificationLink: ({ children, ...props }: any) => jsx.jsx("button", { ...props, children }) } });
-const view = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": attentionView });
+const view = loadTestModule("components/DashboardHome.tsx", { ...common, "@/components/FactualAttentionList": attentionView, "@/components/HomeIntentEntry": { HomeIntentEntry: () => jsx.jsx("section", { "aria-label": "Décrire mon intention" }) } });
 const event = { id: "link-1", label: "Lien créé", context: "Contexte <test>", date: new Date("2026-09-01T12:00:00Z"), href: "/links/1" };
 const render = (activity: any[] = []) => renderToStaticMarkup(jsx.jsx(view.DashboardHome, { activity, attention: { items: [], hasMore: false } }));
 
@@ -82,7 +82,7 @@ test("dashboard guides use real targets, correct states and independently revise
     const context = dashboardRuntimeContext("dashboard", targets);
     assert.equal(context.pageState, activity.length ? "POPULATED" : "EMPTY");
     for (const journey of dashboardSequences.filter(s => s.applicableStates?.includes(context.pageState!))) {
-      assert.equal(getBoussoleJourneyVersion(journey.id), 2);
+      assert.equal(getBoussoleJourneyVersion(journey.id), journey.id === "repères" ? 3 : 2);
       for (const step of journey.steps) assert.ok(step.targetId === "dashboard-menu" || targets.includes(step.targetId!));
     }
   }

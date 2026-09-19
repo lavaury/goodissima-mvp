@@ -3,6 +3,7 @@ import { FactualAttentionList, type UnifiedAttentionItem } from "@/components/Fa
 import type { ResolvedFavorite } from "@/lib/personal-favorites-repository";
 import type { DashboardActivity } from "@/lib/dashboard-activity-repository";
 import type { FactualAttention } from "@/lib/factual-attention";
+import { HomeIntentEntry } from "@/components/HomeIntentEntry";
 
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-700";
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
@@ -13,6 +14,7 @@ export function DashboardHome({ activity, attention, favorites = [] }: { activit
     <h1 className="text-3xl font-bold text-slate-950">Accueil</h1>
     <nav aria-label="Choisir une destination" className="mt-6">
       <h2 className="text-lg font-semibold text-slate-900">Que souhaitez-vous faire ?</h2>
+      <HomeIntentEntry />
       <ul className="mt-3 divide-y rounded-2xl border bg-white px-4">
         <li><Link data-boussole-id="open-boussole-from-dashboard" href="/boussole/decouverte" className={`block rounded-lg py-4 ${focus}`}>
           <span className="font-semibold text-[#247f88]"><span aria-hidden="true">🧭 </span>Bien démarrer</span>
@@ -24,7 +26,7 @@ export function DashboardHome({ activity, attention, favorites = [] }: { activit
         </Link></li>
         <li><Link data-boussole-id="dashboard-open-spaces" href="/gouvernance" className={`block rounded-lg py-4 ${focus}`}>
           <span className="font-semibold text-[#247f88]"><span aria-hidden="true">📁 </span>Mes espaces</span>
-          <span className="mt-1 block text-sm text-slate-600">Ouvrir et organiser vos Portfolios et Workspaces.</span>
+          <span className="mt-1 block text-sm text-slate-600">Créer et organiser vos liens, opportunités, parcours et espaces de travail.</span>
         </Link></li>
       </ul>
     </nav>

@@ -23,7 +23,7 @@ export type BoussoleRegistryEntry = {
 
 const commonStates: BoussolePageState[] = ["EMPTY", "POPULATED", "FOCUSED"];
 const journeyVersions: Record<string, number> = {
-  "repères": 2,
+  "repères": 3,
   "activité": 2,
   ...Object.fromEntries(governanceSequences.map((journey) => [journey.id, 1])),
   ...Object.fromEntries(newGovernedJourneySequences.map((journey) => [journey.id, 1])),
