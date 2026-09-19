@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 const openEventName = "goodissima:open-governed-journey-preview";
 
 const sections = [
-  { id: "educational-journey-framework", title: "1. Cadre et Workspace", items: ["Besoin initial : organiser une situation impliquant plusieurs acteurs", "Workspace : espace de travail associé", "Vue consolidée du contexte", "Compteurs purement indicatifs dans cet exemple"] },
+  { id: "educational-journey-framework", title: "1. Cadre et Workspace éventuel", items: ["Besoin initial : organiser une situation impliquant plusieurs acteurs", "Workspace éventuel : espace de travail associé", "Vue consolidée du contexte", "Compteurs purement indicatifs dans cet exemple"] },
   { id: "educational-journey-participants", title: "2. Participants et responsabilités", items: ["Organisateur", "Participant attendu", "Invitation préparée", "Accès gouverné : jamais créé automatiquement"] },
-  { id: "educational-journey-documents", title: "3. Documents et premières actions", items: ["Document attendu", "Réception déclarative", "Règles de confidentialité", "Action humaine restant à démarrer"] },
+  { id: "educational-journey-documents", title: "3. Documents et plan initial", items: ["Élément ou document attendu", "Réception déclarative, sans validation automatique", "Principes de confidentialité proposés", "Première étape envisagée à la création"] },
   { id: "educational-journey-communications", title: "4. Communications gouvernées", items: ["Communication préparée", "Communication active", "Communication terminée ou expirée", "Aucun média lancé automatiquement"] },
   { id: "educational-journey-human-interventions", title: "5. Interventions humaines", items: ["Invitation à transmettre", "Document à revoir", "Dossier à ouvrir", "Communication à examiner"] },
   { id: "educational-journey-review", title: "6. Revue de gouvernance", items: ["Motif et question à trancher", "Revue préparée", "Assistant facultatif", "Conduite et décision humaines", "Limite V1 : aucune décision ni revue automatique"] },

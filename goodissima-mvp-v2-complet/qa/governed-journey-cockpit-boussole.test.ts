@@ -14,7 +14,7 @@ test("provides six contextual micro-journeys for the real cockpit", () => {
   assert.equal(getCompassContext("/gouvernance/parcours/real-id/pilotage")?.steps, governedJourneySteps);
   assert.deepEqual(governedJourneySequences.map((item) => item.title), [
     "Découvrir ce parcours", "Voir les interventions humaines", "Participants, invitations et accès",
-    "Documents et premières actions", "Communications gouvernées", "Comprendre les décisions",
+    "Documents et plan initial", "Communications gouvernées", "Comprendre les décisions",
   ]);
 });
 

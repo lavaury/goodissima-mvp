@@ -8,9 +8,13 @@ type GovernanceJourneyProposal,
 } from "@/lib/governance-journey-actions";
 
 type GenerationProvenance = {
+  capability: string;
   provider: string;
+  deployment: string;
   model: string;
   promptVersion: string;
+  classification: string;
+  generatedAt: string;
 };
 
 type GovernanceJourneyAIResponse = {
@@ -175,7 +179,7 @@ export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWor
             <p className="mt-1 text-sm text-slate-600">{proposal.rationale}</p>
             {provenance ? (
               <p className="mt-2 text-xs font-semibold text-slate-500">
-                Provenance : {provenance.provider} / {provenance.model} / {provenance.promptVersion}
+                Proposition IA : {provenance.provider} / {provenance.model} · {provenance.generatedAt}
               </p>
             ) : null}
             {usedFallback ? (
@@ -196,15 +200,16 @@ export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWor
               />
             </label>
             <TextAreaField label="Objectif" value={objective} onChange={setObjective} minRows={4} boussoleId="governed-journey-objective" />
-            <TextAreaField label="Participants pressentis" value={participants} onChange={setParticipants} boussoleId="governed-journey-participants-section" />
-            <TextAreaField label="Documents attendus" value={documents} onChange={setDocuments} boussoleId="governed-journey-documents-section" />
-            <TextAreaField label="Regles de confidentialite" value={confidentialityRules} onChange={setConfidentialityRules} boussoleId="governed-journey-confidentiality" />
-            <TextAreaField label="Premieres actions" value={firstActions} onChange={setFirstActions} boussoleId="governed-journey-first-actions" />
+            <TextAreaField label="Rôles, profils ou responsabilités à prévoir" value={participants} onChange={setParticipants} boussoleId="governed-journey-participants-section" />
+            <p className="text-xs text-slate-600">Ces lignes ne désignent pas des personnes identifiées et ne créent aucune invitation.</p>
+            <TextAreaField label="Éléments ou documents attendus" value={documents} onChange={setDocuments} boussoleId="governed-journey-documents-section" />
+            <TextAreaField label="Principes de confidentialité proposés" value={confidentialityRules} onChange={setConfidentialityRules} boussoleId="governed-journey-confidentiality" />
+            <p className="text-xs text-slate-600">Ils décrivent le cadre souhaité ; ils ne remplacent pas les contrôles techniques appliqués par Goodissima.</p>
+            <TextAreaField label="Premières étapes envisagées" value={firstActions} onChange={setFirstActions} boussoleId="governed-journey-first-actions" />
           </div>
 
           <div className="mt-5 rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-600">
-            {documentNames.length} document{documentNames.length > 1 ? "s" : ""} seront transformes en champs de suivi. Les autres
-            elements seront conserves dans la preparation du parcours.
+            {documentNames.length} élément{documentNames.length > 1 ? "s" : ""} ou document{documentNames.length > 1 ? "s" : ""} seront préparés comme attentes de suivi. Un élément reçu n’est pas automatiquement validé, ni qualifié comme Source ou Fait. Les autres éléments restent dans le plan initial.
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3">

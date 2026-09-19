@@ -1,7 +1,7 @@
 import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { generateTemplateDraft, type TemplateDesignerDraft } from "@/lib/ai/template-designer";
+import { proposeJourneyStructure } from "@/lib/ai/governance/propose-journey-structure";
 
 const confidentialityRules = [
   "Limiter l'acces aux personnes impliquees dans le parcours.",
@@ -9,22 +9,6 @@ const confidentialityRules = [
   "Ne pas contacter automatiquement les participants.",
   "Ne declencher aucune publication ni aucun workflow automatiquement.",
 ];
-
-function firstActionsFromDraft(draft: TemplateDesignerDraft) {
-  const relationalActions = draft.relationalRequests.map((request) => ({
-    title: request.title,
-    owner: request.targetActor ?? "Createur du parcours",
-    dueHint: request.deadline,
-  }));
-
-  if (relationalActions.length > 0) return relationalActions;
-
-  return draft.stages.map((stage) => ({
-    title: stage.expectedAction || stage.name,
-    owner: stage.responsibleActor ?? "Createur du parcours",
-    dueHint: stage.deadline,
-  }));
-}
 
 export async function POST(req: Request) {
   try {
@@ -43,22 +27,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "La description est limitee a 5 000 caracteres." }, { status: 400 });
     }
 
-    const result = await generateTemplateDraft(description, {
-      userId: owner.id,
-      organizationId: owner.id,
-      organizationName: owner.name ?? owner.email,
-    });
+    const result = await proposeJourneyStructure(description, owner.id);
     const { draft, provenance } = result;
 
     return NextResponse.json({
       status: "GENERATED",
       persistence: "NONE_BEFORE_HUMAN_VALIDATION",
       requiresHumanValidation: true,
-      provenance,
+      provenance: { capability: provenance.capability, provider: provenance.providerId, deployment: provenance.deploymentId, model: provenance.model, promptVersion: provenance.promptVersion, classification: provenance.classification, generatedAt: provenance.generatedAt },
       proposal: {
         name: draft.name,
         initialNeed: description,
-        objective: draft.description,
+        objective: draft.objective,
         workspaceId,
         workspaceName,
         participants: draft.actors,
@@ -68,13 +48,13 @@ export async function POST(req: Request) {
           required: document.required,
         })),
         confidentialityRules,
-        firstActions: firstActionsFromDraft(draft),
+        firstActions: draft.firstActions,
         rationale: "Proposition structuree par l'assistance IA depuis le besoin libre. Elle doit etre relue et validee avant creation.",
       },
     });
   } catch (error) {
     console.error("[governance-journey-ai-generate] generation failed", {
-      errorCode: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN_ERROR",
+      errorCode: error instanceof Error && error.name === "AIGovernanceError" ? error.message : "GENERATION_UNAVAILABLE",
     });
     return NextResponse.json({ error: "Impossible de generer la proposition IA." }, { status: 500 });
   }

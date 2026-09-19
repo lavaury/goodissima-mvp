@@ -1179,7 +1179,8 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
       <details className="mt-6 rounded-lg border bg-slate-50"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-700">Autres éléments du parcours</summary><div className="grid gap-6 border-t p-4 lg:grid-cols-2">
         <section data-boussole-id="governed-journey-first-actions" className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-950">Règles de confidentialité</h2>
+          <h2 className="text-xl font-bold text-slate-950">Principes de confidentialité proposés</h2>
+          <p className="mt-2 text-sm text-slate-600">Ils décrivent le cadre souhaité à la création et ne remplacent pas les contrôles techniques d’accès.</p>
           {confidentialityRules.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucune règle spécifique n’a été renseignée.</p>
           ) : (
@@ -1194,7 +1195,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         </section>
 
         <section className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-950">Premières actions</h2>
+          <h2 className="text-xl font-bold text-slate-950">Premières étapes envisagées à la création</h2>
           {firstActions.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucune première action n’a été renseignée.</p>
           ) : (
@@ -1204,7 +1205,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                   <p className="font-semibold text-slate-950">{action.title}</p>
                   <p className="mt-1 text-sm text-slate-600">Responsable : {action.owner}</p>
                   {action.dueHint ? <p className="mt-1 text-sm text-slate-500">Échéance : {action.dueHint}</p> : null}
-                  <p className="mt-2 text-xs font-semibold text-slate-500">En attente</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-500">Prévue à la création · Aucun état d’exécution suivi ici</p>
                 </article>
               ))}
             </div>

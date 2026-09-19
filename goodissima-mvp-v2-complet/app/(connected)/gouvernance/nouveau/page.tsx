@@ -76,18 +76,18 @@ export default async function NewGovernedJourneyPage({ searchParams }: { searchP
         <div data-boussole-id="manual-governed-journey-workspace" className="rounded-lg bg-slate-50 p-4 text-sm">{workspace ? <>Création dans {businessLabel(workspace.name, "ce Workspace", [workspace.id])}<input type="hidden" name="workspaceId" value={workspace.id} /></> : "Ce parcours sera créé sans Workspace."}</div>
 
         <label className="block text-sm font-semibold text-slate-800">
-          Participants attendus
+          Rôles, profils ou responsabilités à prévoir
           <textarea
             data-boussole-id="manual-governed-journey-participants"
             name="participants"
             maxLength={1000}
             className="mt-2 min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950"
-            placeholder="Un participant attendu par ligne"
+            placeholder="Un rôle ou profil à prévoir par ligne, sans créer de personne"
           />
         </label>
 
         <label className="block text-sm font-semibold text-slate-800">
-          Documents attendus
+          Éléments ou documents attendus
           <textarea
             data-boussole-id="manual-governed-journey-documents"
             name="documents"

@@ -5,6 +5,7 @@ export const AI_CAPABILITIES = [
   "governanceReview",
   "boussoleNavigation",
   "explainCurrentState",
+  "proposeJourneyStructure",
   "summarizeAuthorizedMemory",
   "compareObjects",
   "detectPotentialContradiction",

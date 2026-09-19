@@ -7,6 +7,7 @@ export const AI_CAPABILITY_REGISTRY: Readonly<Record<AICapabilityId, AICapabilit
   governanceReview: { ...common, id: "governanceReview", structuredOutput: true, maximumClassification: "CONFIDENTIAL" },
   boussoleNavigation: { ...common, id: "boussoleNavigation", structuredOutput: false, maximumClassification: "PUBLIC", maxInputCharacters: 12_000 },
   explainCurrentState: { ...common, id: "explainCurrentState", structuredOutput: true, maximumClassification: "CONFIDENTIAL" },
+  proposeJourneyStructure: { ...common, id: "proposeJourneyStructure", structuredOutput: true, maximumClassification: "CONFIDENTIAL", maxInputCharacters: 8_000, permittedPersonalData: [] },
   summarizeAuthorizedMemory: { ...common, id: "summarizeAuthorizedMemory", structuredOutput: true, maximumClassification: "SENSITIVE" },
   compareObjects: { ...common, id: "compareObjects", structuredOutput: true, maximumClassification: "SENSITIVE" },
   detectPotentialContradiction: { ...common, id: "detectPotentialContradiction", structuredOutput: true, maximumClassification: "SENSITIVE" },

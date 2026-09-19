@@ -370,6 +370,13 @@ export const mockAIProvider: AIProvider = {
   name: "mock",
   model: "scenario",
   async chat(request: AIProviderRequest): Promise<AIProviderResult<string>> {
+    if (request.metadata?.capability === "proposeJourneyStructure") {
+      return { provider: "mock", model: this.model, output: JSON.stringify({
+        name: "Parcours à cadrer", objective: "Clarifier le besoin et les étapes avec une validation humaine.",
+        actors: [{ name: "Responsable du parcours", role: "Coordination à prévoir" }],
+        documents: [], firstActions: [{ title: "Confirmer le cadre du parcours", owner: "Créateur du parcours" }],
+      }) };
+    }
     return {
       provider: "mock",
       model: this.model,
