@@ -192,9 +192,11 @@ test("Boussole targets the real EMPTY, POPULATED and FOCUSED selection surface",
 });
 
 function runtimeFixture(options: { revoked?: boolean; materialized?: boolean; crossOwner?: boolean; crossJourney?: boolean; crossMeeting?: boolean; concurrent?: boolean; alreadyPresent?: boolean; excluded?: boolean; technicalError?: boolean } = {}) {
+  const runtimeNow = new Date();
+  const runtimeFuture = new Date(runtimeNow.getTime() + 24 * 60 * 60 * 1000);
   const writes = { participants: 0, rsvps: 0, events: [] as string[], selectionStatuses: [] as string[], itemUpdates: [] as Array<{ id: string; data: Record<string, unknown> }> };
-  const currentInvitation = invitation("runtime", { inviteeUserId: "runtime-user", ...(options.revoked ? { status: "REVOKED", revokedAt: now } : {}) });
-  const excludedInvitation = invitation("excluded", { inviteeUserId: "excluded-user" });
+  const currentInvitation = invitation("runtime", { inviteeUserId: "runtime-user", accessTokenExpiresAt: runtimeFuture, ...(options.revoked ? { status: "REVOKED", revokedAt: now } : {}) });
+  const excludedInvitation = invitation("excluded", { inviteeUserId: "excluded-user", accessTokenExpiresAt: runtimeFuture });
   const selection = {
     id: "selection",
     ownerId: "owner",
@@ -214,7 +216,7 @@ function runtimeFixture(options: { revoked?: boolean; materialized?: boolean; cr
   const tx: any = {
     formTemplate: { findFirst: async () => options.crossOwner ? null : { relationTemplateId: "template" } },
     governedJourney: { findFirst: async () => ({ id: "journey", relationTemplateId: "template" }) },
-    communicationSession: { findFirst: async () => ({ id: "session", ownerId: "owner", relationTemplateId: "template", status: "PREPARED_NOT_STARTED", expiresAt: future, rsvpRevision: 1 }) },
+    communicationSession: { findFirst: async () => ({ id: "session", ownerId: "owner", relationTemplateId: "template", status: "PREPARED_NOT_STARTED", expiresAt: runtimeFuture, rsvpRevision: 1 }) },
     governedParticipantSelection: {
       findFirst: async ({ where }: any) => where.governedJourneyId === selection.governedJourneyId && where.communicationSessionId === selection.communicationSessionId && where.targetType === selection.targetType ? selection : null,
       updateMany: async ({ data }: any) => {

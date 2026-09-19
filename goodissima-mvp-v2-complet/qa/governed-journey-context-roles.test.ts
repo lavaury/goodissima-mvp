@@ -40,7 +40,7 @@ test("Journey et réunion restent distincts sans faux consentement ni faux RSVP"
   assert.match(page, /ne signifie pas que la personne a confirmé sa présence/);
   assert.doesNotMatch(page, />Accepter<|>Refuser<|>Participer<|>Décliner</);
   assert.match(guest, /Accepter de participer/);
-  assert.match(guest, />Refuser</);
+  assert.match(guest, /<form action=\{declineJourneyInvitation\}>[\s\S]*?<button\b[^>]*>\s*Refuser\s*<\/button>/);
 });
 
 test("les MODEL_GAP et la future surface 03B sont enregistrés sans schéma", () => {
