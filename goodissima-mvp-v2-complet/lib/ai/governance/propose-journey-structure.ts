@@ -2,7 +2,7 @@ import { routeAI } from "./router.ts";
 import { AIGovernanceError } from "./types.ts";
 import type { AIExecutionProvenance, AIDataClassification } from "./types.ts";
 
-export const JOURNEY_STRUCTURE_PROMPT_VERSION = "governed-journey-structure-v1";
+export const JOURNEY_STRUCTURE_PROMPT_VERSION = "governed-journey-structure-v2";
 
 type Structure = {
   name: string;
@@ -28,18 +28,39 @@ function records(value: unknown, max: number): Record<string, unknown>[] {
   return value as Record<string, unknown>[];
 }
 
-export function validateJourneyStructure(output: string): Structure {
+// These are product/infrastructure markers, not a dictionary of forbidden business terms.
+// A marker is legitimate when it is part of the user's own stated need.
+const internalMarkers = /goodissima|mistral|openai|chatgpt|prisma|governedjourney|journeyconsent|roledefinition|communicationsession|governedmemory|mémoire gouvernée|plateforme|workflow|module|provider|deployment|architecture interne|gouvernance interne/gi;
+
+function assertNoUnrequestedInternalContent(structure: Structure, requestedNeed: string) {
+  const requested = requestedNeed.toLocaleLowerCase("fr");
+  const businessFields = [
+    structure.name, structure.objective,
+    ...structure.actors.flatMap((actor) => [actor.name, actor.role]),
+    ...structure.documents.map((document) => document.name),
+    ...structure.firstActions.flatMap((action) => [action.title, action.owner]),
+  ];
+  for (const field of businessFields) {
+    for (const marker of field.match(internalMarkers) ?? []) {
+      if (!requested.includes(marker.toLocaleLowerCase("fr"))) throw new AIGovernanceError("AI_OUTPUT_INVALID");
+    }
+  }
+}
+
+export function validateJourneyStructure(output: string, requestedNeed = ""): Structure {
   let parsed: unknown;
   try { parsed = JSON.parse(output.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "")); }
   catch { throw new AIGovernanceError("AI_OUTPUT_INVALID"); }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new AIGovernanceError("AI_OUTPUT_INVALID");
   const value = parsed as Record<string, unknown>;
-  return {
+  const structure = {
     name: text(value.name, 120), objective: text(value.objective, 2_000),
     actors: records(value.actors, 20).map((actor) => ({ name: text(actor.name, 160), role: text(actor.role, 300) })),
     documents: records(value.documents, 30).map((document) => ({ name: text(document.name, 160), required: document.required === true })),
     firstActions: records(value.firstActions, 20).map((action) => ({ title: text(action.title, 240), owner: text(action.owner, 160) })),
   };
+  assertNoUnrequestedInternalContent(structure, requestedNeed);
+  return structure;
 }
 
 export function prepareJourneyCreationNeed(description: string): { need: string; classification: AIDataClassification } {
@@ -56,9 +77,9 @@ export async function proposeJourneyStructure(description: string, actorId: stri
     capability: "proposeJourneyStructure", context: { type: "JOURNEY_CREATION_NEED", data: {} },
     classification: prepared.classification, actorId, ownerId: actorId,
     purpose: "propose_governed_journey_structure", promptVersion: JOURNEY_STRUCTURE_PROMPT_VERSION,
-    system: "Propose un cadrage initial de Parcours Goodissima en français. Réponds uniquement en JSON strict : {name,objective,actors:[{name,role}],documents:[{name,required}],firstActions:[{title,owner}]}. Les actors sont des rôles, profils ou responsabilités à prévoir, jamais des personnes identifiées. Le résultat est un plan initial soumis à validation humaine ; ne prétends créer ni invitation, ni accès, ni document reçu, ni règle technique.",
+    system: "Propose en français un cadrage initial centré sur l'activité réelle décrite par l'utilisateur, et non sur le logiciel utilisé pour la gérer. Réponds uniquement en JSON strict : {name,objective,actors:[{name,role}],documents:[{name,required}],firstActions:[{title,owner}]}. Les actors sont des rôles, profils ou responsabilités à prévoir, jamais des personnes identifiées. Dans les champs métier générés, ne mentionne ni Goodissima, ni la plateforme, ni ses valeurs, ni son architecture, ni ses mécanismes de gouvernance, ni ses modules, workflows, providers ou modèles IA, sauf si le besoin utilisateur les mentionne explicitement ou porte précisément sur le fonctionnement du produit. Le résultat est un plan initial soumis à validation humaine ; ne prétends créer ni invitation, ni accès, ni document reçu, ni règle technique.",
     prompt: { need: prepared.need }, responseFormat: { type: "json_object" },
-    validateOutput: validateJourneyStructure,
+    validateOutput: (output) => validateJourneyStructure(output, prepared.need),
   });
   return { draft: result.output, provenance: result.provenance };
 }

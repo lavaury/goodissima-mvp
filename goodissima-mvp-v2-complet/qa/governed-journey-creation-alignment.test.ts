@@ -22,6 +22,33 @@ test("governed creation proposal validates structured output", () => {
   assert.throws(() => ai.validateJourneyStructure(JSON.stringify({ name: "Parcours", objective: "Cadrage", actors: "personnes", documents: [], firstActions: [] })), /AI_OUTPUT_INVALID/);
 });
 
+test("travel committee proposal rejects unrequested product framing in business fields", () => {
+  const need = "Je veux créer un comité de voyage couvrant l'Europe et l'Asie.";
+  const proposal = { name: "Comité de voyage Europe-Asie", objective: "Organiser les voyages en Europe et en Asie", actors: [{ name: "Responsable du comité", role: "Coordination des voyages" }], documents: [{ name: "Itinéraire prévisionnel", required: false }], firstActions: [{ title: "Définir les destinations", owner: "Responsable du comité" }] };
+  assert.doesNotMatch(JSON.stringify(ai.validateJourneyStructure(JSON.stringify(proposal), need)), /Goodissima/i);
+  assert.throws(() => ai.validateJourneyStructure(JSON.stringify({ ...proposal, objective: "Organiser les voyages selon les valeurs et processus Goodissima." }), need), /AI_OUTPUT_INVALID/);
+  for (const leaked of [
+    { ...proposal, name: "Parcours dans la plateforme" },
+    { ...proposal, actors: [{ name: "Expert Mistral", role: "Conseil" }] },
+    { ...proposal, documents: [{ name: "Table GovernedJourney", required: false }] },
+    { ...proposal, firstActions: [{ title: "Configurer le workflow", owner: "Responsable du comité" }] },
+  ]) assert.throws(() => ai.validateJourneyStructure(JSON.stringify(leaked), need), /AI_OUTPUT_INVALID/);
+});
+
+test("product subject explicitly supplied by the user remains a valid business topic", () => {
+  const need = "Je veux créer un Parcours pour évaluer le déploiement de Goodissima.";
+  const proposal = { name: "Évaluation de Goodissima", objective: "Évaluer le déploiement de Goodissima", actors: [], documents: [], firstActions: [] };
+  assert.match(ai.validateJourneyStructure(JSON.stringify(proposal), need).objective, /Goodissima/);
+});
+
+test("provider details stay in provenance, never in unrequested business content", () => {
+  const assistant = read("app/(connected)/gouvernance/nouveau/GovernanceJourneyAssistant.tsx");
+  assert.match(assistant, /Proposition IA : \{provenance\.provider\} \/ \{provenance\.model\}/);
+  assert.match(assistant, /contrôles techniques appliqués par Goodissima/);
+  const proposal = { name: "Comité de voyage", objective: "Organiser le comité", actors: [], documents: [], firstActions: [{ title: "Consulter le provider OpenAI", owner: "Organisateur" }] };
+  assert.throws(() => ai.validateJourneyStructure(JSON.stringify(proposal), "Organiser un comité de voyage en Europe et en Asie."), /AI_OUTPUT_INVALID/);
+});
+
 test("governed creation request uses classified capability and returns provenance", async () => {
   const result = await ai.proposeJourneyStructure("Organiser une réunion du comité de pilotage.", "user-1");
   assert.equal(result.provenance.capability, "proposeJourneyStructure");
@@ -66,7 +93,7 @@ test("generation uses a classified governance capability and human approval rema
   assert.doesNotMatch(route, /generateTemplateDraft|getConfiguredAIProvider|Mistral/);
   assert.match(capability, /classification: prepared\.classification/);
   assert.match(capability, /await routeAI\(/);
-  assert.match(capability, /validateOutput: validateJourneyStructure/);
+  assert.match(capability, /validateOutput: \(output\) => validateJourneyStructure\(output, prepared\.need\)/);
   assert.match(assistant, /formData\.set\("requiresHumanValidation", "true"\)/);
   assert.match(assistant, /onClick=\{validateAndCreate\}/);
   assert.match(read("lib/ai/governance/registry.ts"), /!isProductionRuntime\(\)/);
