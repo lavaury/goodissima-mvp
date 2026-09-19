@@ -34,6 +34,29 @@ test("directory interpretation keeps an untrusted natural query, not arbitrary c
   assert.doesNotMatch(read("app/api/home/interpret/route.ts"), /prisma\.directoryProfile|\/api\/directory\/search/);
 });
 
+test("clear resume-work variants recover from UNKNOWN without inventing a last object", () => {
+  for (const text of ["Reprendre où j'en étais", "Reprendre là où j'en étais", "Reprendre ma dernière activité", "Continuer où j'en étais", "Continuer mon travail", "Reprendre mon travail"]) {
+    const output = ai.validateHomeIntentOutput(parsed("UNKNOWN"), text);
+    assert.equal(output.intent, "RESUME_WORK", text);
+    assert.equal(output.reformulation, text);
+    assert.equal(output.confidenceBand, "HIGH");
+    assert.equal(homeIntentChoice(output.intent).href, "/gouvernance");
+  }
+  assert.equal(ai.validateHomeIntentOutput(parsed("UNKNOWN"), "Je ne veux pas reprendre mon travail").intent, "UNKNOWN");
+});
+
+test("home prompt requires faithful reformulation of directory and all other intents", () => {
+  const source = ai.HOME_INTENT_SYSTEM as string;
+  assert.match(source, /sans ajouter de fait, de relation, de critère ou de contexte non exprimé/);
+  assert.match(source, /même formation que l'utilisateur/);
+  assert.match(source, /Retrouver des personnes de votre promotion 1957/);
+  assert.match(source, /RESUME_WORK couvre les demandes de reprendre ou continuer/);
+  const output = ai.validateHomeIntentOutput(JSON.stringify({ intent: "SEARCH_DIRECTORY", reformulation: "Retrouver des personnes de votre promotion 1957.", confidenceBand: "HIGH", proposedParameters: { query: "anciens de ma promo 1957" } }), "Chercher les anciens de ma promo 1957");
+  assert.equal(output.intent, "SEARCH_DIRECTORY");
+  assert.doesNotMatch(output.reformulation, /même formation/i);
+  assert.throws(() => ai.validateHomeIntentOutput(JSON.stringify({ intent: "SEARCH_DIRECTORY", reformulation: "Rechercher les personnes ayant suivi la même formation que vous en 1957", confidenceBand: "HIGH", proposedParameters: { query: "anciens de ma promo 1957" } }), "Chercher les anciens de ma promo 1957"), /AI_OUTPUT_INVALID/);
+});
+
 test("ambiguous and unknown outcomes do not make an arbitrary choice", () => {
   const ambiguous = ai.validateHomeIntentOutput(parsed("AMBIGUOUS", {}, { ambiguityOptions: ["SEARCH_DIRECTORY", "CREATE_OPPORTUNITY"] }), "Trouver des experts et travailler avec eux");
   assert.deepEqual(ambiguous.ambiguityOptions, ["SEARCH_DIRECTORY", "CREATE_OPPORTUNITY"]);
