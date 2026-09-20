@@ -43,7 +43,7 @@ test("provides cross navigation between product objects", () => {
   assert.doesNotMatch(source("app/(connected)/opportunities/page.tsx"), /sourceJourneyHref|ProductLifecycle/);
   assert.match(source("components/LinkCard.tsx"), /Voir le parcours/);
   assert.match(source("app/(connected)/relations/page.tsx"), /Voir l'annonce/);
-  assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l&apos;origine/);
+  assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l'annonce/);
 });
 
 test("keeps the dashboard focused on destinations and factual activity", () => {

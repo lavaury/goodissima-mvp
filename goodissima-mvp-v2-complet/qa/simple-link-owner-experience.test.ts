@@ -6,7 +6,8 @@ const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.
 
 test("simple-link owner page focuses on sharing, access, responses and form", () => {
   const page = source("app/(connected)/links/[linkId]/page.tsx");
-  for (const copy of ["Partage", "Accès", "Réponses", "Détail du formulaire", "Mes espaces"]) assert.ok(page.includes(copy));
+  for (const copy of ["Partage", "Accès", "Réponses", "Détail du formulaire"]) assert.ok(page.includes(copy));
+  assert.match(page, /objectBreadcrumb\(\{ name: link\.title, fallback: objectLabel, objectId: link\.id, ownerId: owner\.id, workspace: link\.workspace \}\)/);
   assert.match(page, /linkObjectLabel\(link\.rules\)/);
   assert.match(source("lib/object-creation.ts"), /return "Lien simple"/);
   assert.match(page, /`\/l\/\$\{link\.slug\}`/);
