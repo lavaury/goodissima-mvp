@@ -5,6 +5,7 @@ import * as React from "react";
 import * as jsx from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
+import * as crypto from "node:crypto";
 import { loadTestModule } from "./helpers/load-test-module.ts";
 import * as spatial from "../lib/spatial-navigation.ts";
 
@@ -13,6 +14,7 @@ const workspaces = [active, { ...active, id: "w-b", ownerId: "b" }, { ...active,
 function findWorkspace(q: any) { return workspaces.find(row => Object.entries(q.where).every(([key,value]) => (row as any)[key] === value)) ?? null; }
 const context = loadTestModule("lib/workspace-creation-context.ts", { "@/lib/prisma": { prisma: { workspace: { findFirst: async (q: any) => findWorkspace(q) } } }, "@/lib/spatial-navigation": spatial });
 const common = { "react/jsx-runtime": jsx, "next/link": ({ children, ...props }: any) => jsx.jsx("a",{...props,children}),
+  "node:crypto": crypto,
   "next/navigation": { notFound: () => { throw Error("NOT_FOUND"); } },
   "@/lib/object-creation": creation, "@/lib/auth": { getCurrentPrismaUser: async () => ({ id:"a",name:"Compte",email:"a@example.test" }) },
   "@/lib/workspace-creation-context": context, "@/lib/spatial-navigation": spatial,
@@ -41,29 +43,44 @@ test("both creation pages preselect the authorized Workspace and retain its brea
   assert.ok(!html.includes("<select"));
 });
 function journeyMutation(owner: string | null = "a") {
-  const writes:any[]=[];const invalidated:string[]=[];
+  const writes:any[]=[];const invalidated:string[]=[];let committedKey:string|null=null;let committedSnapshot:any=null;
   const tx = { workspace:{findFirst:async(q:any)=>findWorkspace(q),upsert:async()=>{throw Error("Unexpected fallback");}},
-    relationTemplate:{create:async(q:any)=>{writes.push(q);return{id:"journey",...q.data};}},
+    relationTemplate:{create:async(q:any)=>{if(committedKey===q.data.key)throw Object.assign(Error("duplicate"),{code:"P2002"});committedKey=q.data.key;writes.push(q);return{id:"journey",...q.data};}},
     formTemplate:{create:async(q:any)=>{writes.push(q);return{id:"form",...q.data};}},
-    formField:{createMany:async(q:any)=>{writes.push(q);}},templateVersion:{create:async(q:any)=>{writes.push(q);}},
+    formField:{createMany:async(q:any)=>{writes.push(q);}},templateVersion:{create:async(q:any)=>{committedSnapshot=q.data.snapshot;writes.push(q);return{id:"version"};}},
   };
   const module=loadTestModule("lib/governance-journey-actions.ts", {
+    "node:crypto":crypto,
+    "@/lib/governed-journey-root-creation":{
+      journeyCreationTemplateKey:()=>"TEST_JOURNEY_KEY",
+      createJourneyRootAndCreated:async(_tx:any,input:any)=>{writes.push({model:"journey-root",data:input});return{id:"root",...input};},
+      createdJourneyReadbackMatches:()=>true,
+    },
     "@/lib/auth":{getCurrentPrismaUser:async()=>{if(!owner)throw Error("LOGIN");return{id:owner};}},
     "@/lib/object-creation":creation,
-    "@/lib/prisma":{prisma:{relationTemplate:{findUnique:async()=>null},$transaction:async(fn:any)=>fn(tx)}},
+    "@/lib/prisma":{prisma:{relationTemplate:{findUnique:async()=>committedKey?{id:"journey"}:null},templateVersion:{findFirst:async()=>({snapshot:committedSnapshot})},governedJourney:{findUnique:async({where}:any)=>where.relationTemplateId?{id:"root",relationTemplateId:"journey",formTemplateId:"form",authorityUserId:owner,relationCaseId:null}:{id:"root"}},$transaction:async(fn:any)=>fn(tx)}},
     "next/navigation":{redirect:(path:string)=>{throw Error(`REDIRECT ${path}`);}},"next/cache":{revalidatePath:(p:string)=>invalidated.push(p)},
   });
   return {create:module.createGovernedJourneyAction,writes,invalidated};
 }
-function form(id:string){const data=new FormData();data.set("workspaceId",id);data.set("name","Parcours réel");data.set("initialNeed","Organiser une relation gouvernée");return data;}
+function form(id:string){const data=new FormData();data.set("requestKey","8d2d55ca-0dc7-45d0-8fb4-a45de943a513");data.set("workspaceId",id);data.set("name","Parcours réel");data.set("initialNeed","Organiser une relation gouvernée");return data;}
 test("real journey mutation checks owner and ACTIVE, creates the direct journey and keeps cockpit redirect",async()=>{
   const s=journeyMutation();await assert.rejects(s.create(form("w-a")),/REDIRECT \/gouvernance\/parcours\/form\/pilotage/);
   assert.equal(s.writes[0].data.workspaceId,"w-a");
   assert.equal(s.writes[3].data.snapshot.metadata.workspaceId,"w-a");
   assert.equal(s.writes[3].data.snapshot.metadata.automaticContact,false);
+  assert.equal(s.writes[4].data.authorityUserId,"a");
+  assert.equal(s.writes[4].data.relationCaseId,null);
   assert.deepEqual(s.invalidated,["/gouvernance/workspaces/w-a"]);
   for(const id of ["w-b","archived","unknown"]) {const denied=journeyMutation();await assert.rejects(denied.create(form(id)),/Workspace introuvable/);assert.equal(denied.writes.length,0);}
   await assert.rejects(journeyMutation(null).create(form("w-a")),/LOGIN/);
+});
+test("double submit of one creation form reuses the committed Journey root",async()=>{
+  const s=journeyMutation();
+  await assert.rejects(s.create(form("w-a")),/REDIRECT \/gouvernance\/parcours\/form\/pilotage/);
+  await assert.rejects(s.create(form("w-a")),/REDIRECT \/gouvernance\/parcours\/form\/pilotage/);
+  assert.equal(s.writes.filter(w=>w.model==="journey-root").length,1);
+  assert.equal(s.writes.filter(w=>w.data?.key==="TEST_JOURNEY_KEY").length,1);
 });
 function linkMutation(owner:string|null="a") {
   const writes:any[]=[];const invalidated:string[]=[];

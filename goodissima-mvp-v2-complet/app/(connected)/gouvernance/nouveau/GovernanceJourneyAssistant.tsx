@@ -62,7 +62,7 @@ function TextAreaField({
   );
 }
 
-export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWorkspaceName }: { initialWorkspaceId?: string; contextWorkspaceName?: string }) {
+export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWorkspaceName, requestKey }: { initialWorkspaceId?: string; contextWorkspaceName?: string; requestKey: string }) {
   const [need, setNeed] = useState("");
   const workspaceId = initialWorkspaceId;
   const [proposal, setProposal] = useState<GovernanceJourneyProposal | null>(null);
@@ -98,6 +98,7 @@ export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWor
   function generateProposal() {
     setError("");
     const formData = new FormData();
+    formData.set("requestKey", requestKey);
     formData.set("aiNeed", need);
     if (workspaceId) formData.set("workspaceId", workspaceId);
 
@@ -143,7 +144,11 @@ export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWor
     }
 
     startTransition(async () => {
-      await createGovernedJourneyAction(formData);
+      try {
+        await createGovernedJourneyAction(formData);
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "La création du parcours n'a pas pu être enregistrée.");
+      }
     });
   }
 

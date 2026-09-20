@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import * as crypto from "node:crypto";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as preview from "../lib/secure-link-preview.ts";
@@ -30,11 +31,18 @@ function setup() {
       create: async ({data}: any) => { writes.push({model:"form",data}); return {id:"form",...data}; },
     },
     formField: { createMany: async ({data}:any) => { writes.push({model:"fields",data}); } },
-    templateVersion: { create: async ({data}:any) => {snapshot=data.snapshot; writes.push({model:"version",data});} },
+    templateVersion: { create: async ({data}:any) => {snapshot=data.snapshot; writes.push({model:"version",data});return{id:"version"};} },
+    governedJourney: { findUnique: async () => ({id:"root"}) },
     gLink: { create: async ({data}:any) => { writes.push({model:"link",data}); return {id:"link",workspaceId:null,...data}; } },
     $transaction: async (fn:any) => fn(prisma),
   };
   const dependencies: any = {
+    "node:crypto": crypto,
+    "@/lib/governed-journey-root-creation": {
+      journeyCreationTemplateKey: () => "TEST_JOURNEY_KEY",
+      createJourneyRootAndCreated: async (_tx:any,input:any) => {writes.push({model:"journey-root",data:input});return{id:"root",...input};},
+      createdJourneyReadbackMatches: () => true,
+    },
     "@/lib/prisma": { prisma }, "@/lib/object-creation": creation,
     "@/lib/auth": { getCurrentPrismaUser: async () => ({id:"A",email:"a@example.test"}) },
     "next/server": { NextResponse: { json: Response.json } },
@@ -56,7 +64,7 @@ function setup() {
   const governed = loadTestModule<any>("lib/governance-journey-actions.ts", dependencies);
   async function create(kind:string, workspaceId?:unknown) {
     if(kind === "governed") {
-      const form = new FormData(); form.set("name","Parcours réel"); form.set("initialNeed","Organiser le travail");
+      const form = new FormData(); form.set("requestKey","8d2d55ca-0dc7-45d0-8fb4-a45de943a513"); form.set("name","Parcours réel"); form.set("initialNeed","Organiser le travail");
       form.set("createdById","B"); form.set("workspaceName","Archives");
       if(workspaceId !== undefined) form.set("workspaceId",workspaceId as string);
       return governed.createGovernedJourneyAction(form);
@@ -82,6 +90,8 @@ for(const kind of ["simple","opportunity","governed"]) for(const [context, id, a
       assert.deepEqual(await s.access.getAccessibleRelationTemplateIds("A"),["relation"]);
       assert.deepEqual(await s.access.getAccessibleRelationTemplateIds("B"),[]);
       assert.equal(version.snapshot.metadata.automaticContact,false);
+      assert.equal(s.writes.find(w=>w.model==="journey-root").data.authorityUserId,"A");
+      assert.equal(s.writes.find(w=>w.model==="journey-root").data.relationCaseId,null);
     }
   } else {
     const response=await s.create(kind,id);
@@ -115,7 +125,7 @@ test("malformed JSON contexts cannot become a global creation",async()=>{
   for(const kind of ["simple","opportunity"]) for(const id of [null,[],{},42]) {
     const s=setup(); assert.equal((await s.create(kind,id)).status,400); assert.equal(s.writes.length,0);
   }
-  const s=setup(); const form=new FormData();form.set("name","Parcours");form.append("workspaceId","WA");form.append("workspaceId","WB");
+  const s=setup(); const form=new FormData();form.set("requestKey","8d2d55ca-0dc7-45d0-8fb4-a45de943a513");form.set("name","Parcours");form.append("workspaceId","WA");form.append("workspaceId","WB");
   await assert.rejects(s.governed.createGovernedJourneyAction(form),/Workspace/);assert.equal(s.writes.length,0);
 });
 

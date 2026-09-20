@@ -1,11 +1,13 @@
 "use server";
 
+import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseCreationWorkspaceId } from "@/lib/object-creation";
+import { createJourneyRootAndCreated, createdJourneyReadbackMatches, journeyCreationTemplateKey } from "@/lib/governed-journey-root-creation";
 
 type GovernanceJourneyActor = {
   roleId?: string;
@@ -86,17 +88,15 @@ function fieldKeyFromLabel(label: string, fallback: string) {
   return key || fallback;
 }
 
-async function uniqueRelationTemplateKey(base: string) {
-  const prefix = base || "PARCOURS_GOUVERNE";
+const requestKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-  for (let index = 0; index < 5; index += 1) {
-    const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const key = `${prefix}_${suffix}`.slice(0, 80);
-    const existing = await prisma.relationTemplate.findUnique({ where: { key }, select: { id: true } });
-    if (!existing) return key;
-  }
+function isUniqueConflict(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
 
-  return `${prefix}_${Date.now().toString(36).toUpperCase()}`.slice(0, 80);
+function creationFailureCode(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+    ? error.code : "UNCLASSIFIED";
 }
 
 export type GovernanceJourneyProposal = {
@@ -185,6 +185,10 @@ export async function proposeGovernedJourneyAction(formData: FormData): Promise<
 
 export async function createGovernedJourneyAction(formData: FormData) {
   const owner = await getCurrentPrismaUser();
+  const requestKeys = formData.getAll("requestKey");
+  if (requestKeys.length !== 1 || typeof requestKeys[0] !== "string"
+    || !requestKeyPattern.test(requestKeys[0])) throw new Error("Demande de création invalide. Rechargez la page.");
+  const requestKey = requestKeys[0];
   const name = textFromForm(formData, "name");
   const initialNeed = textFromForm(formData, "initialNeed");
   const objective = textFromForm(formData, "objective") || initialNeed;
@@ -205,7 +209,15 @@ export async function createGovernedJourneyAction(formData: FormData) {
     throw new Error("Le nom du parcours et le besoin initial sont obligatoires.");
   }
 
-  const key = await uniqueRelationTemplateKey(normalizeKey(name));
+  // A repeated submit of this form keeps the same template key. Different
+  // submissions remain distinct, even when their business content matches.
+  const key = journeyCreationTemplateKey(owner.id, requestKey);
+  const journeyId = randomUUID();
+  const requestFingerprint = createHash("sha256").update(JSON.stringify({
+    name, initialNeed, objective, workspaceId, participants, documents,
+    confidentialityRules, firstActions, requiresHumanValidation,
+    aiProvider, aiModel, aiPromptVersion,
+  })).digest("hex");
   const formKey = `${key}_FORM`.slice(0, 80);
   const now = new Date().toISOString();
   const intent = {
@@ -307,7 +319,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
     createdAt: string;
     source: "HumanValidatedIntent";
   } = {
-    journeyId: key.toLowerCase(),
+    journeyId,
     workspaceId: draft.workspaceId,
     intentId: intent.intentId,
     proposalId: proposal.proposalId,
@@ -357,7 +369,10 @@ export async function createGovernedJourneyAction(formData: FormData) {
     kpis: [],
   };
 
-  const formTemplate = await prisma.$transaction(async (tx) => {
+  let created: Awaited<ReturnType<typeof createJourneyRootAndCreated>> | null = null;
+  let formTemplateId: string | null = null;
+  try {
+    const result = await prisma.$transaction(async (tx) => {
     const selectedWorkspace = workspaceId
       ? await tx.workspace.findFirst({
           where: {
@@ -466,6 +481,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
             : null,
         requiresHumanValidation,
         createdById: owner.id,
+        creationRequestFingerprint: requestFingerprint,
         createdAt: now,
         workspaceId: workspace?.id ?? null,
         workspaceSlug: workspace?.slug ?? null,
@@ -478,7 +494,7 @@ export async function createGovernedJourneyAction(formData: FormData) {
       },
     } satisfies Prisma.InputJsonObject;
 
-    await tx.templateVersion.create({
+    const templateVersion = await tx.templateVersion.create({
       data: {
         templateId: relationTemplate.id,
         version: 1,
@@ -489,9 +505,74 @@ export async function createGovernedJourneyAction(formData: FormData) {
       },
     });
 
-    return createdFormTemplate;
+    // Keep this as the final business DB operation of the transaction.
+    const journey = await createJourneyRootAndCreated(tx, {
+      id: journeyId,
+      relationTemplateId: relationTemplate.id,
+      formTemplateId: createdFormTemplate.id,
+      createdFromTemplateVersionId: templateVersion.id,
+      relationCaseId: null,
+      authorityUserId: owner.id,
+      title: name,
+    });
+    return { journey, formTemplateId: createdFormTemplate.id };
+    });
+    created = result.journey;
+    formTemplateId = result.formTemplateId;
+  } catch (error) {
+    if (error instanceof Error && error.message === "Workspace introuvable pour cet utilisateur.") throw error;
+    if (!isUniqueConflict(error)) {
+      console.error("Governed Journey creation transaction failed", { code: creationFailureCode(error) });
+      throw new Error("La création du parcours n'a pas pu être enregistrée. Réessayez.");
+    }
+    // The unique template key is stable for this form submission. Recover a
+    // previously committed result only if its snapshot matches this request.
+    const existing = await prisma.relationTemplate.findUnique({ where: { key }, select: { id: true } });
+    if (!existing) {
+      console.error("Governed Journey creation unique conflict without matching template");
+      throw new Error("La création du parcours n'a pas pu être enregistrée. Réessayez.");
+    }
+    const version = await prisma.templateVersion.findFirst({
+      where: { templateId: existing.id, version: 1 }, select: { snapshot: true },
+    });
+    const metadata = version?.snapshot && typeof version.snapshot === "object"
+      && !Array.isArray(version.snapshot) && "metadata" in version.snapshot
+      ? version.snapshot.metadata : null;
+    const fingerprint = metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      && "creationRequestFingerprint" in metadata ? metadata.creationRequestFingerprint : null;
+    if (fingerprint !== requestFingerprint) {
+      throw new Error("Cette demande de création a déjà été utilisée avec un autre contenu.");
+    }
+    const journey = await prisma.governedJourney.findUnique({
+      where: { relationTemplateId: existing.id }, select: {
+        id: true, relationTemplateId: true, formTemplateId: true, authorityUserId: true, relationCaseId: true,
+      },
+    });
+    if (!journey || !journey.formTemplateId || journey.authorityUserId !== owner.id) {
+      console.error("Governed Journey duplicate request missing committed root");
+      throw new Error("La création du parcours n'a pas pu être confirmée. Réessayez.");
+    }
+    created = { ...journey, formTemplateId: journey.formTemplateId };
+    formTemplateId = journey.formTemplateId;
+  }
+
+  if (!created || !formTemplateId) throw new Error("La création du parcours n'a pas pu être confirmée.");
+  const readback = await prisma.governedJourney.findUnique({ where: { id: created.id }, select: {
+    id: true, relationTemplateId: true, formTemplateId: true, authorityUserId: true,
+    relationCaseId: true, status: true,
+    events: { select: { type: true, sequence: true, fromStatus: true, toStatus: true,
+      actorUserId: true, authorityUserId: true, relationCaseId: true } },
+  } }).catch((error: unknown) => {
+    console.error("Governed Journey creation read-back query failed", { code: creationFailureCode(error) });
+    throw new Error("La création du parcours n'a pas pu être confirmée. Réessayez.");
   });
+  if (!createdJourneyReadbackMatches(readback, created)) {
+    console.error("Governed Journey creation read-back failed", {
+      journeyId: created.id, relationTemplateId: created.relationTemplateId,
+    });
+    throw new Error("La création du parcours n'a pas pu être confirmée. Réessayez.");
+  }
 
   if (workspaceId) revalidatePath(`/gouvernance/workspaces/${encodeURIComponent(workspaceId)}`);
-  redirect(`/gouvernance/parcours/${formTemplate.id}/pilotage`);
+  redirect(`/gouvernance/parcours/${formTemplateId}/pilotage`);
 }

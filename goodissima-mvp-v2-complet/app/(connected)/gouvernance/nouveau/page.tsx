@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
@@ -39,9 +40,10 @@ export default async function NewGovernedJourneyPage({ searchParams }: { searchP
 
       <GovernedJourneyEducationalPreview />
 
-      <GovernanceJourneyAssistant key={workspace?.id ?? "generic"} initialWorkspaceId={workspace?.id} contextWorkspaceName={workspace?.name} />
+      <GovernanceJourneyAssistant key={workspace?.id ?? "generic"} initialWorkspaceId={workspace?.id} contextWorkspaceName={workspace?.name} requestKey={randomUUID()} />
 
       <form action={createGovernedJourneyAction} data-boussole-id="manual-governed-journey-form" className="mt-6 space-y-5 rounded-lg border bg-white p-6 shadow-sm">
+        <input type="hidden" name="requestKey" value={randomUUID()} />
         <div>
           <p className="text-sm font-semibold text-slate-500">Mode manuel</p>
           <h2 className="mt-1 text-xl font-bold text-slate-950">Creer sans assistance</h2>
