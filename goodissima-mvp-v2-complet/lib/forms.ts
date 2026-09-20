@@ -118,6 +118,9 @@ export function formatFormAnswerValue({
   if (typeof value === "boolean") return value ? "Oui" : "Non";
   if (Array.isArray(value)) return formatArrayValue(options, value);
   if (fieldType === "SELECT") return optionLabel(options, value) ?? String(value);
+  if (fieldType === "MULTISELECT" && typeof value === "string") {
+    return value.split("\u001f").filter(Boolean).map((item) => optionLabel(options, item) ?? item).join(", ");
+  }
   if (fieldType === "DATE") return formatDateValue(value) ?? String(value);
   if (fieldType === "NUMBER") return formatNumberValue(label, value);
 

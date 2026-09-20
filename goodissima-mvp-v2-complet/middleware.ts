@@ -3,7 +3,18 @@ import { NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { secureTrace, secureTraceEnvironment } from "@/lib/secure-trace";
 
+const PRIVATE_ROBOTS_VALUE = "noindex, nofollow, noarchive";
+
+function withPrivateRobotsHeader(response: NextResponse) {
+  response.headers.set("X-Robots-Tag", PRIVATE_ROBOTS_VALUE);
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
+  // Only this leaf page authenticates by guest token; sibling/child routes stay protected.
+  if (/^\/gouvernance\/invitation\/[^/]+\/?$/.test(request.nextUrl.pathname)) {
+    return withPrivateRobotsHeader(NextResponse.next());
+  }
   if (request.nextUrl.pathname.startsWith("/secure/")) {
     const pathname = request.nextUrl.pathname;
     secureTrace("middleware_hit", {
@@ -15,11 +26,21 @@ export async function middleware(request: NextRequest) {
       hasEquals: pathname.includes("="),
       env: secureTraceEnvironment(),
     });
-    return NextResponse.next();
+    return withPrivateRobotsHeader(NextResponse.next());
   }
-  return updateSession(request);
+  return withPrivateRobotsHeader(await updateSession(request));
 }
 
 export const config = {
-  matcher: ["/secure/:path*", "/dashboard/:path*", "/cases/:path*", "/links/new", "/login", "/signup", "/annuaire/:path*", "/gouvernance", "/gouvernance/nouveau", "/gouvernance/pilotage/:path*", "/gouvernance/portfolios/:path*", "/gouvernance/parcours/:path*", "/gouvernance/workspaces/:path*"],
+  matcher: [
+    "/secure/:path*",
+    "/dashboard/:path*",
+    "/cases/:path*",
+    "/links/:path*",
+    "/login",
+    "/signup",
+    "/annuaire/:path*",
+    "/boussole/:path*",
+    "/gouvernance/:path*",
+  ],
 };

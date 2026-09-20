@@ -1,11 +1,19 @@
 export type DossierSituationStatus = "Actif" | "Incomplet" | "Bloqué" | "À surveiller" | "Clôturé";
 
-import { candidateIdentityRecommendation, type CandidateIdentityState } from "./candidate-identity.ts";
+import { candidateIdentityRecommendation, candidateIdentityRequestTitle, type CandidateIdentityState } from "./candidate-identity.ts";
 import { humanizeRelationEvent } from "./events/humanize.ts";
 
 export type DossierOperationalStatusLevel = "UP_TO_DATE" | "RECOMMENDED_ACTION" | "NEEDS_ATTENTION" | "BLOCKED" | "NEW";
 
-export type DossierSituationAction = "FOLLOW_UP" | "DOCUMENT_REQUEST" | "SUMMARY" | "SIGNALS" | "TIMELINE" | "IDENTITY_REQUEST";
+export type DossierSituationAction = "FOLLOW_UP" | "DOCUMENT_REQUEST" | "SUMMARY" | "SIGNALS" | "TIMELINE" | "IDENTITY_REQUEST" | "GOVERNANCE" | "DETAILS";
+export type DossierPrimaryAction = {
+  kind: "GOVERNANCE" | "TERMINAL" | "IDENTITY_REQUEST" | "DOCUMENT_FOLLOW_UP" | "FOLLOW_UP" | "NONE";
+  title: string;
+  description: string;
+  reason: string;
+  actionType?: DossierSituationAction;
+  actionLabel?: string;
+};
 
 export type DossierSituationInput = {
   status: string;
@@ -33,6 +41,8 @@ export type DossierSituationInput = {
 };
 
 export type DossierSituation = {
+  primary: DossierPrimaryAction;
+  followUps: string[];
   status: DossierSituationStatus;
   statusDetail: string;
   operationalStatus: {
@@ -228,7 +238,35 @@ export function buildDossierSituation(input: DossierSituationInput): DossierSitu
     recommendedAction = "Vérifier la timeline puis les correspondances si nécessaire.";
   }
 
+  const pendingIdentityRequest = pendingActions.find((action) => action.type === "TASK" && action.title.trim() === candidateIdentityRequestTitle);
+  let primary: DossierPrimaryAction;
+  if (input.governanceStatus === "BLOCKED") {
+    primary = { kind: "GOVERNANCE", title: "Relation bloquée", description: "Les nouvelles actions relationnelles sont interrompues.", reason: "La relation est actuellement bloquée.", actionType: "GOVERNANCE", actionLabel: "Voir la gouvernance" };
+  } else if (input.governanceStatus === "SUSPENDED") {
+    primary = { kind: "GOVERNANCE", title: "Relation suspendue", description: "Les nouvelles actions relationnelles sont temporairement interrompues.", reason: "La relation est actuellement suspendue.", actionType: "GOVERNANCE", actionLabel: "Voir la gouvernance" };
+  } else if (input.governanceStatus === "CLOSED") {
+    primary = { kind: "TERMINAL", title: "Relation clôturée", description: "Aucune nouvelle action relationnelle n’est attendue.", reason: "La relation est actuellement clôturée.", actionType: "DETAILS", actionLabel: "Voir les détails" };
+  } else if (closedStatuses.has(input.status)) {
+    primary = { kind: "TERMINAL", title: input.status === "ARCHIVED" ? "Dossier archivé" : "Dossier clos", description: "Aucune nouvelle action opérationnelle n’est attendue pour ce dossier.", reason: input.status === "ARCHIVED" ? "Le dossier est actuellement archivé." : "Le dossier est actuellement clos.", actionType: "DETAILS", actionLabel: "Voir les détails" };
+  } else if (candidateIdentity?.isMissingIdentity && !pendingIdentityRequest) {
+    primary = { kind: "IDENTITY_REQUEST", title: candidateIdentityRecommendation, description: "L’identité du candidat n’est pas encore complète.", reason: "L’identité du candidat est actuellement incomplète.", actionType: "IDENTITY_REQUEST", actionLabel: "Préparer la demande" };
+  } else if (staleOpenRequest && missingDocumentActions.length > 0) {
+    primary = { kind: "DOCUMENT_FOLLOW_UP", title: "Relancer la demande de document.", description: `Cette demande est en attente depuis ${Math.max(4, daysSince(latestActivity!.date))} jours.`, reason: `La demande « ${missingDocumentActions[0].title} » est encore ouverte et aucune activité pertinente n’a été enregistrée depuis au moins 4 jours.`, actionType: "DOCUMENT_REQUEST", actionLabel: "Préparer la relance" };
+  } else if (staleOpenRequest && pendingActions.length > 0) {
+    primary = { kind: "FOLLOW_UP", title: "Relancer la demande en attente.", description: `Cette demande est en attente depuis ${Math.max(4, daysSince(latestActivity!.date))} jours.`, reason: `La demande « ${pendingActions[0].title} » est encore ouverte et aucune activité pertinente n’a été enregistrée depuis au moins 4 jours.`, actionType: "FOLLOW_UP", actionLabel: "Préparer la relance" };
+  } else {
+    primary = { kind: "NONE", title: "Rien ne nécessite actuellement votre attention.", description: "Le dossier ne présente aucune action métier prioritaire selon les informations disponibles.", reason: "Aucune condition nécessitant une action immédiate n’est présente." };
+  }
+
+  const followUps = [
+    pendingActions.length > 0 && primary.kind !== "DOCUMENT_FOLLOW_UP" && primary.kind !== "FOLLOW_UP" ? pluralize(pendingActions.length, "demande en attente", "demandes en attente") : "",
+    missingDocumentActions.length > 0 && primary.kind !== "DOCUMENT_FOLLOW_UP" ? pluralize(missingDocumentActions.length, "document attendu", "documents attendus") : "",
+    `Dernière activité : ${formatRelativeActivity(latestActivity?.date ?? null)}`,
+  ].filter(Boolean).slice(0, 3);
+
   return {
+    primary,
+    followUps,
     status,
     statusDetail: `Dossier ${status.toLowerCase()}`,
     operationalStatus,

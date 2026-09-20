@@ -1,3 +1,4 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { transitionOpportunity, type OpportunityLifecycle } from "@/lib/goodissima-experience";
@@ -6,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 export async function POST(req: Request, { params }: { params: { templateId: string } }) {
   try {
     const owner = await getCurrentPrismaUser();
+    const access = await getTemplateMutationAccess(owner, params.templateId);
+    if (!access) return templateMutationNotFound();
     const body = await req.json();
     if (body.humanConfirmed !== true) return NextResponse.json({ error: "Une confirmation humaine est requise." }, { status: 400 });
     const formTemplate = await prisma.formTemplate.findUnique({ where: { id: params.templateId }, include: { relationTemplate: true } });

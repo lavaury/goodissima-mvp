@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { describeSimpleFieldRule, evaluateSimpleFieldRule, parseSimpleFieldRule } from "@/lib/simple-field-rules";
 import { Prisma, RelationStatus } from "@prisma/client";
 import { auditLog } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
@@ -7,8 +8,10 @@ import {
   createCandidateAccessExpiresAt,
   createCandidateAccessToken,
 } from "@/lib/candidate-access";
-import { sendNewDocumentEmail, sendNewMessageEmail, sendNewRelationCaseEmail } from "@/lib/email";
+import { sendNewDocumentEmail } from "@/lib/email";
 import { createRelationEvent } from "@/lib/events";
+import { createNotificationOnce, messageNotificationKey, relationCaseNotificationKey } from "@/lib/notification-repository";
+import { maybeSendNotificationEmail } from "@/lib/notification-email";
 import {
   buildCandidateMessageFallback,
   deriveCandidateSubmissionFields,
@@ -21,6 +24,7 @@ import { buildHumanReadableFormMessage, createFormSubmission, getFormFields } fr
 import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
 import { getRelationTemplateForLink } from "@/lib/relation-templates";
 import { prisma } from "@/lib/prisma";
+import { canSubmitToGLink } from "@/lib/secure-link-submission";
 import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import { parseTemplateSnapshot } from "@/lib/template-snapshots";
 import { evaluateTrustAdmission } from "@/lib/trust-admission";
@@ -33,15 +37,37 @@ import {
 import type { FormValues } from "@/lib/form-rules";
 import { canSubmitToSecureLink } from "@/lib/secure-link-admission";
 import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
+import { isSimpleLink, isSimpleLinkRelationalEmailField } from "@/lib/simple-link-fields";
+import { readPublicCaseRequest, validateExpectedAnswerCount } from "@/lib/public-case-contract";
+import {
+  checkPublicCaseCreationLimit,
+  publicCaseSourceRateLimitEntries,
+  publicCaseTargetRateLimitEntries,
+} from "@/lib/public-case-rate-limit";
+import { getPublicRequestSource, pseudonymizePublicRateLimitKey, pseudonymizePublicRequestSource } from "@/lib/public-request-source";
+import {
+  hashPublicCaseIdempotencyKey,
+  hashPublicCasePayload,
+  PUBLIC_CASE_IDEMPOTENCY_RETRY_AFTER_SECONDS,
+  readPublicCaseIdempotencyKey,
+  reservePublicCaseRequest,
+} from "@/lib/public-case-idempotency";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
+const simpleLinkPrivateAnswerKeys = [
+  "notificationEmail",
+  "notificationOptIn",
+  "emailNotificationsConsent",
+  "candidateNotificationEmail",
+] as const;
 type TrustAdmissionMode = "OBSERVE" | "SIMULATE_BLOCK" | "ENFORCE";
 type ResolvedTrustAdmissionToken = { identityId: string; tokenId: string } | null;
 type BadRequestCode =
   | "INVALID_REQUEST_BODY"
   | "INVALID_NOTIFICATION_EMAIL"
   | "REQUIRED_FIELD_MISSING"
+  | "FIELD_RULE_NOT_MET"
   | "GLINK_NOT_FOUND";
 
 function warnBadRequest({
@@ -234,26 +260,53 @@ async function observeTrustAdmissionToken(
 }
 
 export async function POST(req: Request) {
-  let body: Record<string, unknown>;
+  const parsedRequest = await readPublicCaseRequest(req);
+  if (!parsedRequest.ok) {
+    return NextResponse.json(
+      { error: parsedRequest.error, code: parsedRequest.code, reasons: parsedRequest.reasons },
+      { status: parsedRequest.status },
+    );
+  }
+  const body = parsedRequest.body;
+  const idempotencyHeader = readPublicCaseIdempotencyKey(req.headers ?? new Headers());
+  if (!idempotencyHeader.ok) {
+    return NextResponse.json(
+      { error: "Invalid idempotency key", code: idempotencyHeader.code },
+      { status: 400 },
+    );
+  }
 
+  let sourceKeyHash: string;
   try {
-    const parsedBody = await req.json();
-
-    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
-      return badRequest({
-        code: "INVALID_REQUEST_BODY",
-        error: "Invalid request body",
-        reasons: ["body_must_be_object"],
-      });
+    sourceKeyHash = pseudonymizePublicRequestSource(getPublicRequestSource(req.headers ?? new Headers()));
+    const sourceLimit = await checkPublicCaseCreationLimit(publicCaseSourceRateLimitEntries(sourceKeyHash));
+    if (!sourceLimit.allowed) {
+      console.warn("public_case_limit_throttled", { dimension: sourceLimit.dimension, key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+      return NextResponse.json(
+        { error: "Trop de tentatives ont été effectuées. Réessayez dans quelques instants.", code: "TOO_MANY_REQUESTS" },
+        { status: 429, headers: { "Retry-After": String(sourceLimit.retryAfterSeconds) } },
+      );
     }
-
-    body = parsedBody as Record<string, unknown>;
   } catch {
-    return badRequest({
-      code: "INVALID_REQUEST_BODY",
-      error: "Invalid request body",
-      reasons: ["invalid_json"],
-    });
+    console.error("public_case_limit_unavailable", { stage: "source", timestamp: new Date().toISOString() });
+    return NextResponse.json(
+      { error: "Service temporairement indisponible.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503, headers: { "Retry-After": "60" } },
+    );
+  }
+
+  let idempotencyKeyHash: string | null = null;
+  let payloadHash: string | null = null;
+  if (idempotencyHeader.key) {
+    try {
+      idempotencyKeyHash = hashPublicCaseIdempotencyKey(idempotencyHeader.key);
+      payloadHash = hashPublicCasePayload(body);
+    } catch {
+      return NextResponse.json(
+        { error: "Service temporairement indisponible.", code: "IDEMPOTENCY_UNAVAILABLE" },
+        { status: 503, headers: { "Retry-After": "60" } },
+      );
+    }
   }
 
   const submittedCandidateEmail =
@@ -308,7 +361,127 @@ export async function POST(req: Request) {
     );
   }
 
-  const submittedFormFields = await getSubmittedCandidateFormFields(formSubmission, body);
+  const submissionNow = new Date();
+  if (!canSubmitToGLink(gLink, submissionNow)) {
+    warnBadRequest({
+      code: "GLINK_NOT_FOUND",
+      gLinkId,
+      reasons: ["gLink_unavailable"],
+    });
+
+    return NextResponse.json(
+      { error: "Link not found", code: "GLINK_NOT_FOUND", reasons: ["gLink_not_found"] },
+      { status: 404 },
+    );
+  }
+
+  try {
+    const targetLimit = await checkPublicCaseCreationLimit(publicCaseTargetRateLimitEntries(
+      pseudonymizePublicRateLimitKey("glink", gLink.id),
+      pseudonymizePublicRateLimitKey("owner", gLink.ownerId),
+    ));
+    if (!targetLimit.allowed) {
+      console.warn("public_case_limit_throttled", { dimension: targetLimit.dimension, key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+      return NextResponse.json(
+        { error: "Trop de tentatives ont été effectuées. Réessayez dans quelques instants.", code: "TOO_MANY_REQUESTS" },
+        { status: 429, headers: { "Retry-After": String(targetLimit.retryAfterSeconds) } },
+      );
+    }
+    console.info("public_case_limit_allowed", { key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+  } catch {
+    console.error("public_case_limit_unavailable", { stage: "target", key: sourceKeyHash.slice(0, 12), timestamp: new Date().toISOString() });
+    return NextResponse.json(
+      { error: "Service temporairement indisponible.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503, headers: { "Retry-After": "60" } },
+    );
+  }
+
+  const resolvedGLinkId = gLink.id;
+  async function claimIdempotencyRequest() {
+    if (!idempotencyKeyHash || !payloadHash) return { kind: "LEGACY" as const };
+    try {
+      const claim = await reservePublicCaseRequest(prisma, { gLinkId: resolvedGLinkId, idempotencyKeyHash, payloadHash });
+      if (claim.kind === "CONFLICT") {
+        return {
+          kind: "RESPONSE" as const,
+          response: NextResponse.json(
+            { error: "Cette clÃ© dâ€™idempotence a dÃ©jÃ  Ã©tÃ© utilisÃ©e.", code: "IDEMPOTENCY_CONFLICT" },
+            { status: 409 },
+          ),
+        };
+      }
+      if (claim.kind === "PENDING") {
+        return {
+          kind: "RESPONSE" as const,
+          response: NextResponse.json(
+            { error: "Cette soumission est encore en cours.", code: "IDEMPOTENCY_PENDING" },
+            { status: 409, headers: { "Retry-After": String(PUBLIC_CASE_IDEMPOTENCY_RETRY_AFTER_SECONDS) } },
+          ),
+        };
+      }
+      if (claim.kind === "COMPLETED") {
+        const relationCase = await prisma.relationCase.findUnique({
+          where: { id: claim.request.relationCaseId! },
+          select: { id: true, gLinkId: true, candidateAccessToken: true },
+        });
+        if (!relationCase || relationCase.gLinkId !== resolvedGLinkId) {
+          return {
+            kind: "RESPONSE" as const,
+            response: NextResponse.json(
+              { error: "Cette soumission ne peut pas Ãªtre rejouÃ©e.", code: "IDEMPOTENCY_INCOMPLETE" },
+              { status: 409 },
+            ),
+          };
+        }
+        return {
+          kind: "RESPONSE" as const,
+          response: await withCandidateCookie(relationCase.candidateAccessToken, resolvedGLinkId, relationCase.id),
+        };
+      }
+      return { kind: "RESERVED" as const, requestId: claim.request.id };
+    } catch {
+      console.error("public_case_idempotency_unavailable", { stage: "reservation", timestamp: new Date().toISOString() });
+      return {
+        kind: "RESPONSE" as const,
+        response: NextResponse.json(
+          { error: "Service temporairement indisponible.", code: "IDEMPOTENCY_UNAVAILABLE" },
+          { status: 503, headers: { "Retry-After": "60" } },
+        ),
+      };
+    }
+  }
+
+  const simpleLinkSubmission = isSimpleLink(gLink.rules);
+  const allSubmittedFormFields = await getSubmittedCandidateFormFields(formSubmission, body);
+  if (formSubmission && !validateExpectedAnswerCount(body, allSubmittedFormFields.length)) {
+    return badRequest({
+      code: "INVALID_REQUEST_BODY",
+      error: "Invalid request body",
+      gLinkId,
+      reasons: ["answers_exceed_template_fields"],
+    });
+  }
+  const submittedFormFields = simpleLinkSubmission
+    ? allSubmittedFormFields.filter((field) => !isSimpleLinkRelationalEmailField(field))
+    : allSubmittedFormFields;
+  if (simpleLinkSubmission && formSubmission) {
+    const ignoredEmailKeys = new Set(
+      allSubmittedFormFields
+        .filter((field) => isSimpleLinkRelationalEmailField(field))
+        .map((field) => field.key),
+    );
+    ignoredEmailKeys.add("email");
+    ignoredEmailKeys.add("candidateEmail");
+    ignoredEmailKeys.add("contactEmail");
+    for (const key of simpleLinkPrivateAnswerKeys) ignoredEmailKeys.add(key);
+    for (const key of ignoredEmailKeys) delete formSubmission.answers[key];
+  }
+  if (simpleLinkSubmission) {
+    candidateEmail = wantsCandidateNotifications
+      ? candidateNotificationEmail
+      : `private-${crypto.randomUUID()}@goodissima.local`;
+    if (candidateName.includes("@goodissima.local")) candidateName = "";
+  }
   const missingSubmittedField = formSubmission
     ? findMissingRequiredCandidateField(submittedFormFields, formSubmission.answers)
     : null;
@@ -319,15 +492,42 @@ export async function POST(req: Request) {
       gLinkId,
     });
   }
+  if (formSubmission) {
+    const ruleIssues = submittedFormFields.flatMap((field) => {
+      const rule = parseSimpleFieldRule(field.validationRules);
+      if (!rule || evaluateSimpleFieldRule(formSubmission.answers[field.key], rule).valid) return [];
+      return [{ field, rule, message: describeSimpleFieldRule(field) }];
+    });
+    const blockingRuleIssue = ruleIssues.find((issue) => issue.rule.mode === "BLOCKING");
+    if (blockingRuleIssue) {
+      return badRequest({
+        code: "FIELD_RULE_NOT_MET",
+        error: `${blockingRuleIssue.message}. Corrigez cette réponse avant l’envoi.`,
+        gLinkId,
+        reasons: ["blocking_field_rule_not_met"],
+      });
+    }
+    const indicativeSignals = ruleIssues
+      .filter((issue) => issue.rule.mode === "INDICATIVE")
+      .map((issue) => `Écart à examiner — ${issue.message}`);
+    if (indicativeSignals.length) {
+      formSubmission.answers.simpleRuleSignals = indicativeSignals;
+    } else {
+      delete formSubmission.answers.simpleRuleSignals;
+    }
+  }
 
   const derivedCandidateFields = deriveCandidateSubmissionFields(formSubmission?.answers ?? {}, {
     candidateName,
-    candidateEmail,
+    candidateEmail: simpleLinkSubmission ? "" : candidateEmail,
     message: messageBody,
   });
-  candidateName = derivedCandidateFields.candidateName;
-  candidateEmail = derivedCandidateFields.candidateEmail.trim().toLowerCase();
+  candidateName = derivedCandidateFields.candidateName || (simpleLinkSubmission ? "Candidat" : "");
+  if (!simpleLinkSubmission) candidateEmail = derivedCandidateFields.candidateEmail.trim().toLowerCase();
   messageBody = derivedCandidateFields.message;
+  const relationActorEmail = simpleLinkSubmission
+    ? `simple-link-actor-${crypto.randomUUID()}@goodissima.local`
+    : candidateEmail;
 
   messageBody = messageBody || (formSubmission
     ? buildHumanReadableFormMessage(submittedFormFields, formSubmission.answers)
@@ -411,28 +611,51 @@ export async function POST(req: Request) {
       );
     }
 
+    const idempotencyClaim = await claimIdempotencyRequest();
+    if (idempotencyClaim.kind === "RESPONSE") return idempotencyClaim.response;
+    if (idempotencyClaim.kind === "RESERVED") {
+      try {
+        await prisma.publicCaseCreationRequest.update({
+          where: { id: idempotencyClaim.requestId },
+          data: { relationCaseId: existingRelationCase.id },
+        });
+      } catch (error) {
+        await prisma.publicCaseCreationRequest.deleteMany({
+          where: { id: idempotencyClaim.requestId, relationCaseId: null },
+        }).catch(() => undefined);
+        throw error;
+      }
+    }
+
     const message = await prisma.message.create({
       data: {
         caseId: existingRelationCase.id,
         senderType: "CANDIDATE",
-        senderEmail: candidateEmail,
+        senderEmail: relationActorEmail,
         body: messageBody,
       },
     });
 
-    await createRelationEvent({
+    const messageEvent = await createRelationEvent({
       caseId: existingRelationCase.id,
       type: "MESSAGE_SENT",
       actorType: "CANDIDATE",
       actorId: "CANDIDATE",
       payload: { existing: true, messageId: message.id },
     });
+    const ownerNotification = await createNotificationOnce({
+      recipientUserId: gLink.ownerId,
+      type: "NEW_MESSAGE",
+      relationCaseId: existingRelationCase.id,
+      sourceEventId: messageEvent?.id,
+      idempotencyKey: messageNotificationKey(message.id, gLink.ownerId),
+    });
 
     if (documentName && documentUrl) {
       const document = await prisma.document.create({
         data: {
           caseId: existingRelationCase.id,
-          uploadedByEmail: candidateEmail,
+          uploadedByEmail: relationActorEmail,
           fileName: documentName,
           fileUrl: documentUrl,
           mimeType: "application/octet-stream",
@@ -450,7 +673,7 @@ export async function POST(req: Request) {
 
     await auditLog({
       caseId: existingRelationCase.id,
-      actorEmail: candidateEmail,
+      actorEmail: relationActorEmail,
       eventType: "MESSAGE_SENT",
       metadata: { existing: true },
     });
@@ -458,7 +681,7 @@ export async function POST(req: Request) {
     if (documentName && documentUrl) {
       await auditLog({
         caseId: existingRelationCase.id,
-        actorEmail: candidateEmail,
+        actorEmail: relationActorEmail,
         eventType: "DOCUMENT_UPLOADED",
         metadata: { fileName: documentName },
       });
@@ -472,26 +695,19 @@ export async function POST(req: Request) {
       });
     }
 
-    if (isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "messages")) {
-      await sendNewMessageEmail({
-        ownerEmail: existingRelationCase.owner.email,
-        candidateEmail,
-        caseId: existingRelationCase.id,
-        caseTitle: existingRelationCase.gLink.title,
-        candidateName: existingRelationCase.candidateName,
-        messageBody,
-      });
-    } else {
-      logNotificationSkipped(existingRelationCase.owner.notificationPreferences, "messages", {
-        caseId: existingRelationCase.id,
-        event: "candidate_message_existing_case",
+    if (idempotencyClaim.kind === "RESERVED") {
+      await prisma.publicCaseCreationRequest.update({
+        where: { id: idempotencyClaim.requestId },
+        data: { status: "COMPLETED" },
       });
     }
+
+    if (ownerNotification.created) await maybeSendNotificationEmail(ownerNotification.notification.id);
 
     if (documentName && documentUrl && isNotificationEnabled(existingRelationCase.owner.notificationPreferences, "documents")) {
       await sendNewDocumentEmail({
         ownerEmail: existingRelationCase.owner.email,
-        candidateEmail,
+        candidateEmail: relationActorEmail,
         caseId: existingRelationCase.id,
         caseTitle: existingRelationCase.gLink.title,
         candidateName: existingRelationCase.candidateName,
@@ -514,7 +730,7 @@ export async function POST(req: Request) {
   });
   const admissionEvaluation = evaluateRelationAdmissionPolicyV1({
     policy: admissionTrustPolicy.policy,
-    candidateEmail,
+    candidateEmail: relationActorEmail,
     candidateConsentAccepted: false,
   });
 
@@ -644,7 +860,12 @@ export async function POST(req: Request) {
     }
   }
 
-  const relationCase = await prisma.$transaction(async (tx) => {
+  const idempotencyClaim = await claimIdempotencyRequest();
+  if (idempotencyClaim.kind === "RESPONSE") return idempotencyClaim.response;
+
+  let creationResult;
+  try {
+    creationResult = await prisma.$transaction(async (tx) => {
     const identitySource = resolvedTrustAdmissionToken
       ? "TRUST_ADMISSION_TOKEN"
       : resolvedCandidateIdentityId
@@ -686,6 +907,13 @@ export async function POST(req: Request) {
         gLink: { select: { title: true } },
       },
     });
+
+    if (idempotencyClaim.kind === "RESERVED") {
+      await tx.publicCaseCreationRequest.update({
+        where: { id: idempotencyClaim.requestId },
+        data: { relationCaseId: createdRelationCase.id },
+      });
+    }
 
     try {
       const candidateCreatedCredential = await issueCandidateCreatedCredentialInTransaction(tx, {
@@ -745,14 +973,38 @@ export async function POST(req: Request) {
       });
     }
 
-    return createdRelationCase;
-  });
+    const caseCreatedEvent = await createRelationEvent({
+      caseId: createdRelationCase.id,
+      type: "CASE_CREATED",
+      actorType: "CANDIDATE",
+      actorId: "CANDIDATE",
+      payload: { gLinkId: gLink.id },
+    }, tx);
+    const ownerNotification = await createNotificationOnce({
+      recipientUserId: gLink.ownerId,
+      type: "NEW_RELATION_CASE",
+      relationCaseId: createdRelationCase.id,
+      sourceEventId: caseCreatedEvent?.id,
+      idempotencyKey: relationCaseNotificationKey(createdRelationCase.id, gLink.ownerId),
+    }, tx);
+
+    return { relationCase: createdRelationCase, ownerNotification };
+    });
+  } catch (error) {
+    if (idempotencyClaim.kind === "RESERVED") {
+      await prisma.publicCaseCreationRequest.deleteMany({
+        where: { id: idempotencyClaim.requestId, relationCaseId: null },
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
+  const { relationCase, ownerNotification } = creationResult;
 
   const message = await prisma.message.create({
     data: {
       caseId: relationCase.id,
       senderType: "CANDIDATE",
-      senderEmail: candidateEmail,
+      senderEmail: relationActorEmail,
       body: messageBody,
     },
   });
@@ -762,7 +1014,7 @@ export async function POST(req: Request) {
       ? await prisma.document.create({
           data: {
             caseId: relationCase.id,
-            uploadedByEmail: candidateEmail,
+            uploadedByEmail: relationActorEmail,
             fileName: documentName,
             fileUrl: documentUrl,
             mimeType: "application/octet-stream",
@@ -772,13 +1024,13 @@ export async function POST(req: Request) {
 
   await auditLog({
     caseId: relationCase.id,
-    actorEmail: candidateEmail,
+    actorEmail: relationActorEmail,
     eventType: "CASE_CREATED",
     metadata: { gLinkId: gLink.id },
   });
   await auditLog({
     caseId: relationCase.id,
-    actorEmail: candidateEmail,
+    actorEmail: relationActorEmail,
     eventType: "MESSAGE_SENT",
     metadata: { initial: true },
   });
@@ -793,7 +1045,7 @@ export async function POST(req: Request) {
   if (document) {
     await auditLog({
       caseId: relationCase.id,
-      actorEmail: candidateEmail,
+      actorEmail: relationActorEmail,
       eventType: "DOCUMENT_UPLOADED",
       metadata: { fileName: documentName },
     });
@@ -814,26 +1066,19 @@ export async function POST(req: Request) {
     });
   }
 
-  if (isNotificationEnabled(relationCase.owner.notificationPreferences, "requests")) {
-    await sendNewRelationCaseEmail({
-      ownerEmail: relationCase.owner.email,
-      candidateEmail,
-      caseId: relationCase.id,
-      caseTitle: relationCase.gLink.title,
-      candidateName: relationCase.candidateName,
-      messageBody,
-    });
-  } else {
-    logNotificationSkipped(relationCase.owner.notificationPreferences, "requests", {
-      caseId: relationCase.id,
-      event: "candidate_case_created",
+  if (idempotencyClaim.kind === "RESERVED") {
+    await prisma.publicCaseCreationRequest.update({
+      where: { id: idempotencyClaim.requestId },
+      data: { status: "COMPLETED" },
     });
   }
+
+  if (ownerNotification.created) await maybeSendNotificationEmail(ownerNotification.notification.id);
 
   if (document && isNotificationEnabled(relationCase.owner.notificationPreferences, "documents")) {
     await sendNewDocumentEmail({
       ownerEmail: relationCase.owner.email,
-      candidateEmail,
+      candidateEmail: relationActorEmail,
       caseId: relationCase.id,
       caseTitle: relationCase.gLink.title,
       candidateName: relationCase.candidateName,

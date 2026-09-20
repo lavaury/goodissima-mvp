@@ -29,7 +29,7 @@ function baseInput(overrides: Partial<DossierSituationInput> = {}): DossierSitua
 test("no name/no email is explicitly non identified", () => {
   const state = resolveCandidateIdentityState({ id: "case-abcdef123456", candidateName: "", candidateEmail: "" });
 
-  assert.equal(state.displayName, "Candidat #123456");
+  assert.equal(state.displayName, "Candidat non identifié");
   assert.equal(state.displayEmail, "Contact non renseigné");
   assert.equal(state.status, "Non identifié");
   assert.equal(state.recommendation, candidateIdentityRecommendation);
@@ -46,7 +46,7 @@ test("name only is partially identified", () => {
 test("email only is partially identified without inventing a name", () => {
   const state = resolveCandidateIdentityState({ id: "case-abcdef", candidateName: "", candidateEmail: "ana@example.test" });
 
-  assert.equal(state.displayName, "Candidat #ABCDEF");
+  assert.equal(state.displayName, "Candidat non identifié");
   assert.equal(state.displayEmail, "ana@example.test");
   assert.equal(state.status, "Partiellement identifié");
 });
@@ -60,6 +60,16 @@ test("full identity is identified", () => {
   assert.equal(state.recommendation, undefined);
 });
 
+test("never exposes a private technical alias as a name or contact", () => {
+  const alias = "private-example@goodissima.local";
+  const state = resolveCandidateIdentityState({ id: "case-private123456", candidateName: alias, candidateEmail: alias });
+
+  assert.equal(state.displayName, "Candidat non identifié");
+  assert.match(state.displayEmail, /^Contact non renseign/);
+  assert.match(state.status, /^Non identifi/);
+  assert.doesNotMatch(`${state.displayName} ${state.displayEmail}`, /private-.*@goodissima\.local/i);
+});
+
 test("orchestrator recommends candidate identification when identity is missing", () => {
   const situation = buildDossierSituation(baseInput({
     candidateIdentity: resolveCandidateIdentityState({ id: "case-abcdef", candidateName: "", candidateEmail: "" }),
@@ -70,11 +80,16 @@ test("orchestrator recommends candidate identification when identity is missing"
   assert.equal(situation.recommendedActionType, "IDENTITY_REQUEST");
 
   const orchestrator = source("components/AIOrchestratorPanel.tsx");
-  assert.match(orchestrator, /Identité candidat/);
-  assert.match(orchestrator, /Demander les coordonnées/);
+  assert.match(orchestrator, /situation\.primary\.title/);
+  assert.match(orchestrator, /situation\.primary\.actionLabel/);
   assert.match(orchestrator, /onRequestCoordinates/);
+
+  const workspace = source("components/AIWorkspace.tsx");
+  assert.match(workspace, /goodissima:prepare-relation-request/);
+  assert.doesNotMatch(workspace, /fetch\(/);
 
   const actions = source("components/RelationActionsPanel.tsx");
   assert.match(actions, /candidateIdentityRequestTitle/);
-  assert.match(actions, /draftOnly/);
+  assert.match(actions, /prepareIdentityRequest/);
+  assert.match(actions, /createOpen/);
 });

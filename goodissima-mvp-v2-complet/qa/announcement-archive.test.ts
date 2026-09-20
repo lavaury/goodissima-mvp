@@ -34,6 +34,7 @@ test("archive action targets the announcement secure link and persists ARCHIVED"
 });
 
 test("archived status is distinct from suspension and has French-first copy", () => {
+  assert.equal(announcementStatusLabel("DRAFT"), "Brouillon");
   assert.equal(announcementStatusLabel("ARCHIVED"), "Archivée");
   assert.equal(announcementStatusLabel("DISABLED"), "Suspendue");
 
@@ -63,17 +64,20 @@ test("active and archived announcement views are mutually exclusive", () => {
   assert.equal(announcementBelongsToView("ACTIVE", "active"), true);
   assert.equal(announcementBelongsToView("DISABLED", "active"), true);
 
-  const opportunities = source("app/opportunities/page.tsx");
-  const dashboard = source("app/dashboard/page.tsx");
+  const opportunities = source("app/(connected)/opportunities/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   const dashboardFilters = source("components/DashboardLinkFilters.tsx");
+  const archiveDefinition = source("lib/archived-opportunity.ts");
   assert.match(opportunities, /view === "archived" \? "ARCHIVED" : \{ not: "ARCHIVED" \}/);
   assert.match(opportunities, /\/opportunities\?view=archived/);
-  assert.match(opportunities, /Les annonces archivées resteront disponibles ici/);
-  assert.match(opportunities, /status:\s*"ARCHIVED"/);
+  assert.match(opportunities, /Les opportunités archivées resteront disponibles ici/);
+  assert.match(archiveDefinition, /status:\s*"ARCHIVED"/);
   assert.match(opportunities, /archivedJourneys/);
-  assert.match(opportunities, /Parcours d'annonce archivé/);
+  assert.match(opportunities, /Opportunité historique archivée/);
   assert.match(opportunities, /totalArchivedCount/);
-  assert.match(dashboard, /where:\s*\{ ownerId: owner\.id \}/);
+  assert.match(opportunities, /getArchivedOpportunitySummaryForOwner\(owner\.id, searchParams\?\.templateId\)/);
+  assert.match(dashboard, /<DashboardHome activity=\{activity\}/);
+  assert.doesNotMatch(dashboard, /getArchivedOpportunitySummaryForOwner|archivedOpportunitySummary/);
   assert.match(dashboardFilters, /item\.status === "ARCHIVED"/);
   assert.match(dashboardFilters, /item\.status !== "ARCHIVED"/);
   assert.match(dashboardFilters, /Aucune annonce archivée\./);

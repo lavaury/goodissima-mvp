@@ -5,15 +5,16 @@ export function ConfirmGovernanceReviewTransitionButton({ nextStatus }: { nextSt
   return (
     <button
       type="submit"
+      data-boussole-id={completing ? "complete-governance-review" : "conduct-governance-review"}
       onClick={(event) => {
         const message = completing
-          ? "Confirmer que cette revue a été conduite humainement ? Aucune notification, réunion ou action automatique ne sera déclenchée."
-          : "Démarrer la conduite humaine de cette revue ? Aucune notification, réunion ou action automatique ne sera déclenchée.";
+          ? "Confirmer que cette décision a été examinée ?"
+          : "Commencer l’examen de cette décision ?";
         if (!window.confirm(message)) event.preventDefault();
       }}
       className="rounded-lg bg-[#247f88] px-3 py-2 text-xs font-bold text-white"
     >
-      {completing ? "Marquer comme conduite" : "Conduire la revue"}
+      {completing ? "Marquer comme examinée" : "Examiner la décision"}
     </button>
   );
 }

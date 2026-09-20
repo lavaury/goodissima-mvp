@@ -81,7 +81,7 @@ export function DocumentUpload({
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5 lg:p-4">
+    <div data-boussole-id="case-document-upload" className="rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5 lg:p-4">
       <h3 className="font-semibold">Ajouter un document</h3>
       <p className="mb-4 text-sm text-slate-500">
         Vos fichiers sont ajoutés dans l'espace sécurisé du dossier. Maximum 10 Mo.

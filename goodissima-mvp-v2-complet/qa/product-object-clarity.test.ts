@@ -27,30 +27,33 @@ test("separates announcement, journey and relation actions", () => {
   const announcement = source("components/AnnouncementActions.tsx");
   assert.match(announcement, /Modifier l'annonce/);
   assert.match(announcement, /Publier l'annonce/);
-  assert.match(announcement, /Créer un lien sécurisé/);
+  assert.match(announcement, /Voir l'annonce publique/);
   assert.match(announcement, /Archiver l'annonce/);
-  const journey = source("app/templates/[templateId]/page.tsx");
+  const journey = source("app/(connected)/templates/[templateId]/page.tsx");
   assert.match(journey, /Modifier le parcours/);
   assert.match(journey, /Analyser le parcours/);
   assert.match(journey, /Optimiser le parcours/);
   assert.match(source("components/TemplateLifecycleActions.tsx"), /Dupliquer le parcours/);
-  const relation = source("components/RelationCaseWorkspace.tsx");
-  for (const label of ["Conversation", "Documents", "Demandes", "Gouvernance", "Assistance IA"]) assert.match(relation, new RegExp(label));
+  const relation = [source("components/RelationCaseWorkspace.tsx"), source("components/DossierWorkspaceTabs.tsx")].join("\n");
+  for (const label of ["Conversation", "Documents", "Demandes", "dossier-panel-details"]) assert.match(relation, new RegExp(label));
 });
 
 test("provides cross navigation between product objects", () => {
-  assert.match(source("app/templates/page.tsx"), /Voir les annonces/);
-  assert.match(source("app/opportunities/page.tsx"), /sourceJourneyHref/);
+  assert.match(source("app/(connected)/templates/page.tsx"), /Voir les annonces/);
+  assert.doesNotMatch(source("app/(connected)/opportunities/page.tsx"), /sourceJourneyHref|ProductLifecycle/);
   assert.match(source("components/LinkCard.tsx"), /Voir le parcours/);
-  assert.match(source("app/relations/page.tsx"), /Voir l'annonce/);
-  assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l'annonce/);
+  assert.match(source("app/(connected)/relations/page.tsx"), /Voir l'annonce/);
+  assert.match(source("components/RelationCaseWorkspace.tsx"), /Voir l&apos;origine/);
 });
 
-test("adds dashboard business-object counts", () => {
-  const dashboard = source("app/dashboard/page.tsx");
-  assert.match(dashboard, /Parcours actifs/);
-  assert.match(dashboard, /Annonces publiées/);
-  assert.match(dashboard, /Relations en cours/);
+test("keeps the dashboard focused on destinations and factual activity", () => {
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
+  const home = source("components/DashboardHome.tsx");
+  assert.match(dashboard, /getDashboardActivity\(owner\.id\)/);
+  assert.match(dashboard, /<DashboardHome activity=\{activity\}/);
+  assert.match(home, /Mes espaces/);
+  assert.match(home, /Activité récente/);
+  assert.doesNotMatch(dashboard, /Parcours actifs|Annonces publiées|Relations en cours/);
 });
 
 test("uses unambiguous voice-compatible vocabulary", () => {

@@ -262,23 +262,10 @@ export async function sendEmail({ to, subject, html, text }: SendEmailInput) {
 
 export async function sendNewMessageEmail({
   ownerEmail,
-  candidateEmail,
   caseId,
   caseTitle,
-  candidateName,
-  messageBody,
-}: TransactionalEmailInput & {
-  candidateEmail?: string;
-  messageBody: string;
-}) {
-  if (sameEmail(ownerEmail, candidateEmail)) {
-    console.info("[owner-email] Skipped candidate message email: sender and recipient match", {
-      caseId,
-    });
-    return { ok: false, skipped: true };
-  }
-
-  const primaryCta = { label: "Accéder à la conversation sécurisée", href: conversationUrl(caseId) };
+}: { ownerEmail: string; caseId: string; caseTitle: string }) {
+  const primaryCta = { label: "Ouvrir le Dossier", href: absoluteUrl(`/cases/${encodeURIComponent(caseId)}`) };
 
   console.info("[owner-email] Sending candidate message email", {
     caseId,
@@ -286,23 +273,17 @@ export async function sendNewMessageEmail({
 
   return sendTransactionalEmail({
     to: ownerEmail,
-    subject: `Nouveau message concernant ${caseTitle}`,
-    title: "Nouveau message candidat",
-    previewText: `Nouveau message concernant ${caseTitle}`,
+    subject: "Nouveau message sur Goodissima",
+    title: "Nouveau message sur Goodissima",
+    previewText: "Vous avez reçu un nouveau message.",
     eyebrow: "Conversation Goodissima",
-    intro: `Nouveau message concernant : ${caseTitle}`,
+    intro: `Vous avez reçu un nouveau message dans votre échange concernant « ${caseTitle} ».`,
     details: [
       { label: "Relation", value: caseTitle },
-      { label: "Candidat", value: candidateName },
-      { label: "Action", value: "Message recu" },
-      { label: "Message", value: truncate(messageBody) },
+      { label: "Action", value: "Nouveau message" },
     ],
     primaryCta,
-    links: [
-      { label: "Consulter votre dossier sécurisé", href: dashboardUrl() },
-      primaryCta,
-      { label: "Ouvrir la relation sécurisée", href: relationUrl(caseId) },
-    ],
+    links: [],
   });
 }
 
@@ -403,23 +384,10 @@ export async function sendNewDocumentEmail({
 
 export async function sendNewRelationCaseEmail({
   ownerEmail,
-  candidateEmail,
   caseId,
   caseTitle,
-  candidateName,
-  messageBody,
-}: TransactionalEmailInput & {
-  candidateEmail?: string;
-  messageBody?: string;
-}) {
-  if (sameEmail(ownerEmail, candidateEmail)) {
-    console.info("[owner-email] Skipped new relation case email: sender and recipient match", {
-      caseId,
-    });
-    return { ok: false, skipped: true };
-  }
-
-  const primaryCta = { label: "Ouvrir le nouveau dossier", href: relationUrl(caseId) };
+}: { ownerEmail: string; caseId: string; caseTitle: string }) {
+  const primaryCta = { label: "Ouvrir le Dossier", href: absoluteUrl(`/cases/${encodeURIComponent(caseId)}`) };
 
   console.info("[owner-email] Sending new relation case email", {
     caseId,
@@ -427,23 +395,17 @@ export async function sendNewRelationCaseEmail({
 
   return sendTransactionalEmail({
     to: ownerEmail,
-    subject: `Nouveau dossier candidat - ${caseTitle}`,
-    title: "Nouveau dossier candidat",
-    previewText: `Nouveau dossier candidat concernant ${caseTitle}`,
+    subject: "Nouvel échange sur Goodissima",
+    title: "Nouvel échange sur Goodissima",
+    previewText: "Une personne a commencé un échange.",
     eyebrow: "Dossier Goodissima",
-    intro: `Un nouveau dossier candidat a ete cree concernant : ${caseTitle}`,
+    intro: `Une personne a commencé un échange concernant « ${caseTitle} ».`,
     details: [
       { label: "Relation", value: caseTitle },
-      { label: "Candidat", value: candidateName },
-      { label: "Action", value: "Nouveau dossier" },
-      { label: "Message", value: messageBody ? truncate(messageBody) : null },
+      { label: "Action", value: "Nouvel échange" },
     ],
     primaryCta,
-    links: [
-      { label: "Consulter votre dossier securise", href: dashboardUrl() },
-      { label: "Acceder a la conversation securisee", href: conversationUrl(caseId) },
-      primaryCta,
-    ],
+    links: [],
   });
 }
 

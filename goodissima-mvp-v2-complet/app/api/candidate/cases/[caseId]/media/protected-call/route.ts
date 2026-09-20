@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { CommunicationChannelType } from "@prisma/client";
 import { activeCandidateAccessWhere } from "@/lib/candidate-access";
 import { prisma } from "@/lib/prisma";
+import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import {
   getOrCreateRelationMediaSession,
   relationMediaChannelTypes,
@@ -39,6 +40,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
         workspaceId: true,
         templateId: true,
         candidateAccessToken: true,
+        governanceStatus: true,
         gLink: {
           select: {
             workspaceId: true,
@@ -50,6 +52,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
     if (!relationCase) {
       return NextResponse.json({ error: "Relation introuvable ou acces candidat invalide." }, { status: 404 });
     }
+    if (!canCandidateWriteInRelation(relationCase.governanceStatus)) return NextResponse.json({ error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) }, { status: 409 });
 
     const workspaceId = relationCase.workspaceId ?? relationCase.gLink?.workspaceId ?? null;
     const session = await getOrCreateRelationMediaSession({

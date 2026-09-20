@@ -9,6 +9,7 @@ import type {
   WorkspaceKind,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getTemplateReadAccess } from "@/lib/relation-template-access";
 import {
   governanceCommunicationChannelLabels,
   governanceCommunicationProviderLabels,
@@ -183,6 +184,7 @@ export async function getGovernanceCockpitConsolidation(input: {
   ownerId: string;
   formTemplateId: string;
 }): Promise<GovernanceCockpitConsolidation | null> {
+  if (!await getTemplateReadAccess({ id: input.ownerId }, input.formTemplateId)) return null;
   const formTemplate = await prisma.formTemplate.findUnique({
     where: { id: input.formTemplateId },
     include: {
@@ -218,12 +220,7 @@ export async function getGovernanceCockpitConsolidation(input: {
   const snapshot = asRecord(latestVersion?.snapshot);
   const metadata = asRecord(snapshot.metadata);
   const creationPlan = asRecord(metadata.creationPlan);
-  const metadataOwnerId = text(metadata.createdById);
   const workspace = formTemplate.relationTemplate.workspace;
-
-  if (metadataOwnerId !== input.ownerId && workspace?.ownerId !== input.ownerId) {
-    return null;
-  }
 
   const participants = participantsFrom(creationPlan.participants ?? creationPlan.actors);
   const participantInvitations = participantInvitationsFrom(metadata.participantInvitations);

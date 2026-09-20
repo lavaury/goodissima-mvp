@@ -21,7 +21,7 @@ export type AIMatchCandidate = {
   profile: AIMatchingProfile;
 };
 
-const cityWords = ["lille", "lyon", "paris", "bordeaux", "nantes", "marseille", "toulouse"];
+const cityWords = ["lille", "lyon", "paris", "bordeaux", "nantes", "marseille", "toulouse", "nice"];
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));

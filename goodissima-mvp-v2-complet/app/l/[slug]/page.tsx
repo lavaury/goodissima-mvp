@@ -17,7 +17,11 @@ import {
 import { prisma } from "@/lib/prisma";
 import CandidateForm from "./candidate-form";
 import { PublicOpportunityCard } from "@/components/PublicOpportunityCard";
+import { PublicSimpleLinkCard } from "@/components/PublicSimpleLinkCard";
 import { normalizePublicFormField } from "@/lib/candidate-form-safety";
+import { isSimpleLinkRelationalEmailField } from "@/lib/simple-link-fields";
+import { projectOpportunity } from "@/lib/opportunities/opportunity-projection";
+import { PublicAutonomousOpportunity } from "@/components/PublicAutonomousOpportunity";
 
 type FieldOption = {
   label: string;
@@ -107,7 +111,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
     include: { owner: true, template: true, templateVersion: true },
   });
 
-  if (!link || link.status !== "ACTIVE") notFound();
+  if (!link || link.status !== "ACTIVE" || (link.expiresAt && link.expiresAt.getTime() < Date.now())) notFound();
 
   const candidateCookie = cookies().get(`goodissima_candidate_${link.id}`)?.value;
 
@@ -123,6 +127,16 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
     if (existingCase) {
       redirect(`/secure/${encodeURIComponent(existingCase.candidateAccessToken)}`);
     }
+  }
+
+  const linkRules = link.rules && typeof link.rules === "object" && !Array.isArray(link.rules)
+    ? link.rules as Record<string, unknown>
+    : {};
+  const autonomousOpportunity = projectOpportunity(link);
+  if (autonomousOpportunity && !autonomousOpportunity.legacy && !autonomousOpportunity.hasGovernedJourney) {
+    return <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <PublicAutonomousOpportunity gLinkId={link.id} title={link.title} description={link.description} projection={autonomousOpportunity} />
+    </main>;
   }
 
   const relationTemplate = link.template ?? (await getRelationTemplateForLink(null));
@@ -157,13 +171,17 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
           step: field.step,
           options: parseFieldOptions(field.options),
           conditionalRules: parseConditionalRules(field.conditionalRules),
+          validationRules: field.validationRules,
         }))
       : defaultFields;
+  const isSimpleLink = linkRules.simpleLink === true;
   const candidateFields = localizeTemplateFields(templateKey, candidateFieldsSource, locale)
-    .map((field) => normalizePublicFormField(field));
+    .map((field) => normalizePublicFormField(field))
+    .filter((field) => !isSimpleLink || !isSimpleLinkRelationalEmailField(field));
   const presentation = snapshot?.metadata.opportunityPresentation && typeof snapshot.metadata.opportunityPresentation === "object" && !Array.isArray(snapshot.metadata.opportunityPresentation)
     ? snapshot.metadata.opportunityPresentation as Record<string, unknown>
     : {};
+  const welcomeMessage = typeof linkRules.welcomeMessage === "string" ? linkRules.welcomeMessage : "";
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -173,14 +191,25 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         </p>
       </div>
 
-      <PublicOpportunityCard title={link.title} city={link.city} description={link.description} presentation={presentation} />
+      {isSimpleLink ? (
+        <PublicSimpleLinkCard title={link.title} description={link.description} welcomeMessage={welcomeMessage} expiresAt={link.expiresAt} />
+      ) : (
+        <PublicOpportunityCard title={link.title} city={link.city} description={link.description} presentation={presentation} />
+      )}
+      {!isSimpleLink && welcomeMessage ? (
+        <p className="mt-6 rounded-2xl border border-teal-100 bg-teal-50 px-5 py-4 text-sm leading-relaxed text-teal-950">
+          {welcomeMessage}
+        </p>
+      ) : null}
 
       <div id="respond" className="mt-8 rounded-3xl border bg-white p-8 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
           {getDefaultSecureConversationCopy("contactEyebrow", locale)}
         </p>
 
-        <h2 className="mt-3 text-2xl font-bold">Répondre à cette annonce</h2>
+        <h2 className="mt-3 text-2xl font-bold">
+          {isSimpleLink ? "Répondre via ce lien sécurisé" : "Répondre à cette annonce"}
+        </h2>
 
         <div className="mt-8 rounded-2xl bg-slate-50 p-5">
           <h2 className="font-semibold">{getDefaultSecureConversationCopy("onboardingTitle", locale)}</h2>
@@ -188,6 +217,10 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
             {getDefaultSecureConversationCopy("onboardingText", locale)}
           </p>
         </div>
+
+        <p className="mt-6 text-sm text-slate-600">
+          Les champs marqués d’un astérisque sont requis. Tous les autres champs sont facultatifs.
+        </p>
 
         <CandidateForm
           gLinkId={link.id}

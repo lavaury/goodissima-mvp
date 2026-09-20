@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
-import { extractMatchingProfile, rankMatches } from "@/lib/ai/matching";
+import { rankMatches } from "@/lib/ai/matching";
 import { deterministicEmbedding } from "@/lib/ai/embeddings";
 import { getStoredCaseEmbedding, semanticMatchV2, semanticVectorSearch } from "@/lib/ai/semantic-matching";
 import { prisma } from "@/lib/prisma";
+import { matchingProfileFromSource } from "@/lib/ai/relational-matching-source";
 
 export async function POST(_req: Request, { params }: { params: { caseId: string } }) {
   try {
@@ -15,7 +16,7 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
         matchingEnabled: true,
         embeddingStatus: true,
         candidateName: true,
-        gLink: { select: { title: true } },
+        gLink: { select: { id: true, title: true } },
         template: { select: { key: true, name: true, aiInstructions: true } },
         messages: { orderBy: { createdAt: "asc" }, take: 20, select: { body: true } },
         documents: { orderBy: { createdAt: "desc" }, take: 10, select: { fileName: true } },
@@ -27,10 +28,10 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       return NextResponse.json({ error: "MATCHING_DISABLED" }, { status: 409 });
     }
 
-    const sourceProfile = extractMatchingProfile({
-      templateKey: relationCase.template?.key,
-      templateName: relationCase.template?.name,
-      title: relationCase.gLink.title,
+    const sourceProfile = matchingProfileFromSource({
+      sourceType: "RELATION_CASE", sourceId: relationCase.id, relationCaseId: relationCase.id,
+      gLinkId: relationCase.gLink.id, ownerId: owner.id, title: relationCase.gLink.title,
+      templateKey: relationCase.template?.key, templateName: relationCase.template?.name,
       messages: relationCase.messages.map((message) => message.body),
       documents: relationCase.documents.map((document) => document.fileName),
       aiInstructions: relationCase.template?.aiInstructions,
@@ -46,7 +47,7 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
       select: {
         id: true,
         candidateName: true,
-        gLink: { select: { title: true } },
+        gLink: { select: { id: true, title: true } },
         template: { select: { key: true, name: true, aiInstructions: true } },
         messages: { orderBy: { createdAt: "asc" }, take: 20, select: { body: true } },
         documents: { orderBy: { createdAt: "desc" }, take: 10, select: { fileName: true } },
@@ -59,10 +60,10 @@ export async function POST(_req: Request, { params }: { params: { caseId: string
         id: candidate.id,
         pseudonym: `Relation compatible ${index + 1}`,
         templateKey: candidate.template?.key ?? null,
-        profile: extractMatchingProfile({
-          templateKey: candidate.template?.key,
-          templateName: candidate.template?.name,
-          title: candidate.gLink.title,
+        profile: matchingProfileFromSource({
+          sourceType: "RELATION_CASE", sourceId: candidate.id, relationCaseId: candidate.id,
+          gLinkId: candidate.gLink.id, ownerId: owner.id, title: candidate.gLink.title,
+          templateKey: candidate.template?.key, templateName: candidate.template?.name,
           messages: candidate.messages.map((message) => message.body),
           documents: candidate.documents.map((document) => document.fileName),
           aiInstructions: candidate.template?.aiInstructions,

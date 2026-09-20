@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 test("dashboard surfaces compact Champagne card behind admin or tester roles", () => {
-  const dashboard = source("app/dashboard/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   const card = source("components/ChampagneDashboardCard.tsx");
 
   assert.match(dashboard, /ChampagneDashboardCard/);
@@ -21,7 +21,7 @@ test("dashboard surfaces compact Champagne card behind admin or tester roles", (
 });
 
 test("administration keeps the full Champagne panel behind the same role gate", () => {
-  const administration = source("app/administration/page.tsx");
+  const administration = source("app/(connected)/administration/page.tsx");
   const roles = source("lib/champagne-workspace.ts");
 
   assert.match(administration, /ChampagneScenariosPanel/);

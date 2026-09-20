@@ -1,3 +1,4 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -9,6 +10,8 @@ import { parseTemplateSnapshot } from "@/lib/template-snapshots";
 export async function POST(req: Request, { params }: { params: { templateId: string } }) {
   try {
     const owner = await getCurrentPrismaUser();
+    const access = await getTemplateMutationAccess(owner, params.templateId);
+    if (!access) return templateMutationNotFound();
     const body = await req.json();
     const sourceVersionId = typeof body.sourceVersionId === "string" ? body.sourceVersionId : "";
     const reason = typeof body.reason === "string" && body.reason.trim() ? body.reason.trim().slice(0, 1000) : null;

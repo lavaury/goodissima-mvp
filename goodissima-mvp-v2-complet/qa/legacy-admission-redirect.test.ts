@@ -38,5 +38,5 @@ test("legacy confirmation never trusts an admission query token directly", () =>
 
 test("owner new-case email receives the created RelationCase id", () => {
   const route = source("app/api/cases/route.ts");
-  assert.match(route, /sendNewRelationCaseEmail\(\{[\s\S]*caseId: relationCase\.id,/);
+  assert.match(route, /maybeSendNotificationEmail\(ownerNotification\.notification\.id\)/);
 });

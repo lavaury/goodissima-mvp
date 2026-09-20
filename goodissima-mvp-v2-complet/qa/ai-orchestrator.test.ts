@@ -6,14 +6,17 @@ function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("AI workspace exposes dossier situation as the default entry point", () => {
+test("AI workspace exposes one compact dossier situation before the analysis", () => {
   const workspace = source("components/AIWorkspace.tsx");
+  const orchestrator = source("components/AIOrchestratorPanel.tsx");
   assert.match(workspace, /AIOrchestratorPanel/);
-  assert.match(workspace, /id: "orchestrator", label: "Situation du dossier"/);
-  assert.match(workspace, /useState<WorkspaceTab>\("orchestrator"\)/);
-  assert.match(workspace, /<h2 className="text-lg font-semibold text-\[#2f3437\]">Situation du dossier<\/h2>/);
-  assert.match(workspace, /WorkspaceOperationalStatusBadge situation=\{situation\}/);
-  assert.match(workspace, /Résumé de l'état du dossier et actions recommandées/);
+  assert.match(workspace, /useState<WorkspaceTab>\("details"\)/);
+  assert.match(workspace, /useState\(false\)/);
+  assert.match(workspace, /hidden=\{!analysisOpen\}/);
+  assert.equal((orchestrator.match(/À faire maintenant/g) ?? []).length, 1);
+  assert.match(orchestrator, /situation\.primary\.title/);
+  assert.match(orchestrator, /situation\.followUps/);
+  assert.doesNotMatch(orchestrator, /Repères importants/);
 });
 
 test("end-user AI workspace labels do not expose orchestration vocabulary", () => {
@@ -24,8 +27,7 @@ test("end-user AI workspace labels do not expose orchestration vocabulary", () =
   assert.doesNotMatch(visibleSources, /Chef d'orchestre IA/);
   assert.doesNotMatch(visibleSources, /Chef d'orchestre"/);
   assert.doesNotMatch(visibleSources, /Orchestrateur/i);
-  assert.match(orchestrator, /Situation du dossier/);
-  assert.match(orchestrator, /Résumé de l'état du dossier et actions recommandées/);
+  assert.match(orchestrator, /À faire maintenant/);
 });
 
 test("orchestrator opens existing AI modules instead of duplicating feature logic", () => {
@@ -39,14 +41,57 @@ test("orchestrator opens existing AI modules instead of duplicating feature logi
   assert.match(workspace, /AIDraftAssistantPanel caseId=\{caseId\} workspace/);
 });
 
-test("orchestrator presents the five requested capabilities", () => {
-  const orchestrator = source("components/AIOrchestratorPanel.tsx");
+test("detailed analysis keeps every historical capability accessible", () => {
+  const workspace = source("components/AIWorkspace.tsx");
   for (const label of ["Résumé IA", "Timeline IA", "Signaux IA", "Matching", "Brouillons IA"]) {
-    assert.match(orchestrator, new RegExp(label));
+    assert.match(workspace, new RegExp(label));
   }
-  assert.match(orchestrator, /Sortie attendue/);
-  assert.match(orchestrator, /Opt-in requis/);
-  assert.match(orchestrator, /onOpenModule\(step\.id\)/);
+  assert.match(workspace, /AISituationDetails/);
+  assert.match(workspace, /MatchingPanel/);
+  assert.match(workspace, /setAnalysisOpen\(true\)/);
+});
+
+test("analysis uses vertical accordions without horizontal navigation", () => {
+  const workspace = source("components/AIWorkspace.tsx");
+  const orchestrator = source("components/AIOrchestratorPanel.tsx");
+  assert.doesNotMatch(workspace, /role="tablist"/);
+  assert.doesNotMatch(workspace, /overflow-x-auto/);
+  assert.match(workspace, /accordions\.map/);
+  for (const label of ["Informations de situation", "Résumé IA", "Timeline IA", "Signaux IA", "Brouillons IA"]) {
+    assert.match(workspace, new RegExp(label));
+  }
+  assert.match(workspace, /space-y-2/);
+  assert.match(workspace, /setActiveTab\(accordion\.id\)/);
+});
+
+test("analysis disclosure and accordions are keyboard and screen-reader understandable", () => {
+  const workspace = source("components/AIWorkspace.tsx");
+  const orchestrator = source("components/AIOrchestratorPanel.tsx");
+  assert.match(orchestrator, /type="button"/);
+  assert.match(orchestrator, /aria-expanded=\{analysisOpen\}/);
+  assert.match(orchestrator, /aria-controls="ai-workspace-analysis"/);
+  assert.match(orchestrator, /Voir l’analyse/);
+  assert.match(workspace, /id="ai-workspace-analysis"/);
+  assert.match(workspace, /aria-expanded=\{open\}/);
+  assert.match(workspace, /aria-controls=\{panelId\}/);
+  assert.match(workspace, /role="region"/);
+  assert.match(workspace, /aria-labelledby=\{buttonId\}/);
+});
+
+test("analysis is closed by default and opening an accordion does not call AI", () => {
+  const workspace = source("components/AIWorkspace.tsx");
+  assert.match(workspace, /useState\(false\)/);
+  assert.match(workspace, /hidden=\{!analysisOpen\}/);
+  assert.match(workspace, /onClick=\{\(\) => setActiveTab\(accordion\.id\)\}/);
+  assert.doesNotMatch(workspace, /onClick=\{\(\) => (?:void )?(?:fetch|generate|analy)/);
+});
+
+test("primary action button uses the deterministic action label", () => {
+  const orchestrator = source("components/AIOrchestratorPanel.tsx");
+  assert.match(orchestrator, /situation\.primary\.actionLabel/);
+  assert.match(orchestrator, /situation\.primary\.actionType/);
+  assert.doesNotMatch(orchestrator, /Préparer cette action/);
+  assert.match(orchestrator, /Résumer le dossier/);
 });
 
 test("orchestrator keeps human validation and governance constraints explicit", () => {
@@ -58,4 +103,5 @@ test("orchestrator keeps human validation and governance constraints explicit", 
   assert.match(orchestrator, /audit et l'observabilité existants/);
   assert.doesNotMatch(orchestrator, /fetch\(/);
   assert.doesNotMatch(orchestrator, /router\.push/);
+  assert.doesNotMatch(source("components/AIWorkspace.tsx"), /fetch\(/);
 });

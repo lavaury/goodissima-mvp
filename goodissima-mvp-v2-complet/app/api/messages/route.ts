@@ -3,10 +3,11 @@ import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { auditLog } from "@/lib/audit";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { resolveCandidateSecureAccess } from "@/lib/candidate-access";
-import { sendNewMessageEmail, sendOwnerMessageToCandidateEmail } from "@/lib/email";
+import { sendOwnerMessageToCandidateEmail } from "@/lib/email";
 import { enqueueEmbeddingJob } from "@/lib/ai/embedding-jobs";
 import { createRelationEvent } from "@/lib/events";
-import { isNotificationEnabled, logNotificationSkipped } from "@/lib/privacy";
+import { createNotificationOnce, messageNotificationKey } from "@/lib/notification-repository";
+import { maybeSendNotificationEmail } from "@/lib/notification-email";
 import { prisma } from "@/lib/prisma";
 import { canWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 import { secureTokenHash, secureTrace } from "@/lib/secure-trace";
@@ -36,6 +37,7 @@ async function resolveCaseForAccess(params: {
       where: { id: access.id },
       select: {
         id: true,
+        ownerId: true,
         candidateAccessToken: true,
         candidateAccessExpiresAt: true,
         candidateAccessRevokedAt: true,
@@ -62,6 +64,7 @@ async function resolveCaseForAccess(params: {
     where: { id: params.caseId, ownerId: owner.id },
     select: {
       id: true,
+      ownerId: true,
       candidateAccessToken: true,
       candidateAccessExpiresAt: true,
       candidateAccessRevokedAt: true,
@@ -132,27 +135,39 @@ export async function POST(req: Request) {
       ? relationCase.owner.email
       : relationCase.candidateEmail || `candidate-access:${relationCase.id}`;
 
-  const message = await prisma.message.create({
-    data: {
+  const { message, ownerNotification } = await prisma.$transaction(async (tx) => {
+    const createdMessage = await tx.message.create({
+      data: {
+        caseId: relationCase.id,
+        senderType: body.senderType,
+        senderEmail,
+        body: body.body,
+      },
+    });
+
+    const messageEvent = await createRelationEvent({
       caseId: relationCase.id,
-      senderType: body.senderType,
-      senderEmail,
-      body: body.body,
-    },
+      type: "MESSAGE_SENT",
+      actorType: body.senderType,
+      actorId: body.senderType,
+      payload: { messageId: createdMessage.id },
+    }, tx);
+
+    const ownerNotification = body.senderType === "CANDIDATE" ? await createNotificationOnce({
+        recipientUserId: relationCase.ownerId,
+        type: "NEW_MESSAGE",
+        relationCaseId: relationCase.id,
+        sourceEventId: messageEvent?.id,
+        idempotencyKey: messageNotificationKey(createdMessage.id, relationCase.ownerId),
+      }, tx) : null;
+
+    return { message: createdMessage, ownerNotification };
   });
 
   await auditLog({
     caseId: relationCase.id,
     actorEmail: senderEmail,
     eventType: "MESSAGE_SENT",
-  });
-
-  await createRelationEvent({
-    caseId: relationCase.id,
-    type: "MESSAGE_SENT",
-    actorType: body.senderType,
-    actorId: body.senderType,
-    payload: { messageId: message.id },
   });
 
   await enqueueEmbeddingJob({ relationCaseId: relationCase.id, triggerType: "message_created" });
@@ -164,26 +179,7 @@ export async function POST(req: Request) {
   }
 
   if (body.senderType === "CANDIDATE") {
-    if (isNotificationEnabled(relationCase.owner.notificationPreferences, "messages")) {
-      console.info("[owner-email] New candidate message email trigger", {
-        caseId: relationCase.id,
-        hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
-      });
-
-      await sendNewMessageEmail({
-        ownerEmail: relationCase.owner.email,
-        candidateEmail: relationCase.candidateEmail,
-        caseId: relationCase.id,
-        caseTitle: relationCase.gLink.title,
-        candidateName: relationCase.candidateName,
-        messageBody: message.body,
-      });
-    } else {
-      logNotificationSkipped(relationCase.owner.notificationPreferences, "messages", {
-        caseId: relationCase.id,
-        event: "candidate_message",
-      });
-    }
+    if (ownerNotification?.created) await maybeSendNotificationEmail(ownerNotification.notification.id);
   }
 
   const candidateAccessIsActive =

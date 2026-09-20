@@ -97,15 +97,15 @@ test("restricts feedback review to product administration roles", () => {
   assert.equal(canAccessFeedbackAdmin("OWNER"), false);
   assert.equal(canAccessFeedbackAdmin(null), false);
 
-  assert.match(source("app/administration/feedback/page.tsx"), /canAccessFeedbackAdmin\(owner\.role\)/);
+  assert.match(source("app/(connected)/administration/feedback/page.tsx"), /canAccessFeedbackAdmin\(owner\.role\)/);
   assert.match(source("app/api/admin/feedback/export/route.ts"), /canAccessFeedbackAdmin\(owner\.role\)/);
   assert.match(source("app/api/admin/feedback/[feedbackId]/route.ts"), /canAccessFeedbackAdmin\(owner\.role\)/);
   assert.match(source("app/api/admin/feedback/attachments/[attachmentId]/file/route.ts"), /canAccessFeedbackAdmin\(owner\.role\)/);
 });
 
 test("adds Administration feedback review UI", () => {
-  const page = source("app/administration/feedback/page.tsx");
-  const administration = source("app/administration/page.tsx");
+  const page = source("app/(connected)/administration/feedback/page.tsx");
+  const administration = source("app/(connected)/administration/page.tsx");
   assert.match(page, /Revue des retours produit/);
   assert.match(page, /Tous les types/);
   assert.match(page, /Tous les statuts/);

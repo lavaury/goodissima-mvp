@@ -4,6 +4,7 @@ import { getLiveKitConfigStatus } from "@/lib/media/livekit-config";
 import { createLiveKitParticipantToken } from "@/lib/media/livekit-token-service";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateLiveKitRelationMediaSession } from "@/lib/relation-media-sessions";
+import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 function normalizeBody(value: unknown): { candidateAccessToken?: unknown } {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -22,10 +23,12 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
         workspaceId: true,
         templateId: true,
         candidateName: true,
+        governanceStatus: true,
         gLink: { select: { workspaceId: true } },
       },
     });
     if (!relationCase) return NextResponse.json({ error: "Relation introuvable ou acces candidat invalide." }, { status: 404 });
+    if (!canCandidateWriteInRelation(relationCase.governanceStatus)) return NextResponse.json({ error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) }, { status: 409 });
     if (!getLiveKitConfigStatus().configured) {
       return NextResponse.json({ error: "La salle securisee n'est pas disponible pour le moment." }, { status: 503 });
     }

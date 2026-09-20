@@ -57,7 +57,7 @@ test("preserves governance and prevents hidden automation", () => {
 });
 
 test("keeps technical journey details behind the advanced view", () => {
-  const source = readFileSync(new URL("../app/templates/[templateId]/page.tsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../app/(connected)/templates/[templateId]/page.tsx", import.meta.url), "utf8");
   assert.match(source, /searchParams\?\.advanced === "1"/);
   assert.match(source, /Ouvrir la vue avancée du parcours/);
 });
@@ -69,7 +69,7 @@ test("renders the public announcement before the response form", () => {
 });
 
 test("prefills secure-link fields from the selected announcement", () => {
-  const source = readFileSync(new URL("../app/links/new/NewLinkForm.tsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../app/(connected)/links/new/NewLinkForm.tsx", import.meta.url), "utf8");
   assert.match(source, /announcementTitle/);
   assert.match(source, /announcementCity/);
   assert.match(source, /announcementDescription/);
