@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { PageNavigationContext } from "@/components/SpatialNavigationContext";
-import { navigationWorkspaceSelect } from "@/lib/spatial-navigation";
+import { navigationWorkspaceSelect, objectBreadcrumb } from "@/lib/spatial-navigation";
 import { notFound, redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
@@ -231,7 +231,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <PageNavigationContext pathname={`/links/${encodeURIComponent(link.id)}`} items={[{ label: "Accueil", href: "/dashboard" }, { label: "Mes espaces", href: "/spaces" }, { label: link.title }]} />
+      <PageNavigationContext pathname={`/links/${encodeURIComponent(link.id)}`} items={objectBreadcrumb({ name: link.title, fallback: objectLabel, objectId: link.id, ownerId: owner.id, workspace: link.workspace })} />
       <HistoryBackButton />
       <header className="mt-4">
         <p className="text-sm font-bold uppercase tracking-wider text-[#247f88]">{objectLabel}</p>

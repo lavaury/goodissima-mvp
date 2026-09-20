@@ -1,5 +1,7 @@
 import { RelationCaseWorkspace } from "@/components/RelationCaseWorkspace";
 import { PageNavigationContext } from "@/components/SpatialNavigationContext";
+import type { RelationCaseOriginKind } from "@/components/RelationCaseWorkspace";
+import { classifyGLink, classifyRelationTemplate } from "@/lib/business-object-classification";
 import { navigationWorkspaceSelect, objectBreadcrumb } from "@/lib/spatial-navigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { resolveCanonicalOwnerRelationCaseId } from "@/lib/canonical-relation-case";
@@ -26,7 +28,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
     prisma.relationCase.findFirst({
     where: { id: params.caseId, ownerId: owner.id },
     include: {
-      gLink: true,
+      gLink: { include: { templateVersion: { select: { snapshot: true } } } },
       workspace: {
         select: {
           ...navigationWorkspaceSelect,
@@ -88,6 +90,14 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
 
   if (!item) notFound();
 
+  const linkKind = classifyGLink(item.gLink.rules);
+  const originKind: RelationCaseOriginKind = linkKind === "SIMPLE_LINK"
+    ? "SIMPLE_LINK"
+    : linkKind === "MODERN_OPPORTUNITY" ||
+      (item.gLink.templateVersion && classifyRelationTemplate(item.gLink.templateVersion.snapshot) === "LEGACY_OPPORTUNITY")
+      ? "OPPORTUNITY"
+      : "UNKNOWN";
+
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
 
   return (
@@ -95,6 +105,7 @@ export default async function CaseDetailPage({ params }: { params: { caseId: str
     <PageNavigationContext pathname={`/cases/${encodeURIComponent(item.id)}`} items={objectBreadcrumb({ name: item.gLink.title, fallback: "Dossier relationnel", objectId: item.id, ownerId: owner.id, workspace: item.workspace })} />
     <RelationCaseWorkspace
       item={item}
+      originKind={originKind}
       senderType="OWNER"
       organizationName={organizationName}
       debugMode={debugMode}

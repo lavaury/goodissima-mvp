@@ -39,6 +39,8 @@ import type {
 import Image from "next/image";
 import { isSimpleLink } from "@/lib/simple-link-fields";
 
+export type RelationCaseOriginKind = "OPPORTUNITY" | "SIMPLE_LINK" | "UNKNOWN";
+
 type RelationCaseWorkspaceItem = {
   id: string;
   candidateAccessToken: string;
@@ -555,6 +557,7 @@ function getActivityEvents(item: RelationCaseWorkspaceItem): ActivityEvent[] {
 
 export function RelationCaseWorkspace({
   item,
+  originKind = "UNKNOWN",
   senderType,
   candidateAccessToken,
   organizationName,
@@ -562,6 +565,7 @@ export function RelationCaseWorkspace({
   workspaceOptions = [],
 }: {
   item: RelationCaseWorkspaceItem;
+  originKind?: RelationCaseOriginKind;
   senderType: "OWNER" | "CANDIDATE";
   candidateAccessToken?: string;
   organizationName?: string | null;
@@ -641,7 +645,7 @@ export function RelationCaseWorkspace({
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-[#d6e7e8] bg-white p-4 text-sm">
         <span>Issu de : <strong>{item.gLink.title}</strong></span>
-        <Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">Voir l&apos;origine</Link>
+        <Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">{originKind === "OPPORTUNITY" ? "Voir l'annonce" : originKind === "SIMPLE_LINK" ? "Voir le lien" : "Voir l'origine"}</Link>
       </div>
       {!isCandidateView ? (
         <details hidden data-dossier-tab-content="details" data-dossier-section="origin" data-boussole-disclosure="navigation" className="group mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">
