@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 async function scopedMeeting(formData: FormData) {
   const owner = await getCurrentPrismaUser();
   const formTemplateId = String(formData.get("formTemplateId") ?? "");
   const communicationSessionId = String(formData.get("communicationSessionId") ?? "");
-  const form = await prisma.formTemplate.findFirst({ where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } }, select: { relationTemplateId: true } });
-  const session = form?.relationTemplateId ? await prisma.communicationSession.findFirst({ where: { id: communicationSessionId, ownerId: owner.id, relationTemplateId: form.relationTemplateId } }) : null;
+  const scope = await resolveOwnedGovernedJourney(prisma, { formTemplateId, authorityUserId: owner.id });
+  const session = scope ? await prisma.communicationSession.findFirst({ where: { id: communicationSessionId, ownerId: owner.id, relationTemplateId: scope.relationTemplateId } }) : null;
   if (!session) throw new Error("Réunion indisponible.");
   return { owner, formTemplateId, session };
 }

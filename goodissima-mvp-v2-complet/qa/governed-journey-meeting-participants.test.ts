@@ -57,7 +57,8 @@ test("participants et date sont des actions visibles sans faux RSVP", () => {
 test("ajout et retrait restent gardés côté serveur et verrouillés après terminaison", () => {
   const actions = readFileSync(new URL("../lib/governed-meeting-participant-actions.ts", import.meta.url), "utf8");
   assert.match(actions, /ownerId: owner\.id/);
-  assert.match(actions, /session\.relationTemplateId !== form\.relationTemplateId/);
+  assert.match(actions, /resolveOwnedGovernedJourney\(prisma, \{ formTemplateId, authorityUserId: owner\.id \}\)/);
+  assert.match(actions, /session\.relationTemplateId !== scope\.relationTemplateId/);
   assert.match(actions, /COMPLETED.*CANCELLED/);
   assert.match(actions, /status: "AUTHORIZED"/);
   assert.match(actions, /status: "REMOVED"/);

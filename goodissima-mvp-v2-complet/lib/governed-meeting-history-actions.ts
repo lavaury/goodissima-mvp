@@ -5,6 +5,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { hasCurrentJourneyAccess } from "@/lib/governed-journey-consent";
 import { createPendingMeetingRsvp } from "@/lib/governed-meeting-rsvp";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 export async function reusePastGovernedMeetingAction(formData: FormData) {
   const owner = await getCurrentPrismaUser();
@@ -18,12 +19,9 @@ export async function reusePastGovernedMeetingAction(formData: FormData) {
   const selectedInvitationIds = [...new Set(formData.getAll("invitationIds").map(String).filter(Boolean))];
   if (!formTemplateId || !sourceSessionId || !title || !scheduledAtInput || Number.isNaN(scheduledAt.getTime())) throw new Error("Le titre et la nouvelle date sont obligatoires.");
 
-  const form = await prisma.formTemplate.findFirst({
-    where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } },
-    select: { relationTemplate: { select: { id: true, workspaceId: true } } },
-  });
-  if (!form?.relationTemplate) throw new Error("Parcours gouverné introuvable.");
-  const relationTemplate = form.relationTemplate;
+  const scope = await resolveOwnedGovernedJourney(prisma, { formTemplateId, authorityUserId: owner.id });
+  if (!scope || scope.status === "CLOSED" || scope.status === "CANCELLED") throw new Error("Parcours gouverné introuvable.");
+  const relationTemplate = { id: scope.relationTemplateId, workspaceId: scope.workspaceId };
 
   const source = await prisma.communicationSession.findFirst({
     where: { id: sourceSessionId, ownerId: owner.id, relationTemplateId: relationTemplate.id, relationCaseId: null },

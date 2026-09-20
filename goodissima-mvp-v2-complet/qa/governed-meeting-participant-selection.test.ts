@@ -246,6 +246,7 @@ function runtimeFixture(options: { revoked?: boolean; materialized?: boolean; cr
     "@/lib/governed-journey-consent": { hasCurrentJourneyAccess },
     "@/lib/governed-meeting-rsvp": { createPendingMeetingRsvp: async () => { writes.rsvps += 1; return {}; } },
     "@/lib/governed-meeting-participant-selection": selectionDomain,
+    "@/lib/governed-journey-authority": { resolveOwnedGovernedJourney: async (_client: unknown, input: { authorityUserId: string }) => options.crossOwner || input.authorityUserId !== "owner" ? null : { id: "journey", relationTemplateId: "template", workspaceId: null } },
     "@/lib/prisma": { prisma },
   });
   return { actionsModule, writes };

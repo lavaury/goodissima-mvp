@@ -5,6 +5,7 @@ import { createJourneyInvitationToken, hashJourneyInvitationToken } from "@/lib/
 import { prisma } from "@/lib/prisma";
 import { expectedRolesFromSnapshot } from "@/lib/governed-journey-expected-roles";
 import { releaseUnavailableExpectedRoleAssignment } from "@/lib/governed-journey-role-assignments";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 const roles = new Set(["EXPERT", "JUDGE", "THIRD_PARTY", "ASSOCIATION", "FAMILY", "OBSERVER", "OTHER"]);
 
@@ -21,10 +22,12 @@ export async function POST(request: Request) {
   const relationCaseId = typeof body.relationCaseId === "string" && body.relationCaseId.trim() ? body.relationCaseId.trim() : null;
   const role = roles.has(body.role) ? body.role : "OTHER";
   const expiresInDays = Math.min(30, Math.max(1, Number(body.expiresInDays) || 7));
-  const form = await prisma.formTemplate.findFirst({
-    where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } },
-    select: { relationTemplate: { select: { id: true, workspaceId: true, governedJourney: { where: { authorityUserId: owner.id, status: { notIn: ["CLOSED", "CANCELLED"] } }, take: 1, select: { id: true } }, versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } } } } },
-  });
+  const scope = await resolveOwnedGovernedJourney(prisma, { formTemplateId, authorityUserId: owner.id });
+  const form = scope && scope.status !== "CLOSED" && scope.status !== "CANCELLED"
+    ? await prisma.formTemplate.findUnique({
+        where: { id: formTemplateId },
+        select: { relationTemplate: { select: { id: true, workspaceId: true, versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } } } } },
+      }) : null;
   const directoryProfile = directoryPublicId
     ? await prisma.directoryProfile.findFirst({
         where: { publicId: directoryPublicId, status: "PUBLISHED", deletedAt: null, actorType: "PERSON", subjectIdentity: { user: { isNot: null } } },
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
   }
   if (expectedRoleId && !expectedRole) return NextResponse.json({ error: "Rôle attendu inconnu pour ce parcours." }, { status: 400 });
   const relationTemplate = form.relationTemplate;
-  const governedJourney = relationTemplate.governedJourney?.[0];
+  const governedJourney = scope;
   if (expectedRoleId && !governedJourney) return NextResponse.json({ error: "Parcours gouverné indisponible pour cette affectation." }, { status: 400 });
 
   if (relationCaseId) {

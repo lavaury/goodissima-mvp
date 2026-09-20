@@ -6,6 +6,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { expectedRolesFromSnapshot } from "@/lib/governed-journey-expected-roles";
 import { prisma } from "@/lib/prisma";
 import { releaseUnavailableExpectedRoleAssignment } from "@/lib/governed-journey-role-assignments";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 const field = (data: FormData, name: string) => String(data.get(name) ?? "").trim();
 
@@ -13,9 +14,10 @@ export async function assignCurrentUserToExpectedRoleAction(data: FormData) {
   const owner = await getCurrentPrismaUser();
   const formTemplateId = field(data, "formTemplateId");
   const expectedRoleId = field(data, "expectedRoleId");
-  const form = await prisma.formTemplate.findFirst({ where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } }, select: { relationTemplate: { select: { id: true, versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } }, governedJourney: { where: { authorityUserId: owner.id, status: { notIn: ["CLOSED", "CANCELLED"] } }, take: 1, select: { id: true } } } } } });
+  const journey = await resolveOwnedGovernedJourney(prisma, { formTemplateId, authorityUserId: owner.id });
+  const form = journey && journey.status !== "CLOSED" && journey.status !== "CANCELLED"
+    ? await prisma.formTemplate.findUnique({ where: { id: formTemplateId }, select: { relationTemplate: { select: { id: true, versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } } } } } }) : null;
   const role = expectedRolesFromSnapshot(form?.relationTemplate?.versions[0]?.snapshot).find(item => item.id === expectedRoleId);
-  const journey = form?.relationTemplate?.governedJourney[0];
   if (!form?.relationTemplate || !journey || !role) throw new Error("Rôle attendu non autorisé pour ce parcours.");
   const relationTemplateId = form.relationTemplate.id;
   try {

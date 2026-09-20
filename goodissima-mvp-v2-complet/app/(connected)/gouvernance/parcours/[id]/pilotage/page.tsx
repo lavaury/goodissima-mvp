@@ -949,7 +949,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
         <div className="mt-4">
         <section data-boussole-id="governed-journey-participants" className="rounded-lg border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h3 className="text-lg font-bold text-slate-950">Participants du parcours</h3><p className="text-sm font-semibold text-slate-600">{canonicalPeople.length} actif{canonicalPeople.length > 1 ? "s" : ""}</p></div>
-          {attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} /> : <p className="mt-3 text-sm text-slate-600">Rattachez d’abord le parcours à un espace pour ajouter un participant.</p>}
+          <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} />
           <ul className="mt-4 divide-y rounded-lg border bg-slate-50">{peopleProjection.visibleActive.map((person, index) => <li key={person.key} data-boussole-id={index === 0 ? "governed-journey-participant" : undefined} className="min-w-0 p-3"><p className="break-words font-semibold text-slate-950">{person.displayName}</p><p className="text-sm text-slate-600">{person.qualities.map(quality => quality === "ORGANIZER" ? "Organisateur" : person.identityVerified ? "Participant" : "Participant externe").join(" · ")}</p>{!person.identityVerified ? <p className="mt-1 text-xs text-slate-500">Identité déclarée, non vérifiée</p> : null}</li>)}</ul>
           {canonicalPeople.some(person => !person.identityVerified && person.invitationId) ? <section className="mt-4 rounded-lg border bg-slate-50 p-3" aria-labelledby="active-guest-access-title"><h4 id="active-guest-access-title" className="font-bold text-slate-950">Accès des participants externes</h4><ul className="mt-2 divide-y">{canonicalPeople.filter(person => !person.identityVerified && person.invitationId).map(person => <li key={person.key} className="py-3"><p className="font-semibold text-slate-950">{person.displayName}</p><GovernedJourneyActiveGuestAccessActions invitationId={person.invitationId!} displayName={person.displayName} /></li>)}</ul></section> : null}
           <section className="mt-6 border-t pt-5" aria-labelledby="pending-journey-invitations-title"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h3 id="pending-journey-invitations-title" className="font-bold text-slate-950">Invitations en attente</h3><p className="text-sm font-semibold text-slate-600">{peopleProjection.totalPending}</p></div>{pendingJourneyInvitations.length === 0 ? <p className="mt-3 text-sm text-slate-600">Aucune invitation n’attend actuellement de réponse.</p> : <ul className="mt-3 divide-y rounded-lg border bg-amber-50/50">{peopleProjection.visiblePending.map((invitation) => { const metadata = asRecord(invitation.metadata); const rawContext = text(metadata.participantRole) || text(metadata.expectedRoleContext); const participationContext = rawContext && rawContext !== "Participant attendu" && rawContext !== "Participant invité" ? rawContext : getGovernedInvitationRoleLabel(invitation.role, invitation.metadata); return <li key={invitation.id} className="p-4"><p className="font-semibold text-slate-950">{invitation.displayName}</p><p className="mt-1 text-sm text-slate-700">Invitation en attente</p>{participationContext ? <p className="mt-1 text-sm text-slate-600">Contexte de participation : {participationContext}</p> : <p className="mt-1 text-sm text-slate-600">Participation prévue</p>}<p className="mt-2 text-xs text-slate-500">Le lien personnel n’est affiché qu’à sa création et ne peut pas être reconstruit. Cette invitation ne vérifie pas l’identité de la personne.</p><GovernedJourneyPendingInvitationActions invitationId={invitation.id} /></li>; })}</ul>}</section>
@@ -957,7 +957,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
 
           <section id="roles-to-fill" className="mt-6 border-t pt-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h3 className="font-bold text-slate-950">Rôles du parcours</h3><p className="text-sm font-semibold text-slate-600">{unfilledRoles.length} à pourvoir</p></div>
-            {roleProjections.length === 0 ? <p className="mt-3 text-sm text-slate-600">Aucun rôle attendu n’est défini.</p> : <details className="mt-3 rounded-lg border bg-slate-50" open={roleProjections.length <= 5}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-800">{unfilledRoles.length} rôle{unfilledRoles.length > 1 ? "s" : ""} à pourvoir</summary><ul className="divide-y border-t">{roleProjections.map(({ participant, assignment, state }) => { const assigneeName = assignment?.assigneeUser ? publicNamesByUserId.get(assignment.assigneeUser.id) ?? assignment.assigneeUser.name ?? assignment.assigneeUser.email : assignment?.assigneeInvitation?.displayName; const roleLabel = participant.role === "Participant attendu" && participant.name !== participant.role ? participant.name : participant.role || "Participation prévue"; return <li key={participant.id} className="min-w-0 p-3"><div className="min-w-0"><p className="break-words font-semibold text-slate-950">{roleLabel}</p><p className="text-sm text-slate-600">{state === "ASSIGNED" ? `${assigneeName} · Rôle pourvu` : state === "PENDING_INVITATION" ? `${assigneeName} · Invitation en attente` : "Aucune personne associée"}</p></div>{state === "UNASSIGNED" && attachedWorkspaceId ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} governedJourneyId={roleJourney?.id} journeyParticipants={assignableJourneyParticipants} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} expectedRoleId={participant.id} initialParticipantRole={participant.role} initialParticipationContext={participant.name} initialGovernedRole={governedRoleFromParticipant(participant.role)} contextual /> : null}{state === "ASSIGNED" ? <form action={revokeExpectedRoleAssignmentAction} className="mt-2"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="assignmentId" value={assignment?.id} /><button className="min-h-11 text-sm font-bold text-red-800 underline">Retirer de ce rôle</button></form> : null}</li>; })}</ul></details>}
+            {roleProjections.length === 0 ? <p className="mt-3 text-sm text-slate-600">Aucun rôle attendu n’est défini.</p> : <details className="mt-3 rounded-lg border bg-slate-50" open={roleProjections.length <= 5}><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-800">{unfilledRoles.length} rôle{unfilledRoles.length > 1 ? "s" : ""} à pourvoir</summary><ul className="divide-y border-t">{roleProjections.map(({ participant, assignment, state }) => { const assigneeName = assignment?.assigneeUser ? publicNamesByUserId.get(assignment.assigneeUser.id) ?? assignment.assigneeUser.name ?? assignment.assigneeUser.email : assignment?.assigneeInvitation?.displayName; const roleLabel = participant.role === "Participant attendu" && participant.name !== participant.role ? participant.name : participant.role || "Participation prévue"; return <li key={participant.id} className="min-w-0 p-3"><div className="min-w-0"><p className="break-words font-semibold text-slate-950">{roleLabel}</p><p className="text-sm text-slate-600">{state === "ASSIGNED" ? `${assigneeName} · Rôle pourvu` : state === "PENDING_INVITATION" ? `${assigneeName} · Invitation en attente` : "Aucune personne associée"}</p></div>{state === "UNASSIGNED" ? <GovernedJourneyAddParticipantPanel formTemplateId={formTemplate.id} governedJourneyId={roleJourney?.id} journeyParticipants={assignableJourneyParticipants} journeyTitle={title} journeyObjective={equivalentJourneyText(objective, title) ? null : objective} expectedRoleId={participant.id} initialParticipantRole={participant.role} initialParticipationContext={participant.name} initialGovernedRole={governedRoleFromParticipant(participant.role)} contextual /> : null}{state === "ASSIGNED" ? <form action={revokeExpectedRoleAssignmentAction} className="mt-2"><input type="hidden" name="formTemplateId" value={formTemplate.id} /><input type="hidden" name="assignmentId" value={assignment?.id} /><button className="min-h-11 text-sm font-bold text-red-800 underline">Retirer de ce rôle</button></form> : null}</li>; })}</ul></details>}
           </section>
 
           {searchParams.technical === "1" ? <details className="mt-6 rounded-lg border border-dashed bg-slate-50"><summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-slate-700">Outils historiques de préparation</summary><div className="border-t p-3">
@@ -1091,7 +1091,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                       </button>
                     </form>
                   )}
-                  {!attachedWorkspaceId ? <p className="mt-4 text-sm text-slate-600">Un espace est nécessaire pour créer un accès invité.</p> : <details className="mt-4 rounded-lg border bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Options avancées</summary><GovernedJourneyGuestAccessPanel
+                  <details className="mt-4 rounded-lg border bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Options avancées</summary><GovernedJourneyGuestAccessPanel
                     formTemplateId={formTemplate.id}
                     participantName={participant.name}
                     participantRole={participant.role}
@@ -1099,7 +1099,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                     preparedEmail={invitation?.email}
                     invitations={participantGovernedInvitations}
                     relationCases={(formTemplate.relationTemplate?.relationCases ?? []).map((relationCase) => ({ id: relationCase.id, label: relationCase.candidateName || `Dossier ${relationCase.id}` }))}
-                  /></details>}
+                  /></details>
                   </details> : null}
                 </article>
                 );
@@ -1216,8 +1216,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
       <section data-boussole-id="governed-communications" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
         <h3 className="text-xl font-bold text-slate-950">Réunions et échanges</h3>
 
-        {attachedWorkspaceId ? (
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
             {communicationCapabilities.map((capability) => (
               <details key={capability.channelType} className="rounded-lg border bg-slate-50 p-4">
                 <summary className="cursor-pointer text-sm font-bold text-slate-950">
@@ -1225,7 +1224,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 </summary>
                 <form action={prepareGovernanceMultiActorCommunicationAction} className="mt-4 space-y-3">
                   <input type="hidden" name="formTemplateId" value={formTemplate.id} />
-                  <input type="hidden" name="workspaceId" value={attachedWorkspaceId} />
+                  <input type="hidden" name="workspaceId" value={attachedWorkspaceId ?? ""} />
                   <input type="hidden" name="channelType" value={capability.channelType} />
                   <label className="block text-xs font-semibold text-slate-600">
                     Titre
@@ -1290,12 +1289,7 @@ export default async function GovernedJourneyPilotagePage({ params, searchParams
                 </form>
               </details>
             ))}
-          </div>
-        ) : (
-          <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Rattachez d'abord ce parcours a un Workspace produit depuis la page Gouvernance pour preparer une communication.
-          </p>
-        )}
+        </div>
 
         {communicationOverview.sessions.length > 0 ? (
           <>

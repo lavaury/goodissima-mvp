@@ -5,18 +5,19 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasCurrentJourneyAccess } from "@/lib/governed-journey-consent";
 import { createPendingMeetingRsvp } from "@/lib/governed-meeting-rsvp";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 async function governedMeetingScope(formData: FormData) {
   const owner = await getCurrentPrismaUser();
   const formTemplateId = String(formData.get("formTemplateId") ?? "");
   const communicationSessionId = String(formData.get("communicationSessionId") ?? "");
   const invitationId = String(formData.get("invitationId") ?? "");
-  const [form, session, invitation] = await Promise.all([
-    prisma.formTemplate.findFirst({ where: { id: formTemplateId, relationTemplate: { workspace: { ownerId: owner.id } } }, select: { relationTemplateId: true } }),
+  const [scope, session, invitation] = await Promise.all([
+    resolveOwnedGovernedJourney(prisma, { formTemplateId, authorityUserId: owner.id }),
     prisma.communicationSession.findFirst({ where: { id: communicationSessionId, ownerId: owner.id }, select: { id: true, relationTemplateId: true, status: true, expiresAt: true, rsvpRevision: true } }),
     prisma.governedJourneyInvitation.findFirst({ where: { id: invitationId, ownerId: owner.id }, include: { consent: true } }),
   ]);
-  if (!form?.relationTemplateId || !session || session.relationTemplateId !== form.relationTemplateId || !invitation || invitation.relationTemplateId !== form.relationTemplateId) throw new Error("Réunion ou invitation hors du parcours gouverné.");
+  if (!scope || scope.status === "CLOSED" || scope.status === "CANCELLED" || !session || session.relationTemplateId !== scope.relationTemplateId || !invitation || invitation.relationTemplateId !== scope.relationTemplateId) throw new Error("Réunion ou invitation hors du parcours gouverné.");
   if (session.status === "COMPLETED" || session.status === "CANCELLED" || (session.expiresAt && session.expiresAt <= new Date())) throw new Error("Le périmètre de cette réunion est verrouillé.");
   return { owner, formTemplateId, session, invitation };
 }

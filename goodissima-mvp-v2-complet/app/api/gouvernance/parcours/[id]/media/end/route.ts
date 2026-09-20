@@ -5,14 +5,15 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { getLiveKitConfig } from "@/lib/media/livekit-config";
 import { createLiveKitRoomName } from "@/lib/media/livekit-token-service";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
     const owner = await getCurrentPrismaUser(); const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
-    const form = await prisma.formTemplate.findFirst({ where: { id: params.id, relationTemplate: { workspace: { ownerId: owner.id } } }, select: { relationTemplateId: true } });
-    if (!form?.relationTemplateId || !sessionId) return NextResponse.json({ error: "Session ou parcours invalide." }, { status: 400 });
-    const session = await prisma.communicationSession.findFirst({ where: { id: sessionId, ownerId: owner.id, relationTemplateId: form.relationTemplateId, relationCaseId: null }, select: { id: true, provider: true } });
+    const scope = await resolveOwnedGovernedJourney(prisma, { formTemplateId: params.id, authorityUserId: owner.id });
+    if (!scope || !sessionId) return NextResponse.json({ error: "Session ou parcours invalide." }, { status: 400 });
+    const session = await prisma.communicationSession.findFirst({ where: { id: sessionId, ownerId: owner.id, relationTemplateId: scope.relationTemplateId, relationCaseId: null }, select: { id: true, provider: true } });
     if (!session) return NextResponse.json({ error: "Session introuvable." }, { status: 404 });
     await prisma.communicationSession.update({ where: { id: session.id }, data: { status: "COMPLETED", accessOpened: false } });
     revalidatePath(`/gouvernance/parcours/${params.id}/pilotage`);

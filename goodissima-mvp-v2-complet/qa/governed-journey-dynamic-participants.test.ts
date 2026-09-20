@@ -11,7 +11,7 @@ const route = read("app/api/gouvernance/invitations/route.ts");
 const require = createRequire(import.meta.url);
 const { NextResponse } = require("next/server");
 
-function invitationRouteFixture({ ownerCanAccess = true, duplicate = false, profileUserId = "user-alice" } = {}) {
+function invitationRouteFixture({ ownerCanAccess = true, duplicate = false, profileUserId = "user-alice", workspaceId = "workspace-a" as string | null } = {}) {
   const writes: any[] = [];
   const consentWrites: any[] = [];
   const eventWrites: any[] = [];
@@ -22,10 +22,14 @@ function invitationRouteFixture({ ownerCanAccess = true, duplicate = false, prof
     "@/lib/governed-journey-invitations": { createJourneyInvitationToken: () => "secure-token", hashJourneyInvitationToken: () => "secure-hash" },
     "@/lib/governed-journey-expected-roles": { expectedRolesFromSnapshot: () => [] },
     "@/lib/governed-journey-role-assignments": { releaseUnavailableExpectedRoleAssignment: async () => null },
+    "@/lib/governed-journey-authority": { resolveOwnedGovernedJourney: async (_client: unknown, input: { formTemplateId: string; authorityUserId: string }) => {
+      assert.deepEqual(input, { formTemplateId: "journey-a", authorityUserId: "owner-a" });
+      return ownerCanAccess ? { id: "root-a", relationTemplateId: "relation-a", workspaceId, status: "DRAFT" } : null;
+    } },
     "@/lib/prisma": { prisma: {
-      formTemplate: { findFirst: async (query: any) => {
-        assert.deepEqual(query.where, { id: "journey-a", relationTemplate: { workspace: { ownerId: "owner-a" } } });
-        return ownerCanAccess ? { relationTemplate: { id: "relation-a", workspaceId: "workspace-a" } } : null;
+      formTemplate: { findUnique: async (query: any) => {
+        assert.deepEqual(query.where, { id: "journey-a" });
+        return ownerCanAccess ? { relationTemplate: { id: "relation-a", workspaceId } } : null;
       } },
       directoryProfile: { findFirst: async (query: any) => {
         assert.equal(query.where.publicId, "directory-person");
@@ -80,11 +84,19 @@ test("a published Goodissima person can be invited without an email", () => {
 });
 
 test("server ownership, duplicate and cross-owner guards remain authoritative", () => {
-  assert.match(route, /workspace: \{ ownerId: owner\.id \}/);
+  assert.match(route, /resolveOwnedGovernedJourney\(prisma, \{ formTemplateId, authorityUserId: owner\.id \}\)/);
   assert.match(route, /ownerId: owner\.id/);
   assert.match(route, /status: \{ in: \["PREPARED", "ACTIVE"\] \}/);
   assert.match(route, /accessTokenExpiresAt: \{ gt: new Date\(\) \}/);
   assert.match(route, /status: 409/);
+});
+
+test("a Journey without Workspace can prepare an invitation and pending consent", async () => {
+  const fixture = invitationRouteFixture({ workspaceId: null });
+  const response = await fixture.POST(externalInvitationRequest());
+  assert.equal(response.status, 200);
+  assert.equal(fixture.writes[0].data.workspaceId, null);
+  assert.equal(fixture.consentWrites[0].data.status, "PENDING");
 });
 
 test("the UI exposes only real secure links without automatic notification", () => {

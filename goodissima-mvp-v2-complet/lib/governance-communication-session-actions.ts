@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { CommunicationChannelType } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 const channelTypes = new Set<CommunicationChannelType>(["VOICE_IP", "VIDEO_IP", "SCREEN_SHARE"]);
 const COMMUNICATION_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
@@ -85,70 +86,34 @@ export async function prepareGovernanceCommunicationSessionAction(formData: Form
   const scheduledAt = optionalDate(textFromForm(formData, "scheduledAt"));
   const externalUrl = optionalExternalUrl(textFromForm(formData, "externalUrl"));
 
-  if (!formTemplateId || !workspaceId || !title) {
-    throw new Error("Le parcours, le Workspace et le titre sont obligatoires.");
+  if (!formTemplateId || !title) {
+    throw new Error("Le parcours et le titre sont obligatoires.");
   }
 
   if (!channelTypes.has(channelTypeInput)) {
     throw new Error("Type de communication invalide.");
   }
 
-  const [formTemplate, workspace] = await Promise.all([
-    prisma.formTemplate.findUnique({
+  const scope = await resolveOwnedGovernedJourney(prisma, { formTemplateId, authorityUserId: owner.id });
+  const formTemplate = scope ? await prisma.formTemplate.findUnique({
       where: { id: formTemplateId },
       include: {
         relationTemplate: {
           include: {
-            workspace: {
-              select: {
-                ownerId: true,
-              },
-            },
-            versions: {
-              orderBy: { version: "desc" },
-              take: 1,
-              select: {
-                snapshot: true,
-              },
-            },
+            versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } },
           },
         },
       },
-    }),
-    prisma.workspace.findFirst({
-      where: {
-        id: workspaceId,
-        ownerId: owner.id,
-        status: "ACTIVE",
-      },
-      select: {
-        id: true,
-      },
-    }),
-  ]);
-
-  if (!formTemplate?.relationTemplate) {
+    }) : null;
+  if (!formTemplate?.relationTemplate || !scope || ["CLOSED", "CANCELLED"].includes(scope.status)) {
     throw new Error("Parcours gouverne introuvable.");
   }
-
-  if (!workspace) {
-    throw new Error("Workspace cible introuvable pour cet utilisateur.");
-  }
-
-  const latestVersion = formTemplate.relationTemplate.versions[0];
-  const metadata = asRecord(asRecord(latestVersion?.snapshot).metadata);
-  const metadataOwnerId = typeof metadata.createdById === "string" ? metadata.createdById : null;
-  const attachedWorkspaceOwnerId = formTemplate.relationTemplate.workspace?.ownerId ?? null;
-  const journeyAttachedToWorkspace = formTemplate.relationTemplate.workspaceId === workspace.id;
-
-  if (!journeyAttachedToWorkspace && metadataOwnerId !== owner.id && attachedWorkspaceOwnerId !== owner.id) {
-    throw new Error("Ce parcours ne peut pas preparer une communication pour cet utilisateur.");
-  }
+  if (workspaceId && workspaceId !== scope.workspaceId) throw new Error("Workspace cible invalide pour ce parcours.");
 
   await prisma.communicationSession.create({
     data: {
       ownerId: owner.id,
-      workspaceId: workspace.id,
+      workspaceId: scope.workspaceId,
       relationTemplateId: formTemplate.relationTemplate!.id,
       channelType: channelTypeInput,
       provider: externalUrl ? "MANUAL_EXTERNAL" : "NONE",
@@ -184,55 +149,21 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
   const scheduledAt = optionalDate(textFromForm(formData, "scheduledAt"));
   const participantInvitationIds = selectedFormValues(formData, "participantInvitationIds");
 
-  if (!formTemplateId || !workspaceId || !title) {
-    throw new Error("Le parcours, le Workspace et le titre sont obligatoires.");
+  if (!formTemplateId || !title) {
+    throw new Error("Le parcours et le titre sont obligatoires.");
   }
 
   if (!channelTypes.has(channelTypeInput)) {
     throw new Error("Type de communication invalide.");
   }
 
-  const [formTemplate, workspace] = await Promise.all([
-    prisma.formTemplate.findUnique({
-      where: { id: formTemplateId },
-      include: {
-        relationTemplate: {
-          include: {
-            versions: {
-              orderBy: { version: "desc" },
-              take: 1,
-              select: {
-                snapshot: true,
-              },
-            },
-          },
-        },
-      },
-    }),
-    prisma.workspace.findFirst({
-      where: {
-        id: workspaceId,
-        ownerId: owner.id,
-        status: "ACTIVE",
-      },
-      select: {
-        id: true,
-      },
-    }),
-  ]);
-
-  if (!formTemplate?.relationTemplate) {
-    throw new Error("Parcours gouverne introuvable.");
-  }
-
-  if (!workspace) {
-    throw new Error("Workspace cible introuvable pour cet utilisateur.");
-  }
-
-  if (formTemplate.relationTemplate.workspaceId !== workspace.id) {
-    throw new Error("Ce parcours n'est pas rattache au Workspace selectionne.");
-  }
-
+  const scope = await resolveOwnedGovernedJourney(prisma, { formTemplateId, authorityUserId: owner.id });
+  const formTemplate = scope ? await prisma.formTemplate.findUnique({
+    where: { id: formTemplateId },
+    include: { relationTemplate: { include: { versions: { orderBy: { version: "desc" }, take: 1, select: { snapshot: true } } } } },
+  }) : null;
+  if (!formTemplate?.relationTemplate || !scope || ["CLOSED", "CANCELLED"].includes(scope.status)) throw new Error("Parcours gouverne introuvable.");
+  if (workspaceId && workspaceId !== scope.workspaceId) throw new Error("Workspace cible invalide pour ce parcours.");
   const latestVersion = formTemplate.relationTemplate.versions[0];
   const metadata = asRecord(asRecord(latestVersion?.snapshot).metadata);
   const participantInvitations = participantInvitationsFrom(metadata.participantInvitations);
@@ -281,7 +212,7 @@ export async function prepareGovernanceMultiActorCommunicationAction(formData: F
   const session = await prisma.$transaction(async (tx) => {
     const created = await tx.communicationSession.create({ data: {
       ownerId: owner.id,
-      workspaceId: workspace.id,
+      workspaceId: scope.workspaceId,
       relationTemplateId: formTemplate.relationTemplate!.id,
       relationCaseId: null,
       channelType: channelTypeInput,

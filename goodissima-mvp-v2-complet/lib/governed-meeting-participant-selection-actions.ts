@@ -12,6 +12,7 @@ import {
   projectJourneyMemberCandidates,
 } from "@/lib/governed-meeting-participant-selection";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnedGovernedJourney } from "@/lib/governed-journey-authority";
 
 type ActionResult =
   | { ok: true; kind: "CREATED" | "REVIEW_STARTED" | "DRAFT"; selectionId: string; version: number }
@@ -35,18 +36,15 @@ type SelectionInput = {
 };
 
 async function loadScope(client: Prisma.TransactionClient | typeof prisma, input: SelectionInput, ownerId: string) {
-  const form = await client.formTemplate.findFirst({
-    where: { id: input.formTemplateId, relationTemplate: { workspace: { ownerId } } },
-    select: { relationTemplateId: true },
-  });
-  if (!form?.relationTemplateId) throw new Error("Parcours gouverné indisponible.");
+  const scope = await resolveOwnedGovernedJourney(client, { formTemplateId: input.formTemplateId, authorityUserId: ownerId });
+  if (!scope || scope.status === "CLOSED" || scope.status === "CANCELLED") throw new Error("Parcours gouverné indisponible.");
   const [journey, session] = await Promise.all([
     client.governedJourney.findFirst({
-      where: { relationTemplateId: form.relationTemplateId, authorityUserId: ownerId },
+      where: { id: scope.id, relationTemplateId: scope.relationTemplateId, authorityUserId: ownerId },
       select: { id: true, relationTemplateId: true },
     }),
     client.communicationSession.findFirst({
-      where: { id: input.communicationSessionId, ownerId, relationTemplateId: form.relationTemplateId },
+      where: { id: input.communicationSessionId, ownerId, relationTemplateId: scope.relationTemplateId },
       select: { id: true, ownerId: true, relationTemplateId: true, status: true, expiresAt: true, rsvpRevision: true },
     }),
   ]);
@@ -54,7 +52,7 @@ async function loadScope(client: Prisma.TransactionClient | typeof prisma, input
   if (session.status === "COMPLETED" || session.status === "CANCELLED" || (session.expiresAt && session.expiresAt <= new Date())) {
     throw new Error("Le périmètre de cette réunion est verrouillé.");
   }
-  return { journey, session, relationTemplateId: form.relationTemplateId };
+  return { journey, session, relationTemplateId: scope.relationTemplateId };
 }
 
 async function loadJourneyPopulation(
