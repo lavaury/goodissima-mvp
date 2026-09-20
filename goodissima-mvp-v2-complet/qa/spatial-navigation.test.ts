@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createConnectedHistory } from "../lib/connected-history.ts";
-import { businessLabel, isConnectedPathname, logicalParent, objectBreadcrumb, pageBreadcrumb, portfolioBreadcrumb } from "../lib/spatial-navigation.ts";
+import { businessLabel, isConnectedPathname, logicalParent, needsEntityContext, objectBreadcrumb, pageBreadcrumb, portfolioBreadcrumb } from "../lib/spatial-navigation.ts";
 import { renderShellFixture } from "./helpers/render-connected-shell.ts";
 
 const a = { key: "native-a", index: 0 };
@@ -67,6 +67,18 @@ test("all owner page patterns including Workspace are eligible for observed hist
   const routes = JSON.parse(readFileSync(new URL("./fixtures/connected-routes.json", import.meta.url), "utf8"));
   for (const route of routes.connected) assert.equal(isConnectedPathname(route), true, route);
   for (const route of [...routes.excluded, ...routes.handlers, "/gouvernance/invitation/private-token", "/secure/private-token", "/l/private-slug"]) assert.equal(isConnectedPathname(route), false, route);
+});
+
+test("Opportunity list and detail remain connected with a useful breadcrumb", () => {
+  assert.equal(isConnectedPathname("/opportunities"), true);
+  assert.equal(isConnectedPathname("/opportunities/opportunity-id"), true);
+  assert.equal(needsEntityContext("/opportunities/opportunity-id"), false);
+  assert.deepEqual(pageBreadcrumb("/opportunities"), [{ label: "Accueil", href: "/dashboard" }, { label: "Opportunités" }]);
+  assert.deepEqual(pageBreadcrumb("/opportunities/opportunity-id"), [
+    { label: "Accueil", href: "/dashboard" },
+    { label: "Opportunités", href: "/opportunities" },
+    { label: "Opportunité" },
+  ]);
 });
 
 test("global pages use explicit business vocabulary", () => {

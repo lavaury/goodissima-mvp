@@ -24,7 +24,9 @@ test("Prisma schema defines persistent GLink matching aggregates", () => {
   assert.match(schema, /model MatchingResult \{/);
   assert.match(schema, /targetGLink\s+GLink\s+@relation\("MatchingResultTargetGLink"[\s\S]*onDelete: Restrict\)/);
   assert.match(schema, /relationCaseId String\?/);
-  assert.match(schema, /relationCase RelationCase\?\s+@relation\([\s\S]*onDelete: SetNull\)/);
+  const matchingResultModel = schema.match(/^model MatchingResult \{([\s\S]*?)^\}/m)?.[1];
+  assert.ok(matchingResultModel, "MatchingResult model is missing");
+  assert.match(matchingResultModel, /^\s*relationCase\s+RelationCase\?\s+@relation\([^\r\n]*onDelete:\s*SetNull\)/m);
   assert.match(schema, /@@unique\(\[runId, targetGLinkId\]\)/);
   for (const index of [
     "@@index([gLinkId, createdAt])",

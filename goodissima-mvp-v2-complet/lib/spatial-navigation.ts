@@ -43,6 +43,7 @@ const detailPages = [
   { pattern: /^\/gouvernance\/portfolios\/[^/]+$/, label: "Portfolio" },
   { pattern: /^\/gouvernance\/parcours\/[^/]+\/pilotage$/, label: "Parcours gouverné" },
   { pattern: /^\/cases\/[^/]+$/, label: "Dossier relationnel" },
+  { pattern: /^\/opportunities\/[^/]+$/, label: "Opportunité", parent: "/opportunities" },
   { pattern: /^\/links\/[^/]+$/, label: "Lien" },
   { pattern: /^\/templates\/[^/]+$/, label: "Parcours" },
 ];
@@ -52,7 +53,7 @@ export function isConnectedPathname(pathname: string): boolean {
 }
 
 export function needsEntityContext(pathname: string): boolean {
-  return !pages[pathname] && detailPages.some(page => page.pattern.test(pathname));
+  return !pages[pathname] && detailPages.some(page => page.pattern.test(pathname) && !("parent" in page));
 }
 
 export function pageBreadcrumb(pathname: string): BreadcrumbItem[] {
@@ -63,7 +64,10 @@ export function pageBreadcrumb(pathname: string): BreadcrumbItem[] {
     return [...parent, { label: page.label }];
   }
   const detail = detailPages.find(page => page.pattern.test(pathname));
-  // Await the authorized page's entity data: do not infer an object parent.
+  // Await authorized entity data unless the pattern declares a known list parent.
+  if (detail && "parent" in detail && detail.parent) {
+    return [...pageBreadcrumb(detail.parent).map((item, index, all) => index === all.length - 1 ? { ...item, href: detail.parent } : item), { label: detail.label }];
+  }
   return detail ? [home, { label: detail.label }] : [{ label: "Page courante" }];
 }
 
