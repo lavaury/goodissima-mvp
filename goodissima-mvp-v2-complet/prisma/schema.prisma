@@ -1310,6 +1310,7 @@ model GovernedJourney {
   participantSelections          GovernedParticipantSelection[]
 
   @@unique([id, relationCaseId, authorityUserId])
+  @@unique([id, authorityUserId])
   @@unique([id, relationCaseId])
   @@unique([id, relationTemplateId])
   @@index([authorityUserId, status])
@@ -1476,7 +1477,7 @@ model GovernedJourneyCreationRequest {
 model GovernedJourneyEvent {
   id                   String                   @id
   governedJourneyId    String
-  relationCaseId       String
+  relationCaseId       String?
   type                 GovernedJourneyEventType
   actorUserId          String
   occurredAt           DateTime
@@ -1487,10 +1488,11 @@ model GovernedJourneyEvent {
   reason               String?
   sequence             Int
   User                 User                     @relation(fields: [actorUserId], references: [id], onUpdate: Restrict)
-  governedJourney      GovernedJourney          @relation(fields: [governedJourneyId, relationCaseId, authorityUserId], references: [id, relationCaseId, authorityUserId], onUpdate: Restrict, map: "GovernedJourneyEvent_governedJourneyId_relationCaseId_authority")
+  governedJourney      GovernedJourney          @relation(fields: [governedJourneyId, authorityUserId], references: [id, authorityUserId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedJourneyEvent_journey_authority_fkey")
   GovernedMemorySource GovernedMemorySource[]
 
   @@unique([governedJourneyId, sequence])
+  @@unique([id, governedJourneyId])
   @@unique([id, governedJourneyId, relationCaseId])
   @@index([governedJourneyId, occurredAt, id])
   @@index([relationCaseId, occurredAt, id])
@@ -1811,7 +1813,7 @@ model GovernedMemorySource {
   governedJourneyEventId String?
   relationTemplateId     String
   creationRequest        GovernedMemoryCreationRequest?
-  GovernedJourneyEvent   GovernedJourneyEvent?          @relation(fields: [governedJourneyEventId, governedJourneyId, relationCaseId], references: [id, governedJourneyId, relationCaseId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedMemorySource_governedJourneyEventId_governedJourneyId_r")
+  GovernedJourneyEvent   GovernedJourneyEvent?          @relation(fields: [governedJourneyEventId, governedJourneyId], references: [id, governedJourneyId], onDelete: Restrict, onUpdate: Restrict, map: "GovernedMemorySource_journey_event_fkey")
   GovernedJourney        GovernedJourney?               @relation(fields: [governedJourneyId, relationTemplateId], references: [id, relationTemplateId], onUpdate: Restrict)
   User                   User?                          @relation(fields: [promotedByUserId], references: [id], onDelete: Restrict)
   relationCase           RelationCase?                  @relation(fields: [relationCaseId, relationTemplateId], references: [id, templateId], onUpdate: Restrict)
