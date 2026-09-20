@@ -54,6 +54,7 @@
     "qa:template-demo-flow": "tsc lib/ai/template-demo-flow.ts qa/ai/template-demo-flow.test.ts --outDir dist/qa-template-demo-flow --module commonjs --target ES2022 --moduleResolution node --esModuleInterop --skipLibCheck --types node --noEmit false && node --test dist/qa-template-demo-flow/qa/ai/template-demo-flow.test.js",
     "qa:ai-cost-observability": "tsc lib/ai/cost-observability.ts lib/ai/value-analytics.ts qa/ai/cost-observability.test.ts --outDir dist/qa-ai-cost-observability --module commonjs --target ES2022 --moduleResolution node --esModuleInterop --skipLibCheck --types node --noEmit false && node --test dist/qa-ai-cost-observability/qa/ai/cost-observability.test.js",
     "qa:housing-candidate-demo": "npm --prefix goodissima-intent-engine run build && node --experimental-strip-types --test qa/housing-candidate-demo.test.ts",
+    "qa:general": "npm --prefix goodissima-intent-engine run build && node --experimental-strip-types --test \"qa/*.test.ts\"",
     "qa:goodissima-experience": "node --experimental-strip-types --test qa/goodissima-experience.test.ts",
     "qa:opportunity-preview": "node --experimental-strip-types --test qa/opportunity-preview.test.ts",
     "qa:secure-link-preview": "node --experimental-strip-types --test qa/secure-link-preview.test.ts",

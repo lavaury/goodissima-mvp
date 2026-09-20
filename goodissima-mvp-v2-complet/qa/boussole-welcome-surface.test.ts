@@ -207,8 +207,9 @@ test("keeps a compact global human reminder and a detailed dedicated step", () =
   assert.match(component, /Vous gardez la main/);
   assert.match(component, /Rien n’est publié, envoyé, créé ou décidé sans votre action\./);
   assert.match(component, /<details[^>]*>[^]*Voir les garanties de contrôle humain[^]*welcomeGeneralContent\.humanControl\.map/);
-  const dedicatedStart = component.indexOf('if (headingLevel === 3)');
-  const dedicatedNotice = component.slice(dedicatedStart, component.indexOf("\n  }\n  return", dedicatedStart));
+  const normalizedComponent = component.replace(/\r\n/g, "\n");
+  const dedicatedStart = normalizedComponent.indexOf('if (headingLevel === 3)');
+  const dedicatedNotice = normalizedComponent.slice(dedicatedStart, normalizedComponent.indexOf("\n  }\n  return", dedicatedStart));
   assert.match(dedicatedNotice, /welcomeGeneralContent\.humanControl\.map/);
   assert.doesNotMatch(dedicatedNotice, /<details/);
 });
