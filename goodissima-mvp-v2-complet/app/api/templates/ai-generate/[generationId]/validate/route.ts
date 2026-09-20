@@ -1,3 +1,4 @@
+import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -21,6 +22,8 @@ export async function POST(req: Request, { params }: { params: { generationId: s
   try {
     const owner = await getCurrentPrismaUser();
     const body = await req.json();
+    const creationWorkspace = body.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, body.workspaceId) : null;
+    if (body.workspaceId !== undefined && !creationWorkspace) return NextResponse.json({ error: "Workspace indisponible pour cette création." }, { status: 404 });
     if (body.humanValidated !== true) {
       return NextResponse.json({ error: "Une validation humaine explicite est requise." }, { status: 400 });
     }

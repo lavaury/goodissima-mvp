@@ -1,3 +1,4 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -7,8 +8,23 @@ function copyKey(baseKey: string) {
   return `${baseKey}_COPY_${Math.random().toString(36).slice(2, 7).toUpperCase()}`.slice(0, 80);
 }
 
-export async function POST(_req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
+export async function POST(req: Request, { params }: { params: { templateId: string } }) {
+  const owner = await getCurrentPrismaUser();
+  const access = await getTemplateMutationAccess(owner, params.templateId);
+  if (!access) return templateMutationNotFound();
+
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body) || !("workspaceId" in body)) {
+    return NextResponse.json({ error: "Un Workspace cible explicite est requis pour attribuer la copie.", code: "WORKSPACE_TARGET_REQUIRED" }, { status: 409 });
+  }
+  if (typeof body.workspaceId !== "string" || !body.workspaceId.trim()) {
+    return NextResponse.json({ error: "Workspace cible invalide." }, { status: 400 });
+  }
+  const workspaceId = body.workspaceId.trim();
+  const target = await prisma.workspace.findFirst({
+    where: { id: workspaceId, ownerId: owner.id, status: "ACTIVE" }, select: { id: true },
+  });
+  if (!target) return templateMutationNotFound();
 
   const template = await prisma.formTemplate.findUnique({
     where: { id: params.templateId },
@@ -32,6 +48,7 @@ export async function POST(_req: Request, { params }: { params: { templateId: st
         name: `${sourceRelationTemplate.name} - copie`,
         description: sourceRelationTemplate.description,
         status: "DRAFT",
+        workspaceId: target.id,
       },
     });
 

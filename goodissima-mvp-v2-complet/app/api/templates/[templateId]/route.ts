@@ -1,9 +1,12 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function DELETE(_req: Request, { params }: { params: { templateId: string } }) {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  const access = await getTemplateMutationAccess(owner, params.templateId);
+  if (!access) return templateMutationNotFound();
   const template = await prisma.formTemplate.findUnique({
     where: { id: params.templateId },
     include: { relationTemplate: { include: { _count: { select: { links: true, relationCases: true } } } } },

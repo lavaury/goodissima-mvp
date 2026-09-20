@@ -1,0 +1,52 @@
+import type { CompassStep } from "./boussole-context.ts";
+import type { BoussoleSequence } from "./boussole-dashboard.ts";
+
+type Options = { glossary?: string[]; states?: string[] };
+const step = (id: string, targetId: string, title: string, body: string, options: Options = {}): CompassStep => ({
+  id, targetId, title, body, detailedBody: body, targetStates: options.states,
+  glossaryTermIds: options.glossary ?? [],
+  animation: { focus: "outline", movement: "scroll-center", narration: body, subtitles: body, duration: 7, transition: "soft-focus", tryNow: true },
+});
+
+export const governedJourneySequences: BoussoleSequence[] = [
+  { id: "discover-governed-journey", title: "Découvrir ce parcours", description: "Comprendre son contexte, sa situation et ce qui demande votre attention.", applicableStates: ["FOCUSED"], steps: [
+    step("real-journey-overview", "governed-journey-overview", "Comprendre ce parcours", "Cette zone présente le parcours réel et son objectif validé. La Boussole ne modifie ni son statut ni son contenu.", { glossary: ["parcours-gouverne", "objectif", "validation-humaine"] }),
+    step("real-journey-summary", "governed-journey-summary", "Où en sommes-nous ?", "Cette synthèse présente l’état actuellement gouverné du parcours : décisions en vigueur, faits retenus, personnes, rôles et prochaine étape fiable. Elle ne transforme jamais l’historique en vérité actuelle.", { glossary: ["contexte", "signal"] }),
+    step("real-journey-now", "governed-journey-human-interventions", "À faire maintenant", "Cette zone est distincte de l’état du parcours : elle présente uniquement les actions actuellement pertinentes. Montrer la zone ne déclenche aucune de ces actions.", { glossary: ["signal", "responsabilite"] }),
+    step("real-journey-need", "governed-journey-initial-need", "Contexte", "Ce contexte explique pourquoi le parcours existe. Il constitue un repère de lecture et ne déclenche aucune action.", { glossary: ["objectif", "contexte"] }),
+  ] },
+  { id: "human-interventions", title: "Voir les interventions humaines", description: "Commencer par les situations réellement en attente dans ce parcours.", applicableStates: ["FOCUSED"], steps: [
+    step("real-human-interventions", "governed-journey-human-interventions", "Interventions humaines", "Cette zone regroupe les signaux déterministes réellement présents. Chaque signal demande une lecture et une action humaines ; la Boussole ne le traite jamais.", { states: ["pending"], glossary: ["signal", "validation-humaine"] }),
+    step("real-first-human-intervention", "governed-journey-human-intervention", "Première intervention en attente", "Examinez la première situation visible : invitation à transmettre, document à revoir, revue à conduire, communication à vérifier ou dossier à ouvrir. Montrer la zone ne suit pas le lien.", { glossary: ["signal", "responsabilite"] }),
+    step("real-no-human-intervention", "governed-journey-human-interventions", "Aucune intervention en attente", "Aucun signal consolidé n’est actuellement présent. Cette absence est un état de lecture, pas une validation automatique du parcours.", { states: ["empty"], glossary: ["signal", "validation-humaine"] }),
+  ] },
+  { id: "participants-access", title: "Participants, invitations et accès", description: "Lire les responsabilités et les accès réellement préparés.", applicableStates: ["FOCUSED"], steps: [
+    step("real-organizer", "governed-journey-organizer", "Organisateur", "L’organisateur pilote le parcours depuis son compte Goodissima. La visite ne crée aucun accès invité.", { glossary: ["responsabilite", "acces-gouverne"] }),
+    step("real-participants", "governed-journey-participants", "Personnes et rôles", "Cette section distingue les invitations en attente, les participations acceptées, les refus et les accès révoqués à partir des données réelles. Les rôles restant à pourvoir demeurent séparés et aucun message n’est transmis automatiquement.", { glossary: ["participant", "responsabilite"] }),
+    step("real-prepared-invitation", "governed-journey-participant", "Invitation préparée", "Le premier participant correspondant possède une invitation préparée et un message à transmettre manuellement. La Boussole ne copie, n’envoie et n’ouvre aucun accès.", { states: ["invitation-prepared"], glossary: ["invitation-privee", "acces-gouverne"] }),
+    step("real-expected-participant", "governed-journey-participant", "Participant sans invitation préparée", "Ce participant est attendu, mais aucune invitation n’est préparée. Toute préparation ou création d’accès exige une action humaine explicite.", { states: ["expected"], glossary: ["participant", "invitation-privee"] }),
+    step("real-guest-access", "governed-journey-guest-access", "Accès invité gouverné", "Chaque participant externe reçoit un lien personnel différent, limité dans le temps. Ce lien lui permet de rejoindre la réunion dans son propre périmètre : il doit être transmis manuellement au bon participant et ne doit jamais être partagé entre participants. La Boussole ne crée ni ne copie ce lien.", { glossary: ["acces-gouverne", "invitation-privee", "perimetre-d-acces"] }),
+  ] },
+  { id: "documents-actions", title: "Documents et plan initial", description: "Distinguer les attentes documentaires du plan initial de l’état vivant du Parcours.", applicableStates: ["FOCUSED"], steps: [
+    step("real-documents", "governed-journey-documents", "Documents attendus", "Cette section liste les documents réellement attendus. En V1, une réception peut être déclarée sans fichier stocké.", { glossary: ["document-attendu", "validation-humaine"] }),
+    step("real-received-document", "governed-journey-document", "Réception déclarée", "La réception du premier document correspondant a été déclarée. Elle ne constitue ni un stockage de fichier ni une validation automatique.", { states: ["received"], glossary: ["document-attendu", "validation-humaine"] }),
+    step("real-pending-document", "governed-journey-document", "Document restant attendu", "Ce document reste attendu. Sa réception et son examen devront être déclarés par une personne.", { states: ["pending"], glossary: ["document-attendu", "responsabilite"] }),
+    step("real-first-actions", "governed-journey-first-actions", "Premières étapes envisagées", "Ces lignes décrivent le plan initial à la création ; elles ne portent aucun état d’exécution et ne sont pas les actions courantes du Parcours.", { glossary: ["etape-de-parcours", "validation-humaine"] }),
+  ] },
+  { id: "governed-communications", title: "Communications gouvernées", description: "Lire les états réels, les réponses RSVP et le périmètre technique des participants.", applicableStates: ["FOCUSED"], steps: [
+    step("real-communications", "governed-communications", "Communications gouvernées", "Cette section rassemble les communications préparées, actives, terminées, annulées ou expirées. Aucun média, enregistrement ou transcription ne démarre automatiquement.", { glossary: ["communication-securisee", "validation-humaine"] }),
+    step("real-secure-communication", "governed-journey-secure-communication", "Réunion préparée", "Cette carte correspond à une réunion réellement préparée. L’organisateur peut l’ouvrir depuis son compte et chaque invité autorisé peut la rejoindre avec son lien personnel. Rien ne démarre avant l’action explicite de chacun.", { glossary: ["communication-securisee", "acces-gouverne"] }),
+    step("real-first-communication", "governed-journey-communication", "Réunion préparée ou planifiée", "Cette première carte réelle décrit une réunion préparée, éventuellement planifiée avec une date, son état et son périmètre. Préparer organise la réunion sans la démarrer, sans prévenir les participants et sans ouvrir leurs médias.", { glossary: ["communication-securisee", "validation-humaine"] }),
+    step("real-meeting-room", "governed-journey-media-room", "Rejoindre la réunion", "Le bouton Rejoindre établit la connexion uniquement après un clic humain. Montrer la zone ne clique pas et ne demande aucun jeton de connexion.", { glossary: ["communication-securisee", "validation-humaine"] }),
+    step("real-meeting-participants", "governed-journey-meeting-participants", "Réponses des participants", "Cette zone affiche séparément l’invitation en attente, la participation acceptée ou déclinée et les présences observées. Une autorisation technique ne vaut pas acceptation ; chaque invité conserve son accès personnel.", { glossary: ["participant", "acces-gouverne", "perimetre-d-acces"] }),
+    step("real-meeting-participant-selection", "governed-meeting-participant-selection", "Sélectionner les participants", "Cette zone utilise uniquement les membres réels du Parcours. La sélection reste un brouillon jusqu’à son examen puis sa validation explicite ; montrer la zone ne sélectionne et n’ajoute personne à la réunion.", { states: ["EMPTY", "POPULATED", "FOCUSED"], glossary: ["participant", "validation-humaine", "perimetre-d-acces"] }),
+  ] },
+  { id: "governance-review", title: "Comprendre les décisions", description: "Distinguer ce qui reste à décider de ce qui a déjà été examiné.", applicableStates: ["FOCUSED"], steps: [
+    step("real-reviews", "governance-reviews", "Les décisions", "Cette section rassemble les décisions préparées ou examinées et permet d’en cadrer une nouvelle.", { glossary: ["revue", "validation-humaine"] }),
+    step("real-prepared-review", "open-governance-review", "Décision préparée", "Cette carte présente le sujet et la question à trancher. L’assistant reste facultatif ; l’examen et la décision restent humains.", { glossary: ["revue", "conduite-humaine", "validation-humaine"] }),
+    step("real-prepare-review", "prepare-governance-review", "Préparer une décision", "La préparation enregistre un cadrage à relire. La Boussole ne remplit pas le formulaire et ne décide pas à votre place.", { glossary: ["revue", "validation-humaine"] }),
+    step("real-v1-limits", "governed-journey-v1-limits", "Limites V1", "La V1 ne crée aucune réunion, notification, synthèse, décision, invitation ou communication automatiquement.", { glossary: ["conduite-humaine", "validation-humaine"] }),
+  ] },
+];
+
+export const governedJourneySteps = governedJourneySequences.flatMap((sequence) => sequence.steps);

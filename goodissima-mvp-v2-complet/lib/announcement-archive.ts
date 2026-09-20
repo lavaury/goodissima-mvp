@@ -1,7 +1,8 @@
-export type AnnouncementStatus = "ACTIVE" | "DISABLED" | "EXPIRED" | "ARCHIVED";
+export type AnnouncementStatus = "DRAFT" | "ACTIVE" | "DISABLED" | "EXPIRED" | "ARCHIVED";
 export type AnnouncementListView = "active" | "archived";
 
 export function announcementStatusLabel(status: AnnouncementStatus) {
+  if (status === "DRAFT") return "Brouillon";
   if (status === "ACTIVE") return "Publiée";
   if (status === "DISABLED") return "Suspendue";
   if (status === "EXPIRED") return "Clôturée";

@@ -1,0 +1,86 @@
+.scene {
+  position: relative;
+  overflow: hidden;
+  border: 1px dashed rgb(148 163 184);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgb(248 250 252), rgb(236 254 255));
+  padding: 1.25rem;
+}
+
+.animatedItem {
+  animation: welcomeReveal 900ms ease-out both;
+  animation-delay: var(--scene-delay, 0ms);
+  animation-play-state: var(--scene-play-state, running);
+}
+
+.scene[data-animation-state="paused"] { --scene-play-state: paused; }
+.scene[data-reduced-motion="true"] .animatedItem { animation: none; }
+
+.card {
+  border: 1px solid rgb(207 250 254);
+  border-radius: .75rem;
+  background: white;
+  padding: 1rem;
+  color: rgb(30 41 59);
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgb(15 23 42 / .06);
+}
+
+.situation { display: grid; gap: 1rem; align-items: center; }
+.situationInitial { border: 1px dashed rgb(148 163 184); border-radius: .875rem; padding: 1rem; background: rgb(255 255 255 / .65); }
+.goodissimaFrame { border: 2px solid rgb(14 116 144); border-radius: 1rem; padding: 1rem; background: rgb(236 254 255); }
+.sceneStageLabel { margin-bottom: .75rem; color: rgb(51 65 85); font-size: .875rem; font-weight: 700; }
+.scatteredCard:nth-child(odd) { transform: translateX(.25rem); }
+.scatteredCard:nth-child(even) { transform: translateX(-.25rem); }
+.flow { text-align: center; color: rgb(14 116 144); font-size: 1.5rem; font-weight: 700; }
+
+.selected { transform: scale(1.025); border-color: rgb(14 116 144); }
+.secondary { opacity: .58; }
+.line { height: 1px; background: repeating-linear-gradient(90deg, rgb(14 116 144) 0 8px, transparent 8px 14px); }
+.threshold { border: 2px solid rgb(217 119 6); border-radius: .75rem; background: rgb(255 251 235); padding: .75rem; }
+.entrySceneGrid { display: grid; gap: 1.25rem; }
+.entryFlowCard { overflow: hidden; border: 1px solid rgb(203 213 225); border-radius: 1rem; background: white; padding: 0 1.125rem 1.25rem; box-shadow: 0 10px 24px rgb(15 23 42 / .07); }
+.entryFlowTitle { margin-top: 1rem; color: rgb(15 23 42); font-size: 1.05rem; font-weight: 800; }
+.entryBanner { display: flex; min-height: 4.5rem; align-items: center; justify-content: space-around; margin: 0 -1.125rem; padding: .75rem 1rem; background: rgb(207 250 254); color: rgb(14 116 144); }
+.entryBanner span { display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border: 1px solid currentColor; border-radius: .75rem; background: rgb(255 255 255 / .72); font-size: 1.2rem; font-weight: 800; }
+.entryBanner svg, .flowSymbol svg { width: 1.35rem; height: 1.35rem; }
+[data-entry-key="OPPORTUNITY"] > .entryBanner { background: rgb(254 243 199); color: rgb(180 83 9); }
+[data-entry-key="GOVERNED_JOURNEY"] > .entryBanner { background: rgb(237 233 254); color: rgb(109 40 217); }
+[data-entry-key="EXISTING_ACTIVITY"] > .entryBanner { background: rgb(220 252 231); color: rgb(21 128 61); }
+.visualFlow { display: grid; gap: .75rem; margin-top: 1rem; }
+.visualFlow li { position: relative; display: grid; grid-template-columns: 2.25rem 1fr; align-items: center; gap: .625rem; min-width: 0; color: rgb(51 65 85); font-size: .875rem; line-height: 1.4; }
+.flowSymbol { display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border-radius: .75rem; background: rgb(241 245 249); color: rgb(30 41 59); font-size: 1rem; font-weight: 800; }
+.flowConnector { position: absolute; left: 1.1rem; bottom: -.75rem; color: rgb(100 116 139); font-weight: 800; }
+.humanFlowStep { border-radius: .75rem; background: rgb(255 251 235); padding: .5rem; color: rgb(120 53 15) !important; font-weight: 700; }
+.humanFlowStep .flowSymbol { background: rgb(254 243 199); color: rgb(146 64 14); }
+.entryChoices { display: grid; gap: 1.5rem; margin-top: .75rem; min-width: 0; }
+.entryCardsGrid { display: grid; align-items: stretch; gap: 1.25rem; min-width: 0; }
+.entryDetailPanel { min-width: 0; }
+
+@keyframes welcomeReveal {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animatedItem { animation: none !important; transition: none !important; }
+}
+
+@media (min-width: 640px) {
+  .scene { padding: 1.75rem; }
+  .situation { grid-template-columns: 1fr auto 1.15fr; }
+  .flow { transform: none; }
+  .entrySceneGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .entryCardsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1024px) {
+  .visualFlowCompact { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
+  .visualFlowCompact li { grid-template-columns: 1fr; align-content: start; font-size: .875rem; }
+  .visualFlowCompact .flowConnector { top: 1rem; right: -.45rem; bottom: auto; left: auto; transform: none; }
+}
+
+@media (min-width: 1280px) {
+  .entryChoicesWithDetail { grid-template-columns: minmax(0, 2fr) minmax(20rem, 1fr); align-items: start; gap: 1.75rem; }
+}

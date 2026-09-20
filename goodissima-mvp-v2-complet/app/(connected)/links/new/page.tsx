@@ -1,0 +1,155 @@
+export const dynamic = "force-dynamic";
+
+import { unstable_noStore as noStore } from "next/cache";
+import { ActiveOrganizationBadge } from "@/components/ActiveOrganizationBadge";
+import { DashboardBackLink } from "@/components/DashboardBackLink";
+import { getCurrentPrismaUser } from "@/lib/auth";
+import { getI18n } from "@/lib/i18n";
+import { DEFAULT_RELATION_TEMPLATE_KEY } from "@/lib/relation-templates";
+import { prisma } from "@/lib/prisma";
+import { getAccessibleRelationTemplateIds } from "@/lib/relation-template-access";
+import { getWorkspaceCreationContext } from "@/lib/workspace-creation-context";
+import { notFound } from "next/navigation";
+import {
+  localizeTemplateFields,
+  localizeTemplateName,
+} from "@/lib/template-localization";
+import { parseTemplateSnapshot, snapshotFieldsToDynamicFields } from "@/lib/template-snapshots";
+import { buildOpportunityPreview } from "@/lib/opportunity-preview";
+import { formatConditionalRule } from "@/lib/template-readable";
+import { NewLinkForm } from "./NewLinkForm";
+
+export default async function NewLinkPage({ searchParams }: { searchParams?: { templateId?: string; workspaceId?: string } }) {
+  noStore();
+  const { locale, t } = getI18n();
+  const owner = await getCurrentPrismaUser();
+  const workspace = searchParams?.workspaceId !== undefined ? await getWorkspaceCreationContext(owner.id, searchParams.workspaceId) : null;
+  if (searchParams?.workspaceId !== undefined && !workspace) notFound();
+  const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
+
+  const templates = await prisma.relationTemplate.findMany({
+    where: { id: { in: await getAccessibleRelationTemplateIds(owner.id, "use") }, status: { not: "ARCHIVED" } },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      key: true,
+      name: true,
+      status: true,
+      formTemplates: {
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: {
+          fields: {
+            orderBy: [{ step: "asc" }, { position: "asc" }, { createdAt: "asc" }],
+            select: {
+              key: true,
+              label: true,
+              type: true,
+              required: true,
+              placeholder: true,
+              defaultValue: true,
+              step: true,
+              options: true,
+              conditionalRules: true,
+              validationRules: true,
+            },
+          },
+        },
+      },
+      versions: {
+        where: { isPublished: true },
+        orderBy: [{ version: "desc" }, { createdAt: "desc" }],
+        take: 1,
+        select: { version: true, createdAt: true, snapshot: true },
+      },
+      trustPolicies: {
+        where: { scope: "TEMPLATE", status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { credentialRequirements: { select: { credentialType: { select: { code: true } } } } },
+      },
+    },
+  });
+  if (searchParams?.templateId !== undefined &&
+      (typeof searchParams.templateId !== "string" || !templates.some((template) => template.id === searchParams.templateId))) notFound();
+  const defaultTemplate = templates.find((template) => template.key === DEFAULT_RELATION_TEMPLATE_KEY);
+  const templateOptions = templates.map((template) => {
+    const activeVersion = template.versions[0] ?? null;
+    const snapshot = activeVersion ? parseTemplateSnapshot(activeVersion.snapshot) : null;
+    const opportunity = snapshot?.design ? buildOpportunityPreview(snapshot) : null;
+    const rawFields = snapshot
+      ? snapshotFieldsToDynamicFields(snapshot)
+      : template.formTemplates[0]?.fields.map((field) => ({
+          key: field.key,
+          label: field.label,
+          type: field.type.toUpperCase(),
+          required: field.required,
+          placeholder: field.placeholder,
+          defaultValue: field.defaultValue,
+          step: field.step,
+          options: Array.isArray(field.options) ? field.options as { label: string; value: string }[] : [],
+          conditionalRules: Array.isArray(field.conditionalRules) ? field.conditionalRules as never[] : [],
+          validationRules: field.validationRules,
+        })) ?? [];
+    const fields = localizeTemplateFields(template.key, rawFields, locale);
+    const fieldLabels = fields.map((field) => ({ key: field.key, label: field.label }));
+    const steps = Array.from(new Set(fields.map((field) => field.step || 1)))
+      .sort((a, b) => a - b)
+      .map((step) => ({
+        step,
+        fields: fields
+          .filter((field) => (field.step || 1) === step)
+          .map((field) => ({
+            key: field.key,
+            label: field.label,
+            type: field.type,
+            required: field.required,
+          })),
+      }));
+    const rules = fields.flatMap((field) =>
+      (field.conditionalRules ?? []).map((rule) => `${field.label}: ${formatConditionalRule(rule, fieldLabels)}`),
+    );
+
+    return {
+      id: template.id,
+      key: template.key,
+      name: localizeTemplateName(template.key, template.name, locale),
+      status: template.status,
+      activeVersion: activeVersion
+        ? { version: activeVersion.version, createdAt: activeVersion.createdAt.toISOString() }
+        : null,
+      steps,
+      rules,
+      photos: opportunity?.photos ?? [],
+      attachments: opportunity?.attachments ?? [],
+      verifiedLinks: opportunity?.verifiedLinks ?? [],
+      announcementTitle: opportunity?.title ?? template.name,
+      announcementCity: opportunity?.city === "Localisation à préciser" ? "" : opportunity?.city ?? "",
+      announcementDescription: opportunity?.summary ?? "",
+      objectives: opportunity?.validationCriteria ?? [],
+      verificationRequired: template.trustPolicies[0]?.credentialRequirements.some((requirement) => requirement.credentialType.code === "VERIFIED_IDENTITY") ?? false,
+    };
+  });
+
+  return (
+    <main className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <DashboardBackLink className="mb-4" />
+          <h1 className="text-3xl font-bold">{t("links.new.title")}</h1>
+        </div>
+        <ActiveOrganizationBadge organizationName={organizationName} />
+      </div>
+      <NewLinkForm
+        workspaceId={workspace?.id}
+        templates={templateOptions}
+        defaultTemplateId={
+          templateOptions.find((template) => template.id === searchParams?.templateId)?.id ??
+          defaultTemplate?.id ??
+          templateOptions[0]?.id ??
+          null
+        }
+      />
+    </main>
+  );
+}

@@ -6,6 +6,7 @@ import {
   cancelExpiredRelationMediaSession,
   getRelationMediaSessionBlockedReason,
 } from "@/lib/relation-media-sessions";
+import { canCandidateWriteInRelation, getRelationGovernanceBlockedMessage } from "@/lib/relation-governance";
 
 function normalizeBody(value: unknown): {
   candidateAccessToken?: unknown;
@@ -37,6 +38,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
     const peerId = typeof body.peerId === "string" ? body.peerId : "";
     const cursor = typeof body.cursor === "number" ? body.cursor : 0;
+    const outgoing = normalizeOutgoing(body.messages);
 
     if (!candidateAccessToken || !sessionId || !peerId.startsWith("candidate:")) {
       return NextResponse.json({ error: "Signalisation candidat invalide." }, { status: 400 });
@@ -49,11 +51,16 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       },
       select: {
         id: true,
+        governanceStatus: true,
       },
     });
 
     if (!relationCase) {
       return NextResponse.json({ error: "Acces candidat invalide." }, { status: 404 });
+    }
+
+    if (!canCandidateWriteInRelation(relationCase.governanceStatus) && (outgoing.length === 0 || outgoing.some((message) => message.type !== "leave"))) {
+      return NextResponse.json({ error: getRelationGovernanceBlockedMessage(relationCase.governanceStatus) }, { status: 409 });
     }
 
     const session = await prisma.communicationSession.findFirst({
@@ -94,7 +101,7 @@ export async function POST(req: Request, { params }: { params: { caseId: string 
       peerId,
       role: "CANDIDATE",
       cursor,
-      outgoing: normalizeOutgoing(body.messages),
+      outgoing,
     });
 
     return NextResponse.json(exchange);

@@ -1,18 +1,20 @@
 import { prisma } from "@/lib/prisma";
-import { getGovernancePilotage } from "@/lib/governance-pilotage-repository";
+import { getGovernancePilotage, summarizeGovernanceAttention } from "@/lib/governance-pilotage-repository";
+import { toGovernanceAIAttention } from "@/lib/governance-attention";
 
 export type GovernanceAIScope = "global" | "portfolio" | "workspace" | "journey";
 export async function getGovernanceAIContext(input: { ownerId: string; scope: GovernanceAIScope; portfolioId?: string; workspaceId?: string; relationTemplateId?: string }) {
   const pilotage = await getGovernancePilotage(input.ownerId);
   const portfolios = await prisma.portfolio.findMany({ where: { ownerId: input.ownerId }, select: { id: true, name: true, status: true, workspaces: { select: { id: true, name: true } } }, take: 50 });
   const portfolio = input.portfolioId ? portfolios.find((item) => item.id === input.portfolioId) : null;
-  const allowedWorkspaceNames = portfolio ? new Set(portfolio.workspaces.map((item) => item.name)) : null;
-  const signals = pilotage.signals.filter((signal) => (!allowedWorkspaceNames || (signal.workspace && allowedWorkspaceNames.has(signal.workspace))) && (!input.workspaceId || pilotage.workspaces.find((workspace) => workspace.id === input.workspaceId)?.name === signal.workspace)).slice(0, 100);
+  const allowedWorkspaceIds = portfolio ? new Set(portfolio.workspaces.map((item) => item.id)) : null;
+  const signals = pilotage.signals.filter((signal) => (!allowedWorkspaceIds || (signal.workspaceId && allowedWorkspaceIds.has(signal.workspaceId))) && (!input.workspaceId || signal.workspaceId === input.workspaceId)).slice(0, 100);
+  const attention = summarizeGovernanceAttention({ signals, scope: input.scope === "portfolio" ? "PORTFOLIO" : input.scope === "workspace" ? "WORKSPACE" : "GLOBAL", scopeId: input.portfolioId ?? input.workspaceId, fallbackHref: input.portfolioId ? `/gouvernance/portfolios/${input.portfolioId}/pilotage` : "/gouvernance/pilotage" });
   return {
     scope: input.scope,
-    portfolios: portfolios.map((item) => ({ id: item.id, title: item.name, status: item.status, workspaces: item.workspaces.map((workspace) => ({ id: workspace.id, title: workspace.name })) })),
-    workspaces: pilotage.workspaces.filter((workspace) => !allowedWorkspaceNames || allowedWorkspaceNames.has(workspace.name)).map((workspace) => ({ id: workspace.id, title: workspace.name, status: workspace.status, portfolio: workspace.portfolio, journeyCount: workspace.journeyCount, caseCount: workspace.caseCount })),
-    signals: signals.map((signal) => ({ title: signal.title, subject: signal.subject, journey: signal.journey, workspace: signal.workspace, portfolio: signal.portfolio, reason: signal.reason, humanAction: signal.actionLabel, targetUrl: signal.href, date: signal.date?.toISOString() ?? null })),
+    portfolios: portfolios.map((item) => ({ title: item.name, status: item.status, workspaces: item.workspaces.map((workspace) => ({ title: workspace.name })) })),
+    workspaces: pilotage.workspaces.filter((workspace) => !allowedWorkspaceIds || allowedWorkspaceIds.has(workspace.id)).map((workspace) => ({ title: workspace.name, status: workspace.status, portfolio: workspace.portfolio, journeyCount: workspace.journeyCount, caseCount: workspace.caseCount })),
+    attention: toGovernanceAIAttention(attention),
     limits: ["Contexte compact issu des signaux déterministes Goodissima.", "Aucun token, secret, lien invité clair ou metadata technique n’est inclus.", "L’assistant ne peut effectuer aucune action."],
   };
 }

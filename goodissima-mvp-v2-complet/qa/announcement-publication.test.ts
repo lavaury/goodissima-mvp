@@ -58,12 +58,13 @@ test("frontend refreshes, updates status and exposes success feedback", () => {
   assert.match(card, /publication\.publicationStatus/);
   assert.match(card, /publication\.publishedAt/);
   assert.match(card, /publication\.status === "PUBLISHED"/);
-  assert.match(actions, /isPublished \? <Link href=\{`\/links\/new\?templateId=\$\{encodeURIComponent\(relationTemplateId\)\}`\}/);
+  assert.ok(actions.includes("isPublished ? <Link href={withCreationWorkspace("));
+  assert.ok(actions.includes("encodeURIComponent(relationTemplateId)"));
   assert.match(actions, /Créer un lien sécurisé/);
 });
 
 test("template page derives publication UX from the displayed persisted version", () => {
-  const page = source("app/templates/[templateId]/page.tsx");
+  const page = source("app/(connected)/templates/[templateId]/page.tsx");
   assert.match(page, /isPublished:\s*Boolean\(lastVersion\?\.isPublished\)/);
   assert.match(page, /Date de publication:/);
   assert.match(page, /activeVersion\.createdAt/);

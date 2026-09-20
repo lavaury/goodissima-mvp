@@ -1,3 +1,4 @@
+import { getTemplateMutationAccess, templateMutationNotFound } from "@/lib/template-mutation-access";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getCurrentPrismaUser } from "@/lib/auth";
@@ -8,6 +9,8 @@ import { prisma } from "@/lib/prisma";
 export async function POST(_req: Request, { params }: { params: { templateId: string; reportId: string } }) {
   try {
     const owner = await getCurrentPrismaUser();
+    const access = await getTemplateMutationAccess(owner, params.templateId);
+    if (!access) return templateMutationNotFound();
     const formTemplate = await prisma.formTemplate.findUnique({
       where: { id: params.templateId },
       select: { relationTemplateId: true },

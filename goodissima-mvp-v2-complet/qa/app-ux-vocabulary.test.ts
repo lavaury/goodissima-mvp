@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 test("dashboard primary CTA is opportunity-first", () => {
-  const dashboard = source("app/dashboard/page.tsx");
+  const dashboard = source("app/(connected)/dashboard/page.tsx");
   const fr = source("locales/fr/common.json");
   assert.match(fr, /"dashboard.title": "Mes opportunités et relations"/);
   assert.match(fr, /"dashboard.createLink": "Créer une opportunité"/);
@@ -16,7 +16,7 @@ test("dashboard primary CTA is opportunity-first", () => {
 });
 
 test("opportunity creation clarifies IA assisted and manual modes", () => {
-  const page = source("app/opportunities/new/page.tsx");
+  const page = source("app/(connected)/opportunities/new/page.tsx");
   assert.match(page, /Assisté par IA/);
   assert.match(page, /Manuel/);
   assert.match(page, /Choisir le mode de création/);
@@ -24,8 +24,8 @@ test("opportunity creation clarifies IA assisted and manual modes", () => {
 });
 
 test("secure link wording remains scoped to published announcement contexts", () => {
-  const opportunities = source("app/opportunities/page.tsx");
-  const creation = source("app/opportunities/new/page.tsx");
+  const opportunities = source("app/(connected)/opportunities/page.tsx");
+  const creation = source("app/(connected)/opportunities/new/page.tsx");
   const actions = source("components/OpportunityPreviewActions.tsx");
   assert.doesNotMatch(opportunities, /Créer un lien sécurisé/);
   assert.match(creation, /Créer un lien sécurisé dans le contexte d'une annonce prête à être partagée/);

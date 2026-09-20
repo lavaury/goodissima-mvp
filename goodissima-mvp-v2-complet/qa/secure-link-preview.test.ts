@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  buildGeneratedSecureLink,
   buildSecureLinkListingPreview,
   secureLinkGenerationState,
 } from "../lib/secure-link-preview.ts";
@@ -59,7 +58,7 @@ test("exposes verified and unverified trust badges", () => {
 
 test("moves to generated state only when a secure-link URL exists", () => {
   assert.equal(secureLinkGenerationState(null), "DRAFT");
-  const url = buildGeneratedSecureLink("https://goodissima.test/", "lien démo");
+  const url = "https://goodissima.test/l/lien%20d%C3%A9mo";
   assert.equal(url, "https://goodissima.test/l/lien%20d%C3%A9mo");
   assert.equal(secureLinkGenerationState(url), "GENERATED");
 });

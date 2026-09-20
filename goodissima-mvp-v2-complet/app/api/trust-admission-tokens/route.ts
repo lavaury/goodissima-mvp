@@ -12,18 +12,16 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createTrustAdmissionToken } from "@/lib/trust-admission-tokens";
 import { issueTrustCredentialInTransaction } from "@/lib/trust-credentials";
-import { getPublicAppUrl } from "@/lib/public-app-url";
+import { buildPublicAppUrl } from "@/lib/public-app-url";
 
 const VERIFIED_IDENTITY = "VERIFIED_IDENTITY";
 const DEMO_ISSUER_ORGANIZATION_ID = "GOODISSIMA_DEMO_AUTHORITY";
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-function getAppUrl() {
-  return getPublicAppUrl();
-}
-
 function createAdmissionUrl(input: { slug: string; token: string }) {
-  return `${getAppUrl()}/l/${encodeURIComponent(input.slug)}?trustAdmissionToken=${encodeURIComponent(input.token)}`;
+  const url = new URL(buildPublicAppUrl(`/l/${encodeURIComponent(input.slug)}`));
+  url.searchParams.set("trustAdmissionToken", input.token);
+  return url.toString();
 }
 
 function isVerifiedLinkUiEnabled() {

@@ -66,7 +66,7 @@ export function GovernanceReviewAIAssistant(props: {
 
   return (
     <div className="mt-4 rounded-lg border border-[#b9dfe2] bg-white p-3">
-      <button type="button" onClick={run} disabled={pending} className="rounded-lg bg-[#247f88] px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
+      <button type="button" onClick={run} disabled={pending} data-boussole-id="prepare-governance-review" className="rounded-lg bg-[#247f88] px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
         {pending ? "Préparation…" : "Préparer avec l’assistant"}
       </button>
       <p className="mt-2 text-xs text-slate-600">L’assistant propose une aide à la préparation. La revue doit être validée par un humain.</p>
@@ -84,7 +84,7 @@ export function GovernanceReviewAIAssistant(props: {
               <textarea value={(help[key] as string[]).join("\n")} onChange={(event) => setHelp({ ...help, [key]: event.target.value.split("\n") })} className="mt-1 min-h-20 w-full rounded-lg border p-2 text-sm font-normal" />
             </label>
           ))}
-          <button type="button" onClick={copyHelp} className="rounded-lg border px-3 py-2 text-xs font-bold">Copier l’aide</button>
+          <button type="button" onClick={copyHelp} data-boussole-id="copy-governance-review-help" className="rounded-lg border px-3 py-2 text-xs font-bold">Copier l’aide</button>
           {copyStatus ? <p role="status" aria-live="polite" className="text-sm text-slate-700">{copyStatus}</p> : null}
           {fallbackText ? (
             <label className="block text-xs font-bold">

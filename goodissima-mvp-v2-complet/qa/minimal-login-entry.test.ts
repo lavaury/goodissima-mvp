@@ -58,5 +58,5 @@ test("keeps global utility controls off the root entry", () => {
 });
 
 test("keeps discovery content available outside the homepage", () => {
-  assert.match(source("app/experience/page.tsx"), /GoodissimaExperienceJourney/);
+  assert.match(source("app/(connected)/experience/page.tsx"), /GoodissimaExperienceJourney/);
 });

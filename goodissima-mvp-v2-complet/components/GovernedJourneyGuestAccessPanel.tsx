@@ -46,25 +46,25 @@ export function GovernedJourneyGuestAccessPanel({ formTemplateId, participantNam
     }
   }
 
-  return <section className="mt-4 rounded-lg border-2 border-[#247f88]/30 bg-white p-4">
-    <h3 className="font-bold text-slate-950">Accès invité gouverné</h3>
-    <p className="mt-1 text-sm text-slate-600">Créez un accès sécurisé limité à ce parcours. Goodissima ne l’envoie pas automatiquement.</p>
+  return <section data-boussole-id="governed-journey-guest-access" data-boussole-state={active ? "active" : "to-create"} className="mt-4 rounded-lg border-2 border-[#247f88]/30 bg-white p-4">
+    <h3 className="font-bold text-slate-950">Accès au parcours</h3>
+    <p className="mt-1 text-sm text-slate-600">Créez un accès personnel limité à ce parcours. Chaque participant reçoit son propre lien personnel ; ce lien ne doit pas être partagé avec un autre participant et Goodissima ne l’envoie pas automatiquement. Les accès aux réunions sont choisis séparément.</p>
     {preparedEmail ? <p className="mt-2 text-xs text-slate-500">Email de préparation : {preparedEmail} — information uniquement, aucun envoi automatique.</p> : null}
     {active ? <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
       <p className="font-semibold text-emerald-950">Accès actif pour {active.displayName}</p>
-      <p className="mt-1 text-xs text-emerald-900">Rôle : {active.role} · Statut : {active.status} · Expiration : {new Date(active.expiresAt).toLocaleString("fr-FR")}</p>
-      <p className="mt-2 text-xs text-emerald-800">{active.relationCaseId ? "Cet invité pourra rejoindre la salle sécurisée rattachée." : "Aucune salle sécurisée rattachée à cet accès pour le moment."}</p>
+      <p className="mt-1 text-xs text-emerald-900">Rôle : {participantRole} · Expiration : {new Date(active.expiresAt).toLocaleString("fr-FR")}</p>
+      <p className="mt-2 text-xs text-emerald-800">{active.relationCaseId ? "Cet accès inclut le dossier sélectionné." : "Cet accès est limité au parcours."}</p>
       <p className="mt-2 text-xs text-emerald-800">Le lien secret n’est plus affichable. Il n’était disponible qu’après sa création.</p>
       <button type="button" onClick={() => revoke(active.id)} className="mt-3 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700">Révoquer l’accès</button>
     </div> : <form action={createAccess} className="mt-3 flex flex-wrap items-end gap-3">
-      <label className="text-xs font-semibold text-slate-600">Dossier / salle sécurisée<select name="relationCaseId" className="mt-1 block max-w-xs rounded-lg border px-3 py-2 text-sm font-normal"><option value="">Aucune salle rattachée</option>{relationCases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+      <label className="text-xs font-semibold text-slate-600">Dossier accessible avec ce parcours<select name="relationCaseId" className="mt-1 block min-h-11 max-w-xs rounded-lg border px-3 py-2 text-sm font-normal"><option value="">Parcours uniquement</option>{relationCases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
       <label className="text-xs font-semibold text-slate-600">Durée de validité (jours)<input name="expiresInDays" type="number" min="1" max="30" defaultValue="7" className="mt-1 block w-36 rounded-lg border px-3 py-2 text-sm font-normal" /></label>
-      <button className="rounded-lg bg-[#247f88] px-4 py-2 text-sm font-bold text-white">Créer un accès invité gouverné</button>
+      <button data-boussole-id="create-governed-invitation" className="min-h-11 rounded-lg bg-[#247f88] px-4 py-2 text-sm font-bold text-white">Créer l’accès au parcours</button>
     </form>}
     {link ? <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3">
       <p className="font-semibold text-emerald-950">Copiez ce lien et transmettez-le par le canal de votre choix.</p>
       <input ref={linkInputRef} readOnly value={link} onFocus={(event) => event.currentTarget.select()} className="mt-2 w-full rounded border bg-white px-2 py-2 text-sm" />
-      <button type="button" onClick={copyLink} className="mt-2 rounded bg-emerald-800 px-3 py-2 text-sm font-semibold text-white">Copier le lien</button>
+      <button type="button" onClick={copyLink} data-boussole-id="copy-governed-invitation-link" className="mt-2 rounded bg-emerald-800 px-3 py-2 text-sm font-semibold text-white">Copier le lien</button>
       {copyStatus ? <p role="status" className="mt-2 text-sm font-semibold text-emerald-900">{copyStatus}</p> : null}
       <p className="mt-2 text-xs text-emerald-800">Ce lien en clair n’est affiché que dans cette confirmation.</p>
     </div> : null}
