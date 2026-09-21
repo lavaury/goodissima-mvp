@@ -34,6 +34,33 @@ test("public case contract accepts normal Opportunity, Simple Link and legacy sh
   ]) assert.equal((await readPublicCaseRequest(jsonRequest(body))).ok, true);
 });
 
+test("public case contract normalizes legacy null template references without accepting other null strings", async () => {
+  const simpleLinkPayload = {
+    gLinkId: "simple-link",
+    candidateName: "Albert",
+    candidateEmail: "albert@example.test",
+    candidateNotificationEmail: "",
+    message: "",
+    documentName: "",
+    documentUrl: "",
+    formTemplateId: null,
+    templateVersionId: null,
+    answers: { besoin: "Conseil" },
+    emailNotificationsConsent: false,
+  };
+
+  const result = await readPublicCaseRequest(jsonRequest(simpleLinkPayload));
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal("formTemplateId" in result.body, false);
+    assert.equal("templateVersionId" in result.body, false);
+  }
+
+  const invalid = await readPublicCaseRequest(jsonRequest({ ...simpleLinkPayload, candidateName: null }));
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) assert.deepEqual(invalid.reasons, ["candidateName_must_be_string"]);
+});
+
 test("public case contract rejects oversized and unexpected payloads", async () => {
   const cases = [
     [{ gLinkId: "x", message: "x".repeat(2001) }, "message_too_long"],
