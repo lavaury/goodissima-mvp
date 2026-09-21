@@ -297,8 +297,8 @@ export default function CandidateForm({
       message: derivedSubmission.message || message,
       documentName: documentFields.documentName,
       documentUrl: documentFields.documentUrl,
-      formTemplateId,
-      templateVersionId,
+      ...(formTemplateId != null ? { formTemplateId } : {}),
+      ...(templateVersionId != null ? { templateVersionId } : {}),
       answers: indicativeSignals.length
         ? { ...submissionAnswers, simpleRuleSignals: indicativeSignals }
         : submissionAnswers,
