@@ -15,6 +15,7 @@ const limits = {
 } as const;
 
 const allowedKeys = new Set([...Object.keys(limits), "answers", "emailNotificationsConsent"]);
+const nullableTemplateReferenceKeys = new Set(["formTemplateId", "templateVersionId"]);
 const answerKeyPattern = /^[A-Za-z][A-Za-z0-9_]{0,119}$/;
 
 export type PublicCaseContractFailure = {
@@ -40,6 +41,7 @@ function validateBody(body: unknown): PublicCaseContractResult {
 
   for (const [key, max] of Object.entries(limits)) {
     const value = row[key];
+    if (value === null && nullableTemplateReferenceKeys.has(key)) continue;
     if (value !== undefined && typeof value !== "string") return failure(400, "INVALID_REQUEST_BODY", `${key}_must_be_string`);
     if (typeof value === "string" && value.length > max) return failure(400, "INVALID_REQUEST_BODY", `${key}_too_long`);
   }
@@ -66,7 +68,10 @@ function validateBody(body: unknown): PublicCaseContractResult {
   if ((row.documentName && !row.documentUrl) || (row.documentUrl && !row.documentName)) {
     return failure(400, "INVALID_REQUEST_BODY", "document_reference_incomplete");
   }
-  return { ok: true, body: row };
+  const normalizedBody = { ...row };
+  if (normalizedBody.formTemplateId === null) delete normalizedBody.formTemplateId;
+  if (normalizedBody.templateVersionId === null) delete normalizedBody.templateVersionId;
+  return { ok: true, body: normalizedBody };
 }
 
 export async function readPublicCaseRequest(req: Request): Promise<PublicCaseContractResult> {
