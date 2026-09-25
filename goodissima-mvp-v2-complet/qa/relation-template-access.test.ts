@@ -1,5 +1,6 @@
 import * as creation from "../lib/object-creation.ts";
 import * as pagination from "../lib/unassigned-pagination.ts";
+import * as classification from "../lib/business-object-classification.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -62,7 +63,8 @@ function setup(userId: string | null = "A") {
     "next/server": { NextResponse: { json: Response.json } },
     "next/cache": { unstable_noStore() {}, revalidatePath() {} },
     "next/navigation": { notFound() { throw Error("404"); } },
-    "@/lib/unassigned-pagination": pagination, "@/lib/object-creation": creation, "@/lib/auth": { getCurrentPrismaUser: async () => {
+    "@/lib/unassigned-pagination": pagination, "@/lib/object-creation": creation,
+    "@/lib/business-object-classification": classification, "@/lib/auth": { getCurrentPrismaUser: async () => {
       if (!userId) throw Error("LOGIN"); return { id: userId, email: "owner@example.test" };
     } },
     "@/lib/i18n": { getI18n: () => ({ locale: "fr", t: (s: string) => s }) },

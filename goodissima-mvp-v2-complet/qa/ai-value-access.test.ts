@@ -68,7 +68,7 @@ test("both authorized roles can open both pages and export", async () => {
 test("user navigation fails closed and shows the link only with server permission", () => {
   const { PlatformNavigation } = loadTestModule("components/PlatformNavigation.tsx", {
     ...common, react: React, "next/navigation": { usePathname: () => "/dashboard" },
-    ...Object.fromEntries(["ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton"].map(n => ["@/components/" + n, { [n]: nullComponent }])),
+    ...Object.fromEntries(["ActiveOrganizationBadge", "LanguageSwitcher", "LogoutButton", "NotificationCenter"].map(n => ["@/components/" + n, { [n]: nullComponent }])),
   });
   for (const aiValueAllowed of [undefined, false, true]) {
     const html = renderToStaticMarkup(jsx.jsx(PlatformNavigation, { aiValueAllowed }));
@@ -82,6 +82,7 @@ test("Administration hides both AI entry links independently of Feedback and Cha
       "@/lib/champagne-workspace": { canAccessChampagneWorkspace },
       "@/lib/product-feedback": { canAccessFeedbackAdmin },
       "@/lib/debug": { isDemoSurfaceEnabled: () => false },
+      "@/lib/private-platform-access": { canManagePrivatePlatformAccess: (user: { role?: string }) => canAccessAIValue(user.role) },
       "@/components/ChampagneScenariosPanel": { ChampagneScenariosPanel: nullComponent },
       "@/components/DashboardBackLink": { DashboardBackLink: nullComponent },
     });

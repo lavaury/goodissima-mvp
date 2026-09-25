@@ -52,7 +52,7 @@ test("private aliases stay filtered from owner-facing identity", () => {
   assert.match(identity, /Contact non renseigné/);
 });
 
-test("the real cases route creates an anonymous dossier for a template-less opportunity", async () => {
+test("the real cases route creates a pending request for a template-less opportunity", async () => {
   const file = "app/api/cases/route.ts";
   const imports = Object.fromEntries(ts.preProcessFile(readFileSync(file, "utf8")).importedFiles.map((item) => [item.fileName, {}]));
   const writes: Array<{ model: string; data: Record<string, unknown> }> = [];
@@ -67,6 +67,8 @@ test("the real cases route creates an anonymous dossier for a template-less oppo
     relationCase: { findMany: async () => [] },
     message: { create: async ({ data }: { data: Record<string, unknown> }) => { writes.push({ model: "message", data }); return { id: "message" }; } },
     document: { create: async () => { throw new Error("no document expected"); } },
+    publicCaseCreationRequest: { create: async ({ data }: { data: Record<string, unknown> }) => ({ id: "request", status: data.status }) },
+    auditLog: { create: async () => ({ id: "audit" }) },
     $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx),
   };
   const json = (body: unknown, init?: ResponseInit) => {
@@ -106,16 +108,9 @@ test("the real cases route creates an anonymous dossier for a template-less oppo
   }, { console: { warn() {}, error() {}, info() {} } });
 
   const response = await route.POST({ json: async () => ({ gLinkId: "opportunity", message: "Bonjour" }) });
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { candidateAccessToken: "secure-token" });
-  const dossier = writes.find((write) => write.model === "case")!.data;
-  assert.equal(dossier.gLinkId, "opportunity");
-  assert.equal(dossier.ownerId, "owner");
-  assert.equal(dossier.templateId, undefined);
-  assert.equal(dossier.candidateName, "");
-  assert.equal(dossier.candidateEmail, "");
-  assert.equal(dossier.status, "NEW");
-  assert.ok(!("workspaceId" in dossier));
-  assert.deepEqual(writes.find((write) => write.model === "message")!.data, { caseId: "case", senderType: "CANDIDATE", senderEmail: "", body: "Bonjour" });
-  assert.deepEqual(notifications, [{ recipientUserId: "owner", type: "NEW_RELATION_CASE", relationCaseId: "case", sourceEventId: "event-CASE_CREATED", idempotencyKey: "CASE_CREATED:case:owner" }]);
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), { requestId: "request", status: "PENDING" });
+  assert.equal(writes.some((write) => write.model === "case"), false);
+  assert.equal(writes.some((write) => write.model === "message"), false);
+  assert.deepEqual(notifications, []);
 });

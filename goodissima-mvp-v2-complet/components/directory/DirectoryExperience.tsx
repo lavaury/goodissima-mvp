@@ -30,6 +30,7 @@ function makeCriteria(form: SearchForm, cursor?: string): DirectorySearchCriteri
 }
 
 type InvitableJourney = { id: string; title: string };
+// The first real result receives data-boussole-id="directory-first-result" below; no placeholder is created.
 export function DirectoryExperience({ initialProfiles, journeys }: { initialProfiles: ManagedDirectoryProfileDto[]; journeys: InvitableJourney[] }) {
   const [profiles, setProfiles] = useState(initialProfiles);
   useEffect(() => setProfiles(initialProfiles), [initialProfiles]);
