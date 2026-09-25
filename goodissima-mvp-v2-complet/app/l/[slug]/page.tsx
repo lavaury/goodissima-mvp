@@ -22,6 +22,7 @@ import { normalizePublicFormField } from "@/lib/candidate-form-safety";
 import { isSimpleLinkRelationalEmailField } from "@/lib/simple-link-fields";
 import { projectOpportunity } from "@/lib/opportunities/opportunity-projection";
 import { PublicAutonomousOpportunity } from "@/components/PublicAutonomousOpportunity";
+import { PublicResponseContext } from "@/components/PublicResponseContext";
 
 type FieldOption = {
   label: string;
@@ -191,11 +192,11 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         </p>
       </div>
 
-      {isSimpleLink ? (
-        <PublicSimpleLinkCard title={link.title} description={link.description} welcomeMessage={welcomeMessage} expiresAt={link.expiresAt} />
-      ) : (
-        <PublicOpportunityCard title={link.title} city={link.city} description={link.description} presentation={presentation} />
-      )}
+      <div id="public-link-context">{isSimpleLink ? (
+          <PublicSimpleLinkCard title={link.title} description={link.description} welcomeMessage={welcomeMessage} expiresAt={link.expiresAt} />
+        ) : (
+          <PublicOpportunityCard title={link.title} city={link.city} description={link.description} presentation={presentation} />
+        )}</div>
       {!isSimpleLink && welcomeMessage ? (
         <p className="mt-6 rounded-2xl border border-teal-100 bg-teal-50 px-5 py-4 text-sm leading-relaxed text-teal-950">
           {welcomeMessage}
@@ -210,6 +211,8 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         <h2 className="mt-3 text-2xl font-bold">
           {isSimpleLink ? "Répondre via ce lien sécurisé" : "Répondre à cette annonce"}
         </h2>
+
+        <div className="mt-6"><PublicResponseContext kind={isSimpleLink ? "SIMPLE_LINK" : "OPPORTUNITY"} title={link.title} city={isSimpleLink ? null : link.city} description={link.description} welcomeMessage={isSimpleLink ? welcomeMessage : null} /></div>
 
         <div className="mt-8 rounded-2xl bg-slate-50 p-5">
           <h2 className="font-semibold">{getDefaultSecureConversationCopy("onboardingTitle", locale)}</h2>

@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { createPublicCaseIdempotencyKey } from "@/lib/public-case-idempotency-client";
+import { PublicResponseContext } from "@/components/PublicResponseContext";
 
-export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }) {
+export function PublicOpportunitySecureExchange({ gLinkId, context }: { gLinkId: string; context: { title: string; city?: string | null; description?: string | null; details?: Array<{ label: string; value: string }> } }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -53,6 +54,7 @@ export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }
     <p className="mt-2 text-sm leading-6 text-slate-600">
       Commencez un échange sécurisé avec son auteur. Vous pourrez ensuite discuter et partager uniquement les informations nécessaires.
     </p>
+    <div className="mt-5"><PublicResponseContext kind="OPPORTUNITY" {...context} /></div>
     {requested ? <p role="status" className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900">Demande envoyée. Son auteur doit l’accepter avant l’ouverture d’une relation.</p> : <form className="mt-5" onSubmit={startExchange}>
       <label className="block text-sm font-semibold text-slate-800">
         Votre message <span className="font-normal text-slate-500">(facultatif)</span>

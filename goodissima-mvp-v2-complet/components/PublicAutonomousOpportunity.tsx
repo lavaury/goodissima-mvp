@@ -6,7 +6,13 @@ const days: Record<OpportunityDay, string> = { MONDAY: "Lundi", TUESDAY: "Mardi"
 
 export function PublicAutonomousOpportunity({ gLinkId, title, description, projection }: { gLinkId: string; title: string; description: string | null; projection: OpportunityProjection }) {
   const criteria = projection.structuredCriteria!;
-  return <article className="rounded-3xl border bg-white p-6 shadow-sm sm:p-9">
+  const responseDetails = [
+    { label: projection.type === "NEED" ? "Je recherche" : "Je propose", value: criteria.subject },
+    ...(criteria.category ? [{ label: "Catégorie", value: criteria.category }] : []),
+    ...(criteria.locations?.length ? [{ label: "Lieu", value: criteria.locations.join(", ") }] : []),
+    ...(criteria.terms?.length ? [{ label: "Critères", value: criteria.terms.join(", ") }] : []),
+  ];
+  return <article id="public-link-context" className="rounded-3xl border bg-white p-6 shadow-sm sm:p-9">
     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#247f88]">Opportunité</p>
     <h1 className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">{title}</h1>
     <dl className="mt-7 grid gap-4 sm:grid-cols-2">
@@ -20,7 +26,7 @@ export function PublicAutonomousOpportunity({ gLinkId, title, description, proje
       {criteria.terms?.length ? <Field label="Critères complémentaires">{criteria.terms.join(", ")}</Field> : null}
     </dl>
     {description ? <section className="mt-6 border-t pt-6"><h2 className="font-bold">Description</h2><p className="mt-2 whitespace-pre-wrap text-slate-700">{description}</p></section> : null}
-    <PublicOpportunitySecureExchange gLinkId={gLinkId} />
+    <PublicOpportunitySecureExchange gLinkId={gLinkId} context={{ title, description, details: responseDetails }} />
   </article>;
 }
 
