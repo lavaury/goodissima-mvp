@@ -61,4 +61,7 @@ test("Prisma adapter makes state, event and request completion one transaction",
   assert.match(source, /governedMemoryTransitionRequest\.update/);
   assert.doesNotMatch(source, /governedMemoryEvent\.(?:update|delete|upsert)/);
   assert.doesNotMatch(source, /governanceReview|governedJourneyEvent|communicationSession/);
+  assert.match(source, /authorityUserId: true/);
+  assert.match(source, /journey\.authorityUserId === userId/);
+  assert.doesNotMatch(source, /memoryRoleAssignments\.(?:create|upsert)/);
 });

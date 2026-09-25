@@ -8,6 +8,7 @@ const rolePermissions: Record<string, MemoryPermission[]> = {
 
 function capabilities(access: JourneyMemoryAccessRecord): JourneyMemoryCapabilities {
   const effective = new Set<MemoryPermission>(access.permissions);
+  if (access.isJourneyAuthority) for (const permission of rolePermissions.MEMORY_STEWARD) effective.add(permission);
   for (const role of access.roles) for (const permission of rolePermissions[role] ?? []) effective.add(permission);
   return {
     canView: effective.has("VIEW_MEMORY"), canViewSources: effective.has("VIEW_SOURCES"),

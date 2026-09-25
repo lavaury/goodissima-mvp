@@ -5,7 +5,7 @@ import { GovernedMemoryReadService } from "../lib/governed-memory/service.ts";
 import type { GovernedMemoryReadRepository, JourneyMemoryAccessRecord, JourneyMemoryRecords } from "../lib/governed-memory/repository.ts";
 
 const at = new Date("2026-09-15T12:00:00.000Z");
-const access: JourneyMemoryAccessRecord = { journeyId: "journey-a", relationCaseIds: ["case-a"], wholeJourney: false, roles: [], permissions: ["VIEW_MEMORY", "VIEW_SOURCES"] };
+const access: JourneyMemoryAccessRecord = { journeyId: "journey-a", relationCaseIds: ["case-a"], wholeJourney: false, isJourneyAuthority: false, roles: [], permissions: ["VIEW_MEMORY", "VIEW_SOURCES"] };
 const empty: JourneyMemoryRecords = { facts: [], decisions: [], sources: [], disputes: [], validations: [], relations: [], events: [], transitionRequests: [] };
 
 function repo(options: { access?: JourneyMemoryAccessRecord | null; records?: Partial<JourneyMemoryRecords> } = {}) {
@@ -108,6 +108,16 @@ test("active memory roles produce explicit capabilities", async () => {
   assert.equal((await new GovernedMemoryReadService(steward.repository).readJourneyGovernedMemory("journey-a", "steward"))?.capabilities.canValidateDecision, true);
   assert.equal((await new GovernedMemoryReadService(delegate.repository).readJourneyGovernedMemory("journey-a", "delegate"))?.capabilities.canValidateDecision, false);
   assert.equal((await new GovernedMemoryReadService(delegate.repository).readJourneyGovernedMemory("journey-a", "delegate"))?.capabilities.canRegisterSource, true);
+});
+
+test("journey authority governs empty whole-journey memory without a case or persisted memory role", async () => {
+  const authority = repo({ access: { journeyId: "journey-a", relationCaseIds: [], wholeJourney: true, isJourneyAuthority: true, roles: [], permissions: [] } });
+  const result = await new GovernedMemoryReadService(authority.repository).readJourneyGovernedMemory("journey-a", "authority");
+  assert.deepEqual(result?.capabilities, {
+    canView: true, canViewSources: true, canPropose: true, canEstablishFact: true,
+    canDispute: true, canRecordDecision: true, canValidateDecision: true, canRegisterSource: true,
+  });
+  assert.deepEqual(authority.reads, [{ journeyId: "journey-a", relationCaseIds: [], wholeJourney: true, includeSources: true }]);
 });
 
 test("repository and service expose no mutation surface and events are read-only", () => {

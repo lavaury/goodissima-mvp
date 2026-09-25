@@ -10,6 +10,7 @@ export type JourneyMemoryAccessRecord = {
   journeyId: string;
   relationCaseIds: string[];
   wholeJourney: boolean;
+  isJourneyAuthority: boolean;
   roles: MemoryRole[];
   permissions: MemoryPermission[];
 };
@@ -37,6 +38,7 @@ export class PrismaGovernedMemoryReadRepository implements GovernedMemoryReadRep
       where: { id: journeyId },
       select: {
         id: true,
+        authorityUserId: true,
         memoryRoleAssignments: { where: { userId, revokedAt: null }, select: { role: true } },
         relationCaseContexts: { select: { relationCaseId: true } },
       },
@@ -51,10 +53,11 @@ export class PrismaGovernedMemoryReadRepository implements GovernedMemoryReadRep
       select: { permission: true, relationCaseId: true },
     }) : [];
     const roles = [...new Set(journey.memoryRoleAssignments.map((row) => row.role))] as MemoryRole[];
-    const wholeJourney = roles.length > 0;
+    const isJourneyAuthority = journey.authorityUserId === userId;
+    const wholeJourney = isJourneyAuthority || roles.length > 0;
     const visibleCaseIds = wholeJourney ? relationCaseIds : [...new Set(grants.filter((grant) => grant.permission === "VIEW_MEMORY").map((grant) => grant.relationCaseId))];
     const permissions = [...new Set(grants.filter((grant) => visibleCaseIds.includes(grant.relationCaseId)).map((row) => row.permission).filter((permission): permission is MemoryPermission => permission !== "VALIDATE_SYNTHESIS" && permission !== "MANAGE_MEMORY_ACCESS" && permission !== "PROMOTE_PRIVATE_SOURCE"))];
-    return { journeyId: journey.id, relationCaseIds: visibleCaseIds, wholeJourney, roles, permissions };
+    return { journeyId: journey.id, relationCaseIds: visibleCaseIds, wholeJourney, isJourneyAuthority, roles, permissions };
   }
 
   async readJourneyMemory(journeyId: string, relationCaseIds: string[], wholeJourney: boolean, includeSources: boolean): Promise<JourneyMemoryRecords> {
