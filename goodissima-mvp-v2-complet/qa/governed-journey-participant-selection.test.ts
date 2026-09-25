@@ -15,8 +15,10 @@ const guestAccess = read("lib/governed-journey-guest-access.ts");
 const roleLabels = read("lib/governed-invitation-role-label.ts");
 
 test("participant addition exposes directory and personal external invitation", () => {
-  assert.match(panel, /Personne déjà dans Goodissima/);
-  assert.match(panel, /Personne extérieure à Goodissima/);
+  assert.match(panel, /Ajouter des participants/);
+  assert.match(panel, /Annuaire/);
+  assert.match(panel, /Matching/);
+  assert.match(panel, /Invitation directe/);
   assert.match(panel, /Créer une invitation/);
   assert.match(panel, /Aucun email ou SMS n’est obligatoire/);
   assert.match(panel, /ni public, ni collectif/);

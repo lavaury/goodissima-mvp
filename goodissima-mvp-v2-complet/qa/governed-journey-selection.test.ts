@@ -37,3 +37,31 @@ test("existing, present and skipped results cannot fabricate delivery links", ()
   assert.match(runtime, /\.\.\.\(deliveryUrl \? \{ deliveryUrl \} : \{\}\)/);
   assert.match(directory, /Copier le lien/);
 });
+
+test("mixed batch deduplicates ids and reports invited, pending, present and inaccessible profiles", async () => {
+  const created: any[] = []; const items: any[] = [];
+  const profiles = [
+    { id: "profile-new", publicId: "new", publicName: "Alice", subjectIdentity: { user: { id: "user-new" } } },
+    { id: "profile-pending", publicId: "pending", publicName: "Bob", subjectIdentity: { user: { id: "user-pending" } } },
+    { id: "profile-present", publicId: "present", publicName: "Claire", subjectIdentity: { user: { id: "user-present" } } },
+  ];
+  const tx: any = {
+    governedJourney: { findFirst: async (query: any) => { assert.equal(query.where.id, "journey"); assert.equal(query.where.authorityUserId, "owner"); return { id: "journey", relationTemplateId: "template", relationTemplate: { workspaceId: null } }; } },
+    directoryProfile: { findMany: async (query: any) => { assert.equal(query.where.actorType, "PERSON"); assert.equal(query.where.status, "PUBLISHED"); return profiles; } },
+    governedJourneyInvitation: { findMany: async () => [
+      { id: "inv-pending", inviteeUserId: "user-pending", status: "PREPARED", consent: { status: "PENDING" } },
+      { id: "inv-present", inviteeUserId: "user-present", status: "ACTIVE", consent: { status: "ACCEPTED" } },
+    ], create: async ({ data }: any) => { created.push(data); return { id: "inv-new" }; } },
+    governedParticipantSelection: { create: async () => ({ id: "selection" }), update: async () => ({}) },
+    governedParticipantSelectionEvent: { createMany: async () => ({}), create: async () => ({}) },
+    governedJourneyConsent: { create: async () => ({}) },
+    governedParticipantSelectionItem: { create: async ({ data }: any) => { items.push(data); return {}; } },
+  };
+  const result = await inviteSelectionToJourney({ $transaction: async (run: any) => run(tx) } as any, { authorityUserId: "owner", journeyId: "journey", source: "DIRECTORY", candidateIds: ["new", "pending", "present", "missing", "new"] });
+  assert.deepEqual(result.results.map((item) => item.status), ["INVITED", "ALREADY_INVITED", "ALREADY_PRESENT", "SKIPPED"]);
+  assert.deepEqual(result.summary, { invited: 1, alreadyInvited: 1, alreadyPresent: 1, skipped: 1 });
+  assert.equal(created.length, 1);
+  assert.equal(items.length, 4);
+  assert.equal(result.results[0].deliveryUrl !== undefined, true);
+  for (const item of result.results.slice(1)) assert.equal(item.deliveryUrl, undefined);
+});

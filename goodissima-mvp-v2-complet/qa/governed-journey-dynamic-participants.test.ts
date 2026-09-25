@@ -69,13 +69,13 @@ function externalInvitationRequest() {
 
 test("a global participant action is independent from expected participant placeholders", () => {
   assert.match(page, /GovernedJourneyAddParticipantPanel/);
-  assert.match(panel, /Ajouter un participant/);
-  assert.match(panel, /Personne déjà dans Goodissima/);
+  assert.match(panel, /Ajouter des participants/);
+  assert.match(panel, /Annuaire/);
   assert.doesNotMatch(panel, /participants\.map/);
 });
 
 test("a published Goodissima person can be invited without an email", () => {
-  assert.match(panel, /directoryPublicId: selected\.publicId/);
+  assert.match(panel, /directoryPublicId: selectedForRole\.publicId/);
   assert.doesNotMatch(panel, /type="email"|preparedEmail/);
   assert.match(route, /status: "PUBLISHED"/);
   assert.match(route, /actorType: "PERSON"/);

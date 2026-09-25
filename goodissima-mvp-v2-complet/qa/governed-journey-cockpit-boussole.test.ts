@@ -19,7 +19,7 @@ test("provides six contextual micro-journeys for the real cockpit", () => {
 });
 
 test("resolves every target against the real cockpit", () => {
-  const renderedComponents = `${cockpit}\n${read("components/GovernedJourneyCurrentState.tsx")}\n${read("components/GovernedJourneyGuestAccessPanel.tsx")}\n${read("components/GovernedMeetingParticipantSelection.tsx")}`;
+  const renderedComponents = `${cockpit}\n${read("components/GovernedJourneyCurrentState.tsx")}\n${read("components/GovernedJourneyGuestAccessPanel.tsx")}\n${read("components/GovernedMeetingParticipantSelection.tsx")}\n${read("components/GovernedJourneyAddParticipantPanel.tsx")}`;
   for (const target of new Set(governedJourneySteps.map((step) => step.targetId))) {
     assert.ok(target && renderedComponents.includes(target), `missing cockpit target ${target}`);
   }
