@@ -1,7 +1,8 @@
 import { Prisma, type GovernedParticipantSelectionSource, type PrismaClient } from "@prisma/client";
 import { createJourneyInvitationToken, hashJourneyInvitationToken } from "./governed-journey-invitations.ts";
+import { buildPublicAppUrl } from "./public-app-url.ts";
 
-export type JourneySelectionResult = { candidateId: string; status: "INVITED" | "ALREADY_INVITED" | "ALREADY_PRESENT" | "SKIPPED"; invitationId?: string };
+export type JourneySelectionResult = { candidateId: string; candidateName: string; status: "INVITED" | "ALREADY_INVITED" | "ALREADY_PRESENT" | "SKIPPED"; invitationId?: string; deliveryUrl?: string };
 
 export async function inviteSelectionToJourney(client: PrismaClient, input: { authorityUserId: string; journeyId: string; source: Extract<GovernedParticipantSelectionSource, "DIRECTORY" | "MATCHING">; candidateIds: string[] }) {
   const candidateIds = [...new Set(input.candidateIds)].slice(0, 100);
@@ -19,16 +20,17 @@ export async function inviteSelectionToJourney(client: PrismaClient, input: { au
     for (const candidateId of candidateIds) {
       const profile = byCandidate.get(candidateId);
       const prior = profile ? existing.find((item) => item.inviteeUserId === profile.userId) : null;
-      let status: JourneySelectionResult["status"] = "SKIPPED"; let invitationId: string | undefined;
+      let status: JourneySelectionResult["status"] = "SKIPPED"; let invitationId: string | undefined; let deliveryUrl: string | undefined;
       if (prior) { status = prior.consent?.status === "ACCEPTED" || prior.status === "ACTIVE" ? "ALREADY_PRESENT" : "ALREADY_INVITED"; invitationId = prior.id; }
       else if (profile) {
         const token = createJourneyInvitationToken();
         const invitation = await tx.governedJourneyInvitation.create({ data: { ownerId: input.authorityUserId, workspaceId: journey.relationTemplate.workspaceId, relationTemplateId: journey.relationTemplateId, displayName: profile.publicName, role: "OTHER", status: "PREPARED", inviteeUserId: profile.userId, accessTokenHash: hashJourneyInvitationToken(token), accessTokenExpiresAt: new Date(Date.now() + 7 * 86400000), metadata: { directoryPublicId: profile.publicId, source: input.source, automaticEmailSent: false, automaticNotificationSent: false } }, select: { id: true } });
         await tx.governedJourneyConsent.create({ data: { invitationId: invitation.id, status: "PENDING" } });
         invitationId = invitation.id; status = "INVITED";
+        deliveryUrl = buildPublicAppUrl(`/gouvernance/invitation/${encodeURIComponent(token)}`);
       }
       await tx.governedParticipantSelectionItem.create({ data: { selectionId: selection.id, relationTemplateId: journey.relationTemplateId, canonicalUserId: profile?.userId ?? null, canonicalDirectoryProfileId: profile?.id ?? null, sourceDirectoryProfileId: profile?.id ?? null, snapshotDisplayName: profile?.publicName ?? "Profil non invitable", observedEligibility: status === "ALREADY_PRESENT" ? "ALREADY_PRESENT" : status === "INVITED" ? "ELIGIBLE" : status === "ALREADY_INVITED" ? "PENDING_CONSENT" : "INELIGIBLE", decision: profile ? "INCLUDED" : "EXCLUDED", decisionReason: profile ? null : "Identité personnelle accessible non résolue", materializedJourneyInvitationId: status === "INVITED" ? invitationId : null, decidedAt: new Date() } });
-      results.push({ candidateId, status, ...(invitationId ? { invitationId } : {}) });
+      results.push({ candidateId, candidateName: profile?.publicName ?? "Profil non invitable", status, ...(invitationId ? { invitationId } : {}), ...(deliveryUrl ? { deliveryUrl } : {}) });
     }
     const summary = { invited: results.filter((item) => item.status === "INVITED").length, alreadyInvited: results.filter((item) => item.status === "ALREADY_INVITED").length, alreadyPresent: results.filter((item) => item.status === "ALREADY_PRESENT").length, skipped: results.filter((item) => item.status === "SKIPPED").length };
     await tx.governedParticipantSelectionEvent.create({ data: { selectionId: selection.id, type: "MATERIALIZED", actorUserId: input.authorityUserId, version: 3, summary } });
