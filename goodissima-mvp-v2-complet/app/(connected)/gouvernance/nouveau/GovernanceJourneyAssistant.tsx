@@ -128,6 +128,7 @@ export function GovernanceJourneyAssistant({ initialWorkspaceId = "", contextWor
     if (!proposal) return;
     setError("");
     const formData = new FormData();
+    formData.set("requestKey", requestKey);
     formData.set("name", name);
     formData.set("initialNeed", need);
     formData.set("objective", objective);

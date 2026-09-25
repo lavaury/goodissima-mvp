@@ -114,3 +114,12 @@ test("both creation surfaces submit one request key; no automatic side objects",
   assert.match(actions, /createdJourneyReadbackMatches\(readback, created\)/);
   assert.doesNotMatch(actions, /tx\.(?:workspace|relationCase|governedJourneyInvitation|governedJourneyConsent|governedJourneyExpectedRoleAssignment|governedMeetingParticipant|governedMemoryFact|governedMemoryDecision|governedMemorySource)\.create\(/);
 });
+
+test("assistant validation forwards its stable request key before each creation attempt", () => {
+  const start = assistant.indexOf("function validateAndCreate()");
+  const validation = assistant.slice(start, assistant.indexOf("\n  return (", start));
+  assert.match(validation, /formData\.set\("requestKey", requestKey\)/);
+  assert.ok(validation.indexOf('formData.set("requestKey", requestKey)') < validation.indexOf("createGovernedJourneyAction(formData)"));
+  assert.doesNotMatch(validation, /randomUUID|crypto\.randomUUID|randomBytes/);
+  assert.equal((validation.match(/formData\.set\("requestKey", requestKey\)/g) ?? []).length, 1);
+});
