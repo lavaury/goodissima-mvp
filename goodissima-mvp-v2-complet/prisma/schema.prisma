@@ -78,6 +78,7 @@ model User {
   matchingRuns                                                                                  MatchingRun[]                           @relation("MatchingRunOwner")
   notifications                                                                                 Notification[]
   personalFavorites                                                                             PersonalFavorite[]
+  decidedPublicCaseCreationRequests                                                             PublicCaseCreationRequest[]
   portfolios                                                                                    Portfolio[]                             @relation("OwnerPortfolios")
   productFeedback                                                                               ProductFeedback[]
   cases                                                                                         RelationCase[]                          @relation("OwnerCases")
@@ -753,6 +754,7 @@ model GoodissimaIdentity {
   directoryProfile       DirectoryProfile?
   RelationalSubject      RelationalSubject?    @relation(fields: [relationalSubjectId], references: [id])
   candidateRelationCases RelationCase[]
+  publicCaseCreationRequests PublicCaseCreationRequest[]
   representations        Representation[]
   trustAdmissionTokens   TrustAdmissionToken[]
   credentials            TrustCredential[]
@@ -1151,15 +1153,24 @@ model PublicCaseCreationRequest {
   idempotencyKeyHash String
   payloadHash        String
   relationCaseId     String?
+  requestPayload     Json?
+  requesterIdentityId String?
   status             String        @default("PENDING")
+  decidedAt          DateTime?
+  decidedByUserId    String?
+  declineReason      String?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   expiresAt          DateTime
   gLink              GLink         @relation(fields: [gLinkId], references: [id])
   relationCase       RelationCase? @relation(fields: [relationCaseId], references: [id])
+  requesterIdentity  GoodissimaIdentity? @relation(fields: [requesterIdentityId], references: [id], onDelete: Restrict)
+  decidedByUser      User? @relation(fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([gLinkId, idempotencyKeyHash])
   @@index([expiresAt])
+  @@index([gLinkId, status, createdAt])
+  @@index([decidedByUserId, decidedAt])
 }
 
 model RelationAction {

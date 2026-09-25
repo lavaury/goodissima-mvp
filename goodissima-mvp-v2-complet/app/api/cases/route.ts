@@ -863,6 +863,45 @@ export async function POST(req: Request) {
   const idempotencyClaim = await claimIdempotencyRequest();
   if (idempotencyClaim.kind === "RESPONSE") return idempotencyClaim.response;
 
+  const requestPayload = {
+    candidateName,
+    candidateEmail,
+    candidateEmailNotificationsEnabled: wantsCandidateNotifications,
+    message: messageBody,
+    documentName,
+    documentUrl,
+    relationTemplateId: relationTemplate?.id ?? null,
+    formSubmission: formSubmission ? {
+      formTemplateId: formSubmission.formTemplateId,
+      answers: formSubmission.answers as Prisma.InputJsonValue,
+    } : null,
+  } as Prisma.InputJsonObject;
+  const pendingRequest = idempotencyClaim.kind === "RESERVED"
+    ? await prisma.publicCaseCreationRequest.update({
+        where: { id: idempotencyClaim.requestId },
+        data: { requestPayload, requesterIdentityId: resolvedCandidateIdentityId, status: "PENDING" },
+        select: { id: true, status: true },
+      })
+    : await prisma.publicCaseCreationRequest.create({
+        data: {
+          gLinkId: gLink.id,
+          idempotencyKeyHash: `legacy-${crypto.randomUUID()}`,
+          payloadHash: `legacy-${crypto.randomUUID()}`,
+          requestPayload,
+          requesterIdentityId: resolvedCandidateIdentityId,
+          status: "PENDING",
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+        select: { id: true, status: true },
+      });
+  await prisma.auditLog.create({
+    data: { actorEmail: relationActorEmail || null, eventType: "RELATION_REQUEST_CREATED", metadata: { requestId: pendingRequest.id, gLinkId: gLink.id } },
+  });
+  return NextResponse.json({ requestId: pendingRequest.id, status: pendingRequest.status }, { status: 202 });
+
+  /* Historical immediate materialization intentionally disabled by
+     RELATION-EXPLICIT-ACCEPTANCE-01. Kept temporarily in this commit's diff
+     context while the acceptance service owns the only creation path.
   let creationResult;
   try {
     creationResult = await prisma.$transaction(async (tx) => {
@@ -1092,4 +1131,5 @@ export async function POST(req: Request) {
   }
 
   return withCandidateCookie(relationCase.candidateAccessToken, gLink.id, relationCase.id);
+  */
 }

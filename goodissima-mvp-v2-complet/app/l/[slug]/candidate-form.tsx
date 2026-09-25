@@ -339,6 +339,10 @@ export default function CandidateForm({
       }
 
       const relationCase = await res.json();
+      if (relationCase?.status === "PENDING" && typeof relationCase.requestId === "string") {
+        toast.success("Demande envoyée. Le destinataire doit l’accepter avant l’ouverture du dossier.");
+        return;
+      }
       const candidateAccessToken =
         relationCase && typeof relationCase.candidateAccessToken === "string"
           ? relationCase.candidateAccessToken.trim()

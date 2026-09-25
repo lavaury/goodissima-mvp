@@ -9,6 +9,7 @@ export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [requested, setRequested] = useState(false);
   const submissionRef = useRef<{ payload: string; key: string } | null>(null);
 
   async function startExchange(event: FormEvent<HTMLFormElement>) {
@@ -31,6 +32,9 @@ export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }
         body: payload,
       });
       const result = await response.json();
+      if (response.ok && result.status === "PENDING" && typeof result.requestId === "string") {
+        setRequested(true); setPending(false); return;
+      }
       const token = typeof result.candidateAccessToken === "string" ? result.candidateAccessToken : "";
       if (!response.ok || !token) {
         setError(typeof result.error === "string" ? result.error : "Impossible de commencer l’échange pour le moment.");
@@ -49,7 +53,7 @@ export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }
     <p className="mt-2 text-sm leading-6 text-slate-600">
       Commencez un échange sécurisé avec son auteur. Vous pourrez ensuite discuter et partager uniquement les informations nécessaires.
     </p>
-    <form className="mt-5" onSubmit={startExchange}>
+    {requested ? <p role="status" className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900">Demande envoyée. Son auteur doit l’accepter avant l’ouverture d’une relation.</p> : <form className="mt-5" onSubmit={startExchange}>
       <label className="block text-sm font-semibold text-slate-800">
         Votre message <span className="font-normal text-slate-500">(facultatif)</span>
         <textarea
@@ -69,6 +73,6 @@ export function PublicOpportunitySecureExchange({ gLinkId }: { gLinkId: string }
       >
         {pending ? "Ouverture de l’échange…" : "Commencer l’échange sécurisé"}
       </button>
-    </form>
+    </form>}
   </section>;
 }
