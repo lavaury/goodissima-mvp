@@ -55,6 +55,7 @@ export async function createJourneyRootAndCreated(
     id?: string;
     createdFromTemplateVersionId: string;
     title: string;
+    reason?: string;
   },
 ): Promise<CreatedJourneyIdentity> {
   const occurredAt = new Date();
@@ -80,6 +81,7 @@ export async function createJourneyRootAndCreated(
     fromStatus: null,
     toStatus: "DRAFT",
     occurredAt,
+    reason: input.reason ?? null,
   } });
 
   // LAST business DB operation in the transaction. Prisma 5.22 may resolve a
