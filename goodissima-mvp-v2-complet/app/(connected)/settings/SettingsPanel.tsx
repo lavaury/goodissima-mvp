@@ -82,11 +82,13 @@ export function SettingsPanel({
   organizationName,
   initialNotificationPreferences,
   privateAccessMode,
+  canManagePrivateAccess,
   initialAccessInvitations,
 }: {
   organizationName: string;
   initialNotificationPreferences: NotificationPreferences;
   privateAccessMode: boolean;
+  canManagePrivateAccess: boolean;
   initialAccessInvitations: AccessInvitation[];
 }) {
   const toast = useToast();
@@ -226,7 +228,7 @@ export function SettingsPanel({
         </div>
       </div>
 
-      <section className="rounded-2xl border bg-white p-5 shadow-sm">
+      {canManagePrivateAccess ? <section id="acces-goodissima" className="rounded-2xl border bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Acces prive</p>
@@ -317,7 +319,7 @@ export function SettingsPanel({
             </div>
           )}
         </div>
-      </section>
+      </section> : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <SectionCard title={t("settings.org.title")} eyebrow={t("settings.org.eyebrow")}>

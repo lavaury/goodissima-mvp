@@ -12,6 +12,7 @@ import { getI18n } from "@/lib/i18n";
 import { defaultNotificationPreferences } from "@/lib/privacy";
 import { prisma } from "@/lib/prisma";
 import { humanizeAIEvent } from "@/lib/events/humanize";
+import { canManagePrivatePlatformAccess } from "@/lib/private-platform-access";
 import { SettingsPanel } from "./SettingsPanel";
 
 const defaultMistralModel = "mistral-small-latest";
@@ -61,6 +62,7 @@ export default async function SettingsPage() {
 
   const { t } = getI18n();
   const owner = await getCurrentPrismaUser();
+  const canManagePrivateAccess = canManagePrivatePlatformAccess(owner);
   const organizationName = owner.name && owner.name !== owner.email ? owner.name : "Organisation Goodissima";
   const notificationPreferences = await prisma.userNotificationPreference.findUnique({
     where: { userId: owner.id },
@@ -88,10 +90,10 @@ export default async function SettingsPage() {
         },
       },
     }),
-    prisma.accessInvitation.findMany({
+    canManagePrivateAccess ? prisma.accessInvitation.findMany({
       orderBy: { createdAt: "desc" },
       take: 100,
-    }),
+    }) : Promise.resolve([]),
   ]);
 
   return (
@@ -194,6 +196,7 @@ export default async function SettingsPage() {
         organizationName={organizationName}
         initialNotificationPreferences={notificationPreferences ?? defaultNotificationPreferences}
         privateAccessMode={isPrivateAccessMode()}
+        canManagePrivateAccess={canManagePrivateAccess}
         initialAccessInvitations={accessInvitations.map((invitation) => ({
           id: invitation.id,
           email: invitation.email,

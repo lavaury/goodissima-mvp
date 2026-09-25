@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { ACCESS_INVITATION_EVENTS } from "@/lib/access-invitations";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canManagePrivatePlatformAccess } from "@/lib/private-platform-access";
 
 export async function POST(
   _req: Request,
   { params }: { params: { invitationId: string } },
 ) {
   const owner = await getCurrentPrismaUser();
+  if (!canManagePrivatePlatformAccess(owner)) {
+    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+  }
 
   const invitation = await prisma.accessInvitation.update({
     where: { id: params.invitationId },

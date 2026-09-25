@@ -5,9 +5,15 @@ import {
   normalizeInvitationEmail,
 } from "@/lib/access-invitations";
 import { prisma } from "@/lib/prisma";
+import { canManagePrivatePlatformAccess } from "@/lib/private-platform-access";
+
+function forbidden() {
+  return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+}
 
 export async function GET() {
-  await getCurrentPrismaUser();
+  const owner = await getCurrentPrismaUser();
+  if (!canManagePrivatePlatformAccess(owner)) return forbidden();
 
   const invitations = await prisma.accessInvitation.findMany({
     orderBy: { createdAt: "desc" },
@@ -19,6 +25,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const owner = await getCurrentPrismaUser();
+  if (!canManagePrivatePlatformAccess(owner)) return forbidden();
   const body = await req.json().catch(() => ({}));
   const email = typeof body.email === "string" ? normalizeInvitationEmail(body.email) : "";
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim() : null;

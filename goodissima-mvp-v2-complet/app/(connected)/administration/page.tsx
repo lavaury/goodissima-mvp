@@ -8,6 +8,7 @@ import { getCurrentPrismaUser } from "@/lib/auth";
 import { canAccessChampagneWorkspace } from "@/lib/champagne-workspace";
 import { canAccessFeedbackAdmin } from "@/lib/product-feedback";
 import { isDemoSurfaceEnabled } from "@/lib/debug";
+import { canManagePrivatePlatformAccess } from "@/lib/private-platform-access";
 
 export default async function AdministrationPage() {
   const owner = await getCurrentPrismaUser();
@@ -24,6 +25,11 @@ export default async function AdministrationPage() {
       <h1 className="mt-2 text-3xl font-bold">Administration Goodissima</h1>
       <p className="mt-2 max-w-3xl text-slate-600">Accès aux tableaux de bord et routes d'administration. Les démonstrations restent disponibles, mais ne constituent pas le parcours utilisateur principal.</p>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {canManagePrivatePlatformAccess(owner) ? <Link href="/settings#acces-goodissima" className="rounded-2xl border border-sky-200 bg-sky-50 p-5">
+          <span className="rounded-full bg-sky-700 px-3 py-1 text-xs font-semibold text-white">Admin</span>
+          <h2 className="mt-3 font-semibold text-sky-950">Accès à Goodissima</h2>
+          <p className="mt-1 text-sm text-sky-800">Inviter, autoriser ou révoquer l'accès à la plateforme.</p>
+        </Link> : null}
         {canAccessAIValue(owner.role) && <Link href="/ia-valeur" className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
           <span className="rounded-full bg-violet-700 px-3 py-1 text-xs font-semibold text-white">Admin</span>
           <h2 className="mt-3 font-semibold text-violet-950">IA & Valeur</h2>
