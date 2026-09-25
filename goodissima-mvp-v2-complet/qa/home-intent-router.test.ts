@@ -131,6 +131,27 @@ test("UI examples and explicit resume variants resolve before a failing provider
   for (const example of ["Reprendre où j’en étais", "Créer un comité de voyage", "Chercher les anciens de ma promo 1957"]) assert.ok(ui.includes(example));
 });
 
+test("natural coordinated activities become journeys while searches and links keep priority", () => {
+  for (const text of [
+    "Organiser une croisière à Saint Martin.",
+    "Organiser un voyage en Italie",
+    "Préparer un séminaire avec plusieurs intervenants",
+    "Créer un comité de voyage",
+    "Organiser un événement",
+    "Coordonner un projet avec plusieurs personnes",
+  ]) {
+    const result = ai.resolveCanonicalHomeIntent(text);
+    assert.equal(result?.intent, "CREATE_GOVERNED_JOURNEY", text);
+    assert.equal(result?.proposedParameters.need, text, text);
+    assert.equal(result?.reformulation, text, text);
+  }
+  assert.equal(ai.resolveCanonicalHomeIntent("Créer un lien avec Paul")?.intent, "CREATE_SIMPLE_LINK");
+  assert.equal(ai.resolveCanonicalHomeIntent("Je cherche un organisateur de croisière")?.intent, "SEARCH_DIRECTORY");
+  assert.equal(ai.resolveCanonicalHomeIntent("Je cherche une croisière"), null);
+  assert.equal(ai.resolveCanonicalHomeIntent("Reprendre où j'en étais")?.intent, "RESUME_WORK");
+  assert.equal(ai.resolveCanonicalHomeIntent("Organiser mes favoris"), null);
+});
+
 test("one-use prefill never puts the need in a URL and never starts business work", () => {
   const data = new Map<string, string>();
   const window = { sessionStorage: { setItem: (key: string, value: string) => data.set(key, value), getItem: (key: string) => data.get(key) ?? null, removeItem: (key: string) => data.delete(key) } };
