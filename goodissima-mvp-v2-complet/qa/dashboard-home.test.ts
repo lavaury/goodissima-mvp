@@ -68,6 +68,7 @@ test("page authenticates before the activity repository and calls no historical 
     "@/components/DashboardHome": view,
     "@/lib/factual-attention": { getFactualAttention: async () => ({ items: [], hasMore: false }) },
     "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
+    "@/lib/pending-relation-request-attention": { getPendingRelationRequestAttentionForUser: async () => [] },
     "@/lib/unified-attention": { mergeAttention: (_notifications: any[], factual: any[]) => factual },
   }).default();
   await assert.rejects(load(false), /LOGIN/); assert.equal(reads, 0);

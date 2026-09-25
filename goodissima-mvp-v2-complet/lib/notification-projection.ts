@@ -4,6 +4,7 @@ import { resolveCandidateIdentityState } from "@/lib/candidate-identity";
 const MAX_UI_LIMIT = 20;
 
 export type NotificationView = {
+  kind: "PERSISTED_NOTIFICATION";
   id: string;
   type: "NEW_RELATION_CASE" | "NEW_MESSAGE";
   relationCaseId: string;
@@ -31,6 +32,7 @@ export async function getNotificationViewsForUser(userId: string, options: { lim
   return {
     hasMore: rows.length > limit,
     items: rows.slice(0, limit).map(({ relationCase, ...row }): NotificationView => ({
+      kind: "PERSISTED_NOTIFICATION",
       ...row,
       title: row.type === "NEW_RELATION_CASE" ? "Nouvel échange" : "Nouveau message",
       description: row.type === "NEW_RELATION_CASE" ? "Une personne a commencé un échange." : "Un nouveau message a été reçu.",

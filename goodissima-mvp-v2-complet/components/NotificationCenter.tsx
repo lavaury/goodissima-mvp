@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NotificationLink } from "@/components/NotificationLink";
 import type { NotificationView } from "@/lib/notification-projection";
+import type { PendingRelationRequestAttention } from "@/lib/pending-relation-request-attention";
 
-type Payload = { notifications: NotificationView[]; unreadCount: number };
+type AttentionItem = NotificationView | PendingRelationRequestAttention;
+type Payload = { notifications: AttentionItem[]; unreadCount: number };
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700";
 let lastObservedUnreadSnapshot: string | null = null;
 
@@ -21,7 +23,7 @@ export function NotificationCenter() {
       const response = await fetch("/api/notifications?limit=10", { cache: "no-store" });
       if (!response.ok) return;
       const next = await response.json() as Payload;
-      const nextSnapshot = `${next.unreadCount}:${next.notifications.filter(item => !item.readAt).map(item => item.id).sort().join("|")}`;
+      const nextSnapshot = `${next.unreadCount}:${next.notifications.map(item => item.kind === "PERSISTED_NOTIFICATION" ? `${item.id}:${item.readAt ? "read" : "unread"}` : `request:${item.requestId}`).sort().join("|")}`;
       if (next.unreadCount > previousCount.current) { setPulse(true); window.setTimeout(() => setPulse(false), 700); }
       if (unreadSnapshot.current === null ? next.unreadCount > 0 : unreadSnapshot.current !== nextSnapshot) router.refresh();
       previousCount.current = next.unreadCount;
@@ -42,11 +44,11 @@ export function NotificationCenter() {
       const notificationId = (event as CustomEvent<{ notificationId?: string }>).detail?.notificationId;
       if (!notificationId) return;
       setData(current => {
-        const item = current.notifications.find(value => value.id === notificationId);
-        if (!item || item.readAt) return current;
-        const notifications = current.notifications.map(value => value.id === notificationId ? { ...value, readAt: new Date() } : value);
+        const item = current.notifications.find(value => value.kind === "PERSISTED_NOTIFICATION" && value.id === notificationId);
+        if (!item || item.kind !== "PERSISTED_NOTIFICATION" || item.readAt) return current;
+        const notifications = current.notifications.map(value => value.kind === "PERSISTED_NOTIFICATION" && value.id === notificationId ? { ...value, readAt: new Date() } : value);
         previousCount.current = Math.max(0, current.unreadCount - 1);
-        unreadSnapshot.current = `${previousCount.current}:${notifications.filter(value => !value.readAt).map(value => value.id).sort().join("|")}`;
+        unreadSnapshot.current = `${previousCount.current}:${notifications.map(value => value.kind === "PERSISTED_NOTIFICATION" ? `${value.id}:${value.readAt ? "read" : "unread"}` : `request:${value.requestId}`).sort().join("|")}`;
         lastObservedUnreadSnapshot = unreadSnapshot.current;
         return { ...current, unreadCount: previousCount.current, notifications };
       });
@@ -76,11 +78,11 @@ export function NotificationCenter() {
     </summary>
     <section aria-label="Notifications récentes" className="absolute right-0 top-[calc(100%+0.25rem)] z-50 max-h-[min(70dvh,32rem)] w-[min(22rem,calc(100vw-1rem))] overflow-y-auto rounded-2xl border bg-white p-3 shadow-xl">
       <h2 className="font-bold">Notifications</h2>
-      {!data.notifications.length ? <p className="mt-3 text-sm text-slate-600" role="status">Aucune notification récente.</p> : <ul className="mt-2 divide-y">{data.notifications.slice(0, 10).map(item => <li key={item.id} className="py-3">
-        <p className={item.readAt ? "text-sm font-semibold" : "text-sm font-bold"}>{item.title}{!item.readAt ? <span className="sr-only"> — non lue</span> : null}</p>
-        <p className="mt-1 break-words text-sm text-slate-700">{item.contextLabel}</p>
-        <p className="mt-1 text-xs text-slate-500">{item.description} · <time dateTime={String(item.createdAt)}>{new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(item.createdAt))}</time></p>
-        <NotificationLink notificationId={item.id} href={item.href} onNavigate={() => { if (disclosure.current) disclosure.current.open = false; }} className={`mt-2 min-h-11 rounded-lg border px-3 text-sm font-semibold ${focus}`}>Ouvrir le Dossier</NotificationLink>
+      {!data.notifications.length ? <p className="mt-3 text-sm text-slate-600" role="status">Aucune notification récente.</p> : <ul className="mt-2 divide-y">{data.notifications.slice(0, 10).map(item => <li key={item.kind === "PERSISTED_NOTIFICATION" ? item.id : item.requestId} className="py-3">
+        <p className={item.kind === "PERSISTED_NOTIFICATION" && item.readAt ? "text-sm font-semibold" : "text-sm font-bold"}>{item.kind === "RELATION_REQUEST_ATTENTION" ? "Demande de relation" : item.title}{item.kind === "PERSISTED_NOTIFICATION" && !item.readAt ? <span className="sr-only"> — non lue</span> : null}</p>
+        <p className="mt-1 break-words text-sm text-slate-700">{item.kind === "RELATION_REQUEST_ATTENTION" ? item.title : item.contextLabel}</p>
+        <p className="mt-1 text-xs text-slate-500">{item.kind === "RELATION_REQUEST_ATTENTION" ? "Cette demande attend votre décision." : item.description} · <time dateTime={String(item.createdAt)}>{new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }).format(new Date(item.createdAt))}</time></p>
+        {item.kind === "PERSISTED_NOTIFICATION" ? <NotificationLink notificationId={item.id} href={item.href} onNavigate={() => { if (disclosure.current) disclosure.current.open = false; }} className={`mt-2 min-h-11 rounded-lg border px-3 text-sm font-semibold ${focus}`}>Ouvrir le Dossier</NotificationLink> : <button type="button" onClick={() => { if (disclosure.current) disclosure.current.open = false; router.push(item.href); }} className={`mt-2 min-h-11 rounded-lg border px-3 text-sm font-semibold ${focus}`}>Examiner</button>}
       </li>)}</ul>}
     </section>
   </details>;

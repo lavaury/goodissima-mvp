@@ -67,6 +67,7 @@ test("home uses the existing bounded resolver with session scope before showing 
     } },
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async () => [] },
     "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
+    "@/lib/pending-relation-request-attention": { getPendingRelationRequestAttentionForUser: async () => [] },
     "@/lib/unified-attention": { mergeAttention: (_notifications: any[], factual: any[]) => factual },
     "@/components/DashboardHome": home,
   });

@@ -105,6 +105,7 @@ test("API derives ownership from the authenticated session and exposes only safe
       markNotificationRead: async (_id: string, userId: string) => { assert.equal(userId, "session-user"); return safe; },
     },
     "@/lib/notification-projection": { getNotificationViewsForUser: async (id: string) => { assert.equal(id, "session-user"); return { items: [safe], hasMore: false }; } },
+    "@/lib/pending-relation-request-attention": { getPendingRelationRequestAttentionForUser: async (id: string) => { assert.equal(id, "session-user"); return []; } },
   };
   const list = loadTestModule<any>("app/api/notifications/route.ts", dependencies);
   const payload = await (await list.GET(new Request("https://goodissima.test/api/notifications?limit=999"))).json();

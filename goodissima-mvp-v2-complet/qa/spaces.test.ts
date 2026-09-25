@@ -64,8 +64,10 @@ test("root creation exposes the five global destinations", () => {
 test("page authenticates before loading, removes old cards and preserves existing attachments", async () => {
   let reads = 0;
   const page = (authenticated: boolean) => loadTestModule("app/(connected)/gouvernance/page.tsx", { "react/jsx-runtime": jsx, "@/components/ObjectActionRow": objectActionRow, "@/components/OrganizationPanel": organizationPanel,
+    "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }),
     "next/cache": { unstable_noStore() {} }, "@/lib/auth": { getCurrentPrismaUser: async () => { if (!authenticated) throw Error("LOGIN"); return { id: "a" }; } },
     "@/lib/notification-projection": { getUnreadCaseAttentionForUser: async () => [] },
+    "@/lib/pending-relation-request-attention": { getPendingRelationRequestAttentionForUser: async () => [] },
     "@/lib/governed-journey-inbox": { getReceivedJourneyInvitations: async (id: string) => { assert.equal(id, "a"); return []; } },
     "@/lib/spaces-repository": { getSpacesTree: async (id: string) => { assert.equal(id, "a"); reads++; return { portfolios: [], roots: [], unavailableParentCount: 0 }; } },
     "@/components/SpacesTreeView": { SpacesTreeView }, "@/components/SpacesCreateActions": { SpacesCreateActions: () => null },

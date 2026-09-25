@@ -3,7 +3,7 @@ import type { FactualAlert } from "@/lib/factual-attention";
 import { NotificationLink } from "@/components/NotificationLink";
 
 export type UnifiedAttentionItem = {
-  key: string; relationCaseId: string; notificationId?: string; title: string;
+  kind: "PERSISTED_NOTIFICATION" | "RELATION_REQUEST_ATTENTION" | "FACTUAL_ATTENTION"; key: string; relationCaseId?: string; requestId?: string; notificationId?: string; title: string;
   contextLabel: string; reason: string; href: string; createdAt?: Date;
 };
 
@@ -14,6 +14,6 @@ export function FactualAttentionList({ items }: { items: Array<FactualAlert | Un
       <p className="font-medium">{notification ? item.title : item.object} — {label}</p>
       <p className="mt-1 text-sm text-slate-600">{item.reason}{notification && item.createdAt ? <> · <time dateTime={item.createdAt.toISOString()}>{new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }).format(item.createdAt)}</time></> : null}</p>
     </div>
-    {notification ? <NotificationLink notificationId={item.notificationId!} href={item.href} className="inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-700">Ouvrir</NotificationLink> : <Link href={item.href} prefetch={false} aria-label={`Ouvrir le dossier : ${label}`} className="inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-700">Ouvrir</Link>}
+    {notification && item.kind === "PERSISTED_NOTIFICATION" ? <NotificationLink notificationId={item.notificationId!} href={item.href} className="inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-700">Ouvrir</NotificationLink> : <Link href={item.href} prefetch={false} aria-label={notification && item.kind === "RELATION_REQUEST_ATTENTION" ? `Examiner la demande : ${label}` : `Ouvrir le dossier : ${label}`} className="inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-700">{notification && item.kind === "RELATION_REQUEST_ATTENTION" ? "Examiner" : "Ouvrir"}</Link>}
   </li>; })}</ul>;
 }

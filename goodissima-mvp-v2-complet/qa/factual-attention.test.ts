@@ -73,7 +73,8 @@ test("both pages authenticate before the same projection, never using request ow
     "@/lib/personal-favorites-repository": { readFavoritePage: async () => ({ items: [] }) },
     "@/lib/dashboard-activity-repository": { getDashboardActivity: async () => [] },
     "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
-    "@/lib/unified-attention": { mergeAttention: (_notifications: any[], factual: any[]) => factual, notificationAttention: (item: any) => item, factualAttention: (item: any) => item },
+    "@/lib/pending-relation-request-attention": { getPendingRelationRequestAttentionForUser: async () => [] },
+    "@/lib/unified-attention": { mergeAttention: (_notifications: any[], factual: any[]) => factual, notificationAttention: (item: any) => item, factualAttention: (item: any) => item, relationRequestAttention: (item: any) => item },
   };
   const alerts = loadTestModule("app/(connected)/alertes/page.tsx", dependencies).default;
   const dashboard = loadTestModule("app/(connected)/dashboard/page.tsx", dependencies).default;
@@ -102,7 +103,8 @@ test("alerts page renders factual reasons, safe links and pagination without a g
     "next/cache": { unstable_noStore() {} }, "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: "A" }) },
     "@/lib/factual-attention": r, "@/components/FactualAttentionList": list,
     "@/lib/notification-projection": { getNotificationViewsForUser: async () => ({ items: [], hasMore: false }) },
-    "@/lib/unified-attention": { notificationAttention: (item: any) => item, factualAttention: (item: any) => item },
+    "@/lib/pending-relation-request-attention": { getPendingRelationRequestAttentionForUser: async () => [] },
+    "@/lib/unified-attention": { notificationAttention: (item: any) => item, factualAttention: (item: any) => item, relationRequestAttention: (item: any) => item },
   });
   const first = renderToStaticMarkup(await page.default({ searchParams: {} }));
   assert.match(first, /Alertes Goodissima/); assert.match(first, /En attente propriétaire/);
