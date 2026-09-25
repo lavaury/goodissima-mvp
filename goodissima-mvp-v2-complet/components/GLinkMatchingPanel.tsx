@@ -348,6 +348,7 @@ export function GLinkMatchingPanel({
                   <h3 className="font-bold text-slate-950">{resultPseudonym(result)}</h3>
                   <p className="mt-1 text-sm text-slate-700">{resultSummary(result)}</p>
                   <p className="mt-1 text-xs text-slate-500">Aucune identité révélée · aucun score présenté comme vérité</p>
+                  <p className="mt-1 text-xs font-medium text-amber-800">Non invitable dans un Parcours tant qu’aucune personne interne n’est résolue de façon sûre.</p>
                   {result.status === "SELECTED" ? <p className="mt-2 text-xs font-bold text-emerald-800">Retenu</p> : null}
                   {result.status === "DISMISSED" ? <p className="mt-2 text-xs font-bold text-slate-700">Écarté</p> : null}
                 </div>

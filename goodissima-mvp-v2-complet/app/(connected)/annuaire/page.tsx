@@ -10,13 +10,13 @@ import { prisma } from "@/lib/prisma";
 export default async function DirectoryPage() {
   noStore();
   const currentUser = await getCurrentPrismaUser();
-  const profiles = await new DirectoryAccessService(createPrismaDirectoryRepository(prisma)).listMyProfiles(currentUser.id);
+  const [profiles, journeys] = await Promise.all([new DirectoryAccessService(createPrismaDirectoryRepository(prisma)).listMyProfiles(currentUser.id), prisma.governedJourney.findMany({ where: { authorityUserId: currentUser.id, status: { notIn: ["CLOSED", "CANCELLED"] } }, orderBy: { createdAt: "desc" }, select: { id: true, title: true } })]);
   return <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
     <header className="max-w-3xl">
       <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Trouver · Être trouvé</p>
       <h1 className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">Annuaire Goodissima</h1>
       <p className="mt-3 text-base leading-7 text-slate-600">Trouvez des personnes et des organisations, ou choisissez les informations qui vous rendent visible dans l’Annuaire Global.</p>
     </header>
-    <DirectoryExperience initialProfiles={profiles} />
+    <DirectoryExperience initialProfiles={profiles} journeys={journeys} />
   </main>;
 }

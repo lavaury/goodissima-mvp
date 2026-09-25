@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const runtime = readFileSync("lib/governed-journey-selection.ts", "utf8");
+const directory = readFileSync("components/directory/DirectoryExperience.tsx", "utf8");
+const matching = readFileSync("components/GLinkMatchingPanel.tsx", "utf8");
+test("JOURNEY selection uses governed authority and supports caseless journeys", () => { assert.match(runtime, /targetType: "JOURNEY"/); assert.match(runtime, /authorityUserId: input\.authorityUserId/); assert.doesNotMatch(runtime, /relationCase.*(?:create|upsert)/); });
+test("directory candidates are revalidated as published resolvable PERSON profiles", () => { for (const value of [/status: "PUBLISHED"/, /actorType: "PERSON"/, /deletedAt: null/, /subjectIdentity: \{ user: \{ isNot: null \}/]) assert.match(runtime, value); assert.match(directory, /Inviter dans un Parcours/); assert.match(directory, /Confirmer les invitations/); assert.match(directory, /source: "DIRECTORY"/); });
+test("individual outcomes preserve pending consent and create no roles or RSVP", () => { for (const status of ["INVITED", "ALREADY_INVITED", "ALREADY_PRESENT", "SKIPPED"]) assert.match(runtime, new RegExp(status)); assert.match(runtime, /status: "PENDING"/); assert.doesNotMatch(runtime, /RoleAssignment\.create|governedMeetingParticipant\.create|Rsvp\.create|relationCase\.create|workspace\.create/); });
+test("unresolved matching results are explicitly non-invitable", () => { assert.match(runtime, /input\.source === "DIRECTORY" \?/); assert.match(matching, /Non invitable dans un Parcours/); assert.doesNotMatch(runtime, /candidateEmail|email:/); });

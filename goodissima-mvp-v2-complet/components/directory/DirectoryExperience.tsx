@@ -29,13 +29,14 @@ function makeCriteria(form: SearchForm, cursor?: string): DirectorySearchCriteri
   return criteria;
 }
 
-export function DirectoryExperience({ initialProfiles }: { initialProfiles: ManagedDirectoryProfileDto[] }) {
+type InvitableJourney = { id: string; title: string };
+export function DirectoryExperience({ initialProfiles, journeys }: { initialProfiles: ManagedDirectoryProfileDto[]; journeys: InvitableJourney[] }) {
   const [profiles, setProfiles] = useState(initialProfiles);
   useEffect(() => setProfiles(initialProfiles), [initialProfiles]);
-  return <div className="mt-10 space-y-10"><DirectorySearch /><DirectoryEnrollment profiles={profiles} /></div>;
+  return <div className="mt-10 space-y-10"><DirectorySearch journeys={journeys} /><DirectoryEnrollment profiles={profiles} /></div>;
 }
 
-function DirectorySearch() {
+function DirectorySearch({ journeys }: { journeys: InvitableJourney[] }) {
   const [form, setForm] = useState(emptySearch);
   const [naturalQuery, setNaturalQuery] = useState("");
   const [unsupported, setUnsupported] = useState<Array<{ label: string; reason?: string }>>([]);
@@ -44,6 +45,8 @@ function DirectorySearch() {
   const [page, setPage] = useState<DirectorySearchPageDto | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]); const [journeyId, setJourneyId] = useState(""); const [inviteStatus, setInviteStatus] = useState(""); const [confirming, setConfirming] = useState(false);
+  async function inviteSelection() { if (!confirming) { setConfirming(true); return; } setInviteStatus(""); const response = await fetch("/api/gouvernance/selections/journey", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: "DIRECTORY", journeyId, candidateIds: selected }) }); const result = await response.json(); if (!response.ok) { setInviteStatus(result.error ?? "Invitation impossible."); return; } setInviteStatus(`${result.summary.invited} invitation(s) préparée(s), ${result.summary.alreadyInvited + result.summary.alreadyPresent} déjà connue(s), ${result.summary.skipped} ignorée(s).`); setSelected([]); setConfirming(false); }
   useEffect(() => { const prefill = consumeHomeIntentPrefill("SEARCH_DIRECTORY"); if (prefill) setNaturalQuery(prefill); }, []);
   async function interpret() {
     if (!naturalQuery.trim()) return;
@@ -92,7 +95,7 @@ function DirectorySearch() {
       {error ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
       {!page && !error ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Saisissez un nom ou utilisez les filtres pour commencer votre recherche.</p> : null}
       {page && !page.items.length ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Aucun profil publié ne correspond actuellement à ces critères.</p> : null}
-      {page?.items.length ? <div className="grid gap-4 lg:grid-cols-2">{page.items.map((profile, index) => index === 0 ? <div key={profile.publicId} data-boussole-id="directory-first-result"><DirectoryProfileCard profile={profile} /></div> : <div key={profile.publicId}><DirectoryProfileCard profile={profile} /></div>)}</div> : null}
+      {page?.items.length ? <><div className="grid gap-4 lg:grid-cols-2">{page.items.map((profile, index) => <div key={profile.publicId} {...(index === 0 ? { "data-boussole-id": "directory-first-result" } : {})}><label className="mb-2 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" disabled={profile.actorType !== "PERSON"} checked={selected.includes(profile.publicId)} onChange={(event) => setSelected(event.target.checked ? [...selected, profile.publicId] : selected.filter((id) => id !== profile.publicId))} />{profile.actorType === "PERSON" ? "Sélectionner" : "Organisation non invitable"}</label><DirectoryProfileCard profile={profile} /></div>)}</div>{selected.length ? <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><h3 className="font-bold">Inviter dans un Parcours</h3><p className="mt-1 text-sm">{selected.length} personne(s) sélectionnée(s). Chaque personne devra consentir individuellement.</p><select value={journeyId} onChange={(event) => { setJourneyId(event.target.value); setConfirming(false); }} className="mt-3 rounded-xl border bg-white px-3 py-2"><option value="">Choisir le Parcours</option>{journeys.map((journey) => <option key={journey.id} value={journey.id}>{journey.title}</option>)}</select><button type="button" disabled={!journeyId} onClick={() => void inviteSelection()} className="ml-2 rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white disabled:opacity-50">{confirming ? "Confirmer les invitations" : "Inviter dans un Parcours"}</button>{inviteStatus ? <p role="status" className="mt-3 text-sm">{inviteStatus}</p> : null}</div> : null}</> : null}
       {page?.nextCursor ? <button disabled={loading} onClick={() => void search(page.nextCursor ?? undefined)} className="mt-5 min-h-11 rounded-xl border border-slate-300 bg-white px-5 py-2 font-semibold text-slate-800 disabled:opacity-60">{loading ? "Chargement…" : "Afficher plus"}</button> : null}
     </div>
     <p className="mt-6 text-sm text-slate-600">Vous cherchez un Portfolio, un Workspace ou un dossier auquel vous avez déjà accédé ? <Link href="/recherche" className="font-semibold text-emerald-800 underline underline-offset-2">Utilisez Recherche Goodissima</Link>.</p>
