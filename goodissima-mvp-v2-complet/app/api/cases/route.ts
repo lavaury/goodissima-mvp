@@ -52,6 +52,7 @@ import {
   readPublicCaseIdempotencyKey,
   reservePublicCaseRequest,
 } from "@/lib/public-case-idempotency";
+import { readPendingAttachmentTickets } from "@/lib/pending-public-attachments";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const privateAnswerKeys = new Set(["notificationEmail"]);
@@ -375,6 +376,13 @@ export async function POST(req: Request) {
     );
   }
 
+  let pendingAttachments;
+  try {
+    pendingAttachments = readPendingAttachmentTickets(body.attachments, gLink.id);
+  } catch {
+    return badRequest({ code: "INVALID_REQUEST_BODY", error: "Pièce jointe invalide.", gLinkId, reasons: ["attachments_invalid"] });
+  }
+
   try {
     const targetLimit = await checkPublicCaseCreationLimit(publicCaseTargetRateLimitEntries(
       pseudonymizePublicRateLimitKey("glink", gLink.id),
@@ -694,6 +702,9 @@ export async function POST(req: Request) {
         answers: formSubmission.answers as Prisma.InputJsonValue,
       });
     }
+    if (pendingAttachments.length) {
+      await prisma.document.createMany({ data: pendingAttachments.map((attachment) => ({ caseId: existingRelationCase.id, uploadedByEmail: relationActorEmail, fileName: attachment.fileName, fileUrl: attachment.storageKey, mimeType: attachment.mimeType })) });
+    }
 
     if (idempotencyClaim.kind === "RESERVED") {
       await prisma.publicCaseCreationRequest.update({
@@ -870,6 +881,7 @@ export async function POST(req: Request) {
     message: messageBody,
     documentName,
     documentUrl,
+    attachments: pendingAttachments,
     relationTemplateId: relationTemplate?.id ?? null,
     formSubmission: formSubmission ? {
       formTemplateId: formSubmission.formTemplateId,

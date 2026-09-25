@@ -139,6 +139,7 @@ export default function CandidateForm({
   const [admissionErrorMessage, setAdmissionErrorMessage] = useState("");
   const [isAdmissionBlocked, setIsAdmissionBlocked] = useState(false);
   const submissionRef = useRef<{ payload: string; key: string } | null>(null);
+  const pendingAttachmentsRef = useRef<{ files: File[]; tokens: string[] } | null>(null);
   const stepCount = getStepCount(fields);
   const isMultiStep = stepCount > 1;
   const currentFields = isMultiStep ? getFieldsForStep(fields, currentStep) : fields;
@@ -243,6 +244,21 @@ export default function CandidateForm({
     }
   }
 
+  async function uploadPendingFormFiles() {
+    const selectedFiles = Object.entries(files).filter((entry): entry is [string, File] => Boolean(entry[1])).map(([, file]) => file);
+    if (pendingAttachmentsRef.current?.files.length === selectedFiles.length && pendingAttachmentsRef.current.files.every((file, index) => file === selectedFiles[index])) return pendingAttachmentsRef.current.tokens;
+    const tokens: string[] = [];
+    for (const file of selectedFiles) {
+      const formData = new FormData(); formData.append("gLinkId", gLinkId); formData.append("file", file);
+      const response = await fetch("/api/relation-requests/attachments", { method: "POST", body: formData });
+      const result = await response.json();
+      if (!response.ok || typeof result.uploadToken !== "string") throw new Error(typeof result.error === "string" ? result.error : "La pièce jointe n’a pas pu être conservée.");
+      tokens.push(result.uploadToken);
+    }
+    pendingAttachmentsRef.current = { files: selectedFiles, tokens };
+    return tokens;
+  }
+
   async function submit() {
     if (!validateForm()) {
       setAdmissionErrorMessage("");
@@ -289,6 +305,10 @@ export default function CandidateForm({
     const indicativeSignals = ruleIssues
       .filter((issue) => issue.rule.mode === "INDICATIVE")
       .map((issue) => `Écart à examiner — ${issue.message}`);
+    setLoading(true);
+    let attachmentTokens: string[];
+    try { attachmentTokens = await uploadPendingFormFiles(); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "La pièce jointe n’a pas pu être conservée."); setLoading(false); return; }
     const payload = {
       gLinkId,
       candidateName,
@@ -297,6 +317,7 @@ export default function CandidateForm({
       message: derivedSubmission.message || message,
       documentName: documentFields.documentName,
       documentUrl: documentFields.documentUrl,
+      attachments: attachmentTokens,
       ...(formTemplateId != null ? { formTemplateId } : {}),
       ...(templateVersionId != null ? { templateVersionId } : {}),
       answers: indicativeSignals.length
@@ -306,7 +327,6 @@ export default function CandidateForm({
       ...(trustAdmissionToken ? { trustAdmissionToken } : {}),
     };
 
-    setLoading(true);
     setAdmissionErrorMessage("");
     setIsAdmissionBlocked(false);
 
@@ -350,7 +370,7 @@ export default function CandidateForm({
       if (!candidateAccessToken) {
         throw new Error("Le dossier a ete cree, mais son acces securise est indisponible.");
       }
-      await uploadFormFiles(candidateAccessToken);
+      if (!attachmentTokens.length) await uploadFormFiles(candidateAccessToken);
 
       toast.success(copy.messageSentToast);
       router.push(`/secure/${encodeURIComponent(candidateAccessToken)}`);

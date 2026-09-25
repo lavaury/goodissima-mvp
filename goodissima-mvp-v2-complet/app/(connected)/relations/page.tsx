@@ -14,7 +14,7 @@ export default async function RelationsPage() {
   ]);
   const pending = relations.filter((item) => ["NEW", "WAITING_CANDIDATE", "WAITING_OWNER", "REVIEWING"].includes(item.status)).length;
   const accepted = relations.filter((item) => ["VALIDATED", "CLOSED"].includes(item.status)).length;
-  const requests = relationRequests.map((request) => { const data = request.requestPayload as Record<string, unknown>; return { id: request.id, title: request.gLink.title, candidateName: typeof data.candidateName === "string" ? data.candidateName : "" }; });
+  const requests = relationRequests.map((request) => { const data = request.requestPayload as Record<string, unknown>; const attachments = Array.isArray(data.attachments) ? data.attachments : []; return { id: request.id, title: request.gLink.title, candidateName: typeof data.candidateName === "string" ? data.candidateName : "", attachments: attachments.flatMap((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).fileName === "string" ? [{ fileName: (item as Record<string, unknown>).fileName as string }] : []) }; });
   return <main className="mx-auto max-w-6xl px-6 py-10">
     <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#247f88]">Espaces gouvernés</p><h1 className="mt-2 text-3xl font-bold">Relations</h1><ProductObjectDefinition object="relation" /></div>
     <ProductLifecycle current="relation" /><RelationRequestsPanel requests={requests} />

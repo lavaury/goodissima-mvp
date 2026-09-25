@@ -14,7 +14,7 @@ const limits = {
   trustAdmissionToken: 2048,
 } as const;
 
-const allowedKeys = new Set([...Object.keys(limits), "answers", "emailNotificationsConsent"]);
+const allowedKeys = new Set([...Object.keys(limits), "answers", "attachments", "emailNotificationsConsent"]);
 const nullableTemplateReferenceKeys = new Set(["formTemplateId", "templateVersionId"]);
 const answerKeyPattern = /^[A-Za-z][A-Za-z0-9_]{0,119}$/;
 
@@ -64,6 +64,9 @@ function validateBody(body: unknown): PublicCaseContractResult {
       if (typeof value === "string" && value.length > 2000) return failure(400, "INVALID_REQUEST_BODY", "answer_value_too_long");
       if (typeof value === "number" && !Number.isFinite(value)) return failure(400, "INVALID_REQUEST_BODY", "answer_value_invalid");
     }
+  }
+  if (row.attachments !== undefined && (!Array.isArray(row.attachments) || row.attachments.length > 10 || row.attachments.some((item) => typeof item !== "string" || item.length > 4096))) {
+    return failure(400, "INVALID_REQUEST_BODY", "attachments_invalid");
   }
   if ((row.documentName && !row.documentUrl) || (row.documentUrl && !row.documentName)) {
     return failure(400, "INVALID_REQUEST_BODY", "document_reference_incomplete");

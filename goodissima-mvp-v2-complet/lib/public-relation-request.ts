@@ -11,6 +11,7 @@ export type PublicRelationRequestPayload = {
   message: string;
   documentName: string;
   documentUrl: string;
+  attachments?: Array<{ storageKey: string; fileName: string; mimeType: string; size: number }>;
   relationTemplateId: string | null;
   formSubmission: { formTemplateId: string; answers: Record<string, unknown> } | null;
 };
@@ -43,6 +44,7 @@ export async function acceptPublicRelationRequest(client: PrismaClient, input: {
     }, select: { id: true } });
     if (data.message) await tx.message.create({ data: { caseId: relationCase.id, senderType: "CANDIDATE", senderEmail: data.candidateEmail, body: data.message } });
     if (data.documentName && data.documentUrl) await tx.document.create({ data: { caseId: relationCase.id, uploadedByEmail: data.candidateEmail, fileName: data.documentName, fileUrl: data.documentUrl, mimeType: "application/octet-stream" } });
+    if (data.attachments?.length) await tx.document.createMany({ data: data.attachments.map((attachment) => ({ caseId: relationCase.id, uploadedByEmail: data.candidateEmail, fileName: attachment.fileName, fileUrl: attachment.storageKey, mimeType: attachment.mimeType })) });
     const decidedAt = new Date();
     await tx.publicCaseCreationRequest.update({ where: { id: request.id }, data: { status: "ACCEPTED", relationCaseId: relationCase.id, decidedAt, decidedByUserId: input.actorUserId } });
     await tx.auditLog.create({ data: { caseId: relationCase.id, actorEmail: input.actorEmail, eventType: "RELATION_REQUEST_ACCEPTED", metadata: { requestId: request.id } } });
