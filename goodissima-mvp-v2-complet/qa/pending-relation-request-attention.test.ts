@@ -19,7 +19,7 @@ test("pending attention is owner-scoped, pending-only and exposes a minimal proj
   assert.deepEqual(calls[0].where.status, "PENDING");
   assert.deepEqual(calls[0].where.gLink, { ownerId: "owner-1" });
   assert.equal(result.length, 1);
-  assert.deepEqual(result[0], { kind: "RELATION_REQUEST_ATTENTION", requestId: "request-1", gLinkId: "old-link", title: "Lien existant", candidateName: "Ada", createdAt: rows[0].createdAt, href: "/relations#relation-request-request-1" });
+  assert.deepEqual(result[0], { kind: "RELATION_REQUEST_ATTENTION", requestId: "request-1", gLinkId: "old-link", title: "Lien existant", candidateName: "Ada", createdAt: rows[0].createdAt, href: "/links/old-link#relation-request-request-1" });
   for (const forbidden of ["candidateEmail", "privateAnswer", "requestPayload", "ownerId", "relationCaseId"]) assert.doesNotMatch(JSON.stringify(result), new RegExp(forbidden, "i"));
 });
 
@@ -37,7 +37,7 @@ test("all attention surfaces consume the same unresolved relation request projec
 
 test("bell count adds unresolved requests once without persisting or marking them read", async () => {
   const persisted = { kind: "PERSISTED_NOTIFICATION", id: "notification-1", type: "NEW_MESSAGE", relationCaseId: "case-1", title: "Nouveau message", description: "Message", contextLabel: "Lien", href: "/cases/case-1", createdAt: new Date("2026-09-25T09:00:00Z"), readAt: null };
-  const pending = { kind: "RELATION_REQUEST_ATTENTION", requestId: "request-1", gLinkId: "link-1", title: "Test1", candidateName: null, createdAt: new Date("2026-09-25T10:00:00Z"), href: "/relations#relation-request-request-1" };
+  const pending = { kind: "RELATION_REQUEST_ATTENTION", requestId: "request-1", gLinkId: "link-1", title: "Test1", candidateName: null, createdAt: new Date("2026-09-25T10:00:00Z"), href: "/links/link-1#relation-request-request-1" };
   const route = loadTestModule<any>("app/api/notifications/route.ts", {
     "next/server": { NextResponse: { json: (body: unknown) => Response.json(body) } },
     "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: "owner" }) },

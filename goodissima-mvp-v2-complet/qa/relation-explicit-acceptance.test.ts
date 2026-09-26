@@ -35,12 +35,18 @@ test("zero, one and several pending attachments reuse stable storage objects wit
 
 test("decline retains pending attachment evidence without creating documents or a case", async () => {
   const setup = fixture(); setup.state.request.requestPayload.attachments = [{ storageKey: "pending/link-1/proof.pdf", fileName: "proof.pdf", mimeType: "application/pdf", size: 42 }];
-  await declinePublicRelationRequest(setup.client, { requestId: "request-1", actorUserId: "owner", actorEmail: "owner@example.test" });
+  await declinePublicRelationRequest(setup.client, { requestId: "request-1", actorUserId: "owner", actorEmail: "owner@example.test", reason: "Preuve insuffisante" });
   assert.equal(setup.state.cases.length, 0); assert.equal(setup.state.documents.length, 0); assert.equal(setup.state.request.requestPayload.attachments[0].storageKey, "pending/link-1/proof.pdf");
+});
+
+test("decline reason is mandatory, trimmed and bounded on the server", async () => {
+  for (const reason of [undefined, "", "  x  ", "x".repeat(501)]) await assert.rejects(declinePublicRelationRequest(fixture().client, { requestId: "request-1", actorUserId: "owner", actorEmail: "owner@example.test", reason }), /RELATION_REQUEST_INVALID_REASON/);
+  const setup = fixture(); await declinePublicRelationRequest(setup.client, { requestId: "request-1", actorUserId: "owner", actorEmail: "owner@example.test", reason: "  Pas maintenant  " }); assert.equal(setup.state.request.declineReason, "Pas maintenant");
 });
 
 test("a third party and the requester cannot decide for the owner", async () => {
   for (const actorUserId of ["third-party", "requester"]) await assert.rejects(acceptPublicRelationRequest(fixture().client, { requestId: "request-1", actorUserId, actorEmail: `${actorUserId}@example.test` }), /RELATION_REQUEST_NOT_FOUND/);
+  await assert.rejects(acceptPublicRelationRequest(fixture().client, { requestId: "request-1", actorUserId: "owner", actorEmail: "owner@example.test", gLinkId: "another-link" }), /RELATION_REQUEST_NOT_FOUND/);
 });
 
 test("migration is additive and protects the explicit decision states", () => {

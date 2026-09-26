@@ -260,6 +260,14 @@ export async function sendEmail({ to, subject, html, text }: SendEmailInput) {
   }
 }
 
+export async function sendRelationRequestAcceptedEmail({ to, linkTitle, candidateAccessToken }: { to: string; linkTitle: string; candidateAccessToken: string }) {
+  return sendTransactionalEmail({ to, subject: `Votre demande concernant « ${linkTitle} » a été acceptée`, title: "Votre demande a été acceptée", previewText: `Votre demande concernant « ${linkTitle} » a été acceptée.`, eyebrow: "Décision sur votre demande", intro: "La relation est maintenant ouverte et son dossier a été créé.", details: [{ label: "Lien concerné", value: linkTitle }], primaryCta: { label: "Accéder à la relation sécurisée", href: secureUrl(candidateAccessToken) }, links: [] });
+}
+
+export async function sendRelationRequestDeclinedEmail({ to, linkTitle, declineReason, publicLinkSlug }: { to: string; linkTitle: string; declineReason: string; publicLinkSlug: string }) {
+  return sendTransactionalEmail({ to, subject: `Décision concernant votre demande pour « ${linkTitle} »`, title: "Votre demande n’a pas été acceptée", previewText: `Votre demande concernant « ${linkTitle} » n’a pas été acceptée.`, eyebrow: "Décision sur votre demande", intro: "Le destinataire a examiné votre demande.", details: [{ label: "Lien concerné", value: linkTitle }, { label: "Motif communiqué par le destinataire", value: declineReason }], primaryCta: { label: "Voir le Lien d’origine", href: absoluteUrl(`/l/${encodeURIComponent(publicLinkSlug)}`) }, links: [] });
+}
+
 export async function sendNewMessageEmail({
   ownerEmail,
   caseId,

@@ -32,6 +32,8 @@ import { buildPublicAppUrl } from "@/lib/public-app-url";
 import { parseGLinkMatchingState } from "@/lib/glink-matching";
 import { linkObjectLabel } from "@/lib/object-creation";
 import { isAutonomousModernOpportunity } from "@/lib/opportunities/opportunity-projection";
+import { Prisma } from "@prisma/client";
+import { RelationRequestsPanel, type RelationRequestView } from "@/components/RelationRequestsPanel";
 
 type FieldOption = {
   label: string;
@@ -169,6 +171,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           },
         },
       },
+      publicCaseCreationRequests: { where: { status: { in: ["PENDING", "ACCEPTED", "DECLINED"] }, requestPayload: { not: Prisma.DbNull } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, status: true, requestPayload: true, relationCaseId: true, createdAt: true, decidedAt: true, declineReason: true } },
     },
   });
 
@@ -212,6 +215,23 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     link.template?.key === DEFAULT_RELATION_TEMPLATE_KEY
       ? localizeDefaultSecureConversationFields(rawFields, locale)
       : rawFields;
+  const fieldLabels = new Map(fields.map((field) => [field.key, field.label]));
+  const relationRequests: RelationRequestView[] = link.publicCaseCreationRequests.flatMap((request) => {
+    if (!request.requestPayload || typeof request.requestPayload !== "object" || Array.isArray(request.requestPayload)) return [];
+    const data = request.requestPayload as Record<string, unknown>;
+    if (typeof data.candidateName !== "string" || typeof data.candidateEmail !== "string" || !["PENDING", "ACCEPTED", "DECLINED"].includes(request.status)) return [];
+    const submission = data.formSubmission && typeof data.formSubmission === "object" && !Array.isArray(data.formSubmission) ? data.formSubmission as Record<string, unknown> : null;
+    const rawAnswers = submission?.answers && typeof submission.answers === "object" && !Array.isArray(submission.answers) ? submission.answers as Record<string, unknown> : {};
+    const answers = Object.entries(rawAnswers).map(([key, value]) => ({ label: fieldLabels.get(key) ?? key, value: Array.isArray(value) ? value.join(", ") : value == null ? "" : typeof value === "object" ? "Réponse structurée" : String(value) }));
+    const attachments = Array.isArray(data.attachments) ? data.attachments.flatMap((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).fileName === "string" ? [{ fileName: String((item as Record<string, unknown>).fileName) }] : []) : [];
+    return [{ id: request.id, candidateName: data.candidateName, createdAt: request.createdAt.toISOString(), status: request.status as RelationRequestView["status"], decidedAt: request.decidedAt?.toISOString() ?? null, declineReason: request.declineReason, relationCaseId: request.relationCaseId, message: typeof data.message === "string" ? data.message : "", notificationAllowed: data.candidateEmailNotificationsEnabled === true && !/^private-.*@goodissima\.local$/i.test(data.candidateEmail), answers, attachments }];
+  });
+  const requestCaseIds = new Set(relationRequests.flatMap((request) => request.relationCaseId ? [request.relationCaseId] : []));
+  const legacyCases = link.cases.filter((relationCase) => !requestCaseIds.has(relationCase.id));
+  const responseCount = relationRequests.length + legacyCases.length;
+  const pendingResponseCount = relationRequests.filter((request) => request.status === "PENDING").length;
+  const acceptedResponseCount = relationRequests.filter((request) => request.status === "ACCEPTED").length;
+  const declinedResponseCount = relationRequests.filter((request) => request.status === "DECLINED").length;
   const steps = Array.from(new Set(fields.map((field) => field.step || 1)))
     .sort((a, b) => a - b)
     .map((step) => ({
@@ -274,13 +294,16 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
             <p className="mt-1 text-sm text-slate-500">Consultez les réponses envoyées depuis ce formulaire.</p>
           </div>
           <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-            {link.cases.length} réponse{link.cases.length > 1 ? "s" : ""}
+            {responseCount} réponse{responseCount > 1 ? "s" : ""}
           </span>
         </div>
 
-        {link.cases.length === 0 ? (
+        {responseCount === 0 ? (
           <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucune réponse pour le moment.</p>
-        ) : (
+        ) : (<>
+          <p className="mt-4 text-sm text-slate-600">{pendingResponseCount} en attente · {acceptedResponseCount} acceptée{acceptedResponseCount > 1 ? "s" : ""} · {declinedResponseCount} refusée{declinedResponseCount > 1 ? "s" : ""}</p>
+          {relationRequests.length ? <RelationRequestsPanel requests={relationRequests} gLinkId={link.id} /> : null}
+          {legacyCases.length ? (
           <div className="mt-5 overflow-hidden rounded-xl border">
             <div className="hidden grid-cols-[1.35fr_1.4fr_0.95fr_0.9fr_1fr_1fr_1.1fr_auto] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid">
               <span>Candidat</span>
@@ -293,7 +316,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
               <span className="text-right">Action</span>
             </div>
             <div className="divide-y">
-              {link.cases.map((relationCase) => {
+              {legacyCases.map((relationCase) => {
                 const candidateEmail =
                   relationCase.candidateEmailNotificationsEnabled ||
                   relationCase.candidateEmail.endsWith("@goodissima.local")
@@ -344,8 +367,8 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
                 );
               })}
             </div>
-          </div>
-        )}
+          </div>) : null}
+        </>)}
       </section>
 
       <details data-boussole-id="simple-link-form" className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">

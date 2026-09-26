@@ -23,14 +23,14 @@ function payload(value: Prisma.JsonValue | null): PublicRelationRequestPayload {
   return item as PublicRelationRequestPayload;
 }
 
-export async function acceptPublicRelationRequest(client: PrismaClient, input: { requestId: string; actorUserId: string; actorEmail: string }) {
+export async function acceptPublicRelationRequest(client: PrismaClient, input: { requestId: string; actorUserId: string; actorEmail: string; gLinkId?: string }) {
   return client.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`public-relation-request:${input.requestId}`}, 0))`;
     const request = await tx.publicCaseCreationRequest.findUnique({
       where: { id: input.requestId },
       include: { gLink: { select: { id: true, ownerId: true, title: true } } },
     });
-    if (!request || request.gLink.ownerId !== input.actorUserId) throw new Error("RELATION_REQUEST_NOT_FOUND");
+    if (!request || request.gLink.ownerId !== input.actorUserId || (input.gLinkId && request.gLinkId !== input.gLinkId)) throw new Error("RELATION_REQUEST_NOT_FOUND");
     if (request.status === "ACCEPTED" && request.relationCaseId) return { requestId: request.id, relationCaseId: request.relationCaseId, replayed: true };
     if (request.status !== "PENDING" || request.relationCaseId) throw new Error("RELATION_REQUEST_NOT_PENDING");
     const data = payload(request.requestPayload);
@@ -52,14 +52,16 @@ export async function acceptPublicRelationRequest(client: PrismaClient, input: {
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
-export async function declinePublicRelationRequest(client: PrismaClient, input: { requestId: string; actorUserId: string; actorEmail: string; reason?: string }) {
+export async function declinePublicRelationRequest(client: PrismaClient, input: { requestId: string; actorUserId: string; actorEmail: string; reason?: string; gLinkId?: string }) {
+  const reason = input.reason?.trim() ?? "";
+  if (reason.length < 3 || reason.length > 500) throw new Error("RELATION_REQUEST_INVALID_REASON");
   return client.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`public-relation-request:${input.requestId}`}, 0))`;
     const request = await tx.publicCaseCreationRequest.findUnique({ where: { id: input.requestId }, include: { gLink: { select: { ownerId: true } } } });
-    if (!request || request.gLink.ownerId !== input.actorUserId) throw new Error("RELATION_REQUEST_NOT_FOUND");
+    if (!request || request.gLink.ownerId !== input.actorUserId || (input.gLinkId && request.gLinkId !== input.gLinkId)) throw new Error("RELATION_REQUEST_NOT_FOUND");
     if (request.status === "DECLINED") return { requestId: request.id, replayed: true };
     if (request.status !== "PENDING" || request.relationCaseId) throw new Error("RELATION_REQUEST_NOT_PENDING");
-    await tx.publicCaseCreationRequest.update({ where: { id: request.id }, data: { status: "DECLINED", decidedAt: new Date(), decidedByUserId: input.actorUserId, declineReason: input.reason?.trim().slice(0, 500) || null } });
+    await tx.publicCaseCreationRequest.update({ where: { id: request.id }, data: { status: "DECLINED", decidedAt: new Date(), decidedByUserId: input.actorUserId, declineReason: reason } });
     await tx.auditLog.create({ data: { actorEmail: input.actorEmail, eventType: "RELATION_REQUEST_DECLINED", metadata: { requestId: request.id } } });
     return { requestId: request.id, replayed: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

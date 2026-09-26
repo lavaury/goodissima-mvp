@@ -37,7 +37,7 @@ export async function getPendingRelationRequestAttentionForUser(userId: string):
       title: row.gLink.title,
       candidateName,
       createdAt: row.createdAt,
-      href: `/relations#relation-request-${encodeURIComponent(row.id)}`,
+      href: `/links/${encodeURIComponent(row.gLinkId)}#relation-request-${encodeURIComponent(row.id)}`,
     }];
   });
 }

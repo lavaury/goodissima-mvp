@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 type Attachment = { storageKey?: unknown; fileName?: unknown };
 export async function GET(_request: Request, { params }: { params: { requestId: string; index: string } }) {
   const owner = await getCurrentPrismaUser();
-  const pending = await prisma.publicCaseCreationRequest.findFirst({ where: { id: params.requestId, status: "PENDING", gLink: { ownerId: owner.id } }, select: { requestPayload: true } });
+  const pending = await prisma.publicCaseCreationRequest.findFirst({ where: { id: params.requestId, status: { in: ["PENDING", "ACCEPTED", "DECLINED"] }, gLink: { ownerId: owner.id } }, select: { requestPayload: true } });
   if (!pending) return NextResponse.json({ error: "Pièce jointe introuvable." }, { status: 404 });
   const payload = pending.requestPayload && typeof pending.requestPayload === "object" && !Array.isArray(pending.requestPayload) ? pending.requestPayload as Record<string, unknown> : {};
   const attachments = Array.isArray(payload.attachments) ? payload.attachments as Attachment[] : [];
