@@ -34,6 +34,7 @@ import { linkObjectLabel } from "@/lib/object-creation";
 import { isAutonomousModernOpportunity } from "@/lib/opportunities/opportunity-projection";
 import { Prisma } from "@prisma/client";
 import { RelationRequestsPanel, type RelationRequestView } from "@/components/RelationRequestsPanel";
+import { projectPublicRelationRequestHistory, relationRequestNotificationAuditTypes } from "@/lib/public-relation-request-history";
 
 type FieldOption = {
   label: string;
@@ -171,7 +172,7 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
           },
         },
       },
-      publicCaseCreationRequests: { where: { status: { in: ["PENDING", "ACCEPTED", "DECLINED"] }, requestPayload: { not: Prisma.DbNull } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, status: true, requestPayload: true, relationCaseId: true, createdAt: true, decidedAt: true, declineReason: true } },
+      publicCaseCreationRequests: { where: { status: { in: ["PENDING", "ACCEPTED", "DECLINED"] }, requestPayload: { not: Prisma.DbNull } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, status: true, requestPayload: true, relationCaseId: true, createdAt: true, decidedAt: true, decidedByUserId: true, declineReason: true, decidedByUser: { select: { name: true } }, relationCase: { select: { id: true, createdAt: true } } } },
     },
   });
 
@@ -179,6 +180,15 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
   if (isAutonomousModernOpportunity(link)) {
     redirect(`/opportunities/${encodeURIComponent(link.id)}`);
   }
+
+  const relationRequestAudits = link.publicCaseCreationRequests.length ? await prisma.auditLog.findMany({
+    where: {
+      eventType: { in: [...relationRequestNotificationAuditTypes] },
+      OR: link.publicCaseCreationRequests.map((request) => ({ metadata: { path: ["requestId"], equals: request.id } })),
+    },
+    select: { eventType: true, metadata: true, createdAt: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  }) : [];
 
   const activeFallbackVersion =
     !link.templateVersion && link.templateId ? await getActiveTemplateVersion(link.templateId) : null;
@@ -224,7 +234,8 @@ export default async function LinkCreatedPage({ params }: { params: { linkId: st
     const rawAnswers = submission?.answers && typeof submission.answers === "object" && !Array.isArray(submission.answers) ? submission.answers as Record<string, unknown> : {};
     const answers = Object.entries(rawAnswers).map(([key, value]) => ({ label: fieldLabels.get(key) ?? key, value: Array.isArray(value) ? value.join(", ") : value == null ? "" : typeof value === "object" ? "Réponse structurée" : String(value) }));
     const attachments = Array.isArray(data.attachments) ? data.attachments.flatMap((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).fileName === "string" ? [{ fileName: String((item as Record<string, unknown>).fileName) }] : []) : [];
-    return [{ id: request.id, candidateName: data.candidateName, createdAt: request.createdAt.toISOString(), status: request.status as RelationRequestView["status"], decidedAt: request.decidedAt?.toISOString() ?? null, declineReason: request.declineReason, relationCaseId: request.relationCaseId, message: typeof data.message === "string" ? data.message : "", notificationAllowed: data.candidateEmailNotificationsEnabled === true && !/^private-.*@goodissima\.local$/i.test(data.candidateEmail), answers, attachments }];
+    const history = projectPublicRelationRequestHistory(request, relationRequestAudits);
+    return [{ id: request.id, candidateName: data.candidateName, createdAt: request.createdAt.toISOString(), status: request.status as RelationRequestView["status"], decidedAt: request.decidedAt?.toISOString() ?? null, declineReason: request.declineReason, relationCaseId: request.relationCaseId, message: typeof data.message === "string" ? data.message : "", notificationAllowed: data.candidateEmailNotificationsEnabled === true && !/^private-.*@goodissima\.local$/i.test(data.candidateEmail), answers, attachments, history }];
   });
   const requestCaseIds = new Set(relationRequests.flatMap((request) => request.relationCaseId ? [request.relationCaseId] : []));
   const legacyCases = link.cases.filter((relationCase) => !requestCaseIds.has(relationCase.id));
