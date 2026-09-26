@@ -44,10 +44,20 @@ test("explanations expose safe human text and never raw JSON", () => {
 });
 
 test("picker shows source, date, counts, distinct runs and non-invitable link results", () => {
-  for (const text of ["Choisir les résultats à consulter", "Matching du lien", "Exécuté le", "Lié à ce Parcours", "Pourquoi ce résultat ?", "Non invitable directement", "Voir le lien source", "Voir le lien résultat"]) assert.match(panel, new RegExp(text));
+  for (const text of ["Matchings liés à ce Parcours", "Autres Matchings disponibles", "Matching du lien", "Exécuté le", "Lié à ce Parcours", "Pourquoi ce résultat ?", "Non invitable directement", "Voir le lien source", "Voir le lien résultat"]) assert.match(panel, new RegExp(text));
   assert.match(page, /getMatchingContextForJourneyParticipantPicker/);
   assert.match(page, /matchingContexts=\{matchingContexts\}/);
   assert.doesNotMatch(panel, /Matching #|Run 1234|MatchingRun\.id|MatchingResult\.id/);
+});
+
+test("only the newest related run is selected by default and external runs require a click", () => {
+  assert.match(panel, /useState\(relatedMatchingRuns\[0\]\?\.runId \?\? ""\)/);
+  assert.doesNotMatch(panel, /\?\? matchingContexts\[0\]/);
+  assert.match(panel, /relatedMatchingRuns\.map/);
+  assert.match(panel, /otherMatchingRuns\.map/);
+  assert.match(panel, /<details className="mt-4 rounded-lg border bg-white">/);
+  assert.match(panel, /Aucun Matching n’est actuellement lié à ce Parcours/);
+  assert.match(panel, /Aucun Matching disponible pour le moment/);
 });
 
 test("directory and direct invitation contracts remain present", () => {
