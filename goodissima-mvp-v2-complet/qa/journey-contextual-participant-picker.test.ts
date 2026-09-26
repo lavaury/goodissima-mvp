@@ -37,8 +37,8 @@ test("individual outcomes expose a delivery link only for newly invited people",
 });
 
 test("matching remains honest until a canonical person resolver exists", () => {
-  assert.match(panel, /Aucune personne issue du Matching n’est actuellement invitable/);
-  assert.match(panel, /Aucune identité n’est inférée/);
+  assert.match(panel, /Aucun de ces résultats ne correspond actuellement à une personne Goodissima pouvant être invitée directement/);
+  assert.match(panel, /Aucune identité personnelle n’est déduite automatiquement/);
   assert.match(runtime, /input\.source === "DIRECTORY" \?/);
   assert.doesNotMatch(panel, /fabricat|candidateEmail|DirectoryProfile\.create/i);
 });
