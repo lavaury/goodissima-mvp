@@ -105,7 +105,7 @@ function parseConditionalRules(rules: unknown): ConditionalRule[] {
     .filter((rule): rule is ConditionalRule => Boolean(rule));
 }
 
-export default async function PublicLinkPage({ params }: { params: { slug: string } }) {
+export default async function PublicLinkPage({ params, searchParams }: { params: { slug: string }; searchParams?: { context?: string | string[] } }) {
   const { locale } = getI18n();
   const link = await prisma.gLink.findUnique({
     where: { slug: params.slug },
@@ -116,7 +116,9 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
 
   const candidateCookie = cookies().get(`goodissima_candidate_${link.id}`)?.value;
 
-  if (candidateCookie) {
+  const publicContextOnly = searchParams?.context === "1";
+
+  if (candidateCookie && !publicContextOnly) {
     const existingCase = await prisma.relationCase.findFirst({
       where: {
         ...activeCandidateAccessWhere(candidateCookie),

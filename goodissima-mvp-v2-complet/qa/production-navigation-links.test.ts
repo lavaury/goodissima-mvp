@@ -24,10 +24,12 @@ test("a historical announcement needs positive snapshot evidence", () => {
 
 test("the case origin retains its route and uses a kind-specific label", () => {
   const component = source("components/RelationCaseWorkspace.tsx");
-  assert.match(component, /href=\{`\/links\/\$\{item\.gLink\.id\}`\}/);
-  assert.match(component, /originKind === "OPPORTUNITY" \? "Voir l'annonce"/);
-  assert.match(component, /originKind === "SIMPLE_LINK" \? "Voir le lien"/);
-  assert.match(component, /: "Voir l'origine"/);
+  const navigation = source("lib/relation-case-origin-navigation.ts");
+  assert.match(component, /href=\{originNavigation\.href\}/);
+  assert.match(navigation, /`\/links\/\$\{encodeURIComponent\(gLink\.id\)\}`/);
+  assert.match(navigation, /"Voir l'annonce d'origine"/);
+  assert.match(navigation, /"Voir le lien d'origine"/);
+  assert.match(navigation, /"Voir l'origine"/);
 });
 
 test("link detail uses the shared, valid logical parent with or without Workspace", () => {

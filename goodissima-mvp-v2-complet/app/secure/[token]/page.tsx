@@ -50,7 +50,7 @@ export default async function SecureCasePage({ params }: { params: { token: stri
 
   const [messagesResult, linkResult, templateResult, workspaceResult, ownerResult, supportingResult] = await Promise.allSettled([
     prisma.message.findMany({ where: { caseId: relationCaseId }, orderBy: { createdAt: "asc" } }),
-    prisma.gLink.findUnique({ where: { id: item.gLinkId }, select: { id: true, title: true, slug: true } }),
+    prisma.gLink.findUnique({ where: { id: item.gLinkId }, select: { id: true, title: true, slug: true, rules: true } }),
     item.templateId ? prisma.relationTemplate.findUnique({ where: { id: item.templateId }, select: { id: true } }) : Promise.resolve(null),
     item.workspaceId
       ? prisma.workspace.findUnique({ where: { id: item.workspaceId }, select: { id: true, name: true, slug: true, category: true, kind: true } })
@@ -95,7 +95,7 @@ export default async function SecureCasePage({ params }: { params: { token: stri
 
   const compatibleItem = {
     ...item,
-    gLink: gLink ?? { id: item.gLinkId, title: "Ancienne annonce", slug: null },
+    gLink: gLink ?? { id: item.gLinkId, title: "Ancienne annonce", slug: null, rules: null },
     workspace, messages, documents, communicationSessions, relationActions, auditLogs, relationEvents,
   };
 

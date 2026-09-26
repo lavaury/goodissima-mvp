@@ -38,8 +38,9 @@ import type {
 } from "@prisma/client";
 import Image from "next/image";
 import { isSimpleLink } from "@/lib/simple-link-fields";
+import { relationCaseOriginNavigation, type RelationCaseOriginKind } from "@/lib/relation-case-origin-navigation";
 
-export type RelationCaseOriginKind = "OPPORTUNITY" | "SIMPLE_LINK" | "UNKNOWN";
+export type { RelationCaseOriginKind } from "@/lib/relation-case-origin-navigation";
 
 type RelationCaseWorkspaceItem = {
   id: string;
@@ -584,6 +585,7 @@ export function RelationCaseWorkspace({
   const relationWritable = canWriteInRelation(item.governanceStatus);
   const governanceBlockedMessage = getRelationGovernanceBlockedMessage(item.governanceStatus);
   const isSimpleLinkCase = isSimpleLink(item.gLink.rules);
+  const originNavigation = relationCaseOriginNavigation({ senderType, gLink: item.gLink, originKind });
   const candidateIdentityState = resolveCandidateIdentityState({
     id: item.id,
     candidateName: item.candidateName,
@@ -645,7 +647,7 @@ export function RelationCaseWorkspace({
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-[#d6e7e8] bg-white p-4 text-sm">
         <span>Issu de : <strong>{item.gLink.title}</strong></span>
-        <Link href={`/links/${item.gLink.id}`} className="font-semibold text-[#247f88] underline">{originKind === "OPPORTUNITY" ? "Voir l'annonce" : originKind === "SIMPLE_LINK" ? "Voir le lien" : "Voir l'origine"}</Link>
+        {originNavigation.href ? <Link href={originNavigation.href} target={originNavigation.opensNewTab ? "_blank" : undefined} rel={originNavigation.opensNewTab ? "noreferrer" : undefined} className="font-semibold text-[#247f88] underline">{originNavigation.label}</Link> : <span className="font-semibold text-[#247f88]">{originNavigation.label}</span>}
       </div>
       {!isCandidateView ? (
         <details hidden data-dossier-tab-content="details" data-dossier-section="origin" data-boussole-disclosure="navigation" className="group mt-4 rounded-2xl border border-[#d6e7e8] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(47,52,55,0.055)]">

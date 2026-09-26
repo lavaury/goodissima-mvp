@@ -17,7 +17,8 @@ test("renders a minimal business header without the legacy dashboard return", ()
 
 test("uses the real GLink as the concise origin", () => {
   assert.match(workspace, /Issu de : <strong>\{item\.gLink\.title\}<\/strong>/);
-  assert.match(workspace, /href=\{`\/links\/\$\{item\.gLink\.id\}`\}/);
+  assert.match(workspace, /href=\{originNavigation\.href\}/);
+  assert.match(workspace, /relationCaseOriginNavigation\(\{ senderType, gLink: item\.gLink, originKind \}\)/);
   assert.doesNotMatch(workspace, /ProductLifecycle|ProductContextBanner|ProductObjectDefinition/);
 });
 
