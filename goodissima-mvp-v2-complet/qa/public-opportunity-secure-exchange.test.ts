@@ -67,7 +67,7 @@ test("the real cases route creates a pending request for a template-less opportu
     relationCase: { findMany: async () => [] },
     message: { create: async ({ data }: { data: Record<string, unknown> }) => { writes.push({ model: "message", data }); return { id: "message" }; } },
     document: { create: async () => { throw new Error("no document expected"); } },
-    publicCaseCreationRequest: { create: async ({ data }: { data: Record<string, unknown> }) => ({ id: "request", status: data.status }) },
+    publicCaseCreationRequest: { create: async ({ data }: { data: Record<string, unknown> }) => ({ id: "request", gLinkId: data.gLinkId, expiresAt: data.expiresAt, status: data.status }) },
     auditLog: { create: async () => ({ id: "audit" }) },
     $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx),
   };
@@ -83,6 +83,7 @@ test("the real cases route creates a pending request for a template-less opportu
     "@/lib/prisma": { prisma },
     "@/lib/public-case-contract": { readPublicCaseRequest: async (req: { json: () => Promise<Record<string, unknown>> }) => ({ ok: true, body: await req.json() }), validateExpectedAnswerCount: () => true },
     "@/lib/public-case-idempotency": { readPublicCaseIdempotencyKey: () => ({ ok: true, key: null }) },
+    "@/lib/public-relation-request-followup": { publicRelationRequestFollowUpUrl: () => "/demande/follow-up-token" },
     "@/lib/pending-public-attachments": { readPendingAttachmentTickets: () => [] },
     "@/lib/public-case-rate-limit": { checkPublicCaseCreationLimit: async () => ({ allowed: true }), publicCaseSourceRateLimitEntries: () => [], publicCaseTargetRateLimitEntries: () => [] },
     "@/lib/public-request-source": { getPublicRequestSource: () => "unknown", pseudonymizePublicRequestSource: () => "source-hash", pseudonymizePublicRateLimitKey: () => "target-hash" },
@@ -110,7 +111,7 @@ test("the real cases route creates a pending request for a template-less opportu
 
   const response = await route.POST({ json: async () => ({ gLinkId: "opportunity", message: "Bonjour" }) });
   assert.equal(response.status, 202);
-  assert.deepEqual(await response.json(), { requestId: "request", status: "PENDING" });
+  assert.deepEqual(await response.json(), { requestId: "request", status: "PENDING", followUpUrl: "/demande/follow-up-token" });
   assert.equal(writes.some((write) => write.model === "case"), false);
   assert.equal(writes.some((write) => write.model === "message"), false);
   assert.deepEqual(notifications, []);

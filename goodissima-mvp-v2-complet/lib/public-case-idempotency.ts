@@ -94,5 +94,6 @@ export async function reservePublicCaseRequest(client: IdempotencyClient, input:
   if (!request) return reservePublicCaseRequest(client, { ...input, now });
   if (request.payloadHash !== input.payloadHash) return { kind: "CONFLICT" as const, request };
   if (request.status === "COMPLETED" && request.relationCaseId) return { kind: "COMPLETED" as const, request };
+  if (request.status === "PENDING" && request.requestPayload != null) return { kind: "FOLLOW_UP" as const, request };
   return { kind: "PENDING" as const, request };
 }

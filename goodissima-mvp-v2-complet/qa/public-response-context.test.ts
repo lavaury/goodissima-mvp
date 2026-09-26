@@ -20,7 +20,7 @@ test("simple links show title, optional description and distinct welcome without
 
 test("modern and legacy opportunities reuse compact public-only context", () => {
   assert.match(context, /Vous répondez à cette annonce/);
-  assert.match(context, /Voir l’annonce complète/);
+  assert.match(context, /↑ Remonter au contexte complet/);
   assert.match(page, /<PublicOpportunityCard/);
   assert.match(page, /<PublicResponseContext[^>]*kind=\{isSimpleLink/);
   assert.match(autonomous, /id="public-link-context"/);

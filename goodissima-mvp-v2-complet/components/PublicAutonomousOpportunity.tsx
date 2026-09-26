@@ -12,7 +12,7 @@ export function PublicAutonomousOpportunity({ gLinkId, title, description, proje
     ...(criteria.locations?.length ? [{ label: "Lieu", value: criteria.locations.join(", ") }] : []),
     ...(criteria.terms?.length ? [{ label: "Critères", value: criteria.terms.join(", ") }] : []),
   ];
-  return <article id="public-link-context" className="rounded-3xl border bg-white p-6 shadow-sm sm:p-9">
+  return <article id="public-link-context" tabIndex={-1} className="scroll-mt-6 rounded-3xl border bg-white p-6 shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-cyan-300 sm:p-9">
     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#247f88]">Opportunité</p>
     <h1 className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">{title}</h1>
     <dl className="mt-7 grid gap-4 sm:grid-cols-2">

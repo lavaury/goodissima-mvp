@@ -9,6 +9,7 @@ import {
   createCandidateAccessToken,
 } from "@/lib/candidate-access";
 import { sendNewDocumentEmail } from "@/lib/email";
+import { publicRelationRequestFollowUpUrl } from "@/lib/public-relation-request-followup";
 import { createRelationEvent } from "@/lib/events";
 import { createNotificationOnce, messageNotificationKey, relationCaseNotificationKey } from "@/lib/notification-repository";
 import { maybeSendNotificationEmail } from "@/lib/notification-email";
@@ -427,6 +428,7 @@ export async function POST(req: Request) {
           ),
         };
       }
+      if (claim.kind === "FOLLOW_UP") return { kind: "RESPONSE" as const, response: NextResponse.json({ requestId: claim.request.id, status: "PENDING", followUpUrl: publicRelationRequestFollowUpUrl(claim.request) }, { status: 202 }) };
       if (claim.kind === "COMPLETED") {
         const relationCase = await prisma.relationCase.findUnique({
           where: { id: claim.request.relationCaseId! },
@@ -892,7 +894,7 @@ export async function POST(req: Request) {
     ? await prisma.publicCaseCreationRequest.update({
         where: { id: idempotencyClaim.requestId },
         data: { requestPayload, requesterIdentityId: resolvedCandidateIdentityId, status: "PENDING" },
-        select: { id: true, status: true },
+        select: { id: true, gLinkId: true, expiresAt: true, status: true },
       })
     : await prisma.publicCaseCreationRequest.create({
         data: {
@@ -904,12 +906,12 @@ export async function POST(req: Request) {
           status: "PENDING",
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
-        select: { id: true, status: true },
+        select: { id: true, gLinkId: true, expiresAt: true, status: true },
       });
   await prisma.auditLog.create({
     data: { actorEmail: relationActorEmail || null, eventType: "RELATION_REQUEST_CREATED", metadata: { requestId: pendingRequest.id, gLinkId: gLink.id } },
   });
-  return NextResponse.json({ requestId: pendingRequest.id, status: pendingRequest.status }, { status: 202 });
+  return NextResponse.json({ requestId: pendingRequest.id, status: pendingRequest.status, followUpUrl: publicRelationRequestFollowUpUrl(pendingRequest) }, { status: 202 });
 
   /* Historical immediate materialization intentionally disabled by
      RELATION-EXPLICIT-ACCEPTANCE-01. Kept temporarily in this commit's diff

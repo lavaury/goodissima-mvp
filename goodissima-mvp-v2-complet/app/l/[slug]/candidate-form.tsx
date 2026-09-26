@@ -360,7 +360,9 @@ export default function CandidateForm({
 
       const relationCase = await res.json();
       if (relationCase?.status === "PENDING" && typeof relationCase.requestId === "string") {
-        toast.success(wantsNotifications ? "Demande envoyée. Le destinataire doit l’examiner. Vous serez prévenu par e-mail de sa décision." : "Demande envoyée. Le destinataire doit l’examiner. Vous n’avez pas demandé de notification par e-mail.");
+        if (typeof relationCase.followUpUrl !== "string" || !relationCase.followUpUrl.startsWith("/demande/")) throw new Error("La demande a été envoyée, mais son suivi sécurisé est indisponible.");
+        toast.success("Demande envoyée.");
+        router.push(relationCase.followUpUrl);
         return;
       }
       const candidateAccessToken =

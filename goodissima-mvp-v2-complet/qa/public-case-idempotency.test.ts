@@ -70,6 +70,8 @@ test("atomic reservation returns one winner, pending retries, conflicts and comp
   assert.deepEqual([first.kind, second.kind].sort(), ["PENDING", "RESERVED"]);
   const row = rows.get("link:key-hash");
   assert.equal(row.expiresAt.getTime() - input.now.getTime(), PUBLIC_CASE_IDEMPOTENCY_TTL_MS);
+  row.requestPayload = { candidateName: "Ada" };
+  assert.equal((await reservePublicCaseRequest(client, input)).kind, "FOLLOW_UP");
   assert.equal((await reservePublicCaseRequest(client, { ...input, payloadHash: "different" })).kind, "CONFLICT");
   row.status = "COMPLETED";
   row.relationCaseId = "case-1";

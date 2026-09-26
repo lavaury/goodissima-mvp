@@ -1,3 +1,5 @@
+"use client";
+
 type ResponseContextDetail = { label: string; value: string };
 
 export function PublicResponseContext({
@@ -23,6 +25,6 @@ export function PublicResponseContext({
     {description ? <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-slate-700">{description}</p> : null}
     {distinctWelcome ? <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-slate-700">{distinctWelcome}</p> : null}
     {details.length ? <dl className="mt-3 flex flex-wrap gap-2">{details.slice(0, 4).map((detail) => <div key={`${detail.label}-${detail.value}`} className="rounded-lg bg-white px-3 py-2 text-xs"><dt className="text-slate-500">{detail.label}</dt><dd className="mt-0.5 font-semibold text-slate-800">{detail.value}</dd></div>)}</dl> : null}
-    <a href="#public-link-context" className="mt-4 inline-block text-sm font-semibold text-cyan-900 underline underline-offset-2">{kind === "SIMPLE_LINK" ? "Voir le contexte complet" : "Voir l’annonce complète"}</a>
+    <a href="#public-link-context" onClick={(event) => { event.preventDefault(); const target = document.getElementById("public-link-context"); target?.scrollIntoView({ behavior: "smooth", block: "start" }); target?.focus({ preventScroll: true }); }} className="mt-4 inline-block text-sm font-semibold text-cyan-900 underline underline-offset-2">↑ Remonter au contexte complet</a>
   </aside>;
 }

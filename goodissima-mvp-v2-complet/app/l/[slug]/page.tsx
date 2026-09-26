@@ -192,7 +192,7 @@ export default async function PublicLinkPage({ params }: { params: { slug: strin
         </p>
       </div>
 
-      <div id="public-link-context">{isSimpleLink ? (
+      <div id="public-link-context" tabIndex={-1} className="scroll-mt-6 rounded-3xl outline-none focus-visible:ring-4 focus-visible:ring-cyan-300">{isSimpleLink ? (
           <PublicSimpleLinkCard title={link.title} description={link.description} welcomeMessage={welcomeMessage} expiresAt={link.expiresAt} />
         ) : (
           <PublicOpportunityCard title={link.title} city={link.city} description={link.description} presentation={presentation} />
