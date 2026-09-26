@@ -49,6 +49,10 @@ export function opportunityOwnerHref(link: OpportunityGLinkInput & { id: string 
     : `/links/${encodeURIComponent(link.id)}`;
 }
 
+export function relationRequestOwnerHref(link: OpportunityGLinkInput & { id: string }, requestId: string): string {
+  return `${opportunityOwnerHref(link)}#relation-request-${encodeURIComponent(requestId)}`;
+}
+
 export function buildOpportunityRulesV1(baseRules: unknown, intent: Omit<OpportunityRulesV1, "schemaVersion">): Record<string, unknown> {
   const base = asGLinkRules(baseRules);
   if (base.simpleLink === true) throw new Error("A simple link cannot be reclassified as an opportunity.");

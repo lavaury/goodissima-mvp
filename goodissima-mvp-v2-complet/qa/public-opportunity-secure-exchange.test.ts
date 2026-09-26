@@ -29,6 +29,8 @@ test("the CTA creates a case once and opens only the returned secure token", () 
   assert.match(component, /fetch\("\/api\/cases"/);
   assert.match(component, /JSON\.stringify\(\{ gLinkId, message: message\.trim\(\) \}\)/);
   assert.match(component, /router\.push\(`\/secure\/\$\{encodeURIComponent\(token\)\}`\)/);
+  assert.match(component, /router\.push\(result\.followUpUrl\)/);
+  assert.match(component, /result\.followUpUrl\.startsWith\("\/demande\/"\)/);
   for (const injected of ["ownerId", "workspaceId", "templateId", "matchingEnabled", "governanceStatus", "relationStatus"]) {
     assert.ok(!component.includes(injected), injected);
   }

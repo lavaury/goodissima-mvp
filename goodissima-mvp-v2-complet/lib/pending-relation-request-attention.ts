@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { relationRequestOwnerHref } from "@/lib/opportunities/opportunity-projection";
 
 const MAX_PENDING_ATTENTION = 500;
 
@@ -26,7 +27,7 @@ export async function getPendingRelationRequestAttentionForUser(userId: string):
     where: { status: "PENDING", gLink: { ownerId: userId }, requestPayload: { not: Prisma.DbNull } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: MAX_PENDING_ATTENTION,
-    select: { id: true, gLinkId: true, requestPayload: true, createdAt: true, gLink: { select: { title: true } } },
+    select: { id: true, gLinkId: true, requestPayload: true, createdAt: true, gLink: { select: { id: true, title: true, rules: true, templateId: true } } },
   });
   return rows.flatMap((row) => {
     const candidateName = candidateNameFromPayload(row.requestPayload);
@@ -37,7 +38,7 @@ export async function getPendingRelationRequestAttentionForUser(userId: string):
       title: row.gLink.title,
       candidateName,
       createdAt: row.createdAt,
-      href: `/links/${encodeURIComponent(row.gLinkId)}#relation-request-${encodeURIComponent(row.id)}`,
+      href: relationRequestOwnerHref(row.gLink, row.id),
     }];
   });
 }

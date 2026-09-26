@@ -10,12 +10,13 @@ const rules = projection.buildOpportunityRulesV1({}, { type: "NEED", criteria: {
 } });
 
 function page(ownerId: string, row: any) {
+  const hydratedRow = row ? { publicCaseCreationRequests: [], cases: [], ...row } : null;
   return loadTestModule<any>("app/(connected)/opportunities/[id]/page.tsx", {
     "react/jsx-runtime": jsx,
     "next/link": ({ children, ...props }: any) => jsx.jsx("a", { ...props, children }),
     "next/navigation": { notFound: () => { throw Error("NOT_FOUND"); }, redirect: (href: string) => { throw Error(`REDIRECT ${href}`); } },
     "@/lib/auth": { getCurrentPrismaUser: async () => ({ id: ownerId }) },
-    "@/lib/prisma": { prisma: { gLink: { findFirst: async ({ where }: any) => row && row.id === where.id && row.ownerId === where.ownerId ? row : null } } },
+    "@/lib/prisma": { prisma: { gLink: { findFirst: async ({ where }: any) => hydratedRow && hydratedRow.id === where.id && hydratedRow.ownerId === where.ownerId ? hydratedRow : null }, auditLog: { findMany: async () => [] } } },
     "@/lib/opportunities/opportunity-projection": projection,
     "@/components/AutonomousOpportunityManager": { AutonomousOpportunityManager: () => null },
     "@/lib/public-app-url": { getPublicAppUrl: () => "https://preview.example" },
@@ -24,6 +25,10 @@ function page(ownerId: string, row: any) {
     "@/components/SpatialNavigationContext": { PageNavigationContext: () => null },
     "@/lib/opportunities/matching/matchable-projection": { isStructuredOpportunityMatchingEnabled: () => false },
     "@/components/OpportunityMatchingControls": { OpportunityMatchingControls: () => null },
+    "@/components/RelationRequestsPanel": { RelationRequestsPanel: () => null },
+    "@/lib/public-relation-request-history": { relationRequestNotificationAuditTypes: [] },
+    "@/lib/relation-request-view": { projectRelationRequestView: () => null },
+    "@prisma/client": { Prisma: { DbNull: Symbol("DbNull") } },
   }).default;
 }
 

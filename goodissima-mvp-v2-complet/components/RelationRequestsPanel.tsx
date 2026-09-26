@@ -2,9 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { PublicRelationRequestHistoryEvent } from "@/lib/public-relation-request-history";
-
-export type RelationRequestView = { id: string; candidateName: string; createdAt: string; status: "PENDING" | "ACCEPTED" | "DECLINED"; decidedAt: string | null; declineReason: string | null; relationCaseId: string | null; message: string; notificationAllowed: boolean; answers: Array<{ label: string; value: string }>; attachments: Array<{ fileName: string }>; history: PublicRelationRequestHistoryEvent[] };
+import type { RelationRequestView } from "@/lib/relation-request-view";
+export type { RelationRequestView } from "@/lib/relation-request-view";
 const labels = { PENDING: "EN ATTENTE", ACCEPTED: "ACCEPTÉE", DECLINED: "REFUSÉE" } as const;
 
 export function RelationRequestsPanel({ requests, gLinkId }: { requests: RelationRequestView[]; gLinkId: string }) {

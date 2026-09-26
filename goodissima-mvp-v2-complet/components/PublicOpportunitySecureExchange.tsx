@@ -34,7 +34,8 @@ export function PublicOpportunitySecureExchange({ gLinkId, context }: { gLinkId:
       });
       const result = await response.json();
       if (response.ok && result.status === "PENDING" && typeof result.requestId === "string") {
-        setRequested(true); setPending(false); return;
+        if (typeof result.followUpUrl !== "string" || !result.followUpUrl.startsWith("/demande/")) throw new Error("Le suivi sécurisé de la demande est indisponible.");
+        setRequested(true); router.push(result.followUpUrl); return;
       }
       const token = typeof result.candidateAccessToken === "string" ? result.candidateAccessToken : "";
       if (!response.ok || !token) {

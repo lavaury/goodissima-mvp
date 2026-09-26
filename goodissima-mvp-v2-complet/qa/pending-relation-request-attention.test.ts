@@ -8,12 +8,13 @@ const read = (path: string) => readFileSync(path, "utf8");
 test("pending attention is owner-scoped, pending-only and exposes a minimal projection", async () => {
   const calls: any[] = [];
   const rows = [
-    { id: "request-1", gLinkId: "old-link", createdAt: new Date("2026-09-25T10:00:00Z"), requestPayload: { candidateName: "Ada", candidateEmail: "ada@example.test", privateAnswer: "secret" }, gLink: { title: "Lien existant" } },
-    { id: "invalid", gLinkId: "old-link", createdAt: new Date(), requestPayload: { candidateName: "Incomplet" }, gLink: { title: "Lien existant" } },
+    { id: "request-1", gLinkId: "old-link", createdAt: new Date("2026-09-25T10:00:00Z"), requestPayload: { candidateName: "Ada", candidateEmail: "ada@example.test", privateAnswer: "secret" }, gLink: { id: "old-link", title: "Lien existant", rules: { simpleLink: true }, templateId: null } },
+    { id: "invalid", gLinkId: "old-link", createdAt: new Date(), requestPayload: { candidateName: "Incomplet" }, gLink: { id: "old-link", title: "Lien existant", rules: { simpleLink: true }, templateId: null } },
   ];
   const projection = loadTestModule<any>("lib/pending-relation-request-attention.ts", {
     "@prisma/client": { Prisma: { DbNull: Symbol("DbNull") } },
     "@/lib/prisma": { prisma: { publicCaseCreationRequest: { findMany: async (query: any) => { calls.push(query); return rows; } } } },
+    "@/lib/opportunities/opportunity-projection": { relationRequestOwnerHref: (link: any, requestId: string) => `/links/${link.id}#relation-request-${requestId}` },
   });
   const result = await projection.getPendingRelationRequestAttentionForUser("owner-1");
   assert.deepEqual(calls[0].where.status, "PENDING");

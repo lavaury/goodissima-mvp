@@ -5,6 +5,7 @@ import {
   buildOpportunityRulesV1,
   isAutonomousModernOpportunity,
   opportunityOwnerHref,
+  relationRequestOwnerHref,
 } from "../lib/opportunities/opportunity-projection.ts";
 import { linkObjectLabel } from "../lib/object-creation.ts";
 
@@ -21,6 +22,7 @@ const referenceModernOpportunity = {
 test("modern autonomous opportunities use the owner route from every entry point", () => {
   assert.equal(isAutonomousModernOpportunity(referenceModernOpportunity), true);
   assert.equal(opportunityOwnerHref(referenceModernOpportunity), "/opportunities/cmtyadhxh000ds341o17bo000");
+  assert.equal(relationRequestOwnerHref(referenceModernOpportunity, "request-1"), "/opportunities/cmtyadhxh000ds341o17bo000#relation-request-request-1");
 
   const linkPage = readFileSync(new URL("../app/(connected)/links/[linkId]/page.tsx", import.meta.url), "utf8");
   assert.match(linkPage, /if \(isAutonomousModernOpportunity\(link\)\)/);
@@ -32,6 +34,7 @@ test("simple links stay on the link owner route and keep their factual label", (
   const simple = { id: "simple", templateId: null, rules: { simpleLink: true } };
   assert.equal(isAutonomousModernOpportunity(simple), false);
   assert.equal(opportunityOwnerHref(simple), "/links/simple");
+  assert.equal(relationRequestOwnerHref(simple, "request-1"), "/links/simple#relation-request-request-1");
   assert.equal(linkObjectLabel(simple.rules), "Lien simple");
 });
 
