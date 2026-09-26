@@ -44,6 +44,6 @@ test("pending status refreshes lightly and never auto-redirects", () => {
 
 test("context link scrolls and focuses the stable target", () => {
   const context = read("components/PublicResponseContext.tsx"); const page = read("app/l/[slug]/page.tsx");
-  assert.match(context, /↑ Remonter au contexte complet/); assert.match(context, /scrollIntoView/); assert.match(context, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(context, /↑ Voir l’annonce complète/); assert.match(context, /scrollIntoView/); assert.match(context, /focus\(\{ preventScroll: true \}\)/);
   assert.match(page, /id="public-link-context" tabIndex=\{-1\}/); assert.match(page, /scroll-mt-6/);
 });
